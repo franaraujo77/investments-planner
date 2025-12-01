@@ -6,10 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel outdated runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build & Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     env:
       # Dummy URL for build - no actual DB connection during CI build
@@ -34,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check formatting
+        run: pnpm format:check
+
       - name: Run linter
         run: pnpm lint
 
@@ -42,3 +51,7 @@ jobs:
 
       - name: Build application
         run: pnpm build
+
+      # TODO: Add test execution once vitest is configured (Story 1.7)
+      # - name: Run tests
+      #   run: pnpm test
