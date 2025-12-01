@@ -17,9 +17,9 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { Resource } from "@opentelemetry/resources";
 import {
-  ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-  ATTR_DEPLOYMENT_ENVIRONMENT_NAME,
+  SEMRESATTRS_SERVICE_NAME,
+  SEMRESATTRS_SERVICE_VERSION,
+  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } from "@opentelemetry/semantic-conventions";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { getTracerConfig, type TracerConfig } from "./config";
@@ -42,9 +42,9 @@ let sdkInstance: NodeSDK | null = null;
  */
 function createResource(config: TracerConfig): Resource {
   return new Resource({
-    [ATTR_SERVICE_NAME]: config.serviceName,
-    [ATTR_SERVICE_VERSION]: config.serviceVersion,
-    [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: config.environment,
+    [SEMRESATTRS_SERVICE_NAME]: config.serviceName,
+    [SEMRESATTRS_SERVICE_VERSION]: config.serviceVersion,
+    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: config.environment,
   });
 }
 

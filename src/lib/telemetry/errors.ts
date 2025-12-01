@@ -66,11 +66,19 @@ export function setSpanError(span: Span, error: unknown): void {
   });
 
   // Record exception event with full details
-  span.recordException({
-    name: errorDetails.type,
-    message: errorDetails.message,
-    stack: errorDetails.stackTrace,
-  });
+  // Only include stack if it exists (recordException requires string, not undefined)
+  if (errorDetails.stackTrace) {
+    span.recordException({
+      name: errorDetails.type,
+      message: errorDetails.message,
+      stack: errorDetails.stackTrace,
+    });
+  } else {
+    span.recordException({
+      name: errorDetails.type,
+      message: errorDetails.message,
+    });
+  }
 
   // Also add as attributes for easier querying
   span.setAttribute(EXCEPTION_TYPE, errorDetails.type);
@@ -89,7 +97,7 @@ interface ErrorDetails {
   /** Error message */
   message: string;
   /** Stack trace (if available) */
-  stackTrace?: string;
+  stackTrace: string | undefined;
 }
 
 /**
@@ -126,12 +134,14 @@ function extractErrorDetails(error: unknown): ErrorDetails {
     return {
       type: "Error",
       message: error,
+      stackTrace: undefined,
     };
   }
 
   return {
     type: "Error",
     message: String(error),
+    stackTrace: undefined,
   };
 }
 
