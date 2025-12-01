@@ -1,0 +1,228 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>5</storyId>
+    <title>OpenTelemetry Instrumentation</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-5-opentelemetry-instrumentation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>OpenTelemetry tracing at job level</iWant>
+    <soThat>I can monitor overnight processing performance and debug calculation issues</soThat>
+    <tasks>
+      <task id="1" ac="4">Install OpenTelemetry dependencies (@opentelemetry/api, sdk-node, exporter-trace-otlp-http, resources, semantic-conventions)</task>
+      <task id="2" ac="4,5">Create telemetry configuration module (src/lib/telemetry/config.ts) - TracerConfig interface, environment reading</task>
+      <task id="3" ac="4,5">Create OpenTelemetry SDK setup (src/lib/telemetry/setup.ts) - NodeSDK, BatchSpanProcessor, OTLP HTTP exporter</task>
+      <task id="4" ac="4">Create Next.js instrumentation file (src/instrumentation.ts) - register() hook, server-only guard</task>
+      <task id="5" ac="1,2,3">Create tracer utilities (src/lib/telemetry/tracer.ts) - getTracer, createJobSpan, withSpan wrapper</task>
+      <task id="6" ac="1,2">Create span attribute helpers (src/lib/telemetry/attributes.ts) - SpanAttributeKeys, addTimingAttribute, addJobAttributes</task>
+      <task id="7" ac="3">Create error handling utilities (src/lib/telemetry/errors.ts) - setSpanError with SpanStatusCode.ERROR</task>
+      <task id="8" ac="1-5">Create index exports (src/lib/telemetry/index.ts) - public API only, no setup functions</task>
+      <task id="9" ac="1,2,3">Create example job instrumentation pattern (src/lib/telemetry/examples/instrumented-job.ts)</task>
+      <task id="10" ac="4">Test: Tracer initialization (tests/unit/telemetry/setup.test.ts)</task>
+      <task id="11" ac="1,2">Test: Span creation and attributes (tests/unit/telemetry/tracer.test.ts)</task>
+      <task id="12" ac="3">Test: Error handling (tests/unit/telemetry/errors.test.ts)</task>
+      <task id="13" ac="5">Test: Non-blocking export (tests/unit/telemetry/export.test.ts)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Job execution creates a span with: job name, user_id, duration, asset_count</criterion>
+    <criterion id="2">Span attributes capture timing breakdown (fetch_rates_ms, fetch_prices_ms, compute_scores_ms)</criterion>
+    <criterion id="3">Errors set span status to ERROR with message</criterion>
+    <criterion id="4">Traces export to OTLP HTTP endpoint (configurable via OTEL_EXPORTER_OTLP_ENDPOINT)</criterion>
+    <criterion id="5">Export is non-blocking (doesn't slow down jobs)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-002: Event-Sourced Calculations with OpenTelemetry</section>
+        <snippet>Use OpenTelemetry for distributed tracing across calculation pipeline. Job-level spans with attributes for timing breakdown, not nested spans per Devil's Advocate review.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>OpenTelemetry Integration</section>
+        <snippet>Fire-and-forget export pattern. Span attributes capture timing (fetch_rates_ms, fetch_prices_ms, compute_scores_ms). Errors set span status to ERROR.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Story 1.5: OpenTelemetry Instrumentation</section>
+        <snippet>Setup in lib/telemetry/index.ts. Use job-level spans, not per-operation (per Architecture ADR). Configure via OTEL_EXPORTER_OTLP_ENDPOINT env var.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.5: OpenTelemetry Instrumentation</section>
+        <snippet>As a developer, I want OpenTelemetry tracing at job level, so that I can monitor overnight processing performance.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/1-4-event-sourced-calculation-pipeline.md</path>
+        <title>Previous Story</title>
+        <section>Dev Agent Record - Completion Notes</section>
+        <snippet>Created EventStore, CalculationPipeline, and replay modules. Established patterns for service classes, module exports, and test structure. Use similar patterns for telemetry module.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/events/index.ts</path>
+        <kind>module-exports</kind>
+        <symbol>Events module</symbol>
+        <lines>1-81</lines>
+        <reason>Reference for module export pattern - grouped exports with section comments, default instances</reason>
+      </file>
+      <file>
+        <path>src/lib/events/calculation-pipeline.ts</path>
+        <kind>service-class</kind>
+        <symbol>CalculationPipeline</symbol>
+        <lines>74-100</lines>
+        <reason>Reference for class pattern with dependency injection, JSDoc comments, fire-and-forget async calls</reason>
+      </file>
+      <file>
+        <path>src/lib/events/event-store.ts</path>
+        <kind>service-class</kind>
+        <symbol>EventStore</symbol>
+        <reason>Reference for service class pattern with database integration</reason>
+      </file>
+      <file>
+        <path>src/lib/events/types.ts</path>
+        <kind>type-definitions</kind>
+        <symbol>CalculationEvent types</symbol>
+        <reason>Reference for TypeScript type definition patterns and type guards</reason>
+      </file>
+      <file>
+        <path>src/lib/calculations/decimal-config.ts</path>
+        <kind>config</kind>
+        <symbol>Decimal configuration</symbol>
+        <reason>Reference for configuration module pattern</reason>
+      </file>
+      <file>
+        <path>src/lib/auth/constants.ts</path>
+        <kind>constants</kind>
+        <symbol>AUTH_CONSTANTS</symbol>
+        <reason>Reference for constants definition pattern</reason>
+      </file>
+      <file>
+        <path>tests/unit/events/event-store.test.ts</path>
+        <kind>test</kind>
+        <symbol>EventStore tests</symbol>
+        <reason>Reference for unit test structure and mocking patterns</reason>
+      </file>
+      <file>
+        <path>tests/unit/events/calculation-pipeline.test.ts</path>
+        <kind>test</kind>
+        <symbol>CalculationPipeline tests</symbol>
+        <reason>Reference for testing async service classes</reason>
+      </file>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.5" />
+        <package name="react" version="19.2.0" />
+        <package name="typescript" version="^5" />
+        <package name="drizzle-orm" version="^0.44.7" />
+        <package name="decimal.js" version="^10.6.0" />
+        <package name="jose" version="^6.1.2" />
+        <package name="zod" version="^4.1.13" />
+      </ecosystem>
+      <ecosystem name="to-install" note="OpenTelemetry packages - Task 1">
+        <package name="@opentelemetry/api" version="^1.x" />
+        <package name="@opentelemetry/sdk-node" version="^0.x" />
+        <package name="@opentelemetry/exporter-trace-otlp-http" version="^0.x" />
+        <package name="@opentelemetry/resources" version="^0.x" />
+        <package name="@opentelemetry/semantic-conventions" version="^1.x" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="ADR-002">Job-level spans ONLY - do NOT create nested spans per operation. Use span attributes for timing breakdown.</constraint>
+    <constraint source="ADR-002">Fire-and-forget export - BatchSpanProcessor must not block job execution. Export failures should be logged but not thrown.</constraint>
+    <constraint source="Architecture">Graceful degradation - if OTEL_EXPORTER_OTLP_ENDPOINT is not set, telemetry should be disabled without errors.</constraint>
+    <constraint source="Security">Never include sensitive data in spans - no passwords, tokens, PII, or full portfolio values. Use userId (UUID) only.</constraint>
+    <constraint source="TypeScript">Strict mode enabled with noUncheckedIndexedAccess. All code must handle nullability properly.</constraint>
+    <constraint source="Patterns">Follow existing module patterns from src/lib/events/ - JSDoc comments, grouped exports, default instances.</constraint>
+    <constraint source="Next.js">instrumentation.ts is Next.js convention - must export register() function, server-only execution.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>TracerConfig</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface TracerConfig { serviceName: string; endpoint?: string; enabled: boolean; }</signature>
+      <path>src/lib/telemetry/config.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>SpanAttributeKeys</name>
+      <kind>TypeScript const object</kind>
+      <signature>const SpanAttributeKeys = { JOB_NAME, USER_ID, ASSET_COUNT, DURATION_MS, FETCH_RATES_MS, FETCH_PRICES_MS, COMPUTE_SCORES_MS } as const</signature>
+      <path>src/lib/telemetry/attributes.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>createJobSpan</name>
+      <kind>function</kind>
+      <signature>function createJobSpan(name: string, attributes?: SpanAttributes): Span</signature>
+      <path>src/lib/telemetry/tracer.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>withSpan</name>
+      <kind>function</kind>
+      <signature>async function withSpan&lt;T&gt;(name: string, fn: (span: Span) =&gt; Promise&lt;T&gt;): Promise&lt;T&gt;</signature>
+      <path>src/lib/telemetry/tracer.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>setSpanError</name>
+      <kind>function</kind>
+      <signature>function setSpanError(span: Span, error: Error): void</signature>
+      <path>src/lib/telemetry/errors.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>addTimingAttribute</name>
+      <kind>function</kind>
+      <signature>function addTimingAttribute(span: Span, name: string, startTime: number): void</signature>
+      <path>src/lib/telemetry/attributes.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>OpenTelemetry API</name>
+      <kind>external library</kind>
+      <signature>import { trace, SpanStatusCode, Span } from '@opentelemetry/api'</signature>
+      <path>node_modules/@opentelemetry/api</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests use Vitest framework (to be installed in Story 1-7). Test files go in tests/unit/ mirroring src/ structure.
+      Use describe/it blocks with clear test names. Mock external dependencies.
+      Follow patterns from tests/unit/events/ for async service testing.
+      Tests should verify behavior, not implementation details.
+    </standards>
+    <locations>
+      <location>tests/unit/telemetry/setup.test.ts</location>
+      <location>tests/unit/telemetry/tracer.test.ts</location>
+      <location>tests/unit/telemetry/attributes.test.ts</location>
+      <location>tests/unit/telemetry/errors.test.ts</location>
+      <location>tests/unit/telemetry/export.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test that createJobSpan creates a span with the specified name and attributes (job_name, user_id, asset_count)</idea>
+      <idea ac="2">Test that addTimingAttribute calculates correct duration from startTime to now</idea>
+      <idea ac="2">Test that span accepts timing attributes (fetch_rates_ms, fetch_prices_ms, compute_scores_ms)</idea>
+      <idea ac="3">Test that setSpanError sets SpanStatusCode.ERROR with error message</idea>
+      <idea ac="3">Test that setSpanError records error event with stack trace</idea>
+      <idea ac="4">Test that setupTelemetry reads OTEL_EXPORTER_OTLP_ENDPOINT from env</idea>
+      <idea ac="4">Test that missing endpoint disables export gracefully (no errors)</idea>
+      <idea ac="5">Test that BatchSpanProcessor is used (not SimpleSpanProcessor)</idea>
+      <idea ac="5">Test that export failures don't block job completion</idea>
+      <idea ac="5">Mock OTLP endpoint timeout and verify job still completes</idea>
+    </ideas>
+  </tests>
+</story-context>

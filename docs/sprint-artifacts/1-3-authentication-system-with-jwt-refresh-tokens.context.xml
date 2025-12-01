@@ -1,0 +1,311 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3</storyId>
+    <title>Authentication System with JWT + Refresh Tokens</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-3-authentication-system-with-jwt-refresh-tokens.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>secure authentication with JWT and refresh token rotation</iWant>
+    <soThat>user sessions are secure and support fintech requirements</soThat>
+    <tasks>
+      <task id="1" ac="1,3">Install authentication dependencies (jose, bcrypt)</task>
+      <task id="2" ac="1,4">Create auth types and constants (JwtPayload, expiry times)</task>
+      <task id="3" ac="3">Implement password hashing utilities (bcrypt cost 12)</task>
+      <task id="4" ac="1">Implement JWT utilities (sign/verify with jose)</task>
+      <task id="5" ac="4">Implement cookie utilities (httpOnly, secure, sameSite)</task>
+      <task id="6" ac="5">Implement rate limiting (5 attempts/hour per IP)</task>
+      <task id="7" ac="1,4">Create auth middleware (verifyAuth, withAuth)</task>
+      <task id="8" ac="1,3,4">POST /api/auth/register endpoint</task>
+      <task id="9" ac="1,3,4,5">POST /api/auth/login endpoint</task>
+      <task id="10" ac="2">POST /api/auth/logout endpoint</task>
+      <task id="11" ac="1,2,4">POST /api/auth/refresh endpoint (token rotation)</task>
+      <task id="12" ac="1">GET /api/auth/me endpoint</task>
+      <task id="13" ac="1,2">Auth service integration layer</task>
+      <task id="14" ac="3">Test: Password hashing</task>
+      <task id="15" ac="1">Test: JWT utilities</task>
+      <task id="16" ac="5">Test: Rate limiting</task>
+      <task id="17" ac="1,2,3,4,5">Test: Auth endpoints integration</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">User login with valid credentials returns JWT access token (15min expiry) and refresh token (7d expiry)</criterion>
+    <criterion id="2">Refresh tokens are rotated on each use (old token invalidated in database)</criterion>
+    <criterion id="3">Passwords are hashed with bcrypt (cost factor 12)</criterion>
+    <criterion id="4">Session cookies are httpOnly, secure, sameSite: strict</criterion>
+    <criterion id="5">Failed login attempts are rate-limited (5 per hour per IP)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Story 1.3: Authentication System with JWT + Refresh Tokens</section>
+        <snippet>JWT payload: { userId, email, iat, exp }. Access token: 15min expiry. Refresh token: 7d expiry (30d if remember me). bcrypt cost factor 12. Cookies: httpOnly, secure, sameSite=strict. Rate limit: 5 per hour per IP.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Authentication Endpoints</section>
+        <snippet>POST /api/auth/register { email, password, name? } → { user, accessToken }. POST /api/auth/login { email, password, remember? } → { user, accessToken }. POST /api/auth/logout → { success: true }. POST /api/auth/refresh → { accessToken }. GET /api/auth/me → { user }.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Auth Middleware</section>
+        <snippet>verifyAuth(request): extracts access_token from cookie, verifies JWT signature, returns Session or null. withAuth(handler): wraps route handler, returns 401 if not authenticated.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Security Requirements</section>
+        <snippet>Password hashing: bcrypt, cost factor 12. Token signing: HS256 with secret. Cookie security: httpOnly, secure, sameSite=strict. Rate limiting: 100 req/min per IP on auth routes. SQL injection: Drizzle parameterized queries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Authentication Pattern</section>
+        <snippet>Custom JWT authentication with refresh token rotation. Access tokens short-lived (15min), refresh tokens long-lived (7d). Tokens stored as httpOnly cookies to prevent XSS. Refresh tokens rotated on each use to prevent reuse attacks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.3: Authentication System with JWT + Refresh Tokens</section>
+        <snippet>Reference Next.js SaaS Starter patterns. JWT payload: { userId, email, iat, exp }. Store refresh tokens in database with device fingerprint. Middleware in lib/auth/middleware.ts.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>users, refreshTokens</symbol>
+        <lines>30-65</lines>
+        <reason>Database tables already exist - users table with passwordHash, refreshTokens table with tokenHash, userId FK, expiresAt</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>types</kind>
+        <symbol>User, NewUser, RefreshToken, NewRefreshToken</symbol>
+        <lines>129-133</lines>
+        <reason>Type exports for database operations - use these types in auth service</reason>
+      </file>
+      <file>
+        <path>src/lib/db/index.ts</path>
+        <kind>client</kind>
+        <symbol>db</symbol>
+        <lines>1-36</lines>
+        <reason>Database client with Drizzle ORM - import and use for auth queries</reason>
+      </file>
+      <file>
+        <path>.env.example</path>
+        <kind>config</kind>
+        <symbol>AUTH_SECRET, AUTH_TOKEN_EXPIRY, AUTH_REFRESH_TOKEN_EXPIRY</symbol>
+        <lines>22-30</lines>
+        <reason>Environment variables for JWT already defined - use AUTH_SECRET for signing</reason>
+      </file>
+      <file>
+        <path>docs/sprint-artifacts/1-2-database-schema-with-fintech-types.md</path>
+        <kind>reference</kind>
+        <symbol>previous-story</symbol>
+        <reason>Previous story learnings - path aliases configured, TypeScript strict mode, Drizzle ORM patterns</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <existing>
+          <package version="16.0.5">next</package>
+          <package version="19.2.0">react</package>
+          <package version="^0.44.7">drizzle-orm</package>
+          <package version="^3.4.7">postgres</package>
+          <package version="^4.1.13">zod</package>
+          <package version="^5">typescript</package>
+        </existing>
+        <required>
+          <package>jose</package>
+          <package>bcrypt</package>
+        </required>
+        <requiredDev>
+          <package>@types/bcrypt</package>
+        </requiredDev>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="tech-spec">Access token expiry MUST be 15 minutes (900 seconds)</constraint>
+    <constraint source="tech-spec">Refresh token expiry MUST be 7 days (604800 seconds), 30 days if remember me</constraint>
+    <constraint source="tech-spec">bcrypt cost factor MUST be 12 (not lower for security, not higher for performance)</constraint>
+    <constraint source="tech-spec">All auth cookies MUST have httpOnly=true, secure=true (prod), sameSite='strict'</constraint>
+    <constraint source="tech-spec">Rate limit MUST be 5 failed attempts per hour per IP before blocking</constraint>
+    <constraint source="tech-spec">Refresh tokens MUST be rotated on each use (delete old, create new)</constraint>
+    <constraint source="architecture">JWT algorithm MUST use HS256 with secret from AUTH_SECRET env var</constraint>
+    <constraint source="typescript">All code MUST handle nullability properly (TypeScript strict mode)</constraint>
+    <constraint source="conventions">Use @/lib/auth path alias for imports</constraint>
+    <constraint source="database">Use existing db client from @/lib/db for all database operations</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>JwtPayload</name>
+      <kind>typescript-interface</kind>
+      <signature>
+interface JwtPayload {
+  userId: string;
+  email: string;
+  iat: number;
+  exp: number;
+}
+      </signature>
+      <path>src/lib/auth/types.ts</path>
+    </interface>
+    <interface>
+      <name>RefreshTokenPayload</name>
+      <kind>typescript-interface</kind>
+      <signature>
+interface RefreshTokenPayload {
+  userId: string;
+  tokenId: string;
+  iat: number;
+  exp: number;
+}
+      </signature>
+      <path>src/lib/auth/types.ts</path>
+    </interface>
+    <interface>
+      <name>Session</name>
+      <kind>typescript-interface</kind>
+      <signature>
+interface Session {
+  userId: string;
+  email: string;
+}
+      </signature>
+      <path>src/lib/auth/types.ts</path>
+    </interface>
+    <interface>
+      <name>Auth Middleware</name>
+      <kind>function</kind>
+      <signature>
+async function verifyAuth(request: NextRequest): Promise&lt;Session | null&gt;
+function withAuth(handler: AuthenticatedHandler): RouteHandler
+      </signature>
+      <path>src/lib/auth/middleware.ts</path>
+    </interface>
+    <interface>
+      <name>Password Utilities</name>
+      <kind>function</kind>
+      <signature>
+async function hashPassword(password: string): Promise&lt;string&gt;
+async function verifyPassword(password: string, hash: string): Promise&lt;boolean&gt;
+      </signature>
+      <path>src/lib/auth/password.ts</path>
+    </interface>
+    <interface>
+      <name>JWT Utilities</name>
+      <kind>function</kind>
+      <signature>
+async function signAccessToken(payload: Omit&lt;JwtPayload, 'iat' | 'exp'&gt;): Promise&lt;string&gt;
+async function signRefreshToken(payload: Omit&lt;RefreshTokenPayload, 'iat' | 'exp'&gt;): Promise&lt;string&gt;
+async function verifyAccessToken(token: string): Promise&lt;JwtPayload&gt;
+async function verifyRefreshToken(token: string): Promise&lt;RefreshTokenPayload&gt;
+      </signature>
+      <path>src/lib/auth/jwt.ts</path>
+    </interface>
+    <interface>
+      <name>Rate Limit Utilities</name>
+      <kind>function</kind>
+      <signature>
+function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number }
+function recordFailedAttempt(ip: string): void
+function clearRateLimit(ip: string): void
+      </signature>
+      <path>src/lib/auth/rate-limit.ts</path>
+    </interface>
+    <interface>
+      <name>Register Endpoint</name>
+      <kind>api-route</kind>
+      <signature>
+POST /api/auth/register
+Request: { email: string; password: string; name?: string }
+Response: { user: User; accessToken: string }
+Errors: 409 Conflict (email exists), 400 Bad Request (validation)
+      </signature>
+      <path>src/app/api/auth/register/route.ts</path>
+    </interface>
+    <interface>
+      <name>Login Endpoint</name>
+      <kind>api-route</kind>
+      <signature>
+POST /api/auth/login
+Request: { email: string; password: string; remember?: boolean }
+Response: { user: User; accessToken: string }
+Errors: 401 Unauthorized (invalid credentials), 429 Too Many Requests (rate limit)
+      </signature>
+      <path>src/app/api/auth/login/route.ts</path>
+    </interface>
+    <interface>
+      <name>Logout Endpoint</name>
+      <kind>api-route</kind>
+      <signature>
+POST /api/auth/logout
+Request: (none - uses cookies)
+Response: { success: true }
+Errors: 401 Unauthorized (not authenticated)
+      </signature>
+      <path>src/app/api/auth/logout/route.ts</path>
+    </interface>
+    <interface>
+      <name>Refresh Endpoint</name>
+      <kind>api-route</kind>
+      <signature>
+POST /api/auth/refresh
+Request: (none - uses refresh_token cookie)
+Response: { accessToken: string }
+Errors: 401 Unauthorized (invalid/expired refresh token)
+      </signature>
+      <path>src/app/api/auth/refresh/route.ts</path>
+    </interface>
+    <interface>
+      <name>Me Endpoint</name>
+      <kind>api-route</kind>
+      <signature>
+GET /api/auth/me
+Request: (none - uses access_token cookie)
+Response: { user: User }
+Errors: 401 Unauthorized (not authenticated)
+      </signature>
+      <path>src/app/api/auth/me/route.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing framework deferred to Story 1.7 (Vitest + Playwright Testing Setup). For this story, create test files in preparation. Use Vitest for unit tests in tests/unit/auth/ directory. Focus tests on password hashing, JWT operations, and rate limiting. All tests should run with `pnpm test` once framework is set up.
+    </standards>
+    <locations>
+      <location>tests/unit/auth/</location>
+      <location>tests/integration/</location>
+    </locations>
+    <ideas>
+      <idea ac="3">Test hashPassword produces different hash each time (salt working)</idea>
+      <idea ac="3">Test verifyPassword returns true for correct password, false for incorrect</idea>
+      <idea ac="1">Test signAccessToken creates token with correct expiry (15min)</idea>
+      <idea ac="1">Test verifyAccessToken fails for expired token</idea>
+      <idea ac="1">Test verifyAccessToken fails for invalid signature</idea>
+      <idea ac="2">Test token rotation: old refresh token invalid after use</idea>
+      <idea ac="4">Test cookies have httpOnly, secure, sameSite attributes</idea>
+      <idea ac="5">Test first 5 login attempts allowed, 6th blocked</idea>
+      <idea ac="5">Test rate limit resets after 1 hour</idea>
+      <idea ac="1,2,3,4,5">Test full auth flow: register → login → me → refresh → logout</idea>
+    </ideas>
+  </tests>
+</story-context>

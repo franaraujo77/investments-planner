@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Direction Showcase - Investments Planner</title>
+    <style>
+        :root {
+            /* Slate Professional Theme */
+            --primary: #0f172a;
+            --primary-foreground: #f8fafc;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --error: #ef4444;
+            --error-light: #fee2e2;
+            --slate-50: #f8fafc;
+            --slate-100: #f1f5f9;
+            --slate-200: #e2e8f0;
+            --slate-300: #cbd5e1;
+            --slate-400: #94a3b8;
+            --slate-500: #64748b;
+            --slate-600: #475569;
+            --slate-700: #334155;
+            --slate-800: #1e293b;
+            --slate-900: #0f172a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--slate-100);
+            color: var(--slate-900);
+            line-height: 1.6;
+        }
+
+        .page-header {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: var(--slate-400);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .directions-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 40px;
+            padding: 40px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .direction-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .direction-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--slate-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .direction-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--slate-900);
+        }
+
+        .direction-subtitle {
+            color: var(--slate-500);
+            font-size: 0.875rem;
+            margin-top: 4px;
+        }
+
+        .direction-tag {
+            background: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .direction-tag.recommended {
+            background: var(--success);
+        }
+
+        .mockup-container {
+            padding: 24px;
+            background: var(--slate-50);
+            min-height: 400px;
+        }
+
+        /* Direction 1: Command Center */
+        .mockup-command-center {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            height: 380px;
+        }
+
+        .sidebar-mock {
+            background: var(--primary);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .sidebar-logo {
+            color: white;
+            font-weight: 600;
+            font-size: 1.125rem;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            color: var(--slate-400);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid var(--slate-200);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--slate-900);
+            margin-top: 4px;
+        }
+
+        .metric-change {
+            font-size: 0.75rem;
+            color: var(--success);
+            margin-top: 2px;
+        }
+
+        .metric-change.negative {
+            color: var(--error);
+        }
+
+        .recommendations-panel {
+            background: white;
+            border-radius: 10px;
+            border: 1px solid var(--slate-200);
+            flex: 1;
+            padding: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            color: var(--slate-900);
+        }
+
+        .rec-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .rec-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: var(--slate-50);
+            border-radius: 8px;
+        }
+
+        .rec-asset {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .asset-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .asset-name {
+            font-weight: 500;
+        }
+
+        .asset-class {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+        }
+
+        .rec-amount {
+            text-align: right;
+        }
+
+        .amount-value {
+            font-weight: 600;
+            color: var(--success);
+        }
+
+        .amount-score {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+        }
+
+        /* Direction 2: Focus Mode */
+        .mockup-focus {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .focus-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .focus-greeting {
+            color: var(--slate-500);
+            font-size: 0.875rem;
+        }
+
+        .focus-question {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--slate-900);
+            margin-top: 4px;
+        }
+
+        .focus-summary {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 2px solid var(--accent);
+        }
+
+        .summary-label {
+            font-size: 0.875rem;
+            color: var(--slate-500);
+        }
+
+        .summary-amount {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--slate-900);
+            margin: 8px 0;
+        }
+
+        .summary-breakdown {
+            color: var(--slate-600);
+            font-size: 0.875rem;
+        }
+
+        .focus-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .focus-action {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--slate-200);
+        }
+
+        .action-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .action-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--slate-100);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--slate-700);
+        }
+
+        .action-details h4 {
+            font-weight: 500;
+            color: var(--slate-900);
+        }
+
+        .action-details p {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+        }
+
+        .action-amount {
+            font-weight: 600;
+            color: var(--success);
+            font-size: 1.125rem;
+        }
+
+        .focus-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        /* Direction 3: Cards Grid */
+        .mockup-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .cards-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cards-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .cards-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--slate-200);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: var(--slate-600);
+        }
+
+        .tab.active {
+            background: white;
+            color: var(--slate-900);
+            font-weight: 500;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .asset-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--slate-200);
+        }
+
+        .asset-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .asset-card-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent), #60a5fa);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .asset-score {
+            background: var(--success-light);
+            color: var(--success);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .asset-score.medium {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .asset-card-name {
+            font-weight: 600;
+            color: var(--slate-900);
+            margin-bottom: 4px;
+        }
+
+        .asset-card-class {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+            margin-bottom: 16px;
+        }
+
+        .asset-card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid var(--slate-100);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--slate-900);
+        }
+
+        .asset-card-action {
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--success-light);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .action-label {
+            font-size: 0.75rem;
+            color: var(--slate-600);
+        }
+
+        .action-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--success);
+        }
+
+        /* Direction 4: Table View */
+        .mockup-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--slate-200);
+        }
+
+        .table-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--slate-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .table-filters {
+            display: flex;
+            gap: 12px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--slate-200);
+            border-radius: 8px;
+            background: white;
+            font-size: 0.875rem;
+            color: var(--slate-600);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 24px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--slate-50);
+            border-bottom: 1px solid var(--slate-200);
+        }
+
+        td {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--slate-100);
+        }
+
+        .table-asset {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .table-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--slate-100);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--slate-600);
+        }
+
+        .table-name {
+            font-weight: 500;
+        }
+
+        .table-ticker {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .score-high {
+            background: var(--success-light);
+            color: #059669;
+        }
+
+        .score-medium {
+            background: var(--warning-light);
+            color: #d97706;
+        }
+
+        .allocation-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--slate-200);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .allocation-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        .recommend-cell {
+            font-weight: 600;
+            color: var(--success);
+        }
+
+        /* Direction 5: Split View */
+        .mockup-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: 380px;
+        }
+
+        .split-panel {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--slate-200);
+            overflow: hidden;
+        }
+
+        .split-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--slate-200);
+            font-weight: 600;
+        }
+
+        .split-content {
+            padding: 20px;
+        }
+
+        .portfolio-chart {
+            height: 120px;
+            background: linear-gradient(135deg, var(--slate-100) 0%, var(--slate-50) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .chart-bar {
+            width: 40px;
+            background: var(--accent);
+            border-radius: 4px 4px 0 0;
+            opacity: 0.7;
+        }
+
+        .chart-bar:nth-child(1) { height: 60%; }
+        .chart-bar:nth-child(2) { height: 80%; background: var(--success); }
+        .chart-bar:nth-child(3) { height: 45%; }
+        .chart-bar:nth-child(4) { height: 90%; background: var(--success); }
+        .chart-bar:nth-child(5) { height: 70%; }
+
+        .portfolio-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .portfolio-stat {
+            text-align: center;
+            padding: 12px;
+            background: var(--slate-50);
+            border-radius: 8px;
+        }
+
+        .portfolio-stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--slate-900);
+        }
+
+        .portfolio-stat-label {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+        }
+
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .action-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: var(--slate-50);
+            border-radius: 10px;
+        }
+
+        .action-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .action-item-icon {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--slate-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: var(--slate-600);
+        }
+
+        .action-item-name {
+            font-weight: 500;
+        }
+
+        .action-item-score {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+        }
+
+        .action-item-amount {
+            font-weight: 600;
+            color: var(--success);
+        }
+
+        .split-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--slate-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .split-total {
+            font-weight: 600;
+        }
+
+        .split-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Direction 6: Minimal */
+        .mockup-minimal {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px 0;
+        }
+
+        .minimal-header {
+            margin-bottom: 32px;
+        }
+
+        .minimal-date {
+            font-size: 0.875rem;
+            color: var(--slate-500);
+        }
+
+        .minimal-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--slate-900);
+            margin-top: 4px;
+        }
+
+        .minimal-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .minimal-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--slate-200);
+        }
+
+        .minimal-item:last-child {
+            border-bottom: none;
+        }
+
+        .minimal-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .minimal-number {
+            width: 28px;
+            height: 28px;
+            background: var(--slate-100);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--slate-600);
+        }
+
+        .minimal-name {
+            font-weight: 500;
+            color: var(--slate-900);
+        }
+
+        .minimal-meta {
+            font-size: 0.875rem;
+            color: var(--slate-500);
+        }
+
+        .minimal-amount {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--slate-900);
+        }
+
+        .minimal-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 0;
+            margin-top: 8px;
+        }
+
+        .minimal-total-label {
+            font-size: 1rem;
+            color: var(--slate-600);
+        }
+
+        .minimal-total-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--slate-900);
+        }
+
+        .minimal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .minimal-btn {
+            flex: 1;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .minimal-btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .minimal-btn-secondary {
+            background: white;
+            color: var(--slate-700);
+            border: 1px solid var(--slate-200);
+        }
+
+        /* Traits section */
+        .direction-traits {
+            padding: 20px 24px;
+            background: var(--slate-50);
+            border-top: 1px solid var(--slate-200);
+        }
+
+        .traits-title {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .traits-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .trait {
+            background: white;
+            border: 1px solid var(--slate-200);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--slate-600);
+        }
+
+        .trait.pro {
+            border-color: var(--success);
+            color: var(--success);
+            background: var(--success-light);
+        }
+
+        .trait.con {
+            border-color: var(--warning);
+            color: #b45309;
+            background: var(--warning-light);
+        }
+
+        /* Recommendation */
+        .recommendation {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin: 40px 20px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 2px solid var(--accent);
+        }
+
+        .recommendation h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: var(--slate-900);
+        }
+
+        .recommendation p {
+            color: var(--slate-600);
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .recommendation-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .rec-option {
+            padding: 20px;
+            border: 2px solid var(--slate-200);
+            border-radius: 12px;
+            cursor: pointer;
+        }
+
+        .rec-option:hover {
+            border-color: var(--accent);
+        }
+
+        .rec-option.selected {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .rec-option h4 {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .rec-option p {
+            font-size: 0.875rem;
+            color: var(--slate-500);
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <h1>Design Direction Showcase</h1>
+        <p>Exploring different layout and interaction approaches for the core recommendation experience</p>
+    </header>
+
+    <div class="directions-grid">
+        <!-- Direction 1: Command Center -->
+        <div class="direction-card">
+            <div class="direction-header">
+                <div>
+                    <div class="direction-title">Direction 1: Command Center</div>
+                    <div class="direction-subtitle">Full dashboard with persistent sidebar navigation</div>
+                </div>
+                <span class="direction-tag recommended">Recommended</span>
+            </div>
+            <div class="mockup-container">
+                <div class="mockup-command-center">
+                    <div class="sidebar-mock">
+                        <div class="sidebar-logo">
+                            <span>IP</span> Investments Planner
+                        </div>
+                        <nav class="sidebar-nav">
+                            <div class="nav-item active">Dashboard</div>
+                            <div class="nav-item">Portfolio</div>
+                            <div class="nav-item">Assets</div>
+                            <div class="nav-item">Criteria</div>
+                            <div class="nav-item">History</div>
+                            <div class="nav-item">Settings</div>
+                        </nav>
+                    </div>
+                    <div class="main-content">
+                        <div class="metrics-row">
+                            <div class="metric-card">
+                                <div class="metric-label">Portfolio Value</div>
+                                <div class="metric-value">$124,850</div>
+                                <div class="metric-change">+2.4% this month</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Monthly Budget</div>
+                                <div class="metric-value">$2,000</div>
+                                <div class="metric-change">Ready to invest</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Assets Tracked</div>
+                                <div class="metric-value">18</div>
+                                <div class="metric-change">4 markets</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Health Score</div>
+                                <div class="metric-value">92%</div>
+                                <div class="metric-change negative">-1% from target</div>
+                            </div>
+                        </div>
+                        <div class="recommendations-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">November 2025 Recommendations</div>
+                            </div>
+                            <div class="rec-list">
+                                <div class="rec-item">
+                                    <div class="rec-asset">
+                                        <div class="asset-icon">VOO</div>
+                                        <div>
+                                            <div class="asset-name">Vanguard S&P 500</div>
+                                            <div class="asset-class">US Large Cap ETF</div>
+                                        </div>
+                                    </div>
+                                    <div class="rec-amount">
+                                        <div class="amount-value">+ $800</div>
+                                        <div class="amount-score">Score: 87</div>
+                                    </div>
+                                </div>
+                                <div class="rec-item">
+                                    <div class="rec-asset">
+                                        <div class="asset-icon" style="background: var(--success)">VWO</div>
+                                        <div>
+                                            <div class="asset-name">Vanguard Emerging</div>
+                                            <div class="asset-class">Emerging Markets ETF</div>
+                                        </div>
+                                    </div>
+                                    <div class="rec-amount">
+                                        <div class="amount-value">+ $650</div>
+                                        <div class="amount-score">Score: 82</div>
+                                    </div>
+                                </div>
+                                <div class="rec-item">
+                                    <div class="rec-asset">
+                                        <div class="asset-icon" style="background: var(--slate-600)">BND</div>
+                                        <div>
+                                            <div class="asset-name">Vanguard Total Bond</div>
+                                            <div class="asset-class">Fixed Income ETF</div>
+                                        </div>
+                                    </div>
+                                    <div class="rec-amount">
+                                        <div class="amount-value">+ $550</div>
+                                        <div class="amount-score">Score: 79</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="direction-traits">
+                <div class="traits-title">Characteristics</div>
+                <div class="traits-list">
+                    <span class="trait pro">Full context always visible</span>
+                    <span class="trait pro">Familiar dashboard pattern</span>
+                    <span class="trait pro">Easy navigation</span>
+                    <span class="trait">Best for desktop</span>
+                    <span class="trait con">More complex layout</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direction 2: Focus Mode -->
+        <div class="direction-card">
+            <div class="direction-header">
+                <div>
+                    <div class="direction-title">Direction 2: Focus Mode</div>
+                    <div class="direction-subtitle">Single-purpose view answering "What should I buy?"</div>
+                </div>
+                <span class="direction-tag">Minimal</span>
+            </div>
+            <div class="mockup-container">
+                <div class="mockup-focus">
+                    <div class="focus-header">
+                        <div class="focus-greeting">November 2025</div>
+                        <div class="focus-question">What should you invest?</div>
+                    </div>
+                    <div class="focus-summary">
+                        <div class="summary-label">Total recommended investment</div>
+                        <div class="summary-amount">$2,000</div>
+                        <div class="summary-breakdown">Distributed across 3 assets based on your criteria</div>
+                    </div>
+                    <div class="focus-actions">
+                        <div class="focus-action">
+                            <div class="action-left">
+                                <div class="action-icon">VOO</div>
+                                <div class="action-details">
+                                    <h4>Vanguard S&P 500 ETF</h4>
+                                    <p>US Large Cap - Score 87</p>
+                                </div>
+                            </div>
+                            <div class="action-amount">$800</div>
+                        </div>
+                        <div class="focus-action">
+                            <div class="action-left">
+                                <div class="action-icon">VWO</div>
+                                <div class="action-details">
+                                    <h4>Vanguard Emerging Markets</h4>
+                                    <p>Emerging Markets - Score 82</p>
+                                </div>
+                            </div>
+                            <div class="action-amount">$650</div>
+                        </div>
+                        <div class="focus-action">
+                            <div class="action-left">
+                                <div class="action-icon">BND</div>
+                                <div class="action-details">
+                                    <h4>Vanguard Total Bond</h4>
+                                    <p>Fixed Income - Score 79</p>
+                                </div>
+                            </div>
+                            <div class="action-amount">$550</div>
+                        </div>
+                    </div>
+                    <button class="focus-btn">Confirm & Record Investments</button>
+                </div>
+            </div>
+            <div class="direction-traits">
+                <div class="traits-title">Characteristics</div>
+                <div class="traits-list">
+                    <span class="trait pro">Maximum focus</span>
+                    <span class="trait pro">Answers core question directly</span>
+                    <span class="trait pro">Clean and simple</span>
+                    <span class="trait">Works on all devices</span>
+                    <span class="trait con">Limited context visible</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direction 3: Cards Grid -->
+        <div class="direction-card">
+            <div class="direction-header">
+                <div>
+                    <div class="direction-title">Direction 3: Asset Cards</div>
+                    <div class="direction-subtitle">Visual grid of assets with scores and recommendations</div>
+                </div>
+                <span class="direction-tag">Visual</span>
+            </div>
+            <div class="mockup-container">
+                <div class="mockup-cards">
+                    <div class="cards-header">
+                        <div class="cards-title">November Recommendations</div>
+                        <div class="cards-tabs">
+                            <div class="tab active">All</div>
+                            <div class="tab">Stocks</div>
+                            <div class="tab">Bonds</div>
+                            <div class="tab">REITs</div>
+                        </div>
+                    </div>
+                    <div class="cards-grid">
+                        <div class="asset-card">
+                            <div class="asset-card-header">
+                                <div class="asset-card-icon">VOO</div>
+                                <div class="asset-score">87</div>
+                            </div>
+                            <div class="asset-card-name">Vanguard S&P 500</div>
+                            <div class="asset-card-class">US Large Cap ETF</div>
+                            <div class="asset-card-stats">
+                                <div>
+                                    <div class="stat-label">Current</div>
+                                    <div class="stat-value">18.2%</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">Target</div>
+                                    <div class="stat-value">20.0%</div>
+                                </div>
+                            </div>
+                            <div class="asset-card-action">
+                                <div class="action-label">Invest</div>
+                                <div class="action-value">$800</div>
+                            </div>
+                        </div>
+                        <div class="asset-card">
+                            <div class="asset-card-header">
+                                <div class="asset-card-icon" style="background: linear-gradient(135deg, #10b981, #34d399)">VWO</div>
+                                <div class="asset-score">82</div>
+                            </div>
+                            <div class="asset-card-name">Vanguard Emerging</div>
+                            <div class="asset-card-class">Emerging Markets ETF</div>
+                            <div class="asset-card-stats">
+                                <div>
+                                    <div class="stat-label">Current</div>
+                                    <div class="stat-value">8.5%</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">Target</div>
+                                    <div class="stat-value">10.0%</div>
+                                </div>
+                            </div>
+                            <div class="asset-card-action">
+                                <div class="action-label">Invest</div>
+                                <div class="action-value">$650</div>
+                            </div>
+                        </div>
+                        <div class="asset-card">
+                            <div class="asset-card-header">
+                                <div class="asset-card-icon" style="background: linear-gradient(135deg, #64748b, #94a3b8)">BND</div>
+                                <div class="asset-score medium">79</div>
+                            </div>
+                            <div class="asset-card-name">Vanguard Total Bond</div>
+                            <div class="asset-card-class">Fixed Income ETF</div>
+                            <div class="asset-card-stats">
+                                <div>
+                                    <div class="stat-label">Current</div>
+                                    <div class="stat-value">14.8%</div>
+                                </div>
+                                <div>
+                                    <div class="stat-label">Target</div>
+                                    <div class="stat-value">15.0%</div>
+                                </div>
+                            </div>
+                            <div class="asset-card-action">
+                                <div class="action-label">Invest</div>
+                                <div class="action-value">$550</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="direction-traits">
+                <div class="traits-title">Characteristics</div>
+                <div class="traits-list">
+                    <span class="trait pro">Rich visual information</span>
+                    <span class="trait pro">Easy comparison</span>
+                    <span class="trait pro">Scannable at a glance</span>
+                    <span class="trait">Good for up to ~12 assets</span>
+                    <span class="trait con">Takes more space</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direction 4: Data Table -->
+        <div class="direction-card">
+            <div class="direction-header">
+                <div>
+                    <div class="direction-title">Direction 4: Data Table</div>
+                    <div class="direction-subtitle">Dense, sortable table for power users</div>
+                </div>
+                <span class="direction-tag">Data-dense</span>
+            </div>
+            <div class="mockup-container">
+                <div class="mockup-table">
+                    <div class="table-header">
+                        <div class="table-title">Portfolio Recommendations</div>
+                        <div class="table-filters">
+                            <button class="filter-btn">Class: All</button>
+                            <button class="filter-btn">Sort: Score</button>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Score</th>
+                                <th>Current</th>
+                                <th>Target</th>
+                                <th>Allocation</th>
+                                <th>Recommend</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="table-asset">
+                                        <div class="table-icon">VOO</div>
+                                        <div>
+                                            <div class="table-name">Vanguard S&P 500</div>
+                                            <div class="table-ticker">US Large Cap</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="score-badge score-high">87</span></td>
+                                <td>18.2%</td>
+                                <td>20.0%</td>
+                                <td>
+                                    <div class="allocation-bar">
+                                        <div class="allocation-fill" style="width: 91%"></div>
+                                    </div>
+                                </td>
+                                <td class="recommend-cell">+$800</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table-asset">
+                                        <div class="table-icon">VWO</div>
+                                        <div>
+                                            <div class="table-name">Vanguard Emerging</div>
+                                            <div class="table-ticker">Emerging Markets</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="score-badge score-high">82</span></td>
+                                <td>8.5%</td>
+                                <td>10.0%</td>
+                                <td>
+                                    <div class="allocation-bar">
+                                        <div class="allocation-fill" style="width: 85%"></div>
+                                    </div>
+                                </td>
+                                <td class="recommend-cell">+$650</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table-asset">
+                                        <div class="table-icon">BND</div>
+                                        <div>
+                                            <div class="table-name">Vanguard Total Bond</div>
+                                            <div class="table-ticker">Fixed Income</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="score-badge score-medium">79</span></td>
+                                <td>14.8%</td>
+                                <td>15.0%</td>
+                                <td>
+                                    <div class="allocation-bar">
+                                        <div class="allocation-fill" style="width: 98%"></div>
+                                    </div>
+                                </td>
+                                <td class="recommend-cell">+$550</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="table-asset">
+                                        <div class="table-icon">VNQ</div>
+                                        <div>
+                                            <div class="table-name">Vanguard Real Estate</div>
+                                            <div class="table-ticker">REITs</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="score-badge score-medium">74</span></td>
+                                <td>5.2%</td>
+                                <td>5.0%</td>
+                                <td>
+                                    <div class="allocation-bar">
+                                        <div class="allocation-fill" style="width: 104%"></div>
+                                    </div>
+                                </td>
+                                <td style="color: var(--slate-400)">Hold</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="direction-traits">
+                <div class="traits-title">Characteristics</div>
+                <div class="traits-list">
+                    <span class="trait pro">Maximum data density</span>
+                    <span class="trait pro">Easy sorting/filtering</span>
+                    <span class="trait pro">Scales to many assets</span>
+                    <span class="trait">Familiar spreadsheet feel</span>
+                    <span class="trait con">Less visual appeal</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direction 5: Split View -->
+        <div class="direction-card">
+            <div class="direction-header">
+                <div>
+                    <div class="direction-title">Direction 5: Split View</div>
+                    <div class="direction-subtitle">Portfolio context + action list side by side</div>
+                </div>
+                <span class="direction-tag">Balanced</span>
+            </div>
+            <div class="mockup-container">
+                <div class="mockup-split">
+                    <div class="split-panel">
+                        <div class="split-header">Portfolio Overview</div>
+                        <div class="split-content">
+                            <div class="portfolio-chart">
+                                <div class="chart-bar"></div>
+                                <div class="chart-bar"></div>
+                                <div class="chart-bar"></div>
+                                <div class="chart-bar"></div>
+                                <div class="chart-bar"></div>
+                            </div>
+                            <div class="portfolio-stats">
+                                <div class="portfolio-stat">
+                                    <div class="portfolio-stat-value">$124,850</div>
+                                    <div class="portfolio-stat-label">Total Value</div>
+                                </div>
+                                <div class="portfolio-stat">
+                                    <div class="portfolio-stat-value">+2.4%</div>
+                                    <div class="portfolio-stat-label">This Month</div>
+                                </div>
+                                <div class="portfolio-stat">
+                                    <div class="portfolio-stat-value">92%</div>
+                                    <div class="portfolio-stat-label">Health Score</div>
+                                </div>
+                                <div class="portfolio-stat">
+                                    <div class="portfolio-stat-value">18</div>
+                                    <div class="portfolio-stat-label">Assets</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="split-panel">
+                        <div class="split-header">November Actions</div>
+                        <div class="split-content">
+                            <div class="action-list">
+                                <div class="action-item">
+                                    <div class="action-item-left">
+                                        <div class="action-item-icon">VOO</div>
+                                        <div>
+                                            <div class="action-item-name">Vanguard S&P 500</div>
+                                            <div class="action-item-score">Score 87 - Under target</div>
+                                        </div>
+                                    </div>
+                                    <div class="action-item-amount">+$800</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-item-left">
+                                        <div class="action-item-icon">VWO</div>
+                                        <div>
+                                            <div class="action-item-name">Vanguard Emerging</div>
+                                            <div class="action-item-score">Score 82 - Under target</div>
+                                        </div>
+                                    </div>
+                                    <div class="action-item-amount">+$650</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-item-left">
+                                        <div class="action-item-icon">BND</div>
+                                        <div>
+                                            <div class="action-item-name">Vanguard Total Bond</div>
+                                            <div class="action-item-score">Score 79 - Near target</div>
+                                        </div>
+                                    </div>
+                                    <div class="action-item-amount">+$550</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="split-footer">
+                            <div class="split-total">Total: $2,000</div>
+                            <button class="split-btn">Confirm All</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="direction-traits">
+                <div class="traits-title">Characteristics</div>
+                <div class="traits-list">
+                    <span class="trait pro">Context + actions together</span>
+                    <span class="trait pro">Clear visual hierarchy</span>
+                    <span class="trait">Good for desktop</span>
+                    <span class="trait con">Needs horizontal space</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direction 6: Minimal List -->
+        <div class="direction-card">
+            <div class="direction-header">
+                <div>
+                    <div class="direction-title">Direction 6: Minimal List</div>
+                    <div class="direction-subtitle">Ultra-clean, Notion-inspired simplicity</div>
+                </div>
+                <span class="direction-tag">Simple</span>
+            </div>
+            <div class="mockup-container">
+                <div class="mockup-minimal">
+                    <div class="minimal-header">
+                        <div class="minimal-date">November 2025</div>
+                        <div class="minimal-title">Your Investment Plan</div>
+                    </div>
+                    <div class="minimal-list">
+                        <div class="minimal-item">
+                            <div class="minimal-left">
+                                <div class="minimal-number">1</div>
+                                <div>
+                                    <div class="minimal-name">Vanguard S&P 500 ETF</div>
+                                    <div class="minimal-meta">VOO - US Large Cap - Score 87</div>
+                                </div>
+                            </div>
+                            <div class="minimal-amount">$800</div>
+                        </div>
+                        <div class="minimal-item">
+                            <div class="minimal-left">
+                                <div class="minimal-number">2</div>
+                                <div>
+                                    <div class="minimal-name">Vanguard Emerging Markets</div>
+                                    <div class="minimal-meta">VWO - Emerging - Score 82</div>
+                                </div>
+                            </div>
+                            <div class="minimal-amount">$650</div>
+                        </div>
+                        <div class="minimal-item">
+                            <div class="minimal-left">
+                                <div class="minimal-number">3</div>
+                                <div>
+                                    <div class="minimal-name">Vanguard Total Bond</div>
+                                    <div class="minimal-meta">BND - Fixed Income - Score 79</div>
+                                </div>
+                            </div>
+                            <div class="minimal-amount">$550</div>
+                        </div>
+                    </div>
+                    <div class="minimal-total">
+                        <div class="minimal-total-label">Total investment</div>
+                        <div class="minimal-total-value">$2,000</div>
+                    </div>
+                    <div class="minimal-actions">
+                        <button class="minimal-btn minimal-btn-primary">Confirm Investments</button>
+                        <button class="minimal-btn minimal-btn-secondary">See Details</button>
+                    </div>
+                </div>
+            </div>
+            <div class="direction-traits">
+                <div class="traits-title">Characteristics</div>
+                <div class="traits-list">
+                    <span class="trait pro">Maximum clarity</span>
+                    <span class="trait pro">Works on any device</span>
+                    <span class="trait pro">Fast to scan</span>
+                    <span class="trait">Notion-inspired</span>
+                    <span class="trait con">Limited data visible</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendation -->
+    <div class="recommendation">
+        <h2>Design Direction Recommendation</h2>
+        <p>
+            Based on your target users (advanced investors who value efficiency) and core philosophy
+            ("simplicity in front, complexity behind"), I recommend a <strong>hybrid approach</strong>:
+        </p>
+        <p>
+            <strong>Primary:</strong> Direction 1 (Command Center) as the main application shell, providing
+            navigation and portfolio context. This gives users the full picture when they need it.
+        </p>
+        <p>
+            <strong>Core View:</strong> Direction 2 (Focus Mode) or Direction 6 (Minimal List) for the
+            monthly recommendation experience. This answers "What should I buy?" immediately and cleanly.
+        </p>
+        <p>
+            <strong>Details:</strong> Direction 4 (Data Table) available for users who want to dive deeper
+            into scores, allocations, and historical data.
+        </p>
+        <div class="recommendation-options">
+            <div class="rec-option selected">
+                <h4>Option A: Command Center + Focus Mode</h4>
+                <p>Full dashboard with focused recommendation panel. Best balance of context and clarity.</p>
+            </div>
+            <div class="rec-option">
+                <h4>Option B: Command Center + Minimal List</h4>
+                <p>Full dashboard with ultra-simple action list. Maximum efficiency, Notion-like feel.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

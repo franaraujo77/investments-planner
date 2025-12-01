@@ -1,0 +1,295 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1</storyId>
+    <title>Project Setup &amp; Core Infrastructure</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-1-project-setup-core-infrastructure.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>the project initialized with Next.js 15, shadcn/ui, and core dependencies</iWant>
+    <soThat>I have a solid foundation to build features on</soThat>
+    <tasks>
+      <task id="1" ac="1">
+        <title>Initialize Next.js project</title>
+        <subtasks>
+          <subtask>Run `npx create-next-app@latest investments-planner --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"`</subtask>
+          <subtask>Verify development server starts on localhost:3000</subtask>
+          <subtask>Confirm App Router structure is in place</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="4">
+        <title>Configure TypeScript strict mode</title>
+        <subtasks>
+          <subtask>Update `tsconfig.json` with strict mode settings</subtask>
+          <subtask>Enable `noUncheckedIndexedAccess: true`</subtask>
+          <subtask>Enable `exactOptionalPropertyTypes: true`</subtask>
+          <subtask>Verify project compiles without errors</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="2">
+        <title>Initialize shadcn/ui</title>
+        <subtasks>
+          <subtask>Run `npx shadcn@latest init`</subtask>
+          <subtask>Configure for New York style (default)</subtask>
+          <subtask>Add essential components: button card dialog dropdown-menu form input select table tabs toast tooltip sidebar sheet skeleton badge progress alert</subtask>
+          <subtask>Verify Button component renders correctly</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="3">
+        <title>Configure Tailwind CSS with Slate Professional theme</title>
+        <subtasks>
+          <subtask>Update `tailwind.config.ts` with custom color tokens</subtask>
+          <subtask>Configure Slate color scale (slate-50 through slate-900)</subtask>
+          <subtask>Set semantic colors: success (#10b981), warning (#f59e0b), error (#ef4444), info (#3b82f6)</subtask>
+          <subtask>Set accent color (#3b82f6) for interactive elements</subtask>
+          <subtask>Verify theme applies correctly to shadcn/ui components</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="5">
+        <title>Configure ESLint and Prettier</title>
+        <subtasks>
+          <subtask>Verify ESLint config from create-next-app</subtask>
+          <subtask>Install Prettier: `pnpm add -D prettier eslint-config-prettier`</subtask>
+          <subtask>Create `.prettierrc` with project standards</subtask>
+          <subtask>Add format scripts to package.json</subtask>
+          <subtask>Run `pnpm lint` to verify no errors</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="6">
+        <title>Verify path aliases</title>
+        <subtasks>
+          <subtask>Confirm `@/*` resolves to `src/*` in tsconfig.json</subtask>
+          <subtask>Create a test import using `@/` alias</subtask>
+          <subtask>Verify import resolution works in IDE and build</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="1">
+        <title>Add security headers to next.config.js</title>
+        <subtasks>
+          <subtask>Add X-Content-Type-Options: nosniff</subtask>
+          <subtask>Add X-Frame-Options: DENY</subtask>
+          <subtask>Add X-XSS-Protection: 1; mode=block</subtask>
+          <subtask>Add Referrer-Policy: strict-origin-when-cross-origin</subtask>
+          <subtask>Add Content-Security-Policy (basic)</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="1">
+        <title>Create .env.example</title>
+        <subtasks>
+          <subtask>Document required environment variables</subtask>
+          <subtask>Add placeholder values with descriptions</subtask>
+          <subtask>Ensure .env.local is in .gitignore</subtask>
+        </subtasks>
+      </task>
+      <task id="9" ac="1-6">
+        <title>Test: Verify complete setup</title>
+        <subtasks>
+          <subtask>Run `pnpm install &amp;&amp; pnpm dev`</subtask>
+          <subtask>Confirm server starts without errors</subtask>
+          <subtask>Verify a shadcn/ui component renders</subtask>
+          <subtask>Run `pnpm lint` - should pass</subtask>
+          <subtask>Run `pnpm build` - should complete successfully</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Running `pnpm install &amp;&amp; pnpm dev` starts the development server successfully on localhost:3000</criterion>
+    <criterion id="2">shadcn/ui components are available and styled correctly</criterion>
+    <criterion id="3">Tailwind CSS v4 is configured with the Slate Professional theme</criterion>
+    <criterion id="4">TypeScript strict mode is enabled with noUncheckedIndexedAccess</criterion>
+    <criterion id="5">ESLint and Prettier are configured for code quality</criterion>
+    <criterion id="6">Path aliases (@/*) resolve to src/*</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Project Initialization</section>
+        <snippet>Hybrid approach: fresh create-next-app build with SaaS Starter as reference only. Commands: npx create-next-app@latest, npx shadcn@latest init, pnpm add drizzle-orm postgres decimal.js zod.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Security Headers</section>
+        <snippet>Security headers for next.config.js: X-Content-Type-Options: nosniff, X-Frame-Options: DENY, X-XSS-Protection: 1; mode=block, Referrer-Policy: strict-origin-when-cross-origin, CSP.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Technology Decisions</section>
+        <snippet>Next.js 15 (App Router), Tailwind CSS v4, shadcn/ui, TypeScript 5.x strict mode. Configure tsconfig.json with noUncheckedIndexedAccess and exactOptionalPropertyTypes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Section 3.1 Color System</section>
+        <snippet>Slate Professional theme. Primary: #0f172a, Accent: #3b82f6. Semantic colors: success #10b981, warning #f59e0b, error #ef4444, info #3b82f6. Slate scale from slate-50 to slate-900.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Section 1.1 Design System</section>
+        <snippet>shadcn/ui selected. Components: Button, Card, Dialog, Dropdown, Form, Input, Select, Table, Tabs, Toast, Tooltip, Sidebar, Sheet, Skeleton, Badge, Progress, Alert.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Story 1.1 Acceptance Criteria</section>
+        <snippet>Authoritative ACs for Story 1.1. Covers dev server, shadcn/ui, Tailwind v4 with Slate theme, TypeScript strict mode with noUncheckedIndexedAccess, ESLint/Prettier, path aliases.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.1</section>
+        <snippet>First story in Foundation epic. Prerequisites: None. Technical notes reference create-next-app, shadcn init, path aliases configuration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Executive Summary</section>
+        <snippet>Investments Planner is a fintech SaaS platform. Core philosophy: Configuration over hardcoding. Target: advanced investors with international portfolios.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <note>Greenfield project - this story creates the initial codebase. No existing code artifacts.</note>
+      <expectedStructure>
+        <file>
+          <path>src/app/layout.tsx</path>
+          <kind>layout</kind>
+          <reason>Root layout with global styles and providers</reason>
+        </file>
+        <file>
+          <path>src/app/page.tsx</path>
+          <kind>page</kind>
+          <reason>Home page for initial verification</reason>
+        </file>
+        <file>
+          <path>src/app/globals.css</path>
+          <kind>styles</kind>
+          <reason>Global CSS with Tailwind directives and theme tokens</reason>
+        </file>
+        <file>
+          <path>src/components/ui/</path>
+          <kind>directory</kind>
+          <reason>shadcn/ui components location</reason>
+        </file>
+        <file>
+          <path>src/lib/utils.ts</path>
+          <kind>utility</kind>
+          <reason>cn() utility for Tailwind class merging</reason>
+        </file>
+        <file>
+          <path>next.config.js</path>
+          <kind>config</kind>
+          <reason>Next.js configuration with security headers</reason>
+        </file>
+        <file>
+          <path>tailwind.config.ts</path>
+          <kind>config</kind>
+          <reason>Tailwind configuration with Slate Professional theme tokens</reason>
+        </file>
+        <file>
+          <path>tsconfig.json</path>
+          <kind>config</kind>
+          <reason>TypeScript strict mode configuration</reason>
+        </file>
+        <file>
+          <path>.prettierrc</path>
+          <kind>config</kind>
+          <reason>Prettier formatting configuration</reason>
+        </file>
+        <file>
+          <path>.env.example</path>
+          <kind>config</kind>
+          <reason>Environment variable template</reason>
+        </file>
+      </expectedStructure>
+    </code>
+
+    <dependencies>
+      <note>Story creates initial package.json. Expected dependencies from architecture:</note>
+      <npm>
+        <production>
+          <package name="next" version="^15.x" />
+          <package name="react" version="^19.x" />
+          <package name="react-dom" version="^19.x" />
+          <package name="tailwindcss" version="^4.x" />
+        </production>
+        <development>
+          <package name="typescript" version="^5.x" />
+          <package name="eslint" version="^9.x" />
+          <package name="eslint-config-next" version="^15.x" />
+          <package name="prettier" version="^3.x" />
+          <package name="eslint-config-prettier" version="latest" />
+          <package name="@types/node" version="^20.x" />
+          <package name="@types/react" version="^19.x" />
+        </development>
+      </npm>
+      <shadcnComponents>
+        button, card, dialog, dropdown-menu, form, input, select, table, tabs, toast, tooltip, sidebar, sheet, skeleton, badge, progress, alert
+      </shadcnComponents>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture.md">Use App Router structure (not Pages Router)</constraint>
+    <constraint source="architecture.md">TypeScript strict mode with noUncheckedIndexedAccess: true and exactOptionalPropertyTypes: true</constraint>
+    <constraint source="architecture.md">All security headers must be configured in next.config.js</constraint>
+    <constraint source="architecture.md">Path aliases must use @/* mapping to src/*</constraint>
+    <constraint source="ux-design-specification.md">shadcn/ui must use Slate Professional color theme</constraint>
+    <constraint source="architecture.md">Use pnpm as package manager (not npm or yarn)</constraint>
+    <constraint source="tech-spec-epic-1.md">Development server must start on localhost:3000</constraint>
+  </constraints>
+
+  <interfaces>
+    <note>No existing interfaces - this is the foundation story. Future stories will build on this structure.</note>
+    <futureInterfaces>
+      <interface>
+        <name>Auth Middleware</name>
+        <kind>Next.js middleware</kind>
+        <path>src/lib/auth/middleware.ts</path>
+        <story>1.3</story>
+      </interface>
+      <interface>
+        <name>Database Client</name>
+        <kind>Drizzle ORM</kind>
+        <path>src/lib/db/index.ts</path>
+        <story>1.2</story>
+      </interface>
+    </futureInterfaces>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing framework setup is deferred to Story 1.7 (Vitest + Playwright Testing Setup).
+      For Story 1.1, verification is manual: dev server starts, build completes, lint passes,
+      shadcn/ui components render correctly. Future stories will have automated tests.
+
+      From architecture: Vitest for unit tests (tests/unit/), Playwright for E2E (tests/e2e/),
+      80% coverage target for lib/* modules.
+    </standards>
+    <locations>
+      <location>tests/unit/ (created in Story 1.7)</location>
+      <location>tests/e2e/ (created in Story 1.7)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Manual: Run `pnpm install &amp;&amp; pnpm dev`, verify localhost:3000 loads</idea>
+      <idea ac="2">Manual: Import and render shadcn/ui Button component, verify styling</idea>
+      <idea ac="3">Manual: Verify Slate theme colors appear correctly in UI</idea>
+      <idea ac="4">Manual: Introduce type error, verify TypeScript catches it</idea>
+      <idea ac="5">Manual: Run `pnpm lint`, verify no errors; run `pnpm format`, verify formatting</idea>
+      <idea ac="6">Manual: Create import with @/ alias, verify IDE resolution and build</idea>
+      <idea ac="all">Manual: Run `pnpm build`, verify successful production build</idea>
+    </ideas>
+  </tests>
+</story-context>

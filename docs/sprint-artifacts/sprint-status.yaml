@@ -1,0 +1,179 @@
+# Sprint Status - investments-planner
+# Generated: 2025-11-29
+# Project: investments-planner
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic exists in epic file but not contexted
+#   - contexted: Epic tech context created by *epic-tech-context (required before story drafting)
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder by *create-story
+#   - ready-for-dev: Draft approved and story context created by *story-ready
+#   - in-progress: Developer actively working on implementation by *dev-story
+#   - review: Implementation complete, ready for review by *code-review
+#   - done: Story completed by *story-done
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done by *retrospective
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epics should be 'contexted' before stories can be 'drafted'
+# - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
+
+generated: 2025-11-29
+project: investments-planner
+project_key: investments-planner
+tracking_system: file-system
+story_location: "{project-root}/docs/sprint-artifacts"
+
+development_status:
+  # =============================================================================
+  # EPIC 1: FOUNDATION
+  # Goal: Establish the technical foundation that enables all subsequent features
+  # Stories: 8 | FRs: Infrastructure for ALL FRs
+  # =============================================================================
+  epic-1: contexted
+  1-1-project-setup-core-infrastructure: done
+  1-2-database-schema-with-fintech-types: done
+  1-3-authentication-system-with-jwt-refresh-tokens: done
+  1-4-event-sourced-calculation-pipeline: done
+  1-5-opentelemetry-instrumentation: done
+  1-6-vercel-kv-cache-setup: backlog
+  1-7-vitest-playwright-testing-setup: backlog
+  1-8-app-shell-layout-components: backlog
+  epic-1-retrospective: optional
+
+  # =============================================================================
+  # EPIC 2: USER ONBOARDING & PROFILE
+  # Goal: Enable users to create accounts, log in, manage profile, control data
+  # Stories: 8 | FRs: FR1-FR8, FR40
+  # =============================================================================
+  epic-2: backlog
+  2-1-user-registration-flow: backlog
+  2-2-email-verification: backlog
+  2-3-user-login: backlog
+  2-4-user-logout: backlog
+  2-5-password-reset-flow: backlog
+  2-6-profile-settings-base-currency: backlog
+  2-7-data-export: backlog
+  2-8-account-deletion: backlog
+  epic-2-retrospective: optional
+
+  # =============================================================================
+  # EPIC 3: PORTFOLIO CORE
+  # Goal: Enable users to manage their investment portfolio
+  # Stories: 9 | FRs: FR9-FR17, FR43
+  # =============================================================================
+  epic-3: backlog
+  3-1-create-portfolio: backlog
+  3-2-add-asset-to-portfolio: backlog
+  3-3-update-asset-holdings: backlog
+  3-4-remove-asset-from-portfolio: backlog
+  3-5-mark-asset-as-ignored: backlog
+  3-6-portfolio-overview-with-values: backlog
+  3-7-allocation-percentage-view: backlog
+  3-8-record-investment-amount: backlog
+  3-9-investment-history-view: backlog
+  epic-3-retrospective: optional
+
+  # =============================================================================
+  # EPIC 4: ASSET CLASS & ALLOCATION CONFIGURATION
+  # Goal: Enable users to define investment strategy structure
+  # Stories: 6 | FRs: FR18-FR23
+  # =============================================================================
+  epic-4: backlog
+  4-1-define-asset-classes: backlog
+  4-2-define-subclasses: backlog
+  4-3-set-allocation-ranges-for-classes: backlog
+  4-4-set-allocation-ranges-for-subclasses: backlog
+  4-5-set-asset-count-limits: backlog
+  4-6-set-minimum-allocation-values: backlog
+  epic-4-retrospective: optional
+
+  # =============================================================================
+  # EPIC 5: SCORING ENGINE
+  # Goal: Enable users to configure scoring criteria and calculate asset scores
+  # Stories: 11 | FRs: FR24-FR30, FR34-FR37
+  # =============================================================================
+  epic-5: backlog
+  5-1-define-scoring-criteria: backlog
+  5-2-set-point-values: backlog
+  5-3-define-criteria-operators: backlog
+  5-4-criteria-library-view: backlog
+  5-5-copy-criteria-set: backlog
+  5-6-compare-criteria-sets: backlog
+  5-7-criteria-preview-impact-simulation: backlog
+  5-8-score-calculation-engine: backlog
+  5-9-store-historical-scores: backlog
+  5-10-view-asset-score: backlog
+  5-11-score-breakdown-view: backlog
+  epic-5-retrospective: optional
+
+  # =============================================================================
+  # EPIC 6: DATA PIPELINE
+  # Goal: Integrate external data providers and ensure data freshness visibility
+  # Stories: 9 | FRs: FR31-FR33, FR38-FR39, FR41-FR42, FR60-FR62
+  # =============================================================================
+  epic-6: backlog
+  6-1-provider-abstraction-layer: backlog
+  6-2-fetch-asset-fundamentals: backlog
+  6-3-fetch-daily-prices: backlog
+  6-4-fetch-exchange-rates: backlog
+  6-5-currency-conversion-logic: backlog
+  6-6-force-data-refresh: backlog
+  6-7-data-freshness-display: backlog
+  6-8-data-source-attribution: backlog
+  6-9-calculation-breakdown-access: backlog
+  epic-6-retrospective: optional
+
+  # =============================================================================
+  # EPIC 7: RECOMMENDATIONS
+  # Goal: Deliver the core product value - simple, actionable investment recommendations
+  # Stories: 10 | FRs: FR44-FR55
+  # =============================================================================
+  epic-7: backlog
+  7-1-enter-monthly-contribution: backlog
+  7-2-enter-dividends-received: backlog
+  7-3-calculate-total-investable-capital: backlog
+  7-4-generate-investment-recommendations: backlog
+  7-5-display-recommendations-focus-mode: backlog
+  7-6-zero-buy-signal-for-over-allocated: backlog
+  7-7-view-recommendation-breakdown: backlog
+  7-8-confirm-recommendations: backlog
+  7-9-update-portfolio-after-confirmation: backlog
+  7-10-view-updated-allocation: backlog
+  epic-7-retrospective: optional
+
+  # =============================================================================
+  # EPIC 8: OVERNIGHT PROCESSING
+  # Goal: Pre-compute everything overnight for instant dashboard load
+  # Stories: 6 | FRs: FR56-FR59, FR64
+  # =============================================================================
+  epic-8: backlog
+  8-1-inngest-job-infrastructure: backlog
+  8-2-overnight-scoring-job: backlog
+  8-3-recommendation-pre-generation: backlog
+  8-4-cache-warming: backlog
+  8-5-instant-dashboard-load: backlog
+  8-6-calculation-audit-trail: backlog
+  epic-8-retrospective: optional
+
+  # =============================================================================
+  # EPIC 9: ALERTS & POLISH
+  # Goal: Complete experience with alerts, disclaimers, and notifications
+  # Stories: 6 | FRs: FR51, FR63, FR65-FR67
+  # =============================================================================
+  epic-9: backlog
+  9-1-opportunity-alert-better-asset-exists: backlog
+  9-2-allocation-drift-alert: backlog
+  9-3-alert-preferences: backlog
+  9-4-financial-disclaimers: backlog
+  9-5-terms-of-service-privacy-policy: backlog
+  9-6-empty-states-helpful-messaging: backlog
+  epic-9-retrospective: optional

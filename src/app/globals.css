@@ -1,0 +1,188 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Slate Professional Theme - Semantic Colors */
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-error: var(--error);
+  --color-error-light: var(--error-light);
+  --color-info: var(--info);
+  --color-info-light: var(--info-light);
+}
+
+/* Slate Professional Theme - Light Mode */
+:root {
+  --radius: 0.625rem;
+
+  /* Background & Foreground - Slate scale */
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+
+  /* Card */
+  --card: #ffffff;
+  --card-foreground: #0f172a; /* slate-900 */
+
+  /* Popover */
+  --popover: #ffffff;
+  --popover-foreground: #0f172a; /* slate-900 */
+
+  /* Primary - Slate-900 based */
+  --primary: #0f172a; /* slate-900 */
+  --primary-foreground: #f8fafc; /* slate-50 */
+
+  /* Secondary - Slate-100 based */
+  --secondary: #f1f5f9; /* slate-100 */
+  --secondary-foreground: #0f172a; /* slate-900 */
+
+  /* Muted - Slate-100/500 */
+  --muted: #f1f5f9; /* slate-100 */
+  --muted-foreground: #64748b; /* slate-500 */
+
+  /* Accent - Blue-500 */
+  --accent: #3b82f6; /* blue-500 */
+  --accent-foreground: #ffffff;
+
+  /* Destructive - Error red */
+  --destructive: #ef4444; /* red-500 */
+
+  /* Border & Input - Slate-200 */
+  --border: #e2e8f0; /* slate-200 */
+  --input: #e2e8f0; /* slate-200 */
+  --ring: #3b82f6; /* blue-500 - accent for focus */
+
+  /* Semantic Colors */
+  --success: #10b981; /* emerald-500 */
+  --success-light: #d1fae5; /* emerald-100 */
+  --warning: #f59e0b; /* amber-500 */
+  --warning-light: #fef3c7; /* amber-100 */
+  --error: #ef4444; /* red-500 */
+  --error-light: #fee2e2; /* red-100 */
+  --info: #3b82f6; /* blue-500 */
+  --info-light: #dbeafe; /* blue-100 */
+
+  /* Chart colors */
+  --chart-1: #3b82f6; /* blue-500 */
+  --chart-2: #10b981; /* emerald-500 */
+  --chart-3: #f59e0b; /* amber-500 */
+  --chart-4: #8b5cf6; /* violet-500 */
+  --chart-5: #ec4899; /* pink-500 */
+
+  /* Sidebar - Slate based */
+  --sidebar: #f8fafc; /* slate-50 */
+  --sidebar-foreground: #0f172a; /* slate-900 */
+  --sidebar-primary: #0f172a; /* slate-900 */
+  --sidebar-primary-foreground: #f8fafc; /* slate-50 */
+  --sidebar-accent: #f1f5f9; /* slate-100 */
+  --sidebar-accent-foreground: #0f172a; /* slate-900 */
+  --sidebar-border: #e2e8f0; /* slate-200 */
+  --sidebar-ring: #3b82f6; /* blue-500 */
+}
+
+/* Slate Professional Theme - Dark Mode */
+.dark {
+  --background: #0f172a; /* slate-900 */
+  --foreground: #f8fafc; /* slate-50 */
+
+  --card: #1e293b; /* slate-800 */
+  --card-foreground: #f8fafc; /* slate-50 */
+
+  --popover: #1e293b; /* slate-800 */
+  --popover-foreground: #f8fafc; /* slate-50 */
+
+  --primary: #f8fafc; /* slate-50 */
+  --primary-foreground: #0f172a; /* slate-900 */
+
+  --secondary: #334155; /* slate-700 */
+  --secondary-foreground: #f8fafc; /* slate-50 */
+
+  --muted: #334155; /* slate-700 */
+  --muted-foreground: #94a3b8; /* slate-400 */
+
+  --accent: #3b82f6; /* blue-500 */
+  --accent-foreground: #ffffff;
+
+  --destructive: #ef4444;
+
+  --border: #334155; /* slate-700 */
+  --input: #334155; /* slate-700 */
+  --ring: #3b82f6; /* blue-500 */
+
+  /* Semantic colors remain the same */
+  --success: #10b981;
+  --success-light: #064e3b; /* emerald-900 */
+  --warning: #f59e0b;
+  --warning-light: #78350f; /* amber-900 */
+  --error: #ef4444;
+  --error-light: #7f1d1d; /* red-900 */
+  --info: #3b82f6;
+  --info-light: #1e3a8a; /* blue-900 */
+
+  /* Chart colors */
+  --chart-1: #60a5fa; /* blue-400 */
+  --chart-2: #34d399; /* emerald-400 */
+  --chart-3: #fbbf24; /* amber-400 */
+  --chart-4: #a78bfa; /* violet-400 */
+  --chart-5: #f472b6; /* pink-400 */
+
+  /* Sidebar */
+  --sidebar: #1e293b; /* slate-800 */
+  --sidebar-foreground: #f8fafc; /* slate-50 */
+  --sidebar-primary: #3b82f6; /* blue-500 */
+  --sidebar-primary-foreground: #f8fafc; /* slate-50 */
+  --sidebar-accent: #334155; /* slate-700 */
+  --sidebar-accent-foreground: #f8fafc; /* slate-50 */
+  --sidebar-border: #334155; /* slate-700 */
+  --sidebar-ring: #3b82f6; /* blue-500 */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

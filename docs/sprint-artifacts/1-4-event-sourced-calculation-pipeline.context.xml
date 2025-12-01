@@ -1,0 +1,229 @@
+<story-context id="bmm/story-context" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>Event-Sourced Calculation Pipeline</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-4-event-sourced-calculation-pipeline.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>event sourcing for all calculations with replay capability</iWant>
+    <soThat>any calculation can be audited and reproduced exactly</soThat>
+    <tasks>
+      <task id="1" ac="1,3">Verify event types implementation - Confirm src/lib/events/types.ts has all 4 event types, PriceSnapshot, ExchangeRateSnapshot, CriteriaConfig types, and type guards</task>
+      <task id="2" ac="1,2">Create event store service - Create src/lib/events/event-store.ts with EventStore class, append(), appendBatch(), getByCorrelationId(), getByUserId(), getByEventType() methods</task>
+      <task id="3" ac="1,2,3">Create calculation pipeline orchestrator - Create src/lib/events/calculation-pipeline.ts with CalculationPipeline class, start(), captureInputs(), recordScores(), complete() methods</task>
+      <task id="4" ac="4,5">Implement replay function - Create src/lib/events/replay.ts with replay(correlationId) that loads events, re-executes scoring, compares results</task>
+      <task id="5" ac="5">Create scoring calculation core - Create src/lib/calculations/scoring-engine.ts with calculateScore() using decimal.js for deterministic calculations</task>
+      <task id="6" ac="1,2,4">Create index exports - Create src/lib/events/index.ts exporting EventStore, CalculationPipeline, replay, types, guards, constants</task>
+      <task id="7" ac="2">Add database migration for events index - Verify indexes on correlation_id and user_id columns exist, run pnpm db:generate</task>
+      <task id="8" ac="1,2">Test: Event store operations - Create tests/unit/events/event-store.test.ts with append, appendBatch, getByCorrelationId, getByUserId tests</task>
+      <task id="9" ac="1,2,3">Test: Calculation pipeline - Create tests/unit/events/calculation-pipeline.test.ts testing full pipeline flow</task>
+      <task id="10" ac="4,5">Test: Replay function - Create tests/unit/events/replay.test.ts testing deterministic replay</task>
+      <task id="11" ac="5">Test: Scoring engine determinism - Create tests/unit/calculations/scoring-engine.test.ts testing consistent outputs</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Calculation events are stored with 4 types: CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED</criterion>
+    <criterion id="2">Events include correlation_id linking the entire calculation</criterion>
+    <criterion id="3">INPUTS_CAPTURED stores criteria version, prices snapshot, exchange rates</criterion>
+    <criterion id="4">Any calculation can be replayed using eventStore.replay(correlationId)</criterion>
+    <criterion id="5">Replay produces identical results (deterministic)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture" section="ADR-002: Event-Sourced Calculations">
+        Event-sourced calculations with 4 event types (CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED). OpenTelemetry for job-level spans. Store events not results for perfect audit trail and replay capability.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Calculation Audit - Event-Sourced">
+        CalculationEvent union type with correlationId linking all events. INPUTS_CAPTURED bundles criteria, prices, rates for replay. EventStore interface with append, getByCorrelationId, replay methods.
+      </doc>
+      <doc path="docs/epics.md" title="Epics" section="Story 1.4">
+        As a developer, want event sourcing for all calculations with replay capability, so that any calculation can be audited and reproduced exactly.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Tech Spec Epic 1" section="Story 1.4 Technical Specification">
+        Event types defined, correlation_id strategy, replay implementation approach. Acceptance criteria mapping to tasks.
+      </doc>
+      <doc path="docs/prd.md" title="PRD" section="Data Transparency and Trust (FR60-FR64)">
+        Calculation logging, decision history, data source tracking. Event sourcing enables complete audit trail for regulatory compliance.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/events/types.ts" kind="types" symbol="CalculationEvent" reason="EXISTING - Discriminated union of all 4 event types. Contains CalcStartedEvent, InputsCapturedEvent, ScoresComputedEvent, CalcCompletedEvent, plus type guards and constants."/>
+      <file path="src/lib/events/types.ts" kind="interface" symbol="PriceSnapshot" lines="22-29" reason="EXISTING - Snapshot of asset price at calculation time with assetId, symbol, price, currency, fetchedAt, source fields"/>
+      <file path="src/lib/events/types.ts" kind="interface" symbol="ExchangeRateSnapshot" lines="34-40" reason="EXISTING - Snapshot of exchange rate at calculation time with fromCurrency, toCurrency, rate, fetchedAt, source fields"/>
+      <file path="src/lib/events/types.ts" kind="interface" symbol="CriteriaConfig" lines="45-50" reason="EXISTING - User-defined scoring criteria configuration with id, version, name, criteria array"/>
+      <file path="src/lib/events/types.ts" kind="interface" symbol="AssetScoreResult" lines="79-86" reason="EXISTING - Complete score result for an asset with assetId, symbol, score, maxPossibleScore, percentage, breakdown"/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="calculationEvents" lines="81-97" reason="EXISTING - Drizzle schema for calculation_events table with id, correlationId, userId, eventType, payload, createdAt. Indexes on correlation_id and user_id."/>
+      <file path="src/lib/db/schema.ts" kind="type" symbol="CalculationEvent, NewCalculationEvent" lines="135-136" reason="EXISTING - Type exports for Drizzle insert/select operations on calculationEvents table"/>
+      <file path="src/lib/db/index.ts" kind="client" symbol="db" lines="33" reason="EXISTING - Drizzle database client instance. Use for all database operations."/>
+      <file path="src/lib/calculations/decimal-config.ts" kind="config" symbol="Decimal" reason="EXISTING - Configured decimal.js instance with precision:20, ROUND_HALF_UP. Import this for all financial calculations."/>
+      <file path="src/lib/calculations/decimal-utils.ts" kind="utility" symbol="parseDecimal, add, multiply, divide, round, equals" reason="EXISTING - Financial calculation utilities using configured Decimal. Use for score calculations."/>
+      <file path="src/lib/auth/service.ts" kind="service" symbol="AuthService" reason="REFERENCE - Pattern for service class design with db injection, async methods, error handling. Follow this structure for EventStore class."/>
+    </code>
+
+    <dependencies>
+      <nodejs>
+        <package name="decimal.js" version="^10.6.0" purpose="Financial precision calculations"/>
+        <package name="drizzle-orm" version="^0.44.7" purpose="Type-safe database ORM"/>
+        <package name="postgres" version="^3.4.7" purpose="PostgreSQL driver"/>
+        <package name="zod" version="^4.1.13" purpose="Schema validation"/>
+      </nodejs>
+      <devDependencies>
+        <package name="drizzle-kit" version="^0.31.7" purpose="Database migrations"/>
+        <package name="typescript" version="^5" purpose="Type checking"/>
+      </devDependencies>
+      <notInstalled>
+        <package name="vitest" note="Install in Story 1-7. Write tests but they won't run until vitest configured."/>
+        <package name="uuid" note="Consider for correlationId generation, or use crypto.randomUUID()"/>
+      </notInstalled>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="precision">ALL numeric calculations MUST use decimal.js via @/lib/calculations/decimal-config. NEVER use JavaScript Number for scores or amounts.</constraint>
+    <constraint type="immutability">Events are immutable. Only append operations. Never update or delete events.</constraint>
+    <constraint type="tenant-isolation">ALL database queries MUST filter by userId. Cross-user data access is a security violation.</constraint>
+    <constraint type="pattern">Follow existing Drizzle ORM patterns from src/lib/db/schema.ts and src/lib/auth/service.ts</constraint>
+    <constraint type="correlation">Every event in a calculation MUST share the same correlationId (UUID). This is the primary audit trail mechanism.</constraint>
+    <constraint type="determinism">Replay MUST produce identical results. Use only deterministic operations (decimal.js, no Date.now() in calculations).</constraint>
+    <constraint type="path-alias">Use @/lib/* path aliases for all imports (configured in tsconfig.json)</constraint>
+    <constraint type="error-handling">Follow error handling patterns from auth service. Throw typed errors, handle nullability.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="EventStore" kind="class">
+      <signature>
+class EventStore {
+  constructor(database: Database);
+  append(event: CalculationEvent): Promise&lt;void&gt;;
+  appendBatch(events: CalculationEvent[]): Promise&lt;void&gt;;
+  getByCorrelationId(correlationId: string): Promise&lt;CalculationEvent[]&gt;;
+  getByUserId(userId: string, limit?: number): Promise&lt;CalculationEvent[]&gt;;
+  getByEventType(userId: string, eventType: CalculationEventType): Promise&lt;CalculationEvent[]&gt;;
+}
+      </signature>
+      <path>src/lib/events/event-store.ts (TO CREATE)</path>
+    </interface>
+    <interface name="CalculationPipeline" kind="class">
+      <signature>
+class CalculationPipeline {
+  constructor(eventStore: EventStore);
+  start(userId: string, market?: string): string; // returns correlationId
+  captureInputs(correlationId: string, inputs: Omit&lt;InputsCapturedEvent, 'type' | 'correlationId'&gt;): Promise&lt;void&gt;;
+  recordScores(correlationId: string, results: AssetScoreResult[]): Promise&lt;void&gt;;
+  complete(correlationId: string, duration: number, assetCount: number, status: 'success' | 'partial' | 'failed', errorMessage?: string): Promise&lt;void&gt;;
+}
+      </signature>
+      <path>src/lib/events/calculation-pipeline.ts (TO CREATE)</path>
+    </interface>
+    <interface name="replay" kind="function">
+      <signature>
+async function replay(correlationId: string, eventStore: EventStore, scoringEngine: ScoringEngine): Promise&lt;ReplayResult&gt;;
+
+interface ReplayResult {
+  success: boolean;
+  correlationId: string;
+  originalResults: AssetScoreResult[];
+  replayResults: AssetScoreResult[];
+  matches: boolean;
+  discrepancies?: Array&lt;{ assetId: string; originalScore: string; replayScore: string }&gt;;
+}
+      </signature>
+      <path>src/lib/events/replay.ts (TO CREATE)</path>
+    </interface>
+    <interface name="ScoringEngine" kind="class">
+      <signature>
+class ScoringEngine {
+  calculateScore(
+    assetData: AssetData,
+    criteria: CriteriaConfig,
+    prices: PriceSnapshot[],
+    rates: ExchangeRateSnapshot[]
+  ): AssetScoreResult;
+
+  evaluateCriterion(
+    criterion: CriterionDefinition,
+    value: string
+  ): CriterionScore;
+}
+
+interface AssetData {
+  id: string;
+  symbol: string;
+  // Additional asset properties for scoring
+}
+      </signature>
+      <path>src/lib/calculations/scoring-engine.ts (TO CREATE)</path>
+    </interface>
+    <interface name="Drizzle Insert Pattern" kind="pattern">
+      <signature>
+// Insert single event
+await db.insert(calculationEvents).values({
+  correlationId: event.correlationId,
+  userId: event.userId,
+  eventType: event.type,
+  payload: event,
+});
+
+// Insert batch
+await db.insert(calculationEvents).values(events.map(e => ({
+  correlationId: e.correlationId,
+  userId: userId,
+  eventType: e.type,
+  payload: e,
+})));
+      </signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+    <interface name="Drizzle Query Pattern" kind="pattern">
+      <signature>
+// Query by correlation_id
+const events = await db.query.calculationEvents.findMany({
+  where: eq(calculationEvents.correlationId, correlationId),
+  orderBy: [asc(calculationEvents.createdAt)],
+});
+
+// Query by user_id with limit
+const events = await db.query.calculationEvents.findMany({
+  where: eq(calculationEvents.userId, userId),
+  orderBy: [desc(calculationEvents.createdAt)],
+  limit: limit ?? 100,
+});
+      </signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing will use Vitest (configured in Story 1-7). Unit tests go in tests/unit/, integration tests in tests/integration/.
+      Follow patterns from architecture doc: test determinism by running same calculation 100 times, verify decimal precision maintained,
+      test all criterion operators (gt, gte, lt, lte, eq, between). Mock database for unit tests, use test database for integration.
+    </standards>
+    <locations>
+      <location>tests/unit/events/event-store.test.ts</location>
+      <location>tests/unit/events/calculation-pipeline.test.ts</location>
+      <location>tests/unit/events/replay.test.ts</location>
+      <location>tests/unit/calculations/scoring-engine.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test that append() stores event with all required fields (id, correlationId, userId, eventType, payload, createdAt)</idea>
+      <idea ac="2">Test that getByCorrelationId() returns events in chronological order with matching correlationId</idea>
+      <idea ac="2">Test that multiple events from same calculation share correlationId</idea>
+      <idea ac="3">Test that INPUTS_CAPTURED payload contains criteriaVersionId, criteria, prices, rates arrays</idea>
+      <idea ac="4">Test that replay() reconstructs calculation from INPUTS_CAPTURED event</idea>
+      <idea ac="5">Test determinism: run same calculation 100 times, verify all scores identical</idea>
+      <idea ac="5">Test decimal.js precision: calculate 0.1 + 0.2 = 0.3 exactly (not 0.30000000000000004)</idea>
+      <idea ac="1">Test that all 4 event types can be stored and retrieved</idea>
+      <idea ac="5">Test each criterion operator: gt, gte, lt, lte, eq, between with edge cases</idea>
+    </ideas>
+  </tests>
+</story-context>

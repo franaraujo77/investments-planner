@@ -1,0 +1,50 @@
+{
+  "name": "Slate Professional",
+  "description": "Investments Planner design system theme - Stripe-inspired fintech aesthetic",
+  "colors": {
+    "background": "#f8fafc",
+    "container": "#f1f5f9",
+    "containerAlt": "#ffffff",
+    "border": "#e2e8f0",
+    "borderStrong": "#cbd5e1",
+    "text": "#0f172a",
+    "textSecondary": "#475569",
+    "textMuted": "#94a3b8",
+    "primary": "#0f172a",
+    "accent": "#3b82f6",
+    "accentHover": "#2563eb",
+    "success": "#10b981",
+    "successLight": "#d1fae5",
+    "warning": "#f59e0b",
+    "warningLight": "#fef3c7",
+    "error": "#ef4444",
+    "errorLight": "#fee2e2"
+  },
+  "strokeWidth": {
+    "thin": 1,
+    "normal": 2,
+    "thick": 3
+  },
+  "borderRadius": {
+    "small": 4,
+    "medium": 8,
+    "large": 12,
+    "xlarge": 16
+  },
+  "fontSize": {
+    "xs": 12,
+    "sm": 14,
+    "base": 16,
+    "lg": 18,
+    "xl": 20,
+    "xxl": 24,
+    "heading": 32
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "xl": 32
+  }
+}
