@@ -17,6 +17,14 @@ const eslintConfig = defineConfig([
     // Project-specific ignores:
     ".bmad/**",
   ]),
+  // Test files - allow explicit any for mocking
+  {
+    files: ["tests/**/*.ts", "tests/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

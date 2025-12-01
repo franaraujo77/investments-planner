@@ -1,2 +1,9 @@
+# This file is required for pnpm cache setup in GitHub Actions.
+# The setup-node action with cache: 'pnpm' requires a valid workspace file.
+# This is a single-package project, not a monorepo.
+packages:
+  - '.'
+
+# Only allow bcrypt to run install scripts (for native compilation)
 onlyBuiltDependencies:
   - bcrypt
