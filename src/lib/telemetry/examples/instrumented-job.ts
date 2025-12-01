@@ -45,9 +45,7 @@ import {
  * @param userId - User ID to process
  * @returns Computed scores
  */
-export async function runOvernightJobWithHelper(
-  userId: string
-): Promise<unknown[]> {
+export async function runOvernightJobWithHelper(userId: string): Promise<unknown[]> {
   // withSpan creates span, handles errors, and ends span automatically
   return withSpan(
     "overnight-scoring",
@@ -99,10 +97,7 @@ export async function runOvernightJobWithHelper(
  * @param market - Market identifier
  * @returns Computed scores
  */
-export async function runOvernightJobManual(
-  userId: string,
-  market: string
-): Promise<unknown[]> {
+export async function runOvernightJobManual(userId: string, market: string): Promise<unknown[]> {
   // Create span manually
   const span = createJobSpan("overnight-scoring", {
     userId,
@@ -223,9 +218,12 @@ async function mockFetchPrices(): Promise<Array<{ symbol: string; price: number 
 }
 
 async function mockComputeScores(
-  _prices: Array<{ symbol: string; price: number }>,
-  _rates: Record<string, number>
+  prices: Array<{ symbol: string; price: number }>,
+  rates: Record<string, number>
 ): Promise<Array<{ symbol: string; score: number }>> {
+  // Use params to avoid lint warnings (mock function simulates real usage)
+  void prices;
+  void rates;
   // Simulate computation
   await sleep(30);
   return [

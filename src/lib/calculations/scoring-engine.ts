@@ -64,9 +64,13 @@ export class ScoringEngine {
   calculateScore(
     asset: AssetData,
     criteria: CriteriaConfig,
-    _prices: PriceSnapshot[],
-    _rates: ExchangeRateSnapshot[]
+    // These parameters are reserved for future currency conversion support
+    _prices?: PriceSnapshot[],
+    _rates?: ExchangeRateSnapshot[]
   ): AssetScoreResult {
+    // Suppress unused variable warnings - params needed for API consistency
+    void _prices;
+    void _rates;
     const breakdown: CriterionScore[] = [];
     let totalScore = new Decimal(0);
     let maxPossible = new Decimal(0);
@@ -123,10 +127,7 @@ export class ScoringEngine {
    * @param rawValue - Actual value from the asset
    * @returns Evaluation result with points awarded
    */
-  evaluateCriterion(
-    criterion: CriterionDefinition,
-    rawValue: string
-  ): CriterionScore {
+  evaluateCriterion(criterion: CriterionDefinition, rawValue: string): CriterionScore {
     const value = new Decimal(rawValue || "0");
     let passed = false;
 
@@ -161,8 +162,7 @@ export class ScoringEngine {
           const [minStr, maxStr] = criterion.value as [string, string];
           const min = new Decimal(minStr);
           const max = new Decimal(maxStr);
-          passed =
-            value.greaterThanOrEqualTo(min) && value.lessThanOrEqualTo(max);
+          passed = value.greaterThanOrEqualTo(min) && value.lessThanOrEqualTo(max);
           break;
         }
         default:
@@ -201,9 +201,7 @@ export class ScoringEngine {
     prices: PriceSnapshot[],
     rates: ExchangeRateSnapshot[]
   ): AssetScoreResult[] {
-    return assets.map((asset) =>
-      this.calculateScore(asset, criteria, prices, rates)
-    );
+    return assets.map((asset) => this.calculateScore(asset, criteria, prices, rates));
   }
 
   /**
@@ -232,12 +230,7 @@ export class ScoringEngine {
       };
     });
 
-    return this.calculateScores(
-      assets,
-      inputs.criteria,
-      inputs.prices,
-      inputs.rates
-    );
+    return this.calculateScores(assets, inputs.criteria, inputs.prices, inputs.rates);
   }
 }
 

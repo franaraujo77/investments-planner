@@ -17,7 +17,6 @@ import {
   isScoresComputedEvent,
   type AssetScoreResult,
   type InputsCapturedEvent,
-  type ScoresComputedEvent,
 } from "./types";
 import { Decimal } from "@/lib/calculations/decimal-config";
 
@@ -53,9 +52,7 @@ export interface ReplayResult {
  * Takes the inputs from INPUTS_CAPTURED and returns score results.
  * Must be deterministic - same inputs = same outputs.
  */
-export type ScoringFunction = (
-  inputs: InputsCapturedEvent
-) => AssetScoreResult[];
+export type ScoringFunction = (inputs: InputsCapturedEvent) => AssetScoreResult[];
 
 /**
  * Replays a calculation and compares with original results
@@ -100,9 +97,7 @@ export async function replay(
     }
 
     // Find INPUTS_CAPTURED event
-    const inputsEvent = events.find((e) =>
-      isInputsCapturedEvent(e.payload)
-    )?.payload;
+    const inputsEvent = events.find((e) => isInputsCapturedEvent(e.payload))?.payload;
 
     if (!inputsEvent || !isInputsCapturedEvent(inputsEvent)) {
       return {
@@ -116,9 +111,7 @@ export async function replay(
     }
 
     // Find original SCORES_COMPUTED event
-    const scoresEvent = events.find((e) =>
-      isScoresComputedEvent(e.payload)
-    )?.payload;
+    const scoresEvent = events.find((e) => isScoresComputedEvent(e.payload))?.payload;
 
     if (!scoresEvent || !isScoresComputedEvent(scoresEvent)) {
       return {
@@ -137,10 +130,7 @@ export async function replay(
     const replayResults = scoringFn(inputsEvent);
 
     // Compare results
-    const { matches, discrepancies } = compareResults(
-      originalResults,
-      replayResults
-    );
+    const { matches, discrepancies } = compareResults(originalResults, replayResults);
 
     const result: ReplayResult = {
       success: true,

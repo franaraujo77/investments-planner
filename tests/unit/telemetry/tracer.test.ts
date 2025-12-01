@@ -9,7 +9,7 @@
  * NOTE: Tests will be executable after Vitest is installed in Story 1-7.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SpanStatusCode } from "@opentelemetry/api";
 
 // Mock span for testing - define inside vi.mock to avoid hoisting issues
@@ -53,9 +53,7 @@ describe.skip("createJobSpan", () => {
 
   it("should create a span with the specified name", async () => {
     // Arrange
-    const { createJobSpan, SpanAttributes } = await import(
-      "@/lib/telemetry/tracer"
-    );
+    const { createJobSpan, SpanAttributes } = await import("@/lib/telemetry/tracer");
 
     // Act
     const span = createJobSpan("overnight-scoring");
@@ -74,9 +72,7 @@ describe.skip("createJobSpan", () => {
 
   it("should set user_id attribute when provided", async () => {
     // Arrange
-    const { createJobSpan, SpanAttributes } = await import(
-      "@/lib/telemetry/tracer"
-    );
+    const { createJobSpan, SpanAttributes } = await import("@/lib/telemetry/tracer");
 
     // Act
     createJobSpan("test-job", { userId: "user-123" });
@@ -94,9 +90,7 @@ describe.skip("createJobSpan", () => {
 
   it("should set asset_count attribute when provided", async () => {
     // Arrange
-    const { createJobSpan, SpanAttributes } = await import(
-      "@/lib/telemetry/tracer"
-    );
+    const { createJobSpan, SpanAttributes } = await import("@/lib/telemetry/tracer");
 
     // Act
     createJobSpan("test-job", { assetCount: 50 });
@@ -114,9 +108,7 @@ describe.skip("createJobSpan", () => {
 
   it("should set market attribute when provided", async () => {
     // Arrange
-    const { createJobSpan, SpanAttributes } = await import(
-      "@/lib/telemetry/tracer"
-    );
+    const { createJobSpan, SpanAttributes } = await import("@/lib/telemetry/tracer");
 
     // Act
     createJobSpan("test-job", { market: "NYSE" });
@@ -134,9 +126,7 @@ describe.skip("createJobSpan", () => {
 
   it("should set all job attributes together", async () => {
     // Arrange
-    const { createJobSpan, SpanAttributes } = await import(
-      "@/lib/telemetry/tracer"
-    );
+    const { createJobSpan, SpanAttributes } = await import("@/lib/telemetry/tracer");
 
     // Act
     createJobSpan("overnight-scoring", {
@@ -176,10 +166,7 @@ describe.skip("withSpan", () => {
     });
 
     // Assert
-    expect(mockTracer.startSpan).toHaveBeenCalledWith(
-      "test-job",
-      expect.any(Object)
-    );
+    expect(mockTracer.startSpan).toHaveBeenCalledWith("test-job", expect.any(Object));
     expect(mockSpan.end).toHaveBeenCalled();
   });
 
@@ -239,10 +226,7 @@ describe.skip("withSpan", () => {
     });
 
     // Assert
-    expect(mockSpan.setAttribute).toHaveBeenCalledWith(
-      SpanAttributes.ASSET_COUNT,
-      25
-    );
+    expect(mockSpan.setAttribute).toHaveBeenCalledWith(SpanAttributes.ASSET_COUNT, 25);
   });
 });
 
@@ -263,20 +247,16 @@ describe.skip("getTracer", () => {
   it("should use default service name when not specified", async () => {
     // Arrange
     const { trace } = await import("@opentelemetry/api");
-    const { getTracer, DEFAULT_SERVICE_NAME } = await import(
-      "@/lib/telemetry/tracer"
-    );
+    const { getTracer } = await import("@/lib/telemetry/tracer");
 
-    // Note: Need to import DEFAULT_SERVICE_NAME from config
-    const { DEFAULT_SERVICE_NAME: configDefault } = await import(
-      "@/lib/telemetry/config"
-    );
+    // Import DEFAULT_SERVICE_NAME from config
+    const { DEFAULT_SERVICE_NAME } = await import("@/lib/telemetry/config");
 
     // Act
     getTracer();
 
     // Assert
-    expect(trace.getTracer).toHaveBeenCalledWith(configDefault);
+    expect(trace.getTracer).toHaveBeenCalledWith(DEFAULT_SERVICE_NAME);
   });
 });
 

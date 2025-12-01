@@ -24,8 +24,8 @@ export function clearMocks(): void {
 /**
  * Mock environment variables for testing
  */
-export function mockEnv(vars: Record<string, string>): void {
-  const original = { ...process.env };
+export function mockEnv(vars: Record<string, string>): () => void {
+  const originalEnv = { ...process.env };
 
   Object.entries(vars).forEach(([key, value]) => {
     process.env[key] = value;
@@ -33,8 +33,8 @@ export function mockEnv(vars: Record<string, string>): void {
 
   return () => {
     Object.keys(vars).forEach((key) => {
-      if (original[key] !== undefined) {
-        process.env[key] = original[key];
+      if (originalEnv[key] !== undefined) {
+        process.env[key] = originalEnv[key];
       } else {
         delete process.env[key];
       }
@@ -44,12 +44,11 @@ export function mockEnv(vars: Record<string, string>): void {
 
 /**
  * Create a mock date for testing
+ * Uses Vitest's built-in system time mocking
  */
 export function mockDate(date: Date | string): () => void {
-  const original = Date;
-  const mockDate = new Date(date);
-
-  vi.setSystemTime(mockDate);
+  const targetDate = new Date(date);
+  vi.setSystemTime(targetDate);
 
   return () => {
     vi.useRealTimers();
