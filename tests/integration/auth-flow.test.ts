@@ -220,11 +220,17 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
 describe("Auth Validation Tests (Unit)", () => {
   describe("Registration Validation", () => {
     it("should require valid email format", () => {
-      const invalidEmails = ["notanemail", "missing@domain", "@nodomain.com"];
+      // Simple email validation: has @, has ., @ comes before .
+      const isValidEmail = (email: string) => {
+        const atIndex = email.indexOf("@");
+        const dotIndex = email.lastIndexOf(".");
+        return atIndex > 0 && dotIndex > atIndex + 1 && dotIndex < email.length - 1;
+      };
+
+      const invalidEmails = ["notanemail", "missing@domain", "@nodomain.com", "no@dot"];
 
       invalidEmails.forEach((email) => {
-        const result = email.includes("@") && email.includes(".");
-        expect(result).toBe(false);
+        expect(isValidEmail(email)).toBe(false);
       });
     });
 

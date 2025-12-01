@@ -52,6 +52,5 @@ jobs:
       - name: Build application
         run: pnpm build
 
-      # TODO: Add test execution once vitest is configured (Story 1.7)
-      # - name: Run tests
-      #   run: pnpm test
+      - name: Run unit tests
+        run: pnpm test

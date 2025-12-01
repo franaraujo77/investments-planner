@@ -1,0 +1,158 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>7</storyId>
+    <title>Vitest + Playwright Testing Setup</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-7-vitest-playwright-testing-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>unit and E2E testing infrastructure with Vitest and Playwright</iWant>
+    <soThat>code quality is maintained through automated tests</soThat>
+    <tasks>
+      <task id="1" ac="1,3">Install Vitest and dependencies (vitest ^2.x, @vitest/coverage-v8, @vitest/ui)</task>
+      <task id="2" ac="1,3">Configure Vitest (vitest.config.ts with test dir, coverage, path aliases)</task>
+      <task id="3" ac="1,3">Add test scripts to package.json (test, test:watch, test:coverage, test:ui)</task>
+      <task id="4" ac="1,5">Create test directory structure (tests/unit/, tests/integration/, tests/e2e/, tests/setup.ts)</task>
+      <task id="5" ac="5">Create decimal calculation test (0.1+0.2=0.3, precision, rounding tests)</task>
+      <task id="6" ac="2,4">Install Playwright (@playwright/test ^1.x, download browsers, update .gitignore)</task>
+      <task id="7" ac="2,4">Configure Playwright (playwright.config.ts with test dir, headless mode, webServer)</task>
+      <task id="8" ac="2">Add E2E test scripts to package.json (test:e2e, test:e2e:ui, test:e2e:headed)</task>
+      <task id="9" ac="2">Create sample E2E test (tests/e2e/smoke.spec.ts with homepage load test)</task>
+      <task id="10" ac="1,5">Verify existing tests run (cache tests from Story 1-6, fix import paths)</task>
+      <task id="11" ac="4">Create CI test configuration (verify headless mode, test artifacts ignored)</task>
+      <task id="12" ac="1-4">Documentation (test commands, coverage requirements, E2E conventions)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Running `pnpm test` executes Vitest unit tests in `tests/unit/`</criterion>
+    <criterion id="2">Running `pnpm test:e2e` executes Playwright tests in `tests/e2e/`</criterion>
+    <criterion id="3">Test coverage reports are generated</criterion>
+    <criterion id="4">CI can run tests in headless mode</criterion>
+    <criterion id="5">At least one test exists for decimal calculations</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Story 1.7" snippet="Defines AC 1.7.1-1.7.5 for Vitest + Playwright setup. Coverage target: 80% for lib/* modules. Test file structure: tests/unit/, tests/integration/, tests/e2e/"/>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Test Strategy" snippet="Vitest for unit testing, Playwright for E2E. Focus tests on calculation accuracy (decimal.js operations). CI runs in headless mode."/>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.7" snippet="Testing infrastructure story. Prerequisites: Story 1.1. Focus on calculation accuracy tests."/>
+      <doc path="docs/sprint-artifacts/1-6-vercel-kv-cache-setup.md" title="Previous Story (1-6)" section="Dev Agent Record" snippet="Tests written in tests/unit/cache/ pending Vitest installation. Use vi.mock pattern for external modules. Tests use @/ path aliases."/>
+    </docs>
+    <code>
+      <!-- Existing test files (pending Vitest installation) -->
+      <file path="tests/unit/calculations/decimal-utils.test.ts" kind="test" symbol="decimal-utils tests" lines="1-246" reason="Decimal precision tests already written, will run after Vitest setup"/>
+      <file path="tests/unit/db/schema.test.ts" kind="test" symbol="schema tests" reason="Database schema tests pending Vitest"/>
+      <file path="tests/unit/auth/password.test.ts" kind="test" symbol="password hashing tests" reason="Auth password tests pending Vitest"/>
+      <file path="tests/unit/auth/jwt.test.ts" kind="test" symbol="JWT tests" reason="JWT token tests pending Vitest"/>
+      <file path="tests/unit/auth/rate-limit.test.ts" kind="test" symbol="rate limit tests" reason="Rate limiting tests pending Vitest"/>
+      <file path="tests/unit/events/event-store.test.ts" kind="test" symbol="event store tests" reason="Event sourcing tests pending Vitest"/>
+      <file path="tests/unit/events/calculation-pipeline.test.ts" kind="test" symbol="pipeline tests" reason="Calculation pipeline tests pending Vitest"/>
+      <file path="tests/unit/events/replay.test.ts" kind="test" symbol="replay tests" reason="Event replay tests pending Vitest"/>
+      <file path="tests/unit/calculations/scoring-engine.test.ts" kind="test" symbol="scoring tests" reason="Scoring engine tests pending Vitest"/>
+      <file path="tests/unit/telemetry/setup.test.ts" kind="test" symbol="telemetry setup tests" reason="OTel setup tests pending Vitest"/>
+      <file path="tests/unit/telemetry/tracer.test.ts" kind="test" symbol="tracer tests" reason="Tracer tests pending Vitest"/>
+      <file path="tests/unit/telemetry/errors.test.ts" kind="test" symbol="error handling tests" reason="Error tests pending Vitest"/>
+      <file path="tests/unit/telemetry/export.test.ts" kind="test" symbol="export tests" reason="OTLP export tests pending Vitest"/>
+      <file path="tests/unit/cache/keys.test.ts" kind="test" symbol="cache key tests" reason="Cache key generation tests from Story 1-6"/>
+      <file path="tests/unit/cache/service.test.ts" kind="test" symbol="cache service tests" reason="CacheService tests from Story 1-6"/>
+      <file path="tests/unit/cache/fallback.test.ts" kind="test" symbol="fallback tests" reason="Graceful degradation tests from Story 1-6"/>
+      <file path="tests/unit/cache/performance.test.ts" kind="test" symbol="performance tests" reason="Performance validation tests from Story 1-6"/>
+      <file path="tests/integration/auth-flow.test.ts" kind="test" symbol="auth flow integration" reason="Auth integration tests pending Vitest"/>
+
+      <!-- Source files to be tested -->
+      <file path="src/lib/calculations/decimal-utils.ts" kind="utility" symbol="decimal utilities" lines="1-171" reason="Primary target for AC5 - decimal calculation precision tests"/>
+      <file path="src/lib/calculations/decimal-config.ts" kind="config" symbol="Decimal config" reason="Global Decimal.js configuration (precision: 20, ROUND_HALF_UP)"/>
+      <file path="src/lib/cache/keys.ts" kind="utility" symbol="cache key generation" reason="Tests already written, validate configuration"/>
+      <file path="src/lib/cache/service.ts" kind="service" symbol="CacheService" reason="Tests already written, validate configuration"/>
+      <file path="src/lib/auth/password.ts" kind="utility" symbol="password hashing" reason="bcrypt utilities with security-critical tests"/>
+      <file path="src/lib/auth/jwt.ts" kind="utility" symbol="JWT utilities" reason="Token generation/verification tests"/>
+      <file path="src/lib/events/event-store.ts" kind="service" symbol="EventStore" reason="Event sourcing persistence tests"/>
+      <file path="src/lib/telemetry/setup.ts" kind="config" symbol="OTel setup" reason="OpenTelemetry configuration tests"/>
+
+      <!-- CI/CD -->
+      <file path=".github/workflows/ci.yml" kind="ci" symbol="CI workflow" lines="55-58" reason="Contains TODO comment for test execution - needs test step added after this story"/>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="decimal.js" version="^10.6.0" reason="Core financial calculations - test precision"/>
+        <package name="drizzle-orm" version="^0.44.7" reason="Database ORM - integration tests"/>
+        <package name="@vercel/kv" version="^3.0.0" reason="Cache layer - mock in tests"/>
+        <package name="jose" version="^6.1.2" reason="JWT library - test token operations"/>
+        <package name="bcrypt" version="^6.0.0" reason="Password hashing - test security functions"/>
+        <package name="@opentelemetry/api" version="^1.9.0" reason="Tracing API - test span creation"/>
+        <package name="zod" version="^4.1.13" reason="Validation - test schema parsing"/>
+        <package name="next" version="16.0.5" reason="Framework - E2E tests need dev server"/>
+        <package name="react" version="19.2.0" reason="UI library - component tests if added"/>
+      </ecosystem>
+      <devDependencies>
+        <package name="vitest" version="^2.x" toInstall="true" reason="Unit testing framework - core of this story"/>
+        <package name="@vitest/coverage-v8" version="^2.x" toInstall="true" reason="Code coverage provider"/>
+        <package name="@vitest/ui" version="^2.x" toInstall="true" reason="Interactive test UI"/>
+        <package name="@playwright/test" version="^1.x" toInstall="true" reason="E2E testing framework"/>
+        <package name="typescript" version="^5" installed="true" reason="TypeScript compiler"/>
+        <package name="eslint" version="^9" installed="true" reason="Linting"/>
+      </devDependencies>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Path aliases must match tsconfig.json: @/* resolves to src/*</constraint>
+    <constraint source="architecture">Coverage threshold: 80% for lib/* modules</constraint>
+    <constraint source="architecture">Test environment: node for unit tests (not jsdom)</constraint>
+    <constraint source="architecture">CI must run in headless mode with CI=true environment variable</constraint>
+    <constraint source="tech-spec">At least one decimal calculation test must validate 0.1 + 0.2 = 0.3 (not 0.30000000000000004)</constraint>
+    <constraint source="previous-story">Existing tests use @/ path aliases - vitest.config.ts must resolve these</constraint>
+    <constraint source="previous-story">Existing tests use vi.mock() pattern for external modules like @vercel/kv</constraint>
+    <constraint source="ci">CI workflow already has placeholder for test step (lines 55-58) - enable after setup complete</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Vitest Test API" kind="test-framework">
+      <signature>import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'</signature>
+      <path>vitest</path>
+    </interface>
+    <interface name="Playwright Test API" kind="test-framework">
+      <signature>import { test, expect, Page } from '@playwright/test'</signature>
+      <path>@playwright/test</path>
+    </interface>
+    <interface name="Decimal Constructor" kind="class">
+      <signature>new Decimal(value: string | number): Decimal</signature>
+      <path>src/lib/calculations/decimal-config.ts</path>
+    </interface>
+    <interface name="parseDecimal" kind="function">
+      <signature>parseDecimal(value: string | number): Decimal</signature>
+      <path>src/lib/calculations/decimal-utils.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use Vitest with explicit imports (no globals). Test files follow *.test.ts naming convention.
+      Coverage reports generated via @vitest/coverage-v8 with v8 provider.
+      E2E tests use Playwright with Chromium browser.
+      Tests are organized by module: tests/unit/{module}/*.test.ts for unit, tests/e2e/*.spec.ts for E2E.
+      Mock external services (@vercel/kv, database) in unit tests.
+      Integration tests may use test database with cleanup.
+      CI runs all tests in headless mode with retries disabled locally but enabled (2) in CI.
+    </standards>
+    <locations>
+      <location>tests/unit/**/*.test.ts</location>
+      <location>tests/integration/**/*.test.ts</location>
+      <location>tests/e2e/**/*.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Verify vitest runs existing tests in tests/unit/ without errors</idea>
+      <idea ac="2">Create smoke.spec.ts that navigates to localhost:3000 and verifies page loads</idea>
+      <idea ac="3">Run vitest --coverage and verify HTML report generates</idea>
+      <idea ac="4">Run tests with CI=true and verify headless execution</idea>
+      <idea ac="5">Run decimal-utils.test.ts and verify 0.1+0.2=0.3 test passes (already written)</idea>
+      <idea ac="5">Verify all 18 existing test files execute without configuration errors</idea>
+    </ideas>
+  </tests>
+</story-context>
