@@ -11,6 +11,10 @@ jobs:
     name: Build & Lint
     runs-on: ubuntu-latest
 
+    env:
+      # Dummy URL for build - no actual DB connection during CI build
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
