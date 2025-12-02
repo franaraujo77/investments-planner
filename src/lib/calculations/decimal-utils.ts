@@ -83,11 +83,7 @@ export function subtract(a: Decimal, b: Decimal): Decimal {
  * @param locale - Locale for formatting (defaults to "en-US")
  * @returns Formatted currency string
  */
-export function formatCurrency(
-  value: Decimal,
-  currency: string,
-  locale = "en-US"
-): string {
+export function formatCurrency(value: Decimal, currency: string, locale = "en-US"): string {
   // Convert to number for Intl.NumberFormat (safe for display purposes)
   const numValue = value.toNumber();
 

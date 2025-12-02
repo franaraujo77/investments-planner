@@ -49,11 +49,7 @@ export {
 // ERROR HANDLING
 // =============================================================================
 
-export {
-  setSpanError,
-  withErrorRecording,
-  getSafeErrorMessage,
-} from "./errors";
+export { setSpanError, withErrorRecording, getSafeErrorMessage } from "./errors";
 
 // =============================================================================
 // CONFIGURATION (Read-only access)

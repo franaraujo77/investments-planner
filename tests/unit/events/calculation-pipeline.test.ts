@@ -45,8 +45,7 @@ describe("CalculationPipeline", () => {
       const correlationId = pipeline.start(testUserId);
 
       // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       expect(correlationId).toMatch(uuidRegex);
     });
 
@@ -151,13 +150,7 @@ describe("CalculationPipeline", () => {
       await pipeline.recordScores(correlationId, testUserId, results);
 
       // Complete
-      await pipeline.complete(
-        correlationId,
-        testUserId,
-        1500,
-        1,
-        "success"
-      );
+      await pipeline.complete(correlationId, testUserId, 1500, 1, "success");
 
       // Verify all 4 events were stored with same correlationId
       const appendCalls = mockEventStore.append.mock.calls;
@@ -218,12 +211,8 @@ describe("CalculationPipeline", () => {
           correlationId,
           criteriaVersionId: "v1",
           criteria: criteriaConfig,
-          prices: expect.arrayContaining([
-            expect.objectContaining({ assetId: "a1" }),
-          ]),
-          rates: expect.arrayContaining([
-            expect.objectContaining({ fromCurrency: "USD" }),
-          ]),
+          prices: expect.arrayContaining([expect.objectContaining({ assetId: "a1" })]),
+          rates: expect.arrayContaining([expect.objectContaining({ fromCurrency: "USD" })]),
         })
       );
     });
@@ -286,14 +275,7 @@ describe("CalculationPipeline", () => {
     it("stores CALC_COMPLETED event with failed status and error", async () => {
       const correlationId = "test-corr-id";
 
-      await pipeline.complete(
-        correlationId,
-        testUserId,
-        500,
-        0,
-        "failed",
-        "Connection timeout"
-      );
+      await pipeline.complete(correlationId, testUserId, 500, 0, "failed", "Connection timeout");
 
       expect(mockEventStore.append).toHaveBeenCalledWith(
         testUserId,
@@ -347,12 +329,7 @@ describe("CalculationPipeline", () => {
         },
       ]);
 
-      const result = await pipeline.runComplete(
-        testUserId,
-        inputs,
-        mockCalculator,
-        "NYSE"
-      );
+      const result = await pipeline.runComplete(testUserId, inputs, mockCalculator, "NYSE");
 
       expect(result.correlationId).toBeDefined();
       expect(result.results).toHaveLength(1);
@@ -373,11 +350,7 @@ describe("CalculationPipeline", () => {
         throw new Error("Calculation failed");
       });
 
-      const result = await pipeline.runComplete(
-        testUserId,
-        inputs,
-        mockCalculator
-      );
+      const result = await pipeline.runComplete(testUserId, inputs, mockCalculator);
 
       expect(result.correlationId).toBeDefined();
       expect(result.results).toEqual([]);

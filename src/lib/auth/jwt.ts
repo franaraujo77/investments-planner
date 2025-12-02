@@ -40,9 +40,7 @@ function getSecretKey(): Uint8Array {
  * @param payload - User identity data (userId, email)
  * @returns Promise resolving to signed JWT string
  */
-export async function signAccessToken(
-  payload: Omit<JwtPayload, "iat" | "exp">
-): Promise<string> {
+export async function signAccessToken(payload: Omit<JwtPayload, "iat" | "exp">): Promise<string> {
   const secret = getSecretKey();
   const now = Math.floor(Date.now() / 1000);
 
@@ -72,9 +70,7 @@ export async function signRefreshToken(
 ): Promise<string> {
   const secret = getSecretKey();
   const now = Math.floor(Date.now() / 1000);
-  const expiry = remember
-    ? AUTH_CONSTANTS.REMEMBER_ME_EXPIRY
-    : AUTH_CONSTANTS.REFRESH_TOKEN_EXPIRY;
+  const expiry = remember ? AUTH_CONSTANTS.REMEMBER_ME_EXPIRY : AUTH_CONSTANTS.REFRESH_TOKEN_EXPIRY;
 
   return new SignJWT({
     userId: payload.userId,
@@ -102,10 +98,7 @@ export async function verifyAccessToken(token: string): Promise<JwtPayload> {
     });
 
     // Validate required fields
-    if (
-      typeof payload.userId !== "string" ||
-      typeof payload.email !== "string"
-    ) {
+    if (typeof payload.userId !== "string" || typeof payload.email !== "string") {
       throw new Error(AUTH_MESSAGES.TOKEN_INVALID);
     }
 
@@ -136,9 +129,7 @@ export async function verifyAccessToken(token: string): Promise<JwtPayload> {
  * @returns Promise resolving to decoded payload
  * @throws Error if token is invalid, expired, or malformed
  */
-export async function verifyRefreshToken(
-  token: string
-): Promise<RefreshTokenPayload> {
+export async function verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
   const secret = getSecretKey();
 
   try {
@@ -147,10 +138,7 @@ export async function verifyRefreshToken(
     });
 
     // Validate required fields
-    if (
-      typeof payload.userId !== "string" ||
-      typeof payload.tokenId !== "string"
-    ) {
+    if (typeof payload.userId !== "string" || typeof payload.tokenId !== "string") {
       throw new Error(AUTH_MESSAGES.TOKEN_INVALID);
     }
 

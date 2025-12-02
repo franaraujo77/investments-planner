@@ -34,7 +34,18 @@ describe("EventStore", () => {
   const testCorrelationId = "corr-456";
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    // Reset mock chain methods
+    mockDb.insert.mockReturnThis();
+    mockDb.values.mockReturnThis();
+    mockDb.returning.mockResolvedValue([{ id: "test-id" }]);
+    mockDb.select.mockReturnThis();
+    mockDb.from.mockReturnThis();
+    mockDb.where.mockReturnThis();
+    // orderBy can be terminal (getByCorrelationId) or chain to limit (getByUserId)
+    // Use mockReturnThis() by default - tests that need terminal behavior use mockResolvedValueOnce
+    mockDb.orderBy.mockReturnThis();
+    mockDb.limit.mockResolvedValue([]);
     // @ts-expect-error - mock database
     eventStore = new EventStore(mockDb);
   });
@@ -143,9 +154,7 @@ describe("EventStore", () => {
         timestamp: new Date(),
       };
 
-      await expect(eventStore.append(testUserId, event)).rejects.toThrow(
-        "Failed to append event"
-      );
+      await expect(eventStore.append(testUserId, event)).rejects.toThrow("Failed to append event");
     });
   });
 
@@ -206,7 +215,8 @@ describe("EventStore", () => {
           createdAt: new Date("2024-01-01T00:00:01Z"),
         },
       ];
-      mockDb.limit.mockResolvedValueOnce(mockEvents);
+      // getByCorrelationId chain ends with orderBy, not limit
+      mockDb.orderBy.mockResolvedValueOnce(mockEvents);
 
       const results = await eventStore.getByCorrelationId(testCorrelationId);
 
@@ -216,7 +226,8 @@ describe("EventStore", () => {
     });
 
     it("returns empty array when no events found", async () => {
-      mockDb.limit.mockResolvedValueOnce([]);
+      // getByCorrelationId chain ends with orderBy, not limit
+      mockDb.orderBy.mockResolvedValueOnce([]);
 
       const results = await eventStore.getByCorrelationId("nonexistent");
 
@@ -232,7 +243,8 @@ describe("EventStore", () => {
         payload: { type: "CALC_STARTED", correlationId: testCorrelationId },
         createdAt: new Date(),
       };
-      mockDb.limit.mockResolvedValueOnce([mockEvent]);
+      // getByCorrelationId chain ends with orderBy, not limit
+      mockDb.orderBy.mockResolvedValueOnce([mockEvent]);
 
       const results = await eventStore.getByCorrelationId(testCorrelationId);
 
@@ -300,10 +312,7 @@ describe("EventStore", () => {
       ];
       mockDb.limit.mockResolvedValueOnce(mockEvents);
 
-      const results = await eventStore.getByEventType(
-        testUserId,
-        "CALC_COMPLETED"
-      );
+      const results = await eventStore.getByEventType(testUserId, "CALC_COMPLETED");
 
       expect(results).toHaveLength(1);
       expect(results[0].eventType).toBe("CALC_COMPLETED");

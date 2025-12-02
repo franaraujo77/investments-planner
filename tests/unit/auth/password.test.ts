@@ -8,11 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  hashPassword,
-  verifyPassword,
-  validatePassword,
-} from "@/lib/auth/password";
+import { hashPassword, verifyPassword, validatePassword } from "@/lib/auth/password";
 
 describe("Password Validation", () => {
   it("should reject passwords shorter than 8 characters", () => {

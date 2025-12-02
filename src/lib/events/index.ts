@@ -34,12 +34,7 @@ export {
 // REPLAY
 // =============================================================================
 
-export {
-  replay,
-  replayBatch,
-  type ReplayResult,
-  type ScoringFunction,
-} from "./replay";
+export { replay, replayBatch, type ReplayResult, type ScoringFunction } from "./replay";
 
 // =============================================================================
 // TYPES

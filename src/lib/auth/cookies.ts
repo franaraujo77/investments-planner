@@ -9,11 +9,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import {
-  COOKIE_NAMES,
-  COOKIE_OPTIONS,
-  AUTH_CONSTANTS,
-} from "./constants";
+import { COOKIE_NAMES, COOKIE_OPTIONS, AUTH_CONSTANTS } from "./constants";
 
 /**
  * Sets the access token cookie on a response
@@ -24,10 +20,7 @@ import {
  * @param response - NextResponse to set cookie on
  * @param token - JWT access token string
  */
-export function setAccessTokenCookie(
-  response: NextResponse,
-  token: string
-): void {
+export function setAccessTokenCookie(response: NextResponse, token: string): void {
   response.cookies.set(COOKIE_NAMES.ACCESS_TOKEN, token, {
     ...COOKIE_OPTIONS,
     maxAge: AUTH_CONSTANTS.ACCESS_TOKEN_EXPIRY,
@@ -49,9 +42,7 @@ export function setRefreshTokenCookie(
   token: string,
   remember: boolean = false
 ): void {
-  const maxAge = remember
-    ? AUTH_CONSTANTS.REMEMBER_ME_EXPIRY
-    : AUTH_CONSTANTS.REFRESH_TOKEN_EXPIRY;
+  const maxAge = remember ? AUTH_CONSTANTS.REMEMBER_ME_EXPIRY : AUTH_CONSTANTS.REFRESH_TOKEN_EXPIRY;
 
   response.cookies.set(COOKIE_NAMES.REFRESH_TOKEN, token, {
     ...COOKIE_OPTIONS,

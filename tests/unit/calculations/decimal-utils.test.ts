@@ -71,12 +71,12 @@ describe("decimal.js Configuration", () => {
       expect(rounded.toString()).toBe("2.45");
     });
 
-    it("should round negative numbers correctly (-2.5 rounds to -2)", () => {
+    it("should round negative numbers correctly (-2.5 rounds to -3)", () => {
       const value = new Decimal("-2.5");
       const rounded = value.toDecimalPlaces(0);
 
-      // ROUND_HALF_UP rounds toward positive infinity
-      expect(rounded.toString()).toBe("-2");
+      // ROUND_HALF_UP rounds away from zero (toward negative infinity for negatives)
+      expect(rounded.toString()).toBe("-3");
     });
   });
 });

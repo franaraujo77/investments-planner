@@ -52,8 +52,7 @@ export const SpanAttributes = {
 /**
  * Type for span attribute keys
  */
-export type SpanAttributeKey =
-  (typeof SpanAttributes)[keyof typeof SpanAttributes];
+export type SpanAttributeKey = (typeof SpanAttributes)[keyof typeof SpanAttributes];
 
 /**
  * Gets a tracer instance with the specified name
@@ -135,10 +134,7 @@ export function createJobSpan(
 
     // Add any additional custom attributes
     for (const [key, value] of Object.entries(attributes)) {
-      if (
-        value !== undefined &&
-        !["userId", "assetCount", "market"].includes(key)
-      ) {
+      if (value !== undefined && !["userId", "assetCount", "market"].includes(key)) {
         spanAttrs[key] = value;
       }
     }

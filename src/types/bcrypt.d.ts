@@ -15,28 +15,16 @@ declare module "bcrypt" {
    * @param data - Data to hash
    * @param saltOrRounds - Salt or number of rounds
    */
-  export function hash(
-    data: string | Buffer,
-    saltOrRounds: string | number
-  ): Promise<string>;
-  export function hashSync(
-    data: string | Buffer,
-    saltOrRounds: string | number
-  ): string;
+  export function hash(data: string | Buffer, saltOrRounds: string | number): Promise<string>;
+  export function hashSync(data: string | Buffer, saltOrRounds: string | number): string;
 
   /**
    * Compares a password with a hash
    * @param data - Data to compare
    * @param encrypted - Hash to compare against
    */
-  export function compare(
-    data: string | Buffer,
-    encrypted: string
-  ): Promise<boolean>;
-  export function compareSync(
-    data: string | Buffer,
-    encrypted: string
-  ): boolean;
+  export function compare(data: string | Buffer, encrypted: string): Promise<boolean>;
+  export function compareSync(data: string | Buffer, encrypted: string): boolean;
 
   /**
    * Gets the number of rounds used to generate a hash

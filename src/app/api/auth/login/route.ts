@@ -48,9 +48,7 @@ const loginSchema = z.object({
  * - 401: Invalid credentials
  * - 429: Rate limited (too many failed attempts)
  */
-export async function POST(
-  request: Request
-): Promise<NextResponse<AuthResponse | AuthError>> {
+export async function POST(request: Request): Promise<NextResponse<AuthResponse | AuthError>> {
   const ip = getClientIp(request);
 
   // Check rate limit first (AC5)
@@ -139,10 +137,7 @@ export async function POST(
     ]);
 
     // Store refresh token hash in database
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(refreshToken)
-      .digest("hex");
+    const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
     // Get device fingerprint from User-Agent
     const deviceFingerprint = request.headers.get("user-agent") ?? undefined;

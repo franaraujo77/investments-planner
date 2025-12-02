@@ -97,10 +97,7 @@ export class CalculationPipeline {
 
     // Fire and await in background - start is synchronous for correlationId return
     this.eventStore.append(userId, event).catch((error) => {
-      console.error(
-        `Failed to store CALC_STARTED event for ${correlationId}:`,
-        error
-      );
+      console.error(`Failed to store CALC_STARTED event for ${correlationId}:`, error);
     });
 
     return correlationId;

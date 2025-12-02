@@ -14,11 +14,7 @@
 import { db, type Database } from "@/lib/db";
 import { calculationEvents } from "@/lib/db/schema";
 import { eq, and, asc, desc } from "drizzle-orm";
-import type {
-  CalculationEvent,
-  CalculationEventType,
-  CalcStartedEvent,
-} from "./types";
+import type { CalculationEvent, CalculationEventType, CalcStartedEvent } from "./types";
 
 /**
  * Parsed event from database with typed payload
@@ -174,12 +170,7 @@ export class EventStore {
     const results = await this.database
       .select()
       .from(calculationEvents)
-      .where(
-        and(
-          eq(calculationEvents.userId, userId),
-          eq(calculationEvents.eventType, eventType)
-        )
-      )
+      .where(and(eq(calculationEvents.userId, userId), eq(calculationEvents.eventType, eventType)))
       .orderBy(desc(calculationEvents.createdAt))
       .limit(limit);
 
@@ -202,9 +193,7 @@ export class EventStore {
    * @param correlationId - Correlation ID of the calculation
    * @returns The CALC_STARTED event or null if not found
    */
-  async getCalcStartedEvent(
-    correlationId: string
-  ): Promise<CalcStartedEvent | null> {
+  async getCalcStartedEvent(correlationId: string): Promise<CalcStartedEvent | null> {
     const events = await this.getByCorrelationId(correlationId);
     const startedEvent = events.find((e) => e.eventType === "CALC_STARTED");
     return startedEvent ? (startedEvent.payload as CalcStartedEvent) : null;

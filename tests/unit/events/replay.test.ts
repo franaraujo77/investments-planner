@@ -20,11 +20,7 @@ import type {
 
 // Helper to create mock stored events
 function createStoredEvent(
-  payload:
-    | CalcStartedEvent
-    | InputsCapturedEvent
-    | ScoresComputedEvent
-    | CalcCompletedEvent,
+  payload: CalcStartedEvent | InputsCapturedEvent | ScoresComputedEvent | CalcCompletedEvent,
   id: string
 ): StoredEvent {
   return {
@@ -126,26 +122,16 @@ describe("replay", () => {
     it("retrieves events from event store", async () => {
       const scoringFn = vi.fn().mockReturnValue(originalResults);
 
-      await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
-      expect(mockEventStore.getByCorrelationId).toHaveBeenCalledWith(
-        testCorrelationId
-      );
+      expect(mockEventStore.getByCorrelationId).toHaveBeenCalledWith(testCorrelationId);
     });
 
     it("returns error when no events found", async () => {
       mockEventStore.getByCorrelationId = vi.fn().mockResolvedValue([]);
       const scoringFn = vi.fn();
 
-      const result = await replay(
-        "nonexistent",
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay("nonexistent", scoringFn, mockEventStore as EventStore);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("No events found");
@@ -156,11 +142,7 @@ describe("replay", () => {
     it("returns matches=true when results are identical", async () => {
       const scoringFn = vi.fn().mockReturnValue(originalResults);
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.success).toBe(true);
       expect(result.matches).toBe(true);
@@ -180,11 +162,7 @@ describe("replay", () => {
       ];
       const scoringFn = vi.fn().mockReturnValue(differentResults);
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.success).toBe(true);
       expect(result.matches).toBe(false);
@@ -200,11 +178,7 @@ describe("replay", () => {
     it("detects missing assets in replay", async () => {
       const scoringFn = vi.fn().mockReturnValue([]); // Empty results
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.matches).toBe(false);
       expect(result.discrepancies).toBeDefined();
@@ -213,34 +187,30 @@ describe("replay", () => {
 
   describe("handles missing events gracefully", () => {
     it("returns error when INPUTS_CAPTURED not found", async () => {
-      mockEventStore.getByCorrelationId = vi.fn().mockResolvedValue([
-        createStoredEvent(calcStartedEvent, "1"),
-        createStoredEvent(scoresComputedEvent, "3"),
-      ]);
+      mockEventStore.getByCorrelationId = vi
+        .fn()
+        .mockResolvedValue([
+          createStoredEvent(calcStartedEvent, "1"),
+          createStoredEvent(scoresComputedEvent, "3"),
+        ]);
       const scoringFn = vi.fn();
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("INPUTS_CAPTURED event not found");
     });
 
     it("returns error when SCORES_COMPUTED not found", async () => {
-      mockEventStore.getByCorrelationId = vi.fn().mockResolvedValue([
-        createStoredEvent(calcStartedEvent, "1"),
-        createStoredEvent(inputsCapturedEvent, "2"),
-      ]);
+      mockEventStore.getByCorrelationId = vi
+        .fn()
+        .mockResolvedValue([
+          createStoredEvent(calcStartedEvent, "1"),
+          createStoredEvent(inputsCapturedEvent, "2"),
+        ]);
       const scoringFn = vi.fn();
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("SCORES_COMPUTED event not found");
@@ -251,11 +221,7 @@ describe("replay", () => {
         throw new Error("Scoring failed");
       });
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe("Scoring failed");
@@ -266,11 +232,7 @@ describe("replay", () => {
     it("passes INPUTS_CAPTURED event to scoring function", async () => {
       const scoringFn = vi.fn().mockReturnValue(originalResults);
 
-      await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(scoringFn).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -286,11 +248,7 @@ describe("replay", () => {
     it("includes correlationId in result", async () => {
       const scoringFn = vi.fn().mockReturnValue(originalResults);
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.correlationId).toBe(testCorrelationId);
     });
@@ -298,11 +256,7 @@ describe("replay", () => {
     it("includes original and replay results", async () => {
       const scoringFn = vi.fn().mockReturnValue(originalResults);
 
-      const result = await replay(
-        testCorrelationId,
-        scoringFn,
-        mockEventStore as EventStore
-      );
+      const result = await replay(testCorrelationId, scoringFn, mockEventStore as EventStore);
 
       expect(result.originalResults).toEqual(originalResults);
       expect(result.replayResults).toEqual(originalResults);
@@ -319,11 +273,7 @@ describe("replayBatch", () => {
       getByCorrelationId: vi.fn().mockResolvedValue([]),
     };
 
-    const result = await replayBatch(
-      correlationIds,
-      scoringFn,
-      mockStore as unknown as EventStore
-    );
+    const result = await replayBatch(correlationIds, scoringFn, mockStore as unknown as EventStore);
 
     expect(result.total).toBe(3);
     expect(result.results).toHaveLength(3);

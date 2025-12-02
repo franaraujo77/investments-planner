@@ -83,14 +83,8 @@ describe("setSpanError", () => {
     setSpanError(mockSpan as any, error);
 
     // Assert
-    expect(mockSpan.setAttribute).toHaveBeenCalledWith(
-      "exception.type",
-      "QueryError"
-    );
-    expect(mockSpan.setAttribute).toHaveBeenCalledWith(
-      "exception.message",
-      "Query failed"
-    );
+    expect(mockSpan.setAttribute).toHaveBeenCalledWith("exception.type", "QueryError");
+    expect(mockSpan.setAttribute).toHaveBeenCalledWith("exception.message", "Query failed");
   });
 
   it("should NOT end the span (caller responsibility)", async () => {

@@ -16,10 +16,7 @@
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { Resource } from "@opentelemetry/resources";
-import {
-  ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-} from "@opentelemetry/semantic-conventions";
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 
 /**
  * Deployment environment attribute
@@ -129,9 +126,7 @@ export function setupTelemetry(): void {
 
   // Graceful degradation: if not enabled, skip setup silently
   if (!config.enabled || !config.endpoint) {
-    console.log(
-      "[telemetry] Telemetry disabled: OTEL_EXPORTER_OTLP_ENDPOINT not set"
-    );
+    console.log("[telemetry] Telemetry disabled: OTEL_EXPORTER_OTLP_ENDPOINT not set");
     isInitialized = true;
     return;
   }

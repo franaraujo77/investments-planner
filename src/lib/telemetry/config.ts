@@ -77,10 +77,8 @@ export const ENV_VARS = {
  */
 export function getTracerConfig(): TracerConfig {
   const endpoint = process.env[ENV_VARS.OTEL_EXPORTER_OTLP_ENDPOINT];
-  const serviceName =
-    process.env[ENV_VARS.OTEL_SERVICE_NAME] ?? DEFAULT_SERVICE_NAME;
-  const serviceVersion =
-    process.env[ENV_VARS.OTEL_SERVICE_VERSION] ?? DEFAULT_SERVICE_VERSION;
+  const serviceName = process.env[ENV_VARS.OTEL_SERVICE_NAME] ?? DEFAULT_SERVICE_NAME;
+  const serviceVersion = process.env[ENV_VARS.OTEL_SERVICE_VERSION] ?? DEFAULT_SERVICE_VERSION;
   const environment = process.env[ENV_VARS.NODE_ENV] ?? "development";
 
   // Telemetry is only enabled if endpoint is configured
