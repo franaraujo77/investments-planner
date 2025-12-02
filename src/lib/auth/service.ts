@@ -8,13 +8,7 @@
  */
 
 import { db } from "@/lib/db";
-import {
-  users,
-  refreshTokens,
-  type User,
-  type NewUser,
-  type RefreshToken,
-} from "@/lib/db/schema";
+import { users, refreshTokens, type User, type NewUser, type RefreshToken } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "./password";
 
@@ -88,11 +82,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
  * @returns User if found, null otherwise
  */
 export async function findUserById(userId: string): Promise<User | null> {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
   return user ?? null;
 }
@@ -146,9 +136,7 @@ export async function storeRefreshToken(
  * @param tokenHash - Hashed token value to search for
  * @returns Refresh token if found and not expired, null otherwise
  */
-export async function findRefreshToken(
-  tokenHash: string
-): Promise<RefreshToken | null> {
+export async function findRefreshToken(tokenHash: string): Promise<RefreshToken | null> {
   const [token] = await db
     .select()
     .from(refreshTokens)
@@ -175,9 +163,7 @@ export async function findRefreshToken(
  * @param tokenId - Token ID to search for
  * @returns Refresh token if found, null otherwise
  */
-export async function findRefreshTokenById(
-  tokenId: string
-): Promise<RefreshToken | null> {
+export async function findRefreshTokenById(tokenId: string): Promise<RefreshToken | null> {
   const [token] = await db
     .select()
     .from(refreshTokens)

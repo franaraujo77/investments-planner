@@ -6,9 +6,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Welcome message */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">
-          Welcome back
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Welcome back</h1>
         <p className="text-muted-foreground">
           Here are your investment recommendations for this month.
         </p>
@@ -40,10 +38,7 @@ export default function DashboardPage() {
           </p>
           {/* Skeleton recommendation cards */}
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between rounded-lg border p-4"
-            >
+            <div key={i} className="flex items-center justify-between rounded-lg border p-4">
               <div className="flex items-center gap-4">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="space-y-2">

@@ -76,13 +76,7 @@ test.describe("Dashboard Layout", () => {
       await page.goto("/");
 
       // Check for all navigation items
-      const expectedItems = [
-        "Dashboard",
-        "Portfolio",
-        "Criteria",
-        "History",
-        "Settings",
-      ];
+      const expectedItems = ["Dashboard", "Portfolio", "Criteria", "History", "Settings"];
 
       for (const item of expectedItems) {
         const link = page.getByRole("link", { name: item });

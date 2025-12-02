@@ -13,11 +13,7 @@ import {
   createScoringFunction,
   type AssetData,
 } from "@/lib/calculations/scoring-engine";
-import type {
-  CriteriaConfig,
-  CriterionDefinition,
-  InputsCapturedEvent,
-} from "@/lib/events/types";
+import type { CriteriaConfig, CriterionDefinition, InputsCapturedEvent } from "@/lib/events/types";
 
 describe("ScoringEngine", () => {
   const engine = new ScoringEngine();

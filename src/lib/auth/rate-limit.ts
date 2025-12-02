@@ -73,8 +73,7 @@ export function checkRateLimit(ip: string): RateLimitResult {
   }
 
   // Check if window has expired
-  const windowExpired =
-    now - entry.windowStart >= AUTH_CONSTANTS.RATE_LIMIT_WINDOW_MS;
+  const windowExpired = now - entry.windowStart >= AUTH_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 
   if (windowExpired) {
     // Window expired, allow request
@@ -127,8 +126,7 @@ export function recordFailedAttempt(ip: string): void {
   }
 
   // Check if window has expired
-  const windowExpired =
-    now - entry.windowStart >= AUTH_CONSTANTS.RATE_LIMIT_WINDOW_MS;
+  const windowExpired = now - entry.windowStart >= AUTH_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 
   if (windowExpired) {
     // Start new window

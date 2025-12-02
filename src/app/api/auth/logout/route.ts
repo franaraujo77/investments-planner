@@ -53,10 +53,7 @@ export const POST = withAuth<LogoutResponse>(async (request, _session) => {
     }
 
     // Create response
-    const response = NextResponse.json<LogoutResponse>(
-      { success: true },
-      { status: 200 }
-    );
+    const response = NextResponse.json<LogoutResponse>({ success: true }, { status: 200 });
 
     // Clear authentication cookies
     clearAuthCookies(response);

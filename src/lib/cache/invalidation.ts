@@ -99,9 +99,7 @@ export async function invalidateOnNewCalculation(userId: string): Promise<void> 
  *
  * @param userIds - Array of user UUIDs
  */
-export async function invalidateRecommendationsForUsers(
-  userIds: string[]
-): Promise<void> {
+export async function invalidateRecommendationsForUsers(userIds: string[]): Promise<void> {
   const keys = userIds.map(createRecommendationKey);
   await cacheService.delMultiple(keys);
 }

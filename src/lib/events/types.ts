@@ -158,27 +158,19 @@ export type CalculationEvent =
 // EVENT TYPE GUARDS
 // =============================================================================
 
-export function isCalcStartedEvent(
-  event: CalculationEvent
-): event is CalcStartedEvent {
+export function isCalcStartedEvent(event: CalculationEvent): event is CalcStartedEvent {
   return event.type === "CALC_STARTED";
 }
 
-export function isInputsCapturedEvent(
-  event: CalculationEvent
-): event is InputsCapturedEvent {
+export function isInputsCapturedEvent(event: CalculationEvent): event is InputsCapturedEvent {
   return event.type === "INPUTS_CAPTURED";
 }
 
-export function isScoresComputedEvent(
-  event: CalculationEvent
-): event is ScoresComputedEvent {
+export function isScoresComputedEvent(event: CalculationEvent): event is ScoresComputedEvent {
   return event.type === "SCORES_COMPUTED";
 }
 
-export function isCalcCompletedEvent(
-  event: CalculationEvent
-): event is CalcCompletedEvent {
+export function isCalcCompletedEvent(event: CalculationEvent): event is CalcCompletedEvent {
   return event.type === "CALC_COMPLETED";
 }
 

@@ -43,9 +43,7 @@ const registerSchema = z.object({
  * - 400: Validation error
  * - 409: Email already exists
  */
-export async function POST(
-  request: Request
-): Promise<NextResponse<AuthResponse | AuthError>> {
+export async function POST(request: Request): Promise<NextResponse<AuthResponse | AuthError>> {
   try {
     // Parse and validate request body
     const body = await request.json();
@@ -82,9 +80,7 @@ export async function POST(
     const tokenId = crypto.randomUUID();
 
     // Calculate expiry (7 days for new registration)
-    const expiresAt = new Date(
-      Date.now() + AUTH_CONSTANTS.REFRESH_TOKEN_EXPIRY * 1000
-    );
+    const expiresAt = new Date(Date.now() + AUTH_CONSTANTS.REFRESH_TOKEN_EXPIRY * 1000);
 
     // Generate tokens
     const [accessToken, refreshToken] = await Promise.all([
@@ -94,10 +90,7 @@ export async function POST(
 
     // Store refresh token hash in database
     // Using SHA-256 hash of the token for storage
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(refreshToken)
-      .digest("hex");
+    const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
     await storeRefreshToken(user.id, tokenHash, expiresAt);
 
@@ -125,10 +118,7 @@ export async function POST(
     console.error("Registration error:", error);
 
     // Handle specific database errors
-    if (
-      error instanceof Error &&
-      error.message.includes("unique constraint")
-    ) {
+    if (error instanceof Error && error.message.includes("unique constraint")) {
       return NextResponse.json(
         {
           error: AUTH_MESSAGES.EMAIL_EXISTS,

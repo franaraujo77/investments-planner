@@ -123,9 +123,5 @@ export function parseCacheKey(key: string): ParsedCacheKey {
  * @returns Array of all cache keys for the user
  */
 export function getAllUserCacheKeys(userId: string): string[] {
-  return [
-    createRecommendationKey(userId),
-    createPortfolioKey(userId),
-    createAllocationKey(userId),
-  ];
+  return [createRecommendationKey(userId), createPortfolioKey(userId), createAllocationKey(userId)];
 }

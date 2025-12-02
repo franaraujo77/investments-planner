@@ -96,10 +96,7 @@ export async function POST(
     }
 
     // Verify token hash matches
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(refreshToken)
-      .digest("hex");
+    const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
     if (dbToken.tokenHash !== tokenHash) {
       // Hash mismatch - possible token reuse attack
@@ -149,10 +146,7 @@ export async function POST(
     ]);
 
     // Store new refresh token hash
-    const newTokenHash = crypto
-      .createHash("sha256")
-      .update(newRefreshToken)
-      .digest("hex");
+    const newTokenHash = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
 
     await storeRefreshToken(
       user.id,

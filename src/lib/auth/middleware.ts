@@ -49,10 +49,7 @@ export async function verifyAuth(request: NextRequest): Promise<Session | null> 
 function unauthorizedResponse(
   message: string = AUTH_MESSAGES.UNAUTHORIZED
 ): NextResponse<AuthError> {
-  return NextResponse.json(
-    { error: message, code: "UNAUTHORIZED" },
-    { status: 401 }
-  );
+  return NextResponse.json({ error: message, code: "UNAUTHORIZED" }, { status: 401 });
 }
 
 /**
@@ -81,10 +78,7 @@ export function withAuth<T>(
   request: NextRequest,
   context: { params: Promise<Record<string, string>> }
 ) => Promise<NextResponse<T | AuthError>> {
-  return async (
-    request: NextRequest,
-    context: { params: Promise<Record<string, string>> }
-  ) => {
+  return async (request: NextRequest, context: { params: Promise<Record<string, string>> }) => {
     const session = await verifyAuth(request);
 
     if (!session) {
@@ -114,10 +108,7 @@ export function withOptionalAuth<T>(
   request: NextRequest,
   context: { params: Promise<Record<string, string>> }
 ) => Promise<NextResponse<T>> {
-  return async (
-    request: NextRequest,
-    context: { params: Promise<Record<string, string>> }
-  ) => {
+  return async (request: NextRequest, context: { params: Promise<Record<string, string>> }) => {
     const session = await verifyAuth(request);
     return handler(request, session, context);
   };

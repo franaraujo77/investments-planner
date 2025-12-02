@@ -59,10 +59,7 @@ export async function hashPassword(password: string): Promise<string> {
  * @param hash - bcrypt hash to compare against
  * @returns Promise resolving to true if password matches, false otherwise
  */
-export async function verifyPassword(
-  password: string,
-  hash: string
-): Promise<boolean> {
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   // bcrypt.compare is timing-safe
   return bcrypt.compare(password, hash);
 }

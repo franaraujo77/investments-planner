@@ -35,10 +35,7 @@ interface CacheOperationResult<T> {
 /**
  * Serializes data for storage, converting Dates to ISO strings
  */
-function serialize<T>(
-  data: T,
-  metadata: CacheMetadata
-): SerializedCacheEntry<T> {
+function serialize<T>(data: T, metadata: CacheMetadata): SerializedCacheEntry<T> {
   return {
     data,
     metadata: {

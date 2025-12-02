@@ -52,9 +52,7 @@ describe("setupTelemetry", () => {
       process.env.OTEL_SERVICE_NAME = "test-service";
 
       // Act
-      const { setupTelemetry, isSetupComplete } = await import(
-        "@/lib/telemetry/setup"
-      );
+      const { setupTelemetry, isSetupComplete } = await import("@/lib/telemetry/setup");
       setupTelemetry();
 
       // Assert
@@ -80,9 +78,7 @@ describe("setupTelemetry", () => {
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
       delete process.env.OTEL_SERVICE_NAME;
 
-      const { getTracerConfig, DEFAULT_SERVICE_NAME } = await import(
-        "@/lib/telemetry/config"
-      );
+      const { getTracerConfig, DEFAULT_SERVICE_NAME } = await import("@/lib/telemetry/config");
 
       // Act
       const config = getTracerConfig();
@@ -113,9 +109,7 @@ describe("setupTelemetry", () => {
       delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
       // Act
-      const { setupTelemetry, isSetupComplete } = await import(
-        "@/lib/telemetry/setup"
-      );
+      const { setupTelemetry, isSetupComplete } = await import("@/lib/telemetry/setup");
 
       // Should not throw
       expect(() => setupTelemetry()).not.toThrow();

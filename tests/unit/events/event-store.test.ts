@@ -154,9 +154,7 @@ describe("EventStore", () => {
         timestamp: new Date(),
       };
 
-      await expect(eventStore.append(testUserId, event)).rejects.toThrow(
-        "Failed to append event"
-      );
+      await expect(eventStore.append(testUserId, event)).rejects.toThrow("Failed to append event");
     });
   });
 
@@ -314,10 +312,7 @@ describe("EventStore", () => {
       ];
       mockDb.limit.mockResolvedValueOnce(mockEvents);
 
-      const results = await eventStore.getByEventType(
-        testUserId,
-        "CALC_COMPLETED"
-      );
+      const results = await eventStore.getByEventType(testUserId, "CALC_COMPLETED");
 
       expect(results).toHaveLength(1);
       expect(results[0].eventType).toBe("CALC_COMPLETED");

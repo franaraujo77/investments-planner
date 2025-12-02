@@ -35,9 +35,7 @@ test.describe("Homepage", () => {
 
     // Filter out expected Next.js development warnings
     const unexpectedErrors = consoleErrors.filter(
-      (error) =>
-        !error.includes("Download the React DevTools") &&
-        !error.includes("Warning:")
+      (error) => !error.includes("Download the React DevTools") && !error.includes("Warning:")
     );
 
     expect(unexpectedErrors).toHaveLength(0);

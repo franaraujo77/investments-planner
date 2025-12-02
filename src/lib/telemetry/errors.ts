@@ -170,10 +170,7 @@ function extractErrorDetails(error: unknown): ErrorDetails {
  * }
  * ```
  */
-export async function withErrorRecording<T>(
-  span: Span,
-  fn: () => Promise<T>
-): Promise<T> {
+export async function withErrorRecording<T>(span: Span, fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (error) {
@@ -193,10 +190,7 @@ export async function withErrorRecording<T>(
  * @param maxLength - Maximum message length (default: 500)
  * @returns Sanitized error message
  */
-export function getSafeErrorMessage(
-  error: unknown,
-  maxLength: number = 500
-): string {
+export function getSafeErrorMessage(error: unknown, maxLength: number = 500): string {
   const details = extractErrorDetails(error);
   let message = details.message;
 

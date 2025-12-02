@@ -33,11 +33,7 @@ import { SpanAttributes } from "./tracer";
  * addTimingAttribute(span, 'fetch_rates_ms', t0);
  * ```
  */
-export function addTimingAttribute(
-  span: Span,
-  name: string,
-  startTime: number
-): void {
+export function addTimingAttribute(span: Span, name: string, startTime: number): void {
   const duration = Date.now() - startTime;
   span.setAttribute(name, duration);
 }
@@ -76,10 +72,7 @@ export interface JobAttributeValues {
  * });
  * ```
  */
-export function addJobAttributes(
-  span: Span,
-  attributes: JobAttributeValues
-): void {
+export function addJobAttributes(span: Span, attributes: JobAttributeValues): void {
   if (attributes.userId !== undefined) {
     span.setAttribute(SpanAttributes.USER_ID, attributes.userId);
   }
@@ -224,9 +217,6 @@ export class TimingTracker {
     for (const [name, duration] of this.durations) {
       this.span.setAttribute(`${name}_ms`, duration);
     }
-    this.span.setAttribute(
-      SpanAttributes.TOTAL_DURATION_MS,
-      Date.now() - this.overallStart
-    );
+    this.span.setAttribute(SpanAttributes.TOTAL_DURATION_MS, Date.now() - this.overallStart);
   }
 }

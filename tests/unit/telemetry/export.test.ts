@@ -259,10 +259,7 @@ describe("Timing attribute accuracy", () => {
     addTimingAttribute(mockSpan as any, "test_ms", startTime);
 
     // Assert
-    expect(mockSpan.setAttribute).toHaveBeenCalledWith(
-      "test_ms",
-      expect.any(Number)
-    );
+    expect(mockSpan.setAttribute).toHaveBeenCalledWith("test_ms", expect.any(Number));
 
     const calledWith = mockSpan.setAttribute.mock.calls[0][1];
     expect(calledWith).toBeGreaterThanOrEqual(45); // Allow some variance

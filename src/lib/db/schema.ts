@@ -1,12 +1,4 @@
-import {
-  boolean,
-  index,
-  jsonb,
-  pgTable,
-  timestamp,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 /**
@@ -112,15 +104,12 @@ export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
   }),
 }));
 
-export const calculationEventsRelations = relations(
-  calculationEvents,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [calculationEvents.userId],
-      references: [users.id],
-    }),
-  })
-);
+export const calculationEventsRelations = relations(calculationEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [calculationEvents.userId],
+    references: [users.id],
+  }),
+}));
 
 // =============================================================================
 // TYPE EXPORTS

@@ -104,9 +104,7 @@ describe("Cache Fallback Behavior", () => {
       const { kv } = await import("@vercel/kv");
       vi.mocked(kv.del).mockRejectedValueOnce(new Error("Network error"));
 
-      const { invalidateRecommendations } = await import(
-        "@/lib/cache/recommendations"
-      );
+      const { invalidateRecommendations } = await import("@/lib/cache/recommendations");
 
       // Should complete without throwing
       await expect(invalidateRecommendations("user-123")).resolves.not.toThrow();
@@ -124,9 +122,7 @@ describe("Cache Fallback Behavior", () => {
       vi.mocked(kv.get).mockResolvedValueOnce(null);
       vi.mocked(kv.set).mockResolvedValueOnce("OK");
 
-      const { getRecommendationsWithFallback } = await import(
-        "@/lib/cache/recommendations"
-      );
+      const { getRecommendationsWithFallback } = await import("@/lib/cache/recommendations");
 
       const mockFallbackData = {
         recommendations: [
@@ -188,9 +184,7 @@ describe("Cache Fallback Behavior", () => {
 
       vi.mocked(kv.get).mockResolvedValueOnce(cachedData);
 
-      const { getRecommendationsWithFallback } = await import(
-        "@/lib/cache/recommendations"
-      );
+      const { getRecommendationsWithFallback } = await import("@/lib/cache/recommendations");
 
       const fallback = vi.fn();
 
@@ -204,9 +198,7 @@ describe("Cache Fallback Behavior", () => {
       const { kv } = await import("@vercel/kv");
       vi.mocked(kv.get).mockResolvedValueOnce(null);
 
-      const { getRecommendationsWithFallback } = await import(
-        "@/lib/cache/recommendations"
-      );
+      const { getRecommendationsWithFallback } = await import("@/lib/cache/recommendations");
 
       const fallback = vi.fn().mockResolvedValue(null);
 

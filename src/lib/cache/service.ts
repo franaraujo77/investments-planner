@@ -61,12 +61,7 @@ export class CacheService {
    * @param ttlSeconds - Optional TTL override
    * @param source - Optional source identifier
    */
-  async set<T>(
-    key: string,
-    value: T,
-    ttlSeconds?: number,
-    source?: string
-  ): Promise<void> {
+  async set<T>(key: string, value: T, ttlSeconds?: number, source?: string): Promise<void> {
     await cacheSet(key, value, {
       ttlSeconds: ttlSeconds ?? this.defaultTtlSeconds,
       source: source ?? "cache-service",

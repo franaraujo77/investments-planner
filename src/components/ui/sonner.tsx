@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   CircleCheckIcon,
@@ -6,15 +6,15 @@ import {
   Loader2Icon,
   OctagonXIcon,
   TriangleAlertIcon,
-} from "lucide-react"
-import { useTheme } from "next-themes"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+} from "lucide-react";
+import { useTheme } from "next-themes";
+import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-type ToasterTheme = "light" | "dark" | "system"
+type ToasterTheme = "light" | "dark" | "system";
 
 const Toaster = ({ theme: propsTheme, ...props }: ToasterProps) => {
-  const { theme: contextTheme } = useTheme()
-  const resolvedTheme: ToasterTheme = (propsTheme ?? contextTheme ?? "system") as ToasterTheme
+  const { theme: contextTheme } = useTheme();
+  const resolvedTheme: ToasterTheme = (propsTheme ?? contextTheme ?? "system") as ToasterTheme;
 
   return (
     <Sonner
@@ -37,7 +37,7 @@ const Toaster = ({ theme: propsTheme, ...props }: ToasterProps) => {
       }
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };

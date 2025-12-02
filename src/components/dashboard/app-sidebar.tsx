@@ -63,15 +63,8 @@ export function AppSidebar() {
                 const isActive = pathname === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                    >
-                      <Link
-                        href={item.path}
-                        aria-current={isActive ? "page" : undefined}
-                      >
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+                      <Link href={item.path} aria-current={isActive ? "page" : undefined}>
                         <item.icon aria-hidden="true" />
                         <span>{item.label}</span>
                       </Link>
@@ -85,10 +78,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t">
         <div className="flex items-center gap-2 p-2">
-          <div
-            className="h-8 w-8 rounded-full bg-muted"
-            aria-label="User avatar"
-          />
+          <div className="h-8 w-8 rounded-full bg-muted" aria-label="User avatar" />
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-medium">User</span>
             <span className="text-xs text-muted-foreground">user@example.com</span>

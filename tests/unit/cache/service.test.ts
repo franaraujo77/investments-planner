@@ -122,11 +122,7 @@ describe("CacheService", () => {
       const service = new CacheService();
       await service.set("test-key", { value: "test" }, 3600);
 
-      expect(kv.set).toHaveBeenCalledWith(
-        "test-key",
-        expect.anything(),
-        { ex: 3600 }
-      );
+      expect(kv.set).toHaveBeenCalledWith("test-key", expect.anything(), { ex: 3600 });
     });
   });
 
