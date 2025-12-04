@@ -25,7 +25,7 @@ import {
   getClientIp,
 } from "@/lib/auth/rate-limit";
 import { AUTH_MESSAGES, AUTH_CONSTANTS } from "@/lib/auth/constants";
-import { logger, redactEmail } from "@/lib/telemetry/logger";
+import { logger } from "@/lib/telemetry/logger";
 import type { AuthResponse, AuthError } from "@/lib/auth/types";
 import crypto from "crypto";
 

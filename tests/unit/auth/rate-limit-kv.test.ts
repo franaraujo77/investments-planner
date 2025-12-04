@@ -9,12 +9,12 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock @vercel/kv before imports
-const mockKv = {
+// Use vi.hoisted to ensure mockKv is available when mocks are hoisted
+const mockKv = vi.hoisted(() => ({
   get: vi.fn(),
   set: vi.fn(),
   del: vi.fn(),
-};
+}));
 
 vi.mock("@vercel/kv", () => ({
   kv: mockKv,
@@ -26,6 +26,16 @@ vi.mock("@/lib/cache/config", () => ({
   CACHE_KEY_PREFIXES: {
     RATE_LIMIT_IP: "rate-limit:ip:",
     RATE_LIMIT_EMAIL: "rate-limit:email:",
+  },
+}));
+
+// Mock logger to prevent console output in tests
+vi.mock("@/lib/telemetry/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   },
 }));
 

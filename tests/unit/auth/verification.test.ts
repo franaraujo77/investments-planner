@@ -10,7 +10,23 @@
  * AC-2.2.5: Resend rate limiting
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Mock cache config to use in-memory fallback
+vi.mock("@/lib/cache/config", () => ({
+  getCacheConfig: vi.fn(() => ({ enabled: false })),
+}));
+
+// Mock logger to prevent console output in tests
+vi.mock("@/lib/telemetry/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 import {
   checkEmailRateLimit,
   recordEmailResendAttempt,
@@ -28,124 +44,124 @@ describe("Email Rate Limiting (Story 2.2 AC-2.2.5)", () => {
   });
 
   describe("checkEmailRateLimit", () => {
-    it("should allow first request for new email", () => {
-      const result = checkEmailRateLimit("test@example.com");
+    it("should allow first request for new email", async () => {
+      const result = await checkEmailRateLimit("test@example.com");
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(3);
     });
 
-    it("should normalize email to lowercase", () => {
-      const result1 = checkEmailRateLimit("Test@Example.COM");
-      const result2 = checkEmailRateLimit("test@example.com");
+    it("should normalize email to lowercase", async () => {
+      const result1 = await checkEmailRateLimit("Test@Example.COM");
+      const result2 = await checkEmailRateLimit("test@example.com");
 
       // Both should be treated as the same email
       expect(result1.remaining).toBe(result2.remaining);
     });
 
-    it("should track attempts correctly", () => {
+    it("should track attempts correctly", async () => {
       const email = "test@example.com";
 
       // First check - 3 remaining
-      let result = checkEmailRateLimit(email);
+      let result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(3);
 
       // Record first attempt
-      recordEmailResendAttempt(email);
-      result = checkEmailRateLimit(email);
+      await recordEmailResendAttempt(email);
+      result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(2);
 
       // Record second attempt
-      recordEmailResendAttempt(email);
-      result = checkEmailRateLimit(email);
+      await recordEmailResendAttempt(email);
+      result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(1);
 
       // Record third attempt
-      recordEmailResendAttempt(email);
-      result = checkEmailRateLimit(email);
+      await recordEmailResendAttempt(email);
+      result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(0);
       expect(result.allowed).toBe(false);
     });
 
-    it("should block after 3 attempts", () => {
+    it("should block after 3 attempts", async () => {
       const email = "blocked@example.com";
 
       // Record 3 attempts
-      recordEmailResendAttempt(email);
-      recordEmailResendAttempt(email);
-      recordEmailResendAttempt(email);
+      await recordEmailResendAttempt(email);
+      await recordEmailResendAttempt(email);
+      await recordEmailResendAttempt(email);
 
-      const result = checkEmailRateLimit(email);
+      const result = await checkEmailRateLimit(email);
       expect(result.allowed).toBe(false);
       expect(result.retryAfter).toBeDefined();
       expect(result.retryAfter).toBeGreaterThan(0);
     });
 
-    it("should return retryAfter in seconds", () => {
+    it("should return retryAfter in seconds", async () => {
       const email = "retry@example.com";
 
       // Record 3 attempts to trigger rate limit
-      recordEmailResendAttempt(email);
-      recordEmailResendAttempt(email);
-      recordEmailResendAttempt(email);
+      await recordEmailResendAttempt(email);
+      await recordEmailResendAttempt(email);
+      await recordEmailResendAttempt(email);
 
-      const result = checkEmailRateLimit(email);
+      const result = await checkEmailRateLimit(email);
       expect(result.allowed).toBe(false);
       // retryAfter should be less than 1 hour (3600 seconds)
       expect(result.retryAfter).toBeLessThanOrEqual(3600);
       expect(result.retryAfter).toBeGreaterThan(0);
     });
 
-    it("should track different emails separately", () => {
+    it("should track different emails separately", async () => {
       const email1 = "user1@example.com";
       const email2 = "user2@example.com";
 
       // Exhaust rate limit for email1
-      recordEmailResendAttempt(email1);
-      recordEmailResendAttempt(email1);
-      recordEmailResendAttempt(email1);
+      await recordEmailResendAttempt(email1);
+      await recordEmailResendAttempt(email1);
+      await recordEmailResendAttempt(email1);
 
       // email1 should be blocked
-      const result1 = checkEmailRateLimit(email1);
+      const result1 = await checkEmailRateLimit(email1);
       expect(result1.allowed).toBe(false);
 
       // email2 should still be allowed
-      const result2 = checkEmailRateLimit(email2);
+      const result2 = await checkEmailRateLimit(email2);
       expect(result2.allowed).toBe(true);
       expect(result2.remaining).toBe(3);
     });
   });
 
   describe("recordEmailResendAttempt", () => {
-    it("should create entry for new email", () => {
+    it("should create entry for new email", async () => {
       const email = "new@example.com";
 
       // Should have full quota initially
-      let result = checkEmailRateLimit(email);
+      let result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(3);
 
       // Record attempt
-      recordEmailResendAttempt(email);
+      await recordEmailResendAttempt(email);
 
       // Should have reduced quota
-      result = checkEmailRateLimit(email);
+      result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(2);
     });
 
-    it("should increment existing entry", () => {
+    it("should increment existing entry", async () => {
       const email = "existing@example.com";
 
-      recordEmailResendAttempt(email);
-      let result = checkEmailRateLimit(email);
+      await recordEmailResendAttempt(email);
+      let result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(2);
 
-      recordEmailResendAttempt(email);
-      result = checkEmailRateLimit(email);
+      await recordEmailResendAttempt(email);
+      result = await checkEmailRateLimit(email);
       expect(result.remaining).toBe(1);
     });
 
-    it("should handle case-insensitive emails", () => {
-      recordEmailResendAttempt("TEST@example.com");
-      const result = checkEmailRateLimit("test@example.com");
+    it("should handle case-insensitive emails", async () => {
+      await recordEmailResendAttempt("TEST@example.com");
+      const result = await checkEmailRateLimit("test@example.com");
       expect(result.remaining).toBe(2);
     });
   });

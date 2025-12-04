@@ -6,7 +6,23 @@
  * Tests for login API endpoint and related functionality.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Mock cache config to use in-memory fallback
+vi.mock("@/lib/cache/config", () => ({
+  getCacheConfig: vi.fn(() => ({ enabled: false })),
+}));
+
+// Mock logger to prevent console output in tests
+vi.mock("@/lib/telemetry/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 import {
   checkRateLimit,
   recordFailedAttempt,
@@ -100,58 +116,58 @@ describe("Login Rate Limiting", () => {
     _resetRateLimitStore();
   });
 
-  it("should allow first login attempt", () => {
-    const result = checkRateLimit(testIp);
+  it("should allow first login attempt", async () => {
+    const result = await checkRateLimit(testIp);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(AUTH_CONSTANTS.RATE_LIMIT_MAX_ATTEMPTS);
   });
 
-  it("should decrement remaining attempts after failure", () => {
-    recordFailedAttempt(testIp);
-    const result = checkRateLimit(testIp);
+  it("should decrement remaining attempts after failure", async () => {
+    await recordFailedAttempt(testIp);
+    const result = await checkRateLimit(testIp);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(AUTH_CONSTANTS.RATE_LIMIT_MAX_ATTEMPTS - 1);
   });
 
-  it("should block after max failed attempts (AC-2.3.4)", () => {
+  it("should block after max failed attempts (AC-2.3.4)", async () => {
     // Exhaust all attempts
     for (let i = 0; i < AUTH_CONSTANTS.RATE_LIMIT_MAX_ATTEMPTS; i++) {
-      recordFailedAttempt(testIp);
+      await recordFailedAttempt(testIp);
     }
 
-    const result = checkRateLimit(testIp);
+    const result = await checkRateLimit(testIp);
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
     expect(result.retryAfter).toBeDefined();
     expect(result.retryAfter).toBeGreaterThan(0);
   });
 
-  it("should clear rate limit after successful login", () => {
+  it("should clear rate limit after successful login", async () => {
     // Record some failures
     for (let i = 0; i < 3; i++) {
-      recordFailedAttempt(testIp);
+      await recordFailedAttempt(testIp);
     }
 
     // Clear on success
-    clearRateLimit(testIp);
+    await clearRateLimit(testIp);
 
-    const result = checkRateLimit(testIp);
+    const result = await checkRateLimit(testIp);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(AUTH_CONSTANTS.RATE_LIMIT_MAX_ATTEMPTS);
   });
 
-  it("should track rate limits per IP independently", () => {
+  it("should track rate limits per IP independently", async () => {
     const ip1 = "192.168.1.1";
     const ip2 = "192.168.1.2";
 
     // Exhaust ip1's attempts
     for (let i = 0; i < AUTH_CONSTANTS.RATE_LIMIT_MAX_ATTEMPTS; i++) {
-      recordFailedAttempt(ip1);
+      await recordFailedAttempt(ip1);
     }
 
     // ip2 should still be allowed
-    const result1 = checkRateLimit(ip1);
-    const result2 = checkRateLimit(ip2);
+    const result1 = await checkRateLimit(ip1);
+    const result2 = await checkRateLimit(ip2);
 
     expect(result1.allowed).toBe(false);
     expect(result2.allowed).toBe(true);
