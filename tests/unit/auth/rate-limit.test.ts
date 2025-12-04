@@ -8,6 +8,22 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+
+// Mock cache config to use in-memory fallback
+vi.mock("@/lib/cache/config", () => ({
+  getCacheConfig: vi.fn(() => ({ enabled: false })),
+}));
+
+// Mock logger to prevent console output in tests
+vi.mock("@/lib/telemetry/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 import {
   checkRateLimit,
   recordFailedAttempt,
@@ -26,50 +42,50 @@ describe("Rate Limiting (AC: 5)", () => {
   });
 
   describe("checkRateLimit", () => {
-    it("should allow first request from new IP", () => {
-      const result = checkRateLimit("192.168.1.1");
+    it("should allow first request from new IP", async () => {
+      const result = await checkRateLimit("192.168.1.1");
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(5);
     });
 
-    it("should allow up to 5 attempts within window", () => {
+    it("should allow up to 5 attempts within window", async () => {
       const ip = "192.168.1.2";
 
       // Record 4 failed attempts
       for (let i = 0; i < 4; i++) {
-        recordFailedAttempt(ip);
+        await recordFailedAttempt(ip);
       }
 
       // 5th attempt should still be allowed
-      const result = checkRateLimit(ip);
+      const result = await checkRateLimit(ip);
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(1);
     });
 
-    it("should block after 5 failed attempts", () => {
+    it("should block after 5 failed attempts", async () => {
       const ip = "192.168.1.3";
 
       // Record 5 failed attempts
       for (let i = 0; i < 5; i++) {
-        recordFailedAttempt(ip);
+        await recordFailedAttempt(ip);
       }
 
       // 6th attempt should be blocked
-      const result = checkRateLimit(ip);
+      const result = await checkRateLimit(ip);
       expect(result.allowed).toBe(false);
       expect(result.remaining).toBe(0);
       expect(result.retryAfter).toBeGreaterThan(0);
     });
 
-    it("should return correct retryAfter time", () => {
+    it("should return correct retryAfter time", async () => {
       const ip = "192.168.1.4";
 
       // Record 5 failed attempts
       for (let i = 0; i < 5; i++) {
-        recordFailedAttempt(ip);
+        await recordFailedAttempt(ip);
       }
 
-      const result = checkRateLimit(ip);
+      const result = await checkRateLimit(ip);
 
       // retryAfter should be close to 1 hour (3600 seconds)
       expect(result.retryAfter).toBeLessThanOrEqual(3600);
@@ -78,99 +94,99 @@ describe("Rate Limiting (AC: 5)", () => {
   });
 
   describe("recordFailedAttempt", () => {
-    it("should increment attempt counter", () => {
+    it("should increment attempt counter", async () => {
       const ip = "192.168.1.5";
 
-      recordFailedAttempt(ip);
-      let result = checkRateLimit(ip);
+      await recordFailedAttempt(ip);
+      let result = await checkRateLimit(ip);
       expect(result.remaining).toBe(4);
 
-      recordFailedAttempt(ip);
-      result = checkRateLimit(ip);
+      await recordFailedAttempt(ip);
+      result = await checkRateLimit(ip);
       expect(result.remaining).toBe(3);
     });
 
-    it("should track different IPs separately", () => {
+    it("should track different IPs separately", async () => {
       const ip1 = "192.168.1.6";
       const ip2 = "192.168.1.7";
 
       // Record attempts for ip1
-      recordFailedAttempt(ip1);
-      recordFailedAttempt(ip1);
-      recordFailedAttempt(ip1);
+      await recordFailedAttempt(ip1);
+      await recordFailedAttempt(ip1);
+      await recordFailedAttempt(ip1);
 
       // ip2 should still have full quota
-      const result2 = checkRateLimit(ip2);
+      const result2 = await checkRateLimit(ip2);
       expect(result2.remaining).toBe(5);
 
       // ip1 should have reduced quota
-      const result1 = checkRateLimit(ip1);
+      const result1 = await checkRateLimit(ip1);
       expect(result1.remaining).toBe(2);
     });
   });
 
   describe("clearRateLimit", () => {
-    it("should reset counter on successful login", () => {
+    it("should reset counter on successful login", async () => {
       const ip = "192.168.1.8";
 
       // Record 4 failed attempts
       for (let i = 0; i < 4; i++) {
-        recordFailedAttempt(ip);
+        await recordFailedAttempt(ip);
       }
 
       // Verify reduced quota
-      let result = checkRateLimit(ip);
+      let result = await checkRateLimit(ip);
       expect(result.remaining).toBe(1);
 
       // Clear on successful login
-      clearRateLimit(ip);
+      await clearRateLimit(ip);
 
       // Should have full quota again
-      result = checkRateLimit(ip);
+      result = await checkRateLimit(ip);
       expect(result.remaining).toBe(5);
     });
   });
 
   describe("Window Expiry", () => {
-    it("should reset after 1 hour", () => {
+    it("should reset after 1 hour", async () => {
       vi.useFakeTimers();
       const ip = "192.168.1.9";
 
       // Record 5 failed attempts
       for (let i = 0; i < 5; i++) {
-        recordFailedAttempt(ip);
+        await recordFailedAttempt(ip);
       }
 
       // Should be blocked
-      let result = checkRateLimit(ip);
+      let result = await checkRateLimit(ip);
       expect(result.allowed).toBe(false);
 
       // Advance time by 1 hour + 1 second
       vi.advanceTimersByTime(60 * 60 * 1000 + 1000);
 
       // Should be allowed again
-      result = checkRateLimit(ip);
+      result = await checkRateLimit(ip);
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(5);
     });
 
-    it("should start new window after expiry", () => {
+    it("should start new window after expiry", async () => {
       vi.useFakeTimers();
       const ip = "192.168.1.10";
 
       // Record 3 failed attempts
       for (let i = 0; i < 3; i++) {
-        recordFailedAttempt(ip);
+        await recordFailedAttempt(ip);
       }
 
       // Advance time by 1 hour + 1 second
       vi.advanceTimersByTime(60 * 60 * 1000 + 1000);
 
       // Record new attempt (should start fresh window)
-      recordFailedAttempt(ip);
+      await recordFailedAttempt(ip);
 
       // Should have 4 remaining (5 - 1)
-      const result = checkRateLimit(ip);
+      const result = await checkRateLimit(ip);
       expect(result.remaining).toBe(4);
     });
   });

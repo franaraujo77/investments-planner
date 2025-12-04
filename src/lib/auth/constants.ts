@@ -21,6 +21,12 @@ export const AUTH_CONSTANTS = {
   /** Extended refresh token expiry with "remember me": 30 days */
   REMEMBER_ME_EXPIRY: 30 * 24 * 60 * 60,
 
+  /** Verification token expiry: 24 hours (86400 seconds) */
+  VERIFICATION_TOKEN_EXPIRY: 24 * 60 * 60,
+
+  /** Password reset token expiry: 1 hour (3600 seconds) */
+  PASSWORD_RESET_TOKEN_EXPIRY: 60 * 60,
+
   /** bcrypt cost factor for password hashing */
   BCRYPT_COST_FACTOR: 12,
 
@@ -89,5 +95,12 @@ export const AUTH_MESSAGES = {
   TOKEN_INVALID: "Invalid token",
   PASSWORD_TOO_SHORT: `Password must be at least ${PASSWORD_RULES.MIN_LENGTH} characters`,
   PASSWORD_TOO_LONG: `Password must be at most ${PASSWORD_RULES.MAX_LENGTH} characters`,
+  PASSWORD_MISSING_UPPERCASE: "Password must contain at least one uppercase letter",
+  PASSWORD_MISSING_LOWERCASE: "Password must contain at least one lowercase letter",
+  PASSWORD_MISSING_NUMBER: "Password must contain at least one number",
+  PASSWORD_MISSING_SPECIAL: "Password must contain at least one special character (@$!%*?&)",
   INVALID_EMAIL: "Invalid email address",
+  DISCLAIMER_REQUIRED: "You must acknowledge the financial disclaimer",
+  VERIFICATION_EMAIL_SENT: "Verification email sent. Please check your inbox.",
+  EMAIL_NOT_VERIFIED: "Please verify your email before logging in",
 } as const;

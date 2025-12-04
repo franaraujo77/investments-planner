@@ -1,0 +1,261 @@
+<story-context id="3-5-mark-asset-as-ignored" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>5</storyId>
+    <title>Mark Asset as Ignored</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-5-mark-asset-as-ignored.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>mark specific assets as "ignored"</iWant>
+    <soThat>they're excluded from allocation recommendations but still tracked in my portfolio total value</soThat>
+    <tasks>
+      <task id="1" file="src/lib/services/portfolio-service.ts">
+        Add toggleAssetIgnored service function - verify ownership, toggle isIgnored, return updated asset
+      </task>
+      <task id="2" file="src/app/api/assets/[id]/ignore/route.ts">
+        Create toggle ignore API route with PATCH handler, withAuth middleware
+      </task>
+      <task id="3" file="src/hooks/use-toggle-ignore.ts">
+        Create useToggleIgnore hook with optimistic updates, rollback, toasts
+      </task>
+      <task id="4" file="src/components/portfolio/portfolio-table.tsx">
+        Add Switch component, ignored styling (muted + badge), integrate hook
+      </task>
+      <task id="5" file="src/components/portfolio/portfolio-asset-summary.tsx">
+        Verify allocation % excludes ignored, total value includes ignored
+      </task>
+      <task id="6" file="tests/unit/services/portfolio-asset.test.ts">
+        Add unit tests for toggleAssetIgnored function
+      </task>
+      <task id="7" file="tests/e2e/portfolio.spec.ts">
+        Add E2E tests for ignore toggle functionality
+      </task>
+      <task id="8">
+        Run verification: pnpm lint, pnpm build, pnpm test
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-3.5.1" title="Ignore Toggle Display">
+      Given I have assets in my portfolio, When I view the portfolio table, Then each asset row displays an "Ignore" toggle switch
+    </criterion>
+    <criterion id="AC-3.5.2" title="Toggle Visual Indicator">
+      Given I toggle the "Ignore" switch on an asset, When the asset is marked as ignored, Then asset row shows visual indicator (strikethrough or muted styling + "Ignored" badge) and toggle switch reflects "on" state
+    </criterion>
+    <criterion id="AC-3.5.3" title="Allocation Exclusion">
+      Given an asset is marked as ignored, When allocation percentages are calculated, Then the ignored asset is excluded from allocation percentage calculations
+    </criterion>
+    <criterion id="AC-3.5.4" title="Total Value Inclusion">
+      Given an asset is marked as ignored, When portfolio total value is calculated, Then the ignored asset still counts toward total portfolio value
+    </criterion>
+    <criterion id="AC-3.5.5" title="Instant Toggle">
+      Given I toggle the "Ignore" switch, When I click the toggle, Then change is instant (no confirmation needed), success toast shows "Asset ignored" or "Asset restored", optimistic UI update
+    </criterion>
+    <criterion id="AC-3.5.6" title="Toggle Reversibility">
+      Given an asset is currently ignored, When I toggle ignore off, Then asset returns to active state immediately and is included in allocations again
+    </criterion>
+    <criterion id="AC-3.5.7" title="Multi-tenant Isolation">
+      Given I attempt to toggle ignore on an asset, When the API processes the request, Then verification ensures the asset belongs to a portfolio I own
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic 3 Technical Specification</title>
+        <section>AC-3.5: Ignore Asset (FR13)</section>
+        <snippet>AC-3.5.1: Toggle shows visual indicator. AC-3.5.2: Excluded from allocation %. AC-3.5.3: Still counts toward total value. AC-3.5.4: Toggle returns to active state immediately.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 3.5: Mark Asset as Ignored</section>
+        <snippet>Users can mark assets as "ignored" to exclude from allocation calculations while still tracking in portfolio total value. Instant toggle, visual indicator, reversible.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Security Architecture</section>
+        <snippet>Multi-tenant isolation via user_id foreign keys. All queries must verify ownership through portfolio chain before performing operations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/3-4-remove-asset-from-portfolio.md</path>
+        <title>Previous Story Reference</title>
+        <section>Dev Agent Record</section>
+        <snippet>Patterns established: useDeleteAsset hook, asset API routes with PATCH/DELETE, optimistic updates with rollback, sonner toast notifications.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/services/portfolio-service.ts</path>
+        <kind>service</kind>
+        <symbol>getAssetById, updateAsset, removeAsset, AssetNotFoundError</symbol>
+        <lines>304-404</lines>
+        <reason>Base service to extend with toggleAssetIgnored function. Follow existing patterns for ownership verification via getAssetById.</reason>
+      </file>
+      <file>
+        <path>src/components/portfolio/portfolio-table.tsx</path>
+        <kind>component</kind>
+        <symbol>PortfolioTable, AssetRow</symbol>
+        <lines>1-271</lines>
+        <reason>Main table component to add ignore toggle column. Uses useDeleteAsset pattern to follow for useToggleIgnore integration.</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>portfolioAssets, isIgnored</symbol>
+        <lines>202-224</lines>
+        <reason>Database schema showing isIgnored column already exists (line 216). No migration needed.</reason>
+      </file>
+      <file>
+        <path>src/hooks/use-delete-asset.ts</path>
+        <kind>hook</kind>
+        <symbol>useDeleteAsset</symbol>
+        <lines>1-98</lines>
+        <reason>Pattern to follow for useToggleIgnore hook. Uses router.refresh(), sonner toasts, loading state.</reason>
+      </file>
+      <file>
+        <path>src/app/api/assets/[id]/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>PATCH, DELETE</symbol>
+        <lines>1-173</lines>
+        <reason>Pattern for asset API routes. Create new /ignore/route.ts following this structure with withAuth middleware.</reason>
+      </file>
+      <file>
+        <path>src/components/portfolio/portfolio-asset-summary.tsx</path>
+        <kind>component</kind>
+        <symbol>calculateTotalValue</symbol>
+        <lines>28-59</lines>
+        <reason>Portfolio total calculation. Verify ignored assets are included in total but excluded from allocation % (allocation logic to be added in Epic 3.7).</reason>
+      </file>
+      <file>
+        <path>tests/unit/services/portfolio-asset.test.ts</path>
+        <kind>test</kind>
+        <symbol>describe Portfolio Asset Service</symbol>
+        <lines>1-150</lines>
+        <reason>Existing test file to extend with toggleAssetIgnored tests. Follow mock patterns and test structure.</reason>
+      </file>
+      <file>
+        <path>tests/e2e/portfolio.spec.ts</path>
+        <kind>test</kind>
+        <symbol>test.describe Portfolio Page</symbol>
+        <lines>1-100</lines>
+        <reason>E2E test file to extend with ignore toggle tests. Uses loginUser helper and Playwright patterns.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>19.2.0</version>
+      </node>
+      <node>
+        <package>next</package>
+        <version>16.0.5</version>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.44.7</version>
+      </node>
+      <node>
+        <package>sonner</package>
+        <version>^2.0.7</version>
+        <usage>Toast notifications for success/error feedback</usage>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.555.0</version>
+        <usage>Icons - may need for ignored indicator</usage>
+      </node>
+      <node>
+        <package>@radix-ui components</package>
+        <note>Switch component needed - may need to add via shadcn: npx shadcn@latest add switch</note>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <usage>Unit testing framework</usage>
+      </node>
+      <node>
+        <package>@playwright/test</package>
+        <version>^1.57.0</version>
+        <usage>E2E testing framework</usage>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="pattern">
+      All monetary calculations MUST use decimal.js, never JavaScript arithmetic
+    </constraint>
+    <constraint type="security">
+      All asset operations MUST verify ownership through portfolio chain via getAssetById before performing action
+    </constraint>
+    <constraint type="ui">
+      Toggle is instant - no confirmation dialog (different from delete which is destructive)
+    </constraint>
+    <constraint type="ux">
+      Visual feedback via toast and row styling change. "Asset ignored" when toggled on, "Asset restored" when toggled off.
+    </constraint>
+    <constraint type="architecture">
+      Multi-tenant isolation enforced via user_id at all layers (service, API, database)
+    </constraint>
+    <constraint type="data">
+      isIgnored column already exists in portfolioAssets table. No migration needed.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>toggleAssetIgnored</name>
+      <kind>service-function</kind>
+      <signature>export async function toggleAssetIgnored(userId: string, assetId: string): Promise&lt;PortfolioAsset&gt;</signature>
+      <path>src/lib/services/portfolio-service.ts</path>
+    </interface>
+    <interface>
+      <name>PATCH /api/assets/:id/ignore</name>
+      <kind>REST endpoint</kind>
+      <signature>PATCH /api/assets/:id/ignore - Returns { data: PortfolioAsset } with updated isIgnored state</signature>
+      <path>src/app/api/assets/[id]/ignore/route.ts</path>
+    </interface>
+    <interface>
+      <name>useToggleIgnore</name>
+      <kind>React hook</kind>
+      <signature>export function useToggleIgnore(): { toggleIgnore: (assetId: string) => Promise&lt;true | string&gt;, isToggling: boolean }</signature>
+      <path>src/hooks/use-toggle-ignore.ts</path>
+    </interface>
+    <interface>
+      <name>PortfolioAsset</name>
+      <kind>TypeScript type</kind>
+      <signature>type PortfolioAsset - includes isIgnored: boolean field</signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest for unit tests and Playwright for E2E. Unit tests mock database layer using vi.mock patterns. E2E tests use authenticated user flow with loginUser helper. All tests must pass before story completion. Use data-testid attributes for reliable element selection.
+    </standards>
+    <locations>
+      <location>tests/unit/services/portfolio-asset.test.ts</location>
+      <location>tests/e2e/portfolio.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-3.5.1">E2E: Verify ignore toggle switch visible on each asset row</idea>
+      <idea ac="AC-3.5.2">E2E: Toggle asset and verify visual indicator (muted styling, Ignored badge)</idea>
+      <idea ac="AC-3.5.3">Unit: Verify allocation calculation excludes ignored assets</idea>
+      <idea ac="AC-3.5.4">Unit: Verify total value calculation includes ignored assets</idea>
+      <idea ac="AC-3.5.5">E2E: Toggle and verify success toast appears; Unit: Verify optimistic update in hook</idea>
+      <idea ac="AC-3.5.6">E2E: Toggle off ignored asset and verify returns to active state</idea>
+      <idea ac="AC-3.5.7">Unit: toggleAssetIgnored throws NotFoundError for non-owned asset</idea>
+    </ideas>
+  </tests>
+</story-context>

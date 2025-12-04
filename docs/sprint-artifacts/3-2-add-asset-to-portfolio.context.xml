@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context XML
+  Story: 3-2-add-asset-to-portfolio
+  Generated: 2025-12-03
+  Purpose: Provides comprehensive context for AI-assisted development
+-->
+<story-context version="1.0">
+  <metadata>
+    <story-key>3-2-add-asset-to-portfolio</story-key>
+    <epic>3</epic>
+    <title>Add Asset to Portfolio</title>
+    <status>drafted</status>
+    <generated-at>2025-12-03</generated-at>
+  </metadata>
+
+  <!-- =====================================================================
+       PROJECT DOCUMENTATION CONTEXT
+       ===================================================================== -->
+
+  <documentation>
+    <architecture-decisions>
+      <decision id="ADR-001" critical="true">
+        <title>Financial Precision Strategy</title>
+        <summary>All monetary values use PostgreSQL numeric(19,4) and decimal.js in TypeScript. NEVER use float/double for money.</summary>
+        <implementation>
+          - Database: numeric(19,4) for prices, numeric(19,8) for quantity (crypto support)
+          - TypeScript: Store as strings, calculate with decimal.js
+          - Config: Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP })
+        </implementation>
+      </decision>
+      <decision id="ADR-002">
+        <title>Multi-tenant Isolation</title>
+        <summary>All database queries MUST include userId filter for data isolation.</summary>
+        <pattern>
+          Every portfolio/asset query must:
+          1. Verify portfolio belongs to user before operations
+          2. Include userId in WHERE clause
+          3. Return 404 for unauthorized access attempts
+        </pattern>
+      </decision>
+      <decision id="ADR-003">
+        <title>Server Component Architecture</title>
+        <summary>Use Server Components for data fetching, Client Components for interactivity.</summary>
+        <pattern>
+          - page.tsx: Server Component (fetch initial data)
+          - page-client.tsx: Client Component (modals, forms, state)
+          - Modal components: Client Components with "use client"
+        </pattern>
+      </decision>
+    </architecture-decisions>
+
+    <tech-spec-excerpt epic="3" story="3.2">
+      <data-model name="portfolioAssets">
+        <![CDATA[
+export const portfolioAssets = pgTable('portfolio_assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  portfolioId: uuid('portfolio_id').notNull().references(() => portfolios.id, { onDelete: 'cascade' }),
+  symbol: varchar('symbol', { length: 20 }).notNull(),
+  name: varchar('name', { length: 100 }),
+  quantity: numeric('quantity', { precision: 19, scale: 8 }).notNull(),
+  purchasePrice: numeric('purchase_price', { precision: 19, scale: 4 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull(),
+  assetClassId: uuid('asset_class_id'),  // Optional, Epic 4 dependency
+  subclassId: uuid('subclass_id'),       // Optional, Epic 4 dependency
+  isIgnored: boolean('is_ignored').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => ({
+  portfolioSymbolUnique: unique().on(table.portfolioId, table.symbol),
+  portfolioIdIdx: index('portfolio_assets_portfolio_id_idx').on(table.portfolioId)
+}));
+        ]]>
+      </data-model>
+      <validation-schema name="addAssetSchema">
+        <![CDATA[
+export const addAssetSchema = z.object({
+  symbol: z.string().min(1).max(20).toUpperCase(),
+  name: z.string().max(100).optional(),
+  quantity: z.string().refine(val => parseFloat(val) > 0, 'Quantity must be positive'),
+  purchasePrice: z.string().refine(val => parseFloat(val) > 0, 'Price must be positive'),
+  currency: z.string().length(3)
+});
+        ]]>
+      </validation-schema>
+      <api-endpoints>
+        <endpoint method="GET" path="/api/portfolios/:id/assets">List assets for portfolio</endpoint>
+        <endpoint method="POST" path="/api/portfolios/:id/assets">Add asset to portfolio</endpoint>
+      </api-endpoints>
+      <acceptance-criteria>
+        <ac id="AC-3.2.1">Given I have a portfolio, When I click "Add Asset" and enter valid ticker/quantity/price, Then the asset is added with calculated total value</ac>
+        <ac id="AC-3.2.2">Given I enter quantity ≤ 0 or price ≤ 0, Then validation error appears inline</ac>
+        <ac id="AC-3.2.3">Given I enter a duplicate ticker, Then I see "Asset already in portfolio"</ac>
+        <ac id="AC-3.2.4">Given I add an asset, Then quantity accepts up to 8 decimal places (for crypto)</ac>
+        <ac id="AC-3.2.5">Given I add an asset, Then purchase price stored with 4 decimal precision</ac>
+      </acceptance-criteria>
+    </tech-spec-excerpt>
+  </documentation>
+
+  <!-- =====================================================================
+       EXISTING CODE CONTEXT
+       ===================================================================== -->
+
+  <existing-code>
+    <file path="src/lib/db/schema.ts" relevance="extend">
+      <description>Database schema - needs portfolioAssets table addition</description>
+      <current-state>
+        - portfolios table exists with: id, userId, name, createdAt, updatedAt
+        - portfoliosRelations defined (user relation only)
+        - Type exports: Portfolio, NewPortfolio
+      </current-state>
+      <required-changes>
+        - Add portfolioAssets table with all fields from tech spec
+        - Add portfolioAssetsRelations (portfolio relation)
+        - Update portfoliosRelations to include assets: many(portfolioAssets)
+        - Add type exports: PortfolioAsset, NewPortfolioAsset
+      </required-changes>
+    </file>
+
+    <file path="src/lib/services/portfolio-service.ts" relevance="extend">
+      <description>Portfolio service - needs asset management functions</description>
+      <current-exports>
+        - PortfolioLimitError (custom error class)
+        - getPortfolioCount(userId)
+        - getUserPortfolios(userId)
+        - getPortfolioById(userId, portfolioId)
+        - createPortfolio(userId, input)
+        - deletePortfolio(userId, portfolioId)
+        - canCreatePortfolio(userId)
+      </current-exports>
+      <required-additions>
+        - AssetExistsError (custom error for duplicate symbol)
+        - addAsset(userId, portfolioId, input): Create asset with ownership check
+        - getPortfolioAssets(userId, portfolioId): List assets for portfolio
+        - getAssetById(userId, assetId): Get single asset with ownership verification
+      </required-additions>
+      <pattern-to-follow>
+        <![CDATA[
+// Example pattern from existing createPortfolio:
+export async function createPortfolio(
+  userId: string,
+  input: CreatePortfolioInput
+): Promise<Portfolio> {
+  // Check limit before creating
+  const currentCount = await getPortfolioCount(userId);
+  if (currentCount >= MAX_PORTFOLIOS_PER_USER) {
+    throw new PortfolioLimitError();
+  }
+  // Insert and return
+  const result = await db.insert(portfolios).values(newPortfolio).returning();
+  return result[0];
+}
+        ]]>
+      </pattern-to-follow>
+    </file>
+
+    <file path="src/lib/validations/portfolio.ts" relevance="extend">
+      <description>Validation schemas - needs asset validation schema</description>
+      <current-exports>
+        - MAX_PORTFOLIOS_PER_USER = 5
+        - PORTFOLIO_NAME_MIN_LENGTH = 1
+        - PORTFOLIO_NAME_MAX_LENGTH = 50
+        - PORTFOLIO_MESSAGES (validation messages)
+        - createPortfolioSchema (Zod schema)
+        - CreatePortfolioInput (inferred type)
+      </current-exports>
+      <required-additions>
+        - ASSET_SYMBOL_MAX_LENGTH = 20
+        - ASSET_NAME_MAX_LENGTH = 100
+        - ASSET_MESSAGES (validation messages for assets)
+        - addAssetSchema (Zod schema with transforms)
+        - AddAssetInput (inferred type)
+      </required-additions>
+    </file>
+
+    <file path="src/app/api/portfolios/route.ts" relevance="reference">
+      <description>API route pattern to follow for assets endpoint</description>
+      <key-patterns>
+        - Uses withAuth middleware for authentication
+        - Returns typed responses (PortfolioResponse | ValidationError | AuthError)
+        - Validation with Zod safeParse
+        - Custom error handling (PortfolioLimitError -> 409)
+        - Status codes: 200 list, 201 created, 400 validation, 401 auth, 409 conflict, 500 error
+      </key-patterns>
+    </file>
+
+    <file path="src/components/portfolio/create-portfolio-modal.tsx" relevance="reference">
+      <description>Modal component pattern to follow</description>
+      <key-patterns>
+        - "use client" directive
+        - useState for open and isSubmitting
+        - useForm with zodResolver
+        - watch for live field values
+        - Character counter pattern
+        - toast.success/error for feedback
+        - router.refresh() after success
+        - Disabled submit until valid
+        - Loading state with Loader2 icon
+      </key-patterns>
+      <imports-to-reuse>
+        <![CDATA[
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+import { Plus, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+        ]]>
+      </imports-to-reuse>
+    </file>
+
+    <file path="src/app/(dashboard)/portfolio/portfolio-page-client.tsx" relevance="modify">
+      <description>Client component for portfolio page - needs asset integration</description>
+      <current-state>
+        - Shows empty state or portfolio cards
+        - Create portfolio modal integrated
+        - PortfolioCard shows "No assets yet" placeholder
+      </current-state>
+      <required-changes>
+        - Integrate asset fetching for selected portfolio
+        - Show add asset modal/button in PortfolioCard
+        - Display asset table when assets exist
+      </required-changes>
+    </file>
+
+    <file path="tests/e2e/portfolio.spec.ts" relevance="extend">
+      <description>E2E tests - needs asset test cases</description>
+      <existing-structure>
+        - loginUser helper function
+        - test.describe blocks for: Portfolio Page, Empty State, Create Portfolio Modal, Portfolio Creation, Portfolio Limit, Portfolio Cards
+        - Pattern: beforeEach with loginUser, then test cases
+      </existing-structure>
+      <required-additions>
+        - test.describe("Add Asset Modal") with form validation tests
+        - test.describe("Asset Creation") with success/error tests
+        - test.describe("Duplicate Asset") with conflict handling
+      </required-additions>
+    </file>
+  </existing-code>
+
+  <!-- =====================================================================
+       DEPENDENCIES AND IMPORTS
+       ===================================================================== -->
+
+  <dependencies>
+    <npm-packages in-use="true">
+      <package name="decimal.js" version="^10.6.0" usage="Financial calculations - MUST use for all monetary math" />
+      <package name="zod" version="^4.1.13" usage="Schema validation with transforms" />
+      <package name="react-hook-form" version="^7.67.0" usage="Form state management" />
+      <package name="@hookform/resolvers" version="^5.2.2" usage="Zod integration with react-hook-form" />
+      <package name="sonner" version="^2.0.7" usage="Toast notifications" />
+      <package name="drizzle-orm" version="^0.44.7" usage="Database queries with type safety" />
+      <package name="@radix-ui/react-dialog" version="^1.1.15" usage="Modal component" />
+      <package name="@radix-ui/react-select" version="^2.2.6" usage="Currency selector dropdown" />
+      <package name="lucide-react" version="^0.555.0" usage="Icons" />
+    </npm-packages>
+
+    <internal-modules>
+      <module path="@/lib/db" usage="Database connection (db) and schema imports" />
+      <module path="@/lib/auth/middleware" usage="withAuth HOC for protected routes" />
+      <module path="@/components/ui/*" usage="shadcn/ui components (Button, Input, Dialog, Select, etc.)" />
+    </internal-modules>
+
+    <supported-currencies>
+      <currency code="USD">US Dollar</currency>
+      <currency code="EUR">Euro</currency>
+      <currency code="GBP">British Pound</currency>
+      <currency code="BRL">Brazilian Real</currency>
+      <currency code="CAD">Canadian Dollar</currency>
+      <currency code="AUD">Australian Dollar</currency>
+      <currency code="JPY">Japanese Yen</currency>
+      <currency code="CHF">Swiss Franc</currency>
+    </supported-currencies>
+  </dependencies>
+
+  <!-- =====================================================================
+       IMPLEMENTATION GUIDANCE
+       ===================================================================== -->
+
+  <implementation-guidance>
+    <critical-requirements>
+      <requirement priority="P0">
+        <title>Decimal.js for all monetary calculations</title>
+        <details>
+          NEVER use JavaScript arithmetic (+ - * /) for monetary values.
+          Always use: new Decimal(quantity).times(price).toFixed(4)
+          Import from: @/lib/calculations/decimal-config (create if needed)
+        </details>
+        <example>
+          <![CDATA[
+// CORRECT
+import { Decimal } from 'decimal.js';
+const value = new Decimal(quantity).times(purchasePrice).toFixed(4);
+
+// WRONG - NEVER DO THIS
+const value = parseFloat(quantity) * parseFloat(purchasePrice);
+          ]]>
+        </example>
+      </requirement>
+
+      <requirement priority="P0">
+        <title>Multi-tenant isolation on all queries</title>
+        <details>
+          Before any asset operation, verify portfolio belongs to user.
+          Use the pattern: get portfolio by id AND userId first.
+        </details>
+        <example>
+          <![CDATA[
+// Always verify ownership before asset operations
+const portfolio = await db.query.portfolios.findFirst({
+  where: and(
+    eq(portfolios.id, portfolioId),
+    eq(portfolios.userId, userId)
+  )
+});
+if (!portfolio) {
+  throw new NotFoundError('Portfolio not found');
+}
+          ]]>
+        </example>
+      </requirement>
+
+      <requirement priority="P0">
+        <title>Handle unique constraint violation gracefully</title>
+        <details>
+          PostgreSQL unique constraint violation code is '23505'.
+          Catch this error and throw user-friendly AssetExistsError.
+        </details>
+        <example>
+          <![CDATA[
+try {
+  await db.insert(portfolioAssets).values(assetData);
+} catch (error) {
+  if (error.code === '23505') {
+    throw new AssetExistsError(symbol);
+  }
+  throw error;
+}
+          ]]>
+        </example>
+      </requirement>
+    </critical-requirements>
+
+    <file-creation-order>
+      <step order="1">
+        <file>src/lib/db/schema.ts</file>
+        <action>Add portfolioAssets table and relations</action>
+        <then>Run: pnpm db:generate && pnpm db:push</then>
+      </step>
+      <step order="2">
+        <file>src/lib/validations/portfolio.ts</file>
+        <action>Add addAssetSchema and constants</action>
+      </step>
+      <step order="3">
+        <file>src/lib/services/portfolio-service.ts</file>
+        <action>Add AssetExistsError and asset functions</action>
+      </step>
+      <step order="4">
+        <file>src/app/api/portfolios/[id]/assets/route.ts</file>
+        <action>Create GET and POST handlers</action>
+      </step>
+      <step order="5">
+        <file>src/components/portfolio/add-asset-modal.tsx</file>
+        <action>Create modal component following create-portfolio-modal pattern</action>
+      </step>
+      <step order="6">
+        <file>src/components/portfolio/portfolio-table.tsx</file>
+        <action>Create asset table component</action>
+      </step>
+      <step order="7">
+        <file>src/app/(dashboard)/portfolio/portfolio-page-client.tsx</file>
+        <action>Update to integrate assets display and add asset modal</action>
+      </step>
+      <step order="8">
+        <file>tests/unit/services/portfolio-asset.test.ts</file>
+        <action>Unit tests for asset service functions</action>
+      </step>
+      <step order="9">
+        <file>tests/e2e/portfolio.spec.ts</file>
+        <action>Extend with asset-related E2E tests</action>
+      </step>
+      <step order="10">
+        <action>Run verification: pnpm lint && pnpm build && pnpm test</action>
+      </step>
+    </file-creation-order>
+
+    <api-response-patterns>
+      <success-response status="201">
+        <![CDATA[
+return NextResponse.json<AssetResponse>(
+  { data: asset },
+  { status: 201 }
+);
+        ]]>
+      </success-response>
+      <validation-error status="400">
+        <![CDATA[
+return NextResponse.json<ValidationError>(
+  {
+    error: "Validation failed",
+    code: "VALIDATION_ERROR",
+    details: validationResult.error.flatten().fieldErrors,
+  },
+  { status: 400 }
+);
+        ]]>
+      </validation-error>
+      <not-found-error status="404">
+        <![CDATA[
+return NextResponse.json<AuthError>(
+  {
+    error: "Portfolio not found",
+    code: "NOT_FOUND",
+  },
+  { status: 404 }
+);
+        ]]>
+      </not-found-error>
+      <conflict-error status="409">
+        <![CDATA[
+return NextResponse.json<ValidationError>(
+  {
+    error: "Asset already in portfolio",
+    code: "ASSET_EXISTS",
+  },
+  { status: 409 }
+);
+        ]]>
+      </conflict-error>
+    </api-response-patterns>
+  </implementation-guidance>
+
+  <!-- =====================================================================
+       LEARNINGS FROM PREVIOUS STORY
+       ===================================================================== -->
+
+  <previous-story-learnings source="3-1-create-portfolio">
+    <learning category="patterns">
+      Modal component pattern works well with Dialog from @radix-ui.
+      Use useState for open/isSubmitting, useForm with zodResolver.
+      Character counter with watch() provides good UX.
+    </learning>
+    <learning category="api">
+      withAuth middleware handles authentication cleanly.
+      Typed response interfaces help with consistency.
+      Custom error classes (PortfolioLimitError) make error handling clean.
+    </learning>
+    <learning category="testing">
+      E2E tests use loginUser helper and beforeEach pattern.
+      test.describe groups related tests logically.
+      page.getByRole and page.getByText are reliable selectors.
+    </learning>
+    <learning category="state-management">
+      router.refresh() after mutations refreshes server component data.
+      toast.success/error from sonner provides consistent feedback.
+    </learning>
+  </previous-story-learnings>
+
+  <!-- =====================================================================
+       QUICK REFERENCE
+       ===================================================================== -->
+
+  <quick-reference>
+    <commands>
+      <command name="Generate migration">pnpm db:generate</command>
+      <command name="Apply migration">pnpm db:push</command>
+      <command name="Lint check">pnpm lint</command>
+      <command name="Build check">pnpm build</command>
+      <command name="Run unit tests">pnpm test</command>
+      <command name="Run E2E tests">pnpm test:e2e</command>
+    </commands>
+
+    <key-files>
+      <file role="schema">src/lib/db/schema.ts</file>
+      <file role="service">src/lib/services/portfolio-service.ts</file>
+      <file role="validation">src/lib/validations/portfolio.ts</file>
+      <file role="api">src/app/api/portfolios/[id]/assets/route.ts</file>
+      <file role="modal">src/components/portfolio/add-asset-modal.tsx</file>
+      <file role="table">src/components/portfolio/portfolio-table.tsx</file>
+      <file role="page">src/app/(dashboard)/portfolio/portfolio-page-client.tsx</file>
+    </key-files>
+
+    <test-user>
+      <email>test@example.com</email>
+      <password>TestPassword1!</password>
+    </test-user>
+  </quick-reference>
+</story-context>

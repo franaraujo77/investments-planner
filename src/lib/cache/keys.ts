@@ -125,3 +125,27 @@ export function parseCacheKey(key: string): ParsedCacheKey {
 export function getAllUserCacheKeys(userId: string): string[] {
   return [createRecommendationKey(userId), createPortfolioKey(userId), createAllocationKey(userId)];
 }
+
+// =============================================================================
+// RATE LIMIT KEYS
+// =============================================================================
+
+/**
+ * Creates a cache key for IP-based rate limiting
+ *
+ * @param ip - IP address
+ * @returns Cache key in format `rate-limit:ip:{ip}`
+ */
+export function createRateLimitIpKey(ip: string): string {
+  return `${CACHE_KEY_PREFIXES.RATE_LIMIT_IP}${ip}`;
+}
+
+/**
+ * Creates a cache key for email-based rate limiting
+ *
+ * @param email - Email address (will be lowercased)
+ * @returns Cache key in format `rate-limit:email:{email}`
+ */
+export function createRateLimitEmailKey(email: string): string {
+  return `${CACHE_KEY_PREFIXES.RATE_LIMIT_EMAIL}${email.toLowerCase().trim()}`;
+}

@@ -8,7 +8,13 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { hashPassword, verifyPassword, validatePassword } from "@/lib/auth/password";
+import {
+  hashPassword,
+  verifyPassword,
+  validatePassword,
+  validatePasswordComplexity,
+  calculatePasswordStrength,
+} from "@/lib/auth/password";
 
 describe("Password Validation", () => {
   it("should reject passwords shorter than 8 characters", () => {
@@ -110,5 +116,125 @@ describe("Password Verification (AC: 3)", () => {
     // Allow for some variance due to system load
     const ratio = Math.max(correctTime, incorrectTime) / Math.min(correctTime, incorrectTime);
     expect(ratio).toBeLessThan(2); // Should be within 2x
+  });
+});
+
+// =============================================================================
+// Story 2.1: Password Complexity Validation Tests (AC2)
+// =============================================================================
+
+describe("Password Complexity Validation (Story 2.1 AC2)", () => {
+  describe("validatePasswordComplexity", () => {
+    it("should reject password missing lowercase letter", () => {
+      const result = validatePasswordComplexity("UPPERCASE123@");
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must contain at least one lowercase letter");
+    });
+
+    it("should reject password missing uppercase letter", () => {
+      const result = validatePasswordComplexity("lowercase123@");
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must contain at least one uppercase letter");
+    });
+
+    it("should reject password missing number", () => {
+      const result = validatePasswordComplexity("NoNumbers@!");
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must contain at least one number");
+    });
+
+    it("should reject password missing special character", () => {
+      const result = validatePasswordComplexity("NoSpecial123");
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain(
+        "Password must contain at least one special character (@$!%*?&)"
+      );
+    });
+
+    it("should reject password too short", () => {
+      const result = validatePasswordComplexity("Sh0rt@");
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must be at least 8 characters");
+    });
+
+    it("should reject password too long", () => {
+      const longPassword = "ValidP@" + "a".repeat(66); // 73 chars
+      const result = validatePasswordComplexity(longPassword);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("Password must be at most 72 characters");
+    });
+
+    it("should accept valid complex password", () => {
+      const result = validatePasswordComplexity("ValidP@ss123");
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should return multiple errors for password with multiple issues", () => {
+      const result = validatePasswordComplexity("short"); // missing everything
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(3);
+    });
+
+    it("should include strength in result", () => {
+      const result = validatePasswordComplexity("ValidP@ss123");
+      expect(result.strength).toBeDefined();
+      expect(["weak", "medium", "strong"]).toContain(result.strength);
+    });
+  });
+});
+
+// =============================================================================
+// Story 2.1: Password Strength Calculation Tests (AC3)
+// =============================================================================
+
+describe("Password Strength Calculation (Story 2.1 AC3)", () => {
+  describe("calculatePasswordStrength", () => {
+    it("should return weak for empty password", () => {
+      expect(calculatePasswordStrength("")).toBe("weak");
+    });
+
+    it("should return weak for very short password", () => {
+      expect(calculatePasswordStrength("abc")).toBe("weak");
+    });
+
+    it("should return weak for short password with only lowercase", () => {
+      expect(calculatePasswordStrength("short")).toBe("weak");
+    });
+
+    it("should return medium for 8+ char password with multiple character types", () => {
+      expect(calculatePasswordStrength("Medium@12")).toBe("medium");
+    });
+
+    it("should return strong for 16+ char password with all character types", () => {
+      expect(calculatePasswordStrength("VeryStr0ngP@ssword!")).toBe("strong");
+    });
+
+    it("should penalize common weak passwords", () => {
+      // Passwords containing common patterns should score lower
+      const withPassword = calculatePasswordStrength("Password123!");
+      const withoutPassword = calculatePasswordStrength("Secure1234!");
+      const strengthOrder = { weak: 0, medium: 1, strong: 2 };
+      expect(strengthOrder[withPassword]).toBeLessThanOrEqual(strengthOrder[withoutPassword]);
+    });
+
+    it("should detect 'qwerty' as weak", () => {
+      expect(calculatePasswordStrength("Qwerty123@")).toBe("weak");
+    });
+
+    it("should return consistent results for same input", () => {
+      const password = "TestPassword123!";
+      const result1 = calculatePasswordStrength(password);
+      const result2 = calculatePasswordStrength(password);
+      expect(result1).toBe(result2);
+    });
+
+    it("should increase strength with length", () => {
+      const short = calculatePasswordStrength("Ab1@cdef"); // 8 chars
+      const long = calculatePasswordStrength("Ab1@cdefghijklmno"); // 18 chars
+      // Long should be >= short
+      const strengthOrder = { weak: 0, medium: 1, strong: 2 };
+      expect(strengthOrder[long]).toBeGreaterThanOrEqual(strengthOrder[short]);
+    });
   });
 });

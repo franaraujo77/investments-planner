@@ -1,0 +1,369 @@
+<story-context id="3-6-portfolio-overview-with-values" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>6</storyId>
+    <title>Portfolio Overview with Values</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-6-portfolio-overview-with-values.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>view my portfolio holdings with values in my base currency</iWant>
+    <soThat>I understand my current investment position</soThat>
+    <tasks>
+      <task id="1" ac="3.6.1,3.6.3">
+        <title>Create Price Service Stub</title>
+        <files>src/lib/services/price-service.ts</files>
+        <description>Create MVP price service interface with mock/seeded prices for Epic 6 compatibility</description>
+      </task>
+      <task id="2" ac="3.6.3">
+        <title>Create Exchange Rate Service Stub</title>
+        <files>src/lib/services/exchange-rate-service.ts</files>
+        <description>Create exchange rate service with static rates for MVP (USD, EUR, GBP, BRL, CAD, AUD, JPY, CHF)</description>
+      </task>
+      <task id="3" ac="3.6.1,3.6.2,3.6.3,3.6.4">
+        <title>Extend Portfolio Service for Values</title>
+        <files>src/lib/services/portfolio-service.ts</files>
+        <description>Add getPortfolioWithValues() using price/rate services, decimal.js for all calculations</description>
+      </task>
+      <task id="4" ac="3.6.2,3.6.3">
+        <title>Create CurrencyDisplay Component</title>
+        <files>src/components/fintech/currency-display.tsx</files>
+        <description>Component for currency formatting with symbols, dual display, exchange rate tooltip</description>
+      </task>
+      <task id="5" ac="3.6.7">
+        <title>Create DataFreshnessBadge Component</title>
+        <files>src/components/fintech/data-freshness-badge.tsx</files>
+        <description>Badge with color coding (green &lt;24h, amber 1-3d, red &gt;3d), timestamp tooltip</description>
+      </task>
+      <task id="6" ac="3.6.1,3.6.2,3.6.3,3.6.5,3.6.6">
+        <title>Update Portfolio Table with Value Columns</title>
+        <files>src/components/portfolio/portfolio-table.tsx</files>
+        <description>Add Price, Value (native), Value (base), Allocation %; sorting and filtering</description>
+      </task>
+      <task id="7" ac="3.6.4,3.6.7">
+        <title>Update Portfolio Page with Summary</title>
+        <files>src/app/(dashboard)/portfolio/page.tsx, src/components/portfolio/portfolio-summary.tsx</files>
+        <description>Add total value display, DataFreshnessBadge, update layout</description>
+      </task>
+      <task id="8" ac="all">
+        <title>Create Unit Tests</title>
+        <files>tests/unit/services/portfolio-values.test.ts, tests/unit/calculations/currency.test.ts</files>
+        <description>Test value/allocation calculations, currency conversion, decimal precision</description>
+      </task>
+      <task id="9" ac="all">
+        <title>Create E2E Tests</title>
+        <files>tests/e2e/portfolio.spec.ts</files>
+        <description>Test table columns, sorting, filtering, total value, DataFreshnessBadge</description>
+      </task>
+      <task id="10" ac="all">
+        <title>Run Verification</title>
+        <description>pnpm lint, pnpm build, pnpm test - all must pass</description>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-3.6.1" title="Portfolio Table Display">
+      <given>I am on the Portfolio page</given>
+      <when>the page loads</when>
+      <then>I see a table with: Ticker/Symbol, Quantity, Price (current), Value (native), Value (base), Allocation %</then>
+    </criterion>
+    <criterion id="AC-3.6.2" title="Native Currency Display">
+      <given>I have assets in different currencies</given>
+      <when>I view the Value (native) column</when>
+      <then>each asset shows its value with the appropriate currency symbol ($, R$, €, etc.)</then>
+    </criterion>
+    <criterion id="AC-3.6.3" title="Base Currency Conversion">
+      <given>I have assets in currencies different from my base currency</given>
+      <when>I view the Value (base) column</when>
+      <then>values are converted using stored exchange rates with rate indicator</then>
+    </criterion>
+    <criterion id="AC-3.6.4" title="Total Portfolio Value">
+      <given>I have assets in my portfolio</given>
+      <when>I view the portfolio page</when>
+      <then>total portfolio value is prominently displayed in base currency</then>
+    </criterion>
+    <criterion id="AC-3.6.5" title="Table Sorting">
+      <given>I am viewing the asset table</given>
+      <when>I click on any column header</when>
+      <then>the table sorts by that column (ascending/descending toggle)</then>
+    </criterion>
+    <criterion id="AC-3.6.6" title="Table Filtering">
+      <given>I have more than 10 assets</given>
+      <when>I use the search/filter input</when>
+      <then>I can filter assets by ticker/symbol name</then>
+    </criterion>
+    <criterion id="AC-3.6.7" title="Data Freshness Indicator">
+      <given>portfolio values are displayed</given>
+      <when>I view the data freshness badge</when>
+      <then>I see when prices/rates were last updated with color coding: green (&lt;24h), amber (1-3d), red (&gt;3d)</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Decimal Precision Strategy, Data Architecture, Provider Abstraction Pattern</section>
+        <snippet>All monetary calculations use decimal.js with precision 20, ROUND_HALF_UP. PostgreSQL numeric(19,4) for prices, numeric(19,8) for quantities. Provider abstraction with fallback chain for external APIs.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-3.md</path>
+        <title>Epic 3 Technical Specification</title>
+        <section>Story 3.6 AC, Services and Modules</section>
+        <snippet>Defines portfolio value calculation requirements, currency conversion, data freshness indicators.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Definitions</title>
+        <section>Epic 3 - Portfolio Core</section>
+        <snippet>Story 3.6 Portfolio Overview with Values - FR14, FR43 coverage.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/3-5-mark-asset-as-ignored.md</path>
+        <title>Story 3.5 Mark Asset as Ignored</title>
+        <section>Dev Agent Record</section>
+        <snippet>Previous story with patterns for portfolio table enhancement, summary component, toggle handling.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>src/lib/services/portfolio-service.ts</path>
+        <kind>service</kind>
+        <symbol>getPortfolioAssets, getAssetById, toggleAssetIgnored</symbol>
+        <lines>281-449</lines>
+        <reason>Core portfolio service to extend with getPortfolioWithValues(). Contains patterns for multi-tenant isolation and asset operations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/portfolio/portfolio-table.tsx</path>
+        <kind>component</kind>
+        <symbol>PortfolioTable, AssetRow</symbol>
+        <lines>1-310</lines>
+        <reason>Existing table component to extend with value columns, sorting, and filtering. Has editable cells, ignore toggle, delete functionality.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/portfolio/portfolio-asset-summary.tsx</path>
+        <kind>component</kind>
+        <symbol>PortfolioAssetSummary, calculateTotalValue</symbol>
+        <lines>1-152</lines>
+        <reason>Summary component to extend with total portfolio value in base currency. Already calculates values using decimal.js.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/calculations/decimal-config.ts</path>
+        <kind>utility</kind>
+        <symbol>Decimal</symbol>
+        <lines>1-26</lines>
+        <reason>Configured decimal.js with precision 20, ROUND_HALF_UP. MUST import from here for all financial calculations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>portfolioAssets, users, portfolios</symbol>
+        <lines>202-224, 32-44, 174-186</lines>
+        <reason>Database schema with portfolioAssets (quantity, purchasePrice, currency, isIgnored) and users (baseCurrency) tables.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/(dashboard)/portfolio/page.tsx</path>
+        <kind>page</kind>
+        <symbol>PortfolioPage</symbol>
+        <reason>Dashboard portfolio page to update with summary metrics and DataFreshnessBadge.</reason>
+      </artifact>
+      <artifact>
+        <path>src/hooks/use-toggle-ignore.ts</path>
+        <kind>hook</kind>
+        <symbol>useToggleIgnore</symbol>
+        <reason>Pattern reference for creating hooks with optimistic updates and toast notifications.</reason>
+      </artifact>
+      <artifact>
+        <path>src/hooks/use-update-asset.ts</path>
+        <kind>hook</kind>
+        <symbol>useUpdateAsset</symbol>
+        <reason>Pattern reference for asset update hooks with router refresh.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.5" />
+        <package name="react" version="19.2.0" />
+        <package name="decimal.js" version="^10.6.0" />
+        <package name="drizzle-orm" version="^0.44.7" />
+        <package name="zod" version="^4.1.13" />
+        <package name="@radix-ui/react-tooltip" version="^1.2.8" />
+        <package name="lucide-react" version="^0.555.0" />
+        <package name="sonner" version="^2.0.7" />
+        <package name="vitest" version="^4.0.14" />
+        <package name="@playwright/test" version="^1.57.0" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint category="precision" critical="true">
+      ALL monetary calculations MUST use decimal.js imported from @/lib/calculations/decimal-config. NEVER use JavaScript arithmetic (parseFloat, +, -, *, /) for currency values.
+    </constraint>
+    <constraint category="precision" critical="true">
+      Use Decimal.times(), Decimal.dividedBy(), Decimal.plus() for calculations. Use toFixed(4) for prices, toFixed(8) for quantities.
+    </constraint>
+    <constraint category="allocation" critical="true">
+      Allocation percentage EXCLUDES ignored assets from calculation. Total portfolio VALUE includes ALL assets (even ignored ones).
+    </constraint>
+    <constraint category="multi-tenant" critical="true">
+      All database queries MUST include userId filter for multi-tenant isolation. Never expose data across users.
+    </constraint>
+    <constraint category="mvp-scope">
+      Epic 6 (Data Pipeline) not yet implemented. Create stub services for prices and exchange rates that Epic 6 will replace. Use purchase price as "current price" for MVP.
+    </constraint>
+    <constraint category="components">
+      New fintech components go in src/components/fintech/. Use shadcn/ui patterns (Card, Badge, Tooltip).
+    </constraint>
+    <constraint category="testing">
+      Unit tests in tests/unit/, E2E tests in tests/e2e/. Use Vitest for unit, Playwright for E2E.
+    </constraint>
+    <constraint category="currency">
+      Support currencies: USD ($), EUR (€), GBP (£), BRL (R$), CAD (C$), AUD (A$), JPY (¥), CHF (CHF).
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="PriceService">
+      <kind>service interface</kind>
+      <signature>
+interface PriceData {
+  symbol: string;
+  price: string;
+  currency: string;
+  updatedAt: Date;
+}
+export async function getCurrentPrices(symbols: string[]): Promise&lt;Map&lt;string, PriceData&gt;&gt;
+      </signature>
+      <path>src/lib/services/price-service.ts (to create)</path>
+    </interface>
+    <interface name="ExchangeRateService">
+      <kind>service interface</kind>
+      <signature>
+export async function getExchangeRate(
+  fromCurrency: string,
+  toCurrency: string
+): Promise&lt;{ rate: string; updatedAt: Date }&gt;
+      </signature>
+      <path>src/lib/services/exchange-rate-service.ts (to create)</path>
+    </interface>
+    <interface name="AssetWithValue">
+      <kind>type interface</kind>
+      <signature>
+export interface AssetWithValue {
+  id: string;
+  symbol: string;
+  name: string | null;
+  quantity: string;
+  purchasePrice: string;
+  currency: string;
+  isIgnored: boolean;
+  currentPrice: string;
+  valueNative: string;       // quantity × currentPrice
+  valueBase: string;         // valueNative converted to base currency
+  exchangeRate: string;
+  allocationPercent: string;
+  priceUpdatedAt: Date;
+}
+      </signature>
+      <path>src/lib/services/portfolio-service.ts (to add)</path>
+    </interface>
+    <interface name="getPortfolioWithValues">
+      <kind>function signature</kind>
+      <signature>
+export async function getPortfolioWithValues(
+  userId: string,
+  portfolioId: string
+): Promise&lt;{
+  portfolio: Portfolio;
+  assets: AssetWithValue[];
+  totalValueBase: string;
+  baseCurrency: string;
+  dataFreshness: Date;
+}&gt;
+      </signature>
+      <path>src/lib/services/portfolio-service.ts (to add)</path>
+    </interface>
+    <interface name="CurrencyDisplayProps">
+      <kind>component props</kind>
+      <signature>
+interface CurrencyDisplayProps {
+  value: string;
+  currency: string;
+  showSymbol?: boolean;
+  baseCurrency?: string;
+  baseValue?: string;
+  exchangeRate?: string;
+  showExchangeRate?: boolean;
+}
+      </signature>
+      <path>src/components/fintech/currency-display.tsx (to create)</path>
+    </interface>
+    <interface name="DataFreshnessBadgeProps">
+      <kind>component props</kind>
+      <signature>
+interface DataFreshnessBadgeProps {
+  updatedAt: Date;
+  source?: string;
+  onClick?: () =&gt; void;
+}
+      </signature>
+      <path>src/components/fintech/data-freshness-badge.tsx (to create)</path>
+    </interface>
+    <interface name="PortfolioAsset (existing)">
+      <kind>database type</kind>
+      <signature>
+export type PortfolioAsset = {
+  id: string;
+  portfolioId: string;
+  symbol: string;
+  name: string | null;
+  quantity: string;
+  purchasePrice: string;
+  currency: string;
+  assetClassId: string | null;
+  subclassId: string | null;
+  isIgnored: boolean | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+      </signature>
+      <path>src/lib/db/schema.ts:303-304</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use Vitest with vi.mock() for dependencies. E2E tests use Playwright with helper functions for login. Tests follow AAA pattern (Arrange-Act-Assert). Financial calculations must verify decimal precision is maintained (no floating point errors). Test multi-tenant isolation by verifying userId scoping.
+    </standards>
+    <locations>
+      <location>tests/unit/services/*.test.ts</location>
+      <location>tests/unit/calculations/*.test.ts</location>
+      <location>tests/e2e/*.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-3.6.1">Test portfolio table renders all value columns</idea>
+      <idea ac="AC-3.6.2">Test currency symbols display correctly for each supported currency</idea>
+      <idea ac="AC-3.6.3">Test base currency conversion: value × exchangeRate = correct result using decimal.js</idea>
+      <idea ac="AC-3.6.3">Test exchange rate tooltip displays correct information</idea>
+      <idea ac="AC-3.6.4">Test total portfolio value equals sum of all asset base values</idea>
+      <idea ac="AC-3.6.4">Test total value includes ignored assets</idea>
+      <idea ac="AC-3.6.5">Test table sorting works on all columns (ascending/descending)</idea>
+      <idea ac="AC-3.6.6">Test filtering by symbol name filters correctly</idea>
+      <idea ac="AC-3.6.7">Test DataFreshnessBadge color: green &lt;24h, amber 1-3d, red &gt;3d</idea>
+      <idea ac="allocation">Test allocation excludes ignored assets from percentage calculation</idea>
+      <idea ac="precision">Test decimal precision: no floating point errors (0.1 + 0.2 = 0.3)</idea>
+      <idea ac="precision">Test large numbers maintain precision</idea>
+      <idea ac="edge">Test zero total value handling (no division by zero)</idea>
+      <idea ac="edge">Test empty portfolio shows zero values gracefully</idea>
+    </ideas>
+  </tests>
+</story-context>

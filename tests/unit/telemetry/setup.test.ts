@@ -10,24 +10,45 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock OpenTelemetry SDK before imports
+// Use vi.hoisted to ensure mocks are available when vi.mock is hoisted
+const { mockStart, mockShutdown, mockNodeSDKInstances } = vi.hoisted(() => ({
+  mockStart: vi.fn(),
+  mockShutdown: vi.fn().mockResolvedValue(undefined),
+  mockNodeSDKInstances: [] as object[],
+}));
+
 vi.mock("@opentelemetry/sdk-node", () => ({
-  NodeSDK: vi.fn().mockImplementation(() => ({
-    start: vi.fn(),
-    shutdown: vi.fn().mockResolvedValue(undefined),
-  })),
+  NodeSDK: class MockNodeSDK {
+    start = mockStart;
+    shutdown = mockShutdown;
+    constructor() {
+      mockNodeSDKInstances.push(this);
+    }
+  },
 }));
 
 vi.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
-  OTLPTraceExporter: vi.fn().mockImplementation(() => ({})),
+  OTLPTraceExporter: class MockOTLPTraceExporter {
+    constructor() {
+      // Empty mock constructor
+    }
+  },
 }));
 
 vi.mock("@opentelemetry/resources", () => ({
-  Resource: vi.fn().mockImplementation(() => ({})),
+  Resource: class MockResource {
+    constructor() {
+      // Empty mock constructor
+    }
+  },
 }));
 
 vi.mock("@opentelemetry/sdk-trace-node", () => ({
-  BatchSpanProcessor: vi.fn().mockImplementation(() => ({})),
+  BatchSpanProcessor: class MockBatchSpanProcessor {
+    constructor() {
+      // Empty mock constructor
+    }
+  },
 }));
 
 describe("setupTelemetry", () => {
@@ -38,6 +59,8 @@ describe("setupTelemetry", () => {
     vi.resetModules();
     // Reset environment
     process.env = { ...originalEnv };
+    // Clear instance tracker
+    mockNodeSDKInstances.length = 0;
   });
 
   afterEach(() => {
@@ -133,14 +156,13 @@ describe("setupTelemetry", () => {
     it("should not create SDK when disabled", async () => {
       // Arrange
       delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-      const { NodeSDK } = await import("@opentelemetry/sdk-node");
 
       // Act
       const { setupTelemetry } = await import("@/lib/telemetry/setup");
       setupTelemetry();
 
-      // Assert
-      expect(NodeSDK).not.toHaveBeenCalled();
+      // Assert - no SDK instances should be created
+      expect(mockNodeSDKInstances.length).toBe(0);
     });
   });
 

@@ -5,10 +5,20 @@
  * Story 1.3: Authentication System with JWT + Refresh Tokens
  *
  * AC3: Passwords are hashed with bcrypt (cost factor 12)
+ *
+ * Note: Client-safe password strength utilities are in password-strength.ts
  */
 
 import bcrypt from "bcrypt";
 import { AUTH_CONSTANTS, AUTH_MESSAGES, PASSWORD_RULES } from "./constants";
+
+// Re-export client-safe utilities for server-side usage
+export {
+  calculatePasswordStrength,
+  validatePasswordComplexity,
+  type PasswordStrength,
+  type PasswordComplexityResult,
+} from "./password-strength";
 
 /**
  * Validates password against security rules

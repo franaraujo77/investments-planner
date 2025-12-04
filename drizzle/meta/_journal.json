@@ -8,6 +8,20 @@
       "when": 1764508773614,
       "tag": "0000_milky_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1764758720305,
+      "tag": "0001_yielding_emma_frost",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764763024101,
+      "tag": "0002_sparkling_aqueduct",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,587 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context for: 3-3-update-asset-holdings
+  Story Title: Update Asset Holdings
+  Epic: 3 - Portfolio Core
+  Generated: 2025-12-03
+
+  Purpose: Provides comprehensive context for AI development agents implementing this story.
+  Contains: Story requirements, existing infrastructure, code patterns, and technical references.
+-->
+<story-context story-key="3-3-update-asset-holdings" epic="3" generated="2025-12-03">
+
+  <!-- ============================================================================= -->
+  <!-- STORY OVERVIEW -->
+  <!-- ============================================================================= -->
+  <story-overview>
+    <title>Update Asset Holdings</title>
+    <user-story>
+      As a user, I want to update asset quantities and purchase prices, so that my portfolio reflects my current holdings accurately.
+    </user-story>
+    <status>drafted</status>
+    <epic>Epic 3 - Portfolio Core</epic>
+    <dependency status="done">Story 3.2: Add Asset to Portfolio</dependency>
+    <dependency status="done">Story 3.1: Create Portfolio</dependency>
+    <dependency status="done">Story 1.2: Database Schema with Fintech Types</dependency>
+    <dependency status="done">Story 1.3: Authentication System</dependency>
+  </story-overview>
+
+  <!-- ============================================================================= -->
+  <!-- ACCEPTANCE CRITERIA -->
+  <!-- ============================================================================= -->
+  <acceptance-criteria>
+    <criterion id="AC-3.3.1" title="Inline Edit Trigger">
+      <given>I have assets in my portfolio</given>
+      <when>I click on an asset row's quantity or price field</when>
+      <then>The field becomes editable inline (click-to-edit pattern per UX spec)</then>
+    </criterion>
+
+    <criterion id="AC-3.3.2" title="Quantity Field Editing">
+      <given>I am editing an asset's quantity field</given>
+      <when>I enter a new value</when>
+      <then>
+        - The field accepts values up to 8 decimal places
+        - Validation prevents non-positive values (quantity > 0)
+        - Inline validation error appears if invalid: "Quantity must be positive"
+      </then>
+    </criterion>
+
+    <criterion id="AC-3.3.3" title="Purchase Price Field Editing">
+      <given>I am editing an asset's purchase price field</given>
+      <when>I enter a new value</when>
+      <then>
+        - The field accepts values up to 4 decimal places
+        - Validation prevents non-positive values (price > 0)
+        - Inline validation error appears if invalid: "Price must be positive"
+      </then>
+    </criterion>
+
+    <criterion id="AC-3.3.4" title="Auto-Save on Blur">
+      <given>I am editing a field (quantity or price)</given>
+      <when>I blur the field (click away or press Tab/Enter)</when>
+      <then>
+        - Changes auto-save to database
+        - Success indicator appears (subtle checkmark animation)
+        - No explicit save button required
+      </then>
+    </criterion>
+
+    <criterion id="AC-3.3.5" title="Total Value Recalculation">
+      <given>I update quantity or price</given>
+      <when>The change is saved</when>
+      <then>
+        - Asset total value recalculates immediately using decimal.js
+        - Portfolio totals update accordingly
+        - Allocation percentages recalculate
+      </then>
+    </criterion>
+
+    <criterion id="AC-3.3.6" title="Updated Timestamp">
+      <given>I update an asset</given>
+      <when>The change is saved</when>
+      <then>The asset's updated_at timestamp is recorded in database</then>
+    </criterion>
+
+    <criterion id="AC-3.3.7" title="Optimistic Update with Rollback">
+      <given>I update a field</given>
+      <when>The UI updates optimistically</when>
+      <then>
+        - Value shows immediately (optimistic)
+        - If save fails, value reverts to previous
+        - Error toast shows: "Failed to update. Please try again."
+      </then>
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ============================================================================= -->
+  <!-- TASKS -->
+  <!-- ============================================================================= -->
+  <tasks>
+    <task id="1" title="Add Update Asset Validation Schema" ac-refs="AC-3.3.2, AC-3.3.3">
+      <file>src/lib/validations/portfolio.ts</file>
+      <description>
+        Add updateAssetSchema with optional quantity and purchasePrice fields.
+        Both fields validate positive numbers. At least one field required.
+        Export UpdateAssetInput type. Add UPDATE_ASSET_MESSAGES constant.
+      </description>
+    </task>
+
+    <task id="2" title="Extend Portfolio Service with Update Function" ac-refs="AC-3.3.4, AC-3.3.6">
+      <file>src/lib/services/portfolio-service.ts</file>
+      <description>
+        Implement updateAsset(userId, assetId, input) function.
+        Verify asset ownership through portfolio → user relationship.
+        Update only provided fields (partial update). Set updatedAt.
+        Return updated asset. Throw NotFoundError if invalid.
+      </description>
+    </task>
+
+    <task id="3" title="Create Asset Update API Route" ac-refs="AC-3.3.4">
+      <file>src/app/api/assets/[id]/route.ts</file>
+      <description>
+        Create new API route for individual asset operations.
+        PATCH handler for partial updates. Use withAuth middleware.
+        Validate request body. Return proper error responses.
+      </description>
+    </task>
+
+    <task id="4" title="Create Editable Cell Component" ac-refs="AC-3.3.1, AC-3.3.2, AC-3.3.3, AC-3.3.4">
+      <file>src/components/portfolio/editable-cell.tsx</file>
+      <description>
+        Create reusable inline edit component.
+        Props: value, onSave, type (quantity | price), validation.
+        States: viewing, editing, saving, success, error.
+        Click to edit, blur/Enter to save, Escape to cancel.
+        Show validation errors inline, success checkmark, loading spinner.
+      </description>
+    </task>
+
+    <task id="5" title="Create useUpdateAsset Hook" ac-refs="AC-3.3.5, AC-3.3.7">
+      <file>src/hooks/use-update-asset.ts</file>
+      <description>
+        React Query mutation hook for asset updates.
+        Optimistic update implementation. Error rollback.
+        Cache invalidation on success. Error toast on failure.
+      </description>
+    </task>
+
+    <task id="6" title="Update Portfolio Table with Inline Editing" ac-refs="AC-3.3.1, AC-3.3.5">
+      <file>src/components/portfolio/portfolio-table.tsx</file>
+      <description>
+        Replace static quantity/price cells with EditableCell components.
+        Integrate useUpdateAsset hook. Recalculate row values on update.
+        Trigger portfolio summary recalculation.
+      </description>
+    </task>
+
+    <task id="7" title="Create Unit Tests" ac-refs="All">
+      <files>
+        <file>tests/unit/services/portfolio-update.test.ts</file>
+        <file>tests/unit/validations/portfolio-update.test.ts</file>
+      </files>
+      <description>
+        Test updateAsset service function for all scenarios.
+        Test validation schema for partial updates.
+      </description>
+    </task>
+
+    <task id="8" title="Create E2E Tests" ac-refs="All">
+      <file>tests/e2e/portfolio.spec.ts</file>
+      <description>
+        Extend existing portfolio E2E tests.
+        Test inline editing flow, validation, save, rollback.
+      </description>
+    </task>
+
+    <task id="9" title="Run Verification" ac-refs="All">
+      <commands>
+        <command>pnpm lint</command>
+        <command>pnpm build</command>
+        <command>pnpm test</command>
+      </commands>
+    </task>
+  </tasks>
+
+  <!-- ============================================================================= -->
+  <!-- EXISTING INFRASTRUCTURE -->
+  <!-- ============================================================================= -->
+  <existing-infrastructure>
+    <component name="Portfolio Service" path="src/lib/services/portfolio-service.ts">
+      <description>Base service with asset functions (addAsset, getPortfolioAssets, getAssetById)</description>
+      <exports>
+        <export>PortfolioLimitError</export>
+        <export>AssetExistsError</export>
+        <export>PortfolioNotFoundError</export>
+        <export>getPortfolioCount</export>
+        <export>getUserPortfolios</export>
+        <export>getPortfolioById</export>
+        <export>createPortfolio</export>
+        <export>deletePortfolio</export>
+        <export>canCreatePortfolio</export>
+        <export>addAsset</export>
+        <export>getPortfolioAssets</export>
+        <export>getAssetById</export>
+      </exports>
+      <pattern>
+        Multi-tenant isolation via userId verification.
+        Custom error classes for specific failures.
+        Drizzle ORM for database operations.
+      </pattern>
+    </component>
+
+    <component name="Portfolio Validation" path="src/lib/validations/portfolio.ts">
+      <description>Zod schemas including addAssetSchema</description>
+      <exports>
+        <export>MAX_PORTFOLIOS_PER_USER = 5</export>
+        <export>PORTFOLIO_NAME_MIN_LENGTH = 1</export>
+        <export>PORTFOLIO_NAME_MAX_LENGTH = 50</export>
+        <export>ASSET_SYMBOL_MAX_LENGTH = 20</export>
+        <export>ASSET_NAME_MAX_LENGTH = 100</export>
+        <export>PORTFOLIO_MESSAGES</export>
+        <export>ASSET_MESSAGES</export>
+        <export>SUPPORTED_CURRENCIES</export>
+        <export>createPortfolioSchema</export>
+        <export>addAssetSchema</export>
+        <export>CreatePortfolioInput</export>
+        <export>AddAssetInput</export>
+      </exports>
+      <pattern>
+        Zod validation with transform (trim, uppercase).
+        String-based numeric validation with refine.
+        Message constants for consistent error text.
+      </pattern>
+    </component>
+
+    <component name="Portfolio Table" path="src/components/portfolio/portfolio-table.tsx">
+      <description>Asset table with decimal.js calculations</description>
+      <features>
+        <feature>formatQuantity: Up to 8 decimal places</feature>
+        <feature>formatPrice: 2-4 decimal places</feature>
+        <feature>calculateValue: qty × price using decimal.js</feature>
+        <feature>formatCurrency: Intl.NumberFormat</feature>
+      </features>
+      <critical>Uses decimal.js for all value calculations - NEVER JavaScript arithmetic</critical>
+    </component>
+
+    <component name="Asset API Route" path="src/app/api/portfolios/[id]/assets/route.ts">
+      <description>Asset API routes (GET/POST)</description>
+      <endpoints>
+        <endpoint method="GET" path="/api/portfolios/:id/assets">List assets</endpoint>
+        <endpoint method="POST" path="/api/portfolios/:id/assets">Add asset</endpoint>
+      </endpoints>
+      <pattern>
+        withAuth middleware for authentication.
+        Zod validation for request body.
+        Custom error handling with appropriate status codes.
+      </pattern>
+    </component>
+
+    <component name="Database Schema" path="src/lib/db/schema.ts">
+      <description>portfolioAssets table with updatedAt column</description>
+      <table name="portfolio_assets">
+        <column name="id" type="uuid">Primary key</column>
+        <column name="portfolioId" type="uuid">Foreign key to portfolios</column>
+        <column name="symbol" type="varchar(20)">Asset symbol</column>
+        <column name="name" type="varchar(100)">Asset name (optional)</column>
+        <column name="quantity" type="numeric(19,8)">Asset quantity (8 decimal places)</column>
+        <column name="purchasePrice" type="numeric(19,4)">Purchase price (4 decimal places)</column>
+        <column name="currency" type="varchar(3)">Currency code</column>
+        <column name="assetClassId" type="uuid">Optional class reference</column>
+        <column name="subclassId" type="uuid">Optional subclass reference</column>
+        <column name="isIgnored" type="boolean">Ignored flag</column>
+        <column name="createdAt" type="timestamp">Creation timestamp</column>
+        <column name="updatedAt" type="timestamp">Update timestamp</column>
+      </table>
+      <constraints>
+        <constraint type="unique">portfolio_assets_portfolio_symbol_uniq (portfolioId, symbol)</constraint>
+        <constraint type="index">portfolio_assets_portfolio_id_idx (portfolioId)</constraint>
+      </constraints>
+    </component>
+
+    <component name="Decimal.js Config" path="src/lib/calculations/decimal-config.ts">
+      <description>Financial precision configuration</description>
+      <settings>
+        <setting name="precision">20</setting>
+        <setting name="rounding">ROUND_HALF_UP</setting>
+        <setting name="toExpNeg">-9</setting>
+        <setting name="toExpPos">20</setting>
+      </settings>
+      <critical>ALWAYS import Decimal from this file, not from 'decimal.js' directly</critical>
+    </component>
+
+    <component name="Auth Middleware" path="src/lib/auth/middleware.ts">
+      <description>Protected route verification</description>
+      <usage>withAuth wrapper for API routes requiring authentication</usage>
+    </component>
+  </existing-infrastructure>
+
+  <!-- ============================================================================= -->
+  <!-- TECH STACK -->
+  <!-- ============================================================================= -->
+  <tech-stack>
+    <framework name="Next.js" version="16.0.5">App Router</framework>
+    <framework name="React" version="19.2.0">Server Components + Client Components</framework>
+    <library name="drizzle-orm" version="0.44.7">PostgreSQL ORM</library>
+    <library name="zod" version="4.1.13">Schema validation</library>
+    <library name="decimal.js" version="10.6.0">Financial calculations</library>
+    <library name="react-hook-form" version="7.67.0">Form handling</library>
+    <library name="sonner" version="2.0.7">Toast notifications</library>
+    <library name="jose" version="6.1.2">JWT handling</library>
+    <library name="vitest" version="4.0.14">Unit testing</library>
+    <library name="playwright" version="1.57.0">E2E testing</library>
+  </tech-stack>
+
+  <!-- ============================================================================= -->
+  <!-- PATTERNS TO FOLLOW -->
+  <!-- ============================================================================= -->
+  <patterns>
+    <pattern name="Financial Precision" critical="true">
+      <description>MUST use decimal.js for all monetary calculations</description>
+      <correct>
+        <![CDATA[
+import { Decimal } from '@/lib/calculations/decimal-config';
+const value = new Decimal(quantity).times(price).toFixed(4);
+        ]]>
+      </correct>
+      <incorrect>
+        <![CDATA[
+// WRONG - never use JavaScript arithmetic for money
+const value = parseFloat(quantity) * parseFloat(price);
+        ]]>
+      </incorrect>
+      <reference>docs/architecture.md#Decimal-Precision-Strategy</reference>
+    </pattern>
+
+    <pattern name="Multi-tenant Isolation" critical="true">
+      <description>All asset queries MUST verify ownership through portfolio chain</description>
+      <correct>
+        <![CDATA[
+// First verify asset belongs to user's portfolio
+const asset = await db.query.portfolioAssets.findFirst({
+  where: eq(portfolioAssets.id, assetId),
+  with: { portfolio: true }
+});
+
+if (!asset || asset.portfolio.userId !== userId) {
+  throw new NotFoundError('Asset not found');
+}
+        ]]>
+      </correct>
+      <reference>docs/architecture.md#Security-Architecture</reference>
+    </pattern>
+
+    <pattern name="Optimistic Update">
+      <description>React Query pattern for immediate UI feedback with rollback</description>
+      <implementation>
+        <![CDATA[
+export function useUpdateAsset() {
+  return useMutation({
+    mutationFn: updateAssetApi,
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['assets'] });
+      // Snapshot previous value
+      const previousAssets = queryClient.getQueryData(['assets']);
+      // Optimistically update
+      queryClient.setQueryData(['assets'], (old) => /* update */);
+      return { previousAssets };
+    },
+    onError: (err, variables, context) => {
+      // Rollback to previous value
+      queryClient.setQueryData(['assets'], context.previousAssets);
+      // Show error toast
+      toast.error('Failed to update. Please try again.');
+    },
+    onSettled: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+    }
+  });
+}
+        ]]>
+      </implementation>
+      <reference>docs/architecture.md#React-Query-Pattern</reference>
+    </pattern>
+
+    <pattern name="Inline Edit UX">
+      <description>Click-to-edit pattern with auto-save on blur</description>
+      <states>
+        <state name="viewing">Display value in read mode</state>
+        <state name="editing">Input field with current value</state>
+        <state name="saving">Loading spinner</state>
+        <state name="success">Checkmark animation (brief)</state>
+        <state name="error">Error state with rollback</state>
+      </states>
+      <interactions>
+        <interaction trigger="click">Enter edit mode</interaction>
+        <interaction trigger="blur">Save and exit edit mode</interaction>
+        <interaction trigger="Enter">Save and exit edit mode</interaction>
+        <interaction trigger="Escape">Cancel and restore previous value</interaction>
+      </interactions>
+      <reference>docs/sprint-artifacts/tech-spec-epic-3.md#AC-3.3</reference>
+    </pattern>
+
+    <pattern name="Validation Schema Extension">
+      <description>Add partial update schema alongside existing add schema</description>
+      <implementation>
+        <![CDATA[
+export const updateAssetSchema = z.object({
+  quantity: z.string()
+    .refine(val => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num > 0;
+    }, 'Quantity must be positive')
+    .optional(),
+  purchasePrice: z.string()
+    .refine(val => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num > 0;
+    }, 'Price must be positive')
+    .optional()
+}).refine(data => data.quantity !== undefined || data.purchasePrice !== undefined, {
+  message: 'At least one field must be provided'
+});
+
+export type UpdateAssetInput = z.infer<typeof updateAssetSchema>;
+        ]]>
+      </implementation>
+    </pattern>
+
+    <pattern name="Service Function Extension">
+      <description>Add updateAsset alongside existing service functions</description>
+      <implementation>
+        <![CDATA[
+/**
+ * Update an asset's quantity and/or purchase price
+ *
+ * @param userId - User ID (for ownership verification)
+ * @param assetId - Asset ID to update
+ * @param input - Partial update input (quantity and/or purchasePrice)
+ * @returns Updated asset
+ * @throws AssetNotFoundError if asset doesn't exist or user doesn't own it
+ */
+export async function updateAsset(
+  userId: string,
+  assetId: string,
+  input: UpdateAssetInput
+): Promise<PortfolioAsset> {
+  // First verify asset belongs to user's portfolio
+  const asset = await getAssetById(userId, assetId);
+
+  if (!asset) {
+    throw new AssetNotFoundError();
+  }
+
+  // Build update object with only provided fields
+  const updateData: Partial<NewPortfolioAsset> = {
+    updatedAt: new Date(),
+  };
+
+  if (input.quantity !== undefined) {
+    updateData.quantity = input.quantity;
+  }
+
+  if (input.purchasePrice !== undefined) {
+    updateData.purchasePrice = input.purchasePrice;
+  }
+
+  const result = await db
+    .update(portfolioAssets)
+    .set(updateData)
+    .where(eq(portfolioAssets.id, assetId))
+    .returning();
+
+  if (!result[0]) {
+    throw new Error('Failed to update asset');
+  }
+
+  return result[0];
+}
+        ]]>
+      </implementation>
+    </pattern>
+  </patterns>
+
+  <!-- ============================================================================= -->
+  <!-- LEARNINGS FROM PREVIOUS STORY -->
+  <!-- ============================================================================= -->
+  <previous-story-learnings story="3-2-add-asset-to-portfolio" status="done">
+    <patterns-to-reuse>
+      <pattern>Portfolio service pattern at src/lib/services/portfolio-service.ts</pattern>
+      <pattern>Validation schema pattern at src/lib/validations/portfolio.ts</pattern>
+      <pattern>API route pattern at src/app/api/portfolios/[id]/assets/route.ts</pattern>
+      <pattern>Test patterns at tests/unit/services/portfolio-asset.test.ts</pattern>
+    </patterns-to-reuse>
+
+    <infrastructure-available>
+      <item>portfolioAssets table with numeric(19,8) for quantity, numeric(19,4) for price</item>
+      <item>Unique constraint on (portfolioId, symbol)</item>
+      <item>AssetExistsError custom error class pattern</item>
+      <item>Asset service functions: addAsset, getPortfolioAssets, getAssetById</item>
+      <item>Portfolio table component with decimal.js calculations</item>
+    </infrastructure-available>
+
+    <technical-decisions>
+      <decision>Server Component + Client Component separation pattern</decision>
+      <decision>withAuth middleware for protected routes</decision>
+      <decision>Zod validation with transform (trim, uppercase)</decision>
+      <decision>sonner for toast notifications</decision>
+      <decision>router.refresh() for data refresh after mutations</decision>
+    </technical-decisions>
+
+    <files-created>
+      <file>src/app/api/portfolios/[id]/assets/route.ts</file>
+      <file>src/components/portfolio/add-asset-modal.tsx</file>
+      <file>src/components/portfolio/portfolio-table.tsx</file>
+      <file>src/components/portfolio/portfolio-asset-summary.tsx</file>
+      <file>tests/unit/services/portfolio-asset.test.ts</file>
+      <file>tests/unit/validations/portfolio-asset.test.ts</file>
+    </files-created>
+
+    <review-notes>
+      <note>All acceptance criteria passed review</note>
+      <note>No unresolved action items</note>
+      <note>Performance AC (AC-3.2.7) not explicitly tested but implementation straightforward</note>
+      <note>Advisory: Consider explicit performance tests for &lt;500ms requirement</note>
+    </review-notes>
+  </previous-story-learnings>
+
+  <!-- ============================================================================= -->
+  <!-- PROJECT STRUCTURE -->
+  <!-- ============================================================================= -->
+  <project-structure>
+    <directory path="src/app">
+      <note>Next.js App Router pages and API routes</note>
+      <subdirectory path="(auth)">Authentication pages (login, register, etc.)</subdirectory>
+      <subdirectory path="(dashboard)">Protected dashboard pages</subdirectory>
+      <subdirectory path="api">API route handlers</subdirectory>
+    </directory>
+
+    <directory path="src/components">
+      <note>React components organized by feature</note>
+      <subdirectory path="ui">shadcn/ui base components</subdirectory>
+      <subdirectory path="auth">Authentication forms</subdirectory>
+      <subdirectory path="portfolio">Portfolio-related components</subdirectory>
+      <subdirectory path="dashboard">Dashboard layout components</subdirectory>
+    </directory>
+
+    <directory path="src/lib">
+      <note>Shared utilities and services</note>
+      <subdirectory path="auth">Authentication utilities</subdirectory>
+      <subdirectory path="db">Database connection and schema</subdirectory>
+      <subdirectory path="calculations">decimal.js config and helpers</subdirectory>
+      <subdirectory path="services">Business logic services</subdirectory>
+      <subdirectory path="validations">Zod validation schemas</subdirectory>
+    </directory>
+
+    <directory path="tests">
+      <note>Test files</note>
+      <subdirectory path="unit">Unit tests with Vitest</subdirectory>
+      <subdirectory path="e2e">E2E tests with Playwright</subdirectory>
+    </directory>
+  </project-structure>
+
+  <!-- ============================================================================= -->
+  <!-- COMMANDS -->
+  <!-- ============================================================================= -->
+  <commands>
+    <command name="dev" cmd="pnpm dev">Start development server</command>
+    <command name="build" cmd="pnpm build">Build for production</command>
+    <command name="lint" cmd="pnpm lint">Run ESLint</command>
+    <command name="test" cmd="pnpm test">Run unit tests</command>
+    <command name="test:e2e" cmd="pnpm test:e2e">Run E2E tests</command>
+    <command name="db:generate" cmd="DATABASE_URL=... pnpm db:generate">Generate migrations</command>
+    <command name="db:push" cmd="DATABASE_URL=... pnpm db:push">Push schema to database</command>
+  </commands>
+
+  <!-- ============================================================================= -->
+  <!-- REFERENCES -->
+  <!-- ============================================================================= -->
+  <references>
+    <reference type="tech-spec">docs/sprint-artifacts/tech-spec-epic-3.md#AC-3.3</reference>
+    <reference type="architecture">docs/architecture.md</reference>
+    <reference type="epics">docs/epics.md#Story-3.3</reference>
+    <reference type="previous-story">docs/sprint-artifacts/3-2-add-asset-to-portfolio.md</reference>
+  </references>
+
+</story-context>

@@ -14,6 +14,7 @@
 import { kv } from "@vercel/kv";
 import { getCacheConfig } from "./config";
 import type { CacheMetadata, SerializedCacheEntry } from "./types";
+import { logger } from "@/lib/telemetry/logger";
 
 // =============================================================================
 // INTERNAL TYPES
@@ -106,7 +107,10 @@ export async function cacheGet<T>(
     return deserialize(entry);
   } catch (error) {
     // Log error but don't throw - graceful degradation
-    console.warn(`[cache] GET failed for key ${key}:`, error);
+    logger.warn("Cache GET failed", {
+      key,
+      error: error instanceof Error ? error.message : "Unknown",
+    });
     return null;
   }
 }
@@ -161,7 +165,7 @@ export async function cacheSet<T>(
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.warn(`[cache] SET failed for key ${key}:`, error);
+    logger.warn("Cache SET failed", { key, error: message });
     return { success: false, error: message };
   }
 }
@@ -186,7 +190,7 @@ export async function cacheDel(key: string): Promise<CacheOperationResult<void>>
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.warn(`[cache] DEL failed for key ${key}:`, error);
+    logger.warn("Cache DEL failed", { key, error: message });
     return { success: false, error: message };
   }
 }
@@ -220,7 +224,7 @@ export async function cacheDelMultiple(
     return { success: true, data: { deleted } };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.warn(`[cache] DEL_MULTIPLE failed:`, error);
+    logger.warn("Cache DEL_MULTIPLE failed", { error: message });
     return { success: false, error: message };
   }
 }
@@ -242,7 +246,10 @@ export async function cacheExists(key: string): Promise<boolean> {
     const exists = await kv.exists(key);
     return exists === 1;
   } catch (error) {
-    console.warn(`[cache] EXISTS failed for key ${key}:`, error);
+    logger.warn("Cache EXISTS failed", {
+      key,
+      error: error instanceof Error ? error.message : "Unknown",
+    });
     return false;
   }
 }

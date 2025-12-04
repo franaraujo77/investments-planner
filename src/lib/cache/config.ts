@@ -49,6 +49,10 @@ export const CACHE_KEY_PREFIXES = {
   PORTFOLIO: "portfolio:",
   /** Allocation cache prefix */
   ALLOCATION: "allocation:",
+  /** Rate limit by IP prefix */
+  RATE_LIMIT_IP: "rate-limit:ip:",
+  /** Rate limit by email prefix */
+  RATE_LIMIT_EMAIL: "rate-limit:email:",
 } as const;
 
 /**

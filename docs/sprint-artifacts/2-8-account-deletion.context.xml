@@ -1,0 +1,324 @@
+<story-context id="2-8-account-deletion" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>8</storyId>
+    <title>Account Deletion</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-8-account-deletion.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>delete my account and all associated data</iWant>
+    <soThat>I can exercise my right to be forgotten and have full control over my data</soThat>
+    <tasks>
+      <task id="1">Create Account Deletion Service (src/lib/services/account-service.ts)</task>
+      <task id="2">Create Delete Account API Route (src/app/api/user/account/route.ts)</task>
+      <task id="3">Create Delete Account Dialog Component (src/components/settings/delete-account-dialog.tsx)</task>
+      <task id="4">Create Inngest Hard Delete Function (src/lib/inngest/functions/purge-deleted-user.ts)</task>
+      <task id="5">Integrate Delete Section into Settings Page</task>
+      <task id="6">Update Auth Queries to Filter Deleted Users</task>
+      <task id="7">Create Unit Tests (tests/unit/services/account-service.test.ts)</task>
+      <task id="8">Create E2E Tests (tests/e2e/account-deletion.spec.ts)</task>
+      <task id="9">Run Verification (lint, build, test)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-2.8.1">
+      <title>Delete Account Button in Settings</title>
+      <given>I am on the Settings page</given>
+      <when>I view the account management section</when>
+      <then>I see a "Delete Account" button styled as a destructive action (red)</then>
+    </criterion>
+    <criterion id="AC-2.8.2">
+      <title>Confirmation Dialog with Consequences</title>
+      <given>I click "Delete Account"</given>
+      <when>the confirmation dialog appears</when>
+      <then>I see clear explanation of consequences, 30-day warning, text input for "DELETE", and Cancel/Confirm buttons</then>
+    </criterion>
+    <criterion id="AC-2.8.3">
+      <title>Cascade Data Deletion</title>
+      <given>I confirm account deletion by typing "DELETE"</given>
+      <when>the deletion processes</when>
+      <then>User record and all related data are soft-deleted (deletedAt timestamp set)</then>
+    </criterion>
+    <criterion id="AC-2.8.4">
+      <title>Soft Delete with 30-Day Purge Window</title>
+      <given>I delete my account</given>
+      <when>the deletion completes</when>
+      <then>User has deletedAt set, background job scheduled for 30-day hard delete, account cannot be accessed</then>
+    </criterion>
+    <criterion id="AC-2.8.5">
+      <title>Logout and Redirect After Deletion</title>
+      <given>account deletion is successful</given>
+      <when>the deletion completes</when>
+      <then>All auth cookies cleared, refresh tokens invalidated, redirect to homepage with success message</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Story 2.8: Account Deletion</section>
+        <snippet>Account deletion implements soft delete with 30-day purge window. DELETE /api/user/account requires confirmation string "DELETE". Invalidates all refresh tokens and clears cache.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Account Deletion Flow</section>
+        <snippet>Flow: DELETE request → validation → soft delete user (deletedAt) → invalidate tokens → clear cache → schedule Inngest purge job → logout → redirect.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 2.8: Account Deletion</section>
+        <snippet>FR8: Users can delete their account and all associated data. Confirmation dialog requires typing "DELETE". Soft delete with 30-day purge. Cascade delete: user, portfolios, criteria, scores, history, events.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>ADR-003: Background Jobs Framework</section>
+        <snippet>Inngest for background job orchestration. Event-driven model, built-in retries with exponential backoff, step functions for complex workflows. Used for scheduled hard delete after 30 days.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/2-7-data-export.md</path>
+        <title>Story 2.7: Data Export</title>
+        <section>Dev Agent Record</section>
+        <snippet>Patterns: API routes in src/app/api/user/, services in src/lib/services/, settings sections as separate components, toast via sonner, test structure in tests/unit/ and tests/e2e/.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/auth/service.ts</path>
+        <kind>service</kind>
+        <symbol>deleteUserRefreshTokens</symbol>
+        <lines>211-213</lines>
+        <reason>Existing function to delete all refresh tokens for a user - REUSE for account deletion</reason>
+      </file>
+      <file>
+        <path>src/lib/services/user-service.ts</path>
+        <kind>service</kind>
+        <symbol>updateUserProfile</symbol>
+        <lines>41-106</lines>
+        <reason>Service pattern reference - follow same pattern for account-service.ts</reason>
+      </file>
+      <file>
+        <path>src/lib/services/export-service.ts</path>
+        <kind>service</kind>
+        <symbol>generateUserExport</symbol>
+        <lines>206-225</lines>
+        <reason>Service pattern for user operations with async operations - follow pattern</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>users</symbol>
+        <lines>22-34</lines>
+        <reason>Users table with deletedAt field (line 31) - use for soft delete</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>refreshTokens</symbol>
+        <lines>47-60</lines>
+        <reason>Refresh tokens with CASCADE delete on user - will be hard deleted</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>verificationTokens</symbol>
+        <lines>105-121</lines>
+        <reason>Verification tokens with CASCADE delete - will be deleted with user</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>passwordResetTokens</symbol>
+        <lines>134-150</lines>
+        <reason>Password reset tokens with CASCADE delete - will be deleted with user</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/invalidation.ts</path>
+        <kind>utility</kind>
+        <symbol>invalidateUserCache</symbol>
+        <lines>34-37</lines>
+        <reason>Existing function to clear all user cache - REUSE for account deletion</reason>
+      </file>
+      <file>
+        <path>src/app/(dashboard)/settings/page.tsx</path>
+        <kind>page</kind>
+        <symbol>SettingsPage</symbol>
+        <lines>24-67</lines>
+        <reason>Settings page where DeleteAccountDialog will be added</reason>
+      </file>
+      <file>
+        <path>src/components/settings/export-data-section.tsx</path>
+        <kind>component</kind>
+        <symbol>ExportDataSection</symbol>
+        <reason>Settings section component pattern - follow for DeleteAccountDialog</reason>
+      </file>
+      <file>
+        <path>src/middleware.ts</path>
+        <kind>middleware</kind>
+        <symbol>middleware</symbol>
+        <lines>41-109</lines>
+        <reason>Middleware uses verifyAccessToken - no changes needed, but auth queries in service.ts need deletedAt filter</reason>
+      </file>
+      <file>
+        <path>src/lib/auth/service.ts</path>
+        <kind>service</kind>
+        <symbol>findUserByEmail</symbol>
+        <lines>85-93</lines>
+        <reason>Needs update to filter deletedAt - add isNull(users.deletedAt) filter</reason>
+      </file>
+      <file>
+        <path>src/lib/auth/service.ts</path>
+        <kind>service</kind>
+        <symbol>findUserById</symbol>
+        <lines>101-105</lines>
+        <reason>Needs update to filter deletedAt - add isNull(users.deletedAt) filter</reason>
+      </file>
+      <file>
+        <path>src/app/api/user/export/route.ts</path>
+        <kind>route</kind>
+        <symbol>GET</symbol>
+        <reason>API route pattern for user operations - follow for DELETE /api/user/account</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.44.7</version>
+        <reason>Database ORM - use for soft delete update and token deletion</reason>
+      </node>
+      <node>
+        <package>@vercel/kv</package>
+        <version>^3.0.0</version>
+        <reason>Cache - clear user cache on deletion</reason>
+      </node>
+      <node>
+        <package>sonner</package>
+        <version>^2.0.7</version>
+        <reason>Toast notifications - success/error messages</reason>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <reason>Request validation - validate confirmation string</reason>
+      </node>
+      <node>
+        <package>jose</package>
+        <version>^6.1.2</version>
+        <reason>JWT handling - token verification in API route</reason>
+      </node>
+      <note>Inngest is NOT yet installed. Story 2.8 may need to install inngest package or defer scheduled job to Epic 8 (Story 8.1: Inngest Job Infrastructure).</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">
+      <description>Confirmation Required: Must type "DELETE" exactly to prevent accidental deletion</description>
+      <source>docs/sprint-artifacts/tech-spec-epic-2.md</source>
+    </constraint>
+    <constraint type="security">
+      <description>Authentication Required: Only authenticated user can delete their own account</description>
+      <source>docs/sprint-artifacts/tech-spec-epic-2.md</source>
+    </constraint>
+    <constraint type="security">
+      <description>Immediate Token Invalidation: All sessions terminated on deletion</description>
+      <source>docs/sprint-artifacts/tech-spec-epic-2.md</source>
+    </constraint>
+    <constraint type="pattern">
+      <description>API routes use withAuth middleware pattern from src/lib/auth/middleware.ts</description>
+      <source>docs/sprint-artifacts/2-7-data-export.md</source>
+    </constraint>
+    <constraint type="pattern">
+      <description>Services in src/lib/services/ contain business logic, routes handle HTTP</description>
+      <source>docs/sprint-artifacts/2-7-data-export.md</source>
+    </constraint>
+    <constraint type="pattern">
+      <description>Error responses return JSON with proper status codes (400, 401, 500)</description>
+      <source>docs/sprint-artifacts/2-7-data-export.md</source>
+    </constraint>
+    <constraint type="data">
+      <description>Soft delete uses deletedAt timestamp on users table (already exists in schema)</description>
+      <source>src/lib/db/schema.ts</source>
+    </constraint>
+    <constraint type="gdpr">
+      <description>30-day purge window for GDPR compliance - hard delete scheduled via background job</description>
+      <source>docs/sprint-artifacts/tech-spec-epic-2.md</source>
+    </constraint>
+    <constraint type="dependency">
+      <description>Inngest not yet installed - may need to install or defer scheduled job to Epic 8</description>
+      <source>package.json</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>DELETE /api/user/account</name>
+      <kind>REST endpoint</kind>
+      <signature>DELETE /api/user/account { confirmation: "DELETE" } → { success: true, scheduledPurgeDate: Date }</signature>
+      <path>src/app/api/user/account/route.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>deleteUserAccount</name>
+      <kind>function signature</kind>
+      <signature>async function deleteUserAccount(userId: string): Promise&lt;AccountDeletionResult&gt;</signature>
+      <path>src/lib/services/account-service.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>hardDeleteUserData</name>
+      <kind>function signature</kind>
+      <signature>async function hardDeleteUserData(userId: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/services/account-service.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>deleteUserRefreshTokens</name>
+      <kind>function signature</kind>
+      <signature>async function deleteUserRefreshTokens(userId: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/auth/service.ts</path>
+    </interface>
+    <interface>
+      <name>invalidateUserCache</name>
+      <kind>function signature</kind>
+      <signature>async function invalidateUserCache(userId: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/cache/invalidation.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows project standards: Vitest for unit tests in tests/unit/, Playwright for E2E tests in tests/e2e/. Unit tests mock database and external services. E2E tests run against test database. Test files follow naming convention: *.test.ts for unit, *.spec.ts for E2E. Coverage target is 80% for services.
+    </standards>
+    <locations>
+      <location>tests/unit/services/account-service.test.ts</location>
+      <location>tests/e2e/account-deletion.spec.ts</location>
+      <location>tests/unit/auth/*.test.ts (existing auth tests)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-2.8.1">Unit: DeleteAccountDialog renders with red button styling</idea>
+      <idea ac="AC-2.8.1">E2E: Delete button visible on settings page</idea>
+      <idea ac="AC-2.8.2">Unit: Confirmation dialog shows consequences text</idea>
+      <idea ac="AC-2.8.2">E2E: Confirm button disabled until "DELETE" typed</idea>
+      <idea ac="AC-2.8.2">E2E: Dialog closes on Cancel click</idea>
+      <idea ac="AC-2.8.3">Unit: deleteUserAccount sets deletedAt correctly</idea>
+      <idea ac="AC-2.8.3">Unit: All refresh tokens are deleted</idea>
+      <idea ac="AC-2.8.3">Unit: Verification and reset tokens are deleted</idea>
+      <idea ac="AC-2.8.4">Unit: Hard delete removes all user data</idea>
+      <idea ac="AC-2.8.4">Unit: Scheduled job triggered with correct delay</idea>
+      <idea ac="AC-2.8.5">E2E: Successful deletion redirects to homepage</idea>
+      <idea ac="AC-2.8.5">E2E: Deleted user cannot log in</idea>
+      <idea ac="AC-2.8.5">E2E: Success toast message displayed</idea>
+      <idea ac="all">Unit: Invalid confirmation string rejected with 400</idea>
+      <idea ac="all">Unit: Unauthenticated request rejected with 401</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -3,8 +3,13 @@
  *
  * User login endpoint.
  * Story 1.3: Authentication System with JWT + Refresh Tokens
+ * Story 2.3: User Login - Enhanced with email verification and soft-delete checks
  *
- * AC1, AC3, AC4, AC5: Login with rate limiting and secure cookies
+ * AC-2.3.1: Valid credentials redirect to dashboard
+ * AC-2.3.3: Failed login shows "Invalid credentials" (no hints)
+ * AC-2.3.4: Rate limiting (5 attempts/hour, 15min lockout)
+ * AC-2.3.5: JWT in httpOnly cookie (15min expiry)
+ * AC-2.3.6: Remember me extends refresh token to 30 days
  */
 
 import { NextResponse } from "next/server";
@@ -20,6 +25,7 @@ import {
   getClientIp,
 } from "@/lib/auth/rate-limit";
 import { AUTH_MESSAGES, AUTH_CONSTANTS } from "@/lib/auth/constants";
+import { logger } from "@/lib/telemetry/logger";
 import type { AuthResponse, AuthError } from "@/lib/auth/types";
 import crypto from "crypto";
 
@@ -51,8 +57,8 @@ const loginSchema = z.object({
 export async function POST(request: Request): Promise<NextResponse<AuthResponse | AuthError>> {
   const ip = getClientIp(request);
 
-  // Check rate limit first (AC5)
-  const rateLimitResult = checkRateLimit(ip);
+  // Check rate limit first (AC5) - uses Vercel KV in production
+  const rateLimitResult = await checkRateLimit(ip);
   if (!rateLimitResult.allowed) {
     const retryAfter = rateLimitResult.retryAfter ?? 3600;
     return NextResponse.json(
@@ -91,9 +97,10 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
     // Find user by email
     const user = await findUserByEmail(email);
 
-    if (!user) {
+    // Treat soft-deleted users as non-existent (AC-2.3.3)
+    if (!user || user.deletedAt !== null) {
       // Record failed attempt before returning
-      recordFailedAttempt(ip);
+      await recordFailedAttempt(ip);
       return NextResponse.json(
         {
           error: AUTH_MESSAGES.INVALID_CREDENTIALS,
@@ -103,12 +110,12 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
       );
     }
 
-    // Verify password (AC3)
+    // Verify password (AC-2.3.3)
     const isValidPassword = await verifyPassword(password, user.passwordHash);
 
     if (!isValidPassword) {
       // Record failed attempt before returning
-      recordFailedAttempt(ip);
+      await recordFailedAttempt(ip);
       return NextResponse.json(
         {
           error: AUTH_MESSAGES.INVALID_CREDENTIALS,
@@ -118,8 +125,19 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
       );
     }
 
+    // Check email verification (AC-2.3.3) - unverified users cannot login
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        {
+          error: AUTH_MESSAGES.EMAIL_NOT_VERIFIED,
+          code: "EMAIL_NOT_VERIFIED",
+        },
+        { status: 403 }
+      );
+    }
+
     // Clear rate limit on successful login
-    clearRateLimit(ip);
+    await clearRateLimit(ip);
 
     // Generate token ID for refresh token
     const tokenId = crypto.randomUUID();
@@ -165,7 +183,9 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
 
     return response;
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error("Login error", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       {
         error: "An error occurred during login",

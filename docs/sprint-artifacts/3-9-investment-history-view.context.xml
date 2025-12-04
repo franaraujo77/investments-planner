@@ -1,0 +1,185 @@
+<story-context id="3-9-investment-history-view" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>9</storyId>
+    <title>Investment History View</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-9-investment-history-view.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>view my investment history as a timeline</iWant>
+    <soThat>I can track past investment decisions, compare recommended vs actual amounts, and export records for personal analysis</soThat>
+    <tasks>
+      <task id="1" ac="3.9.1,3.9.6">Create History Page Route - Server/Client Components with empty state</task>
+      <task id="2" ac="3.9.1,3.9.2">Create InvestmentTimeline Component - date grouping, expand/collapse</task>
+      <task id="3" ac="3.9.3">Implement Recommended vs Actual Display - variance, visual distinction</task>
+      <task id="4" ac="3.9.5">Create DateRangeFilter Component - presets and custom picker</task>
+      <task id="5" ac="3.9.4">Implement CSV Export - export service, download button</task>
+      <task id="6" ac="">Add Sidebar Navigation Link - already exists, verify active state</task>
+      <task id="7" ac="3.9.1,3.9.3,3.9.4">Create Unit Tests - export service, calculations</task>
+      <task id="8" ac="all">Create E2E Tests - history page flows</task>
+      <task id="9" ac="">Run Verification - lint, build, test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="3.9.1" title="Investment History Timeline Display">
+      Timeline showing investment entries grouped by date with Date, Total Invested Amount, Assets Count. Sorted descending by date.
+    </ac>
+    <ac id="3.9.2" title="Expandable Investment Details">
+      Click entry to expand/collapse. Shows Symbol, Quantity, Price Per Unit, Total Amount, Currency for each asset.
+    </ac>
+    <ac id="3.9.3" title="Recommended vs Actual Amount Comparison">
+      Display both amounts when recommended exists. Show variance. Visual distinction between amounts.
+    </ac>
+    <ac id="3.9.4" title="CSV Export Functionality">
+      Export button downloads CSV with Date, Symbol, Quantity, Price, Total, Currency, Recommended Amount. Filename: investment-history-YYYY-MM-DD.csv
+    </ac>
+    <ac id="3.9.5" title="Date Range Filtering">
+      Presets (Last 30 Days, Last 12 Months, etc.) and custom date picker. Timeline updates immediately.
+    </ac>
+    <ac id="3.9.6" title="Empty State Handling">
+      Friendly message "No investments recorded yet" with CTA to portfolio page.
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture" section="Decimal Precision Strategy">
+        All monetary calculations use decimal.js with precision 20, ROUND_HALF_UP. PostgreSQL numeric(19,4) for amounts.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="React Query Pattern">
+        Use React Query for server state management with staleTime: 5min. Invalidate on mutations.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Tech Spec Epic 3" section="AC-3.10">
+        Investment history requirements: timeline view, expandable entries, recommended vs actual, CSV export.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Tech Spec Epic 3" section="Test-Strategy-Summary">
+        Unit test coverage >= 80%. Calculation functions 100%. E2E for critical paths.
+      </doc>
+      <doc path="docs/sprint-artifacts/3-8-record-investment-amount.md" title="Previous Story" section="Dev Agent Record">
+        InvestmentService, useInvestmentHistory hook, API routes all exist and tested. 658 tests passing.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/services/investment-service.ts" kind="service" symbol="getInvestmentHistory" lines="256-282">
+        Existing service method for fetching investment history with date range, portfolio, and asset filtering.
+      </file>
+      <file path="src/lib/services/investment-service.ts" kind="service" symbol="calculateTotalAmount" lines="83-85">
+        Helper for calculating total amounts using decimal.js. Reuse for daily totals.
+      </file>
+      <file path="src/hooks/use-investments.ts" kind="hook" symbol="useInvestmentHistory" lines="153-218">
+        React hook for fetching investment history with filtering support. Ready to use.
+      </file>
+      <file path="src/app/api/investments/route.ts" kind="api" symbol="GET" lines="75-133">
+        API endpoint for investment history. Supports from, to, portfolioId, assetId query params.
+      </file>
+      <file path="src/components/fintech/currency-display.tsx" kind="component" symbol="CurrencyDisplay" lines="111-183">
+        Reusable currency display component with dual currency, tooltips, and size variants.
+      </file>
+      <file path="src/components/fintech/currency-display.tsx" kind="component" symbol="SimpleCurrencyDisplay" lines="197-212">
+        Simple inline currency display without tooltip. Good for timeline entries.
+      </file>
+      <file path="src/components/dashboard/app-sidebar.tsx" kind="component" symbol="navItems" lines="43-49">
+        Sidebar navigation already includes History link with History icon. No changes needed.
+      </file>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="investments">
+        Investment table schema with symbol, quantity, pricePerUnit, totalAmount, currency, recommendedAmount, investedAt fields.
+      </file>
+      <file path="src/lib/calculations/decimal-config.ts" kind="utility" symbol="Decimal">
+        decimal.js configuration with precision 20. Use for all monetary calculations.
+      </file>
+      <file path="tests/unit/services/investment-service.test.ts" kind="test">
+        24 unit tests for investment service. Follow same patterns for new tests.
+      </file>
+      <file path="tests/e2e/portfolio.spec.ts" kind="test">
+        E2E tests for portfolio. May extend or create separate history.spec.ts.
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="next" version="16.0.5">React framework with App Router</package>
+        <package name="react" version="19.2.0">UI library</package>
+        <package name="decimal.js" version="^10.6.0">Financial precision calculations</package>
+        <package name="drizzle-orm" version="^0.44.7">Database ORM</package>
+        <package name="zod" version="^4.1.13">Schema validation</package>
+        <package name="react-hook-form" version="^7.67.0">Form handling</package>
+        <package name="@radix-ui/react-dialog" version="^1.1.15">Modal dialogs</package>
+        <package name="@radix-ui/react-tooltip" version="^1.2.8">Tooltips for currency display</package>
+        <package name="@radix-ui/react-tabs" version="^1.1.13">Tab components</package>
+        <package name="lucide-react" version="^0.555.0">Icons including History, Download, Calendar</package>
+        <package name="sonner" version="^2.0.7">Toast notifications</package>
+        <package name="vitest" version="^4.0.14">Unit testing</package>
+        <package name="@playwright/test" version="^1.57.0">E2E testing</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint category="precision">All monetary calculations MUST use decimal.js - never native JavaScript arithmetic</constraint>
+    <constraint category="precision">Use toFixed(4) for amounts, toFixed(8) for quantities</constraint>
+    <constraint category="security">Multi-tenant isolation: All queries MUST be scoped by user_id</constraint>
+    <constraint category="architecture">Investments are immutable (event-sourced audit trail)</constraint>
+    <constraint category="architecture">Server Components for initial data fetch, Client Components for interactivity</constraint>
+    <constraint category="patterns">Follow existing service/hook/API patterns from Story 3.8</constraint>
+    <constraint category="testing">Unit test coverage >= 80%, calculation functions 100%</constraint>
+    <constraint category="ui">Use shadcn/ui components for consistency</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/investments" kind="REST endpoint">
+      <signature>GET /api/investments?from=ISO_DATE&amp;to=ISO_DATE&amp;portfolioId=UUID&amp;assetId=UUID</signature>
+      <path>src/app/api/investments/route.ts</path>
+      <note>Returns { data: Investment[], meta: { count, from?, to? } }</note>
+    </interface>
+    <interface name="Investment" kind="TypeScript type">
+      <signature>{ id, userId, portfolioId, assetId, symbol, quantity, pricePerUnit, totalAmount, currency, recommendedAmount, investedAt, createdAt }</signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+    <interface name="useInvestmentHistory" kind="React hook">
+      <signature>() => { investments, isLoading, error, fetchHistory, refresh }</signature>
+      <path>src/hooks/use-investments.ts</path>
+      <note>fetchHistory accepts { from?, to?, portfolioId?, assetId? }</note>
+    </interface>
+    <interface name="getInvestmentHistory" kind="Service function">
+      <signature>(userId: string, options?: { from?, to?, portfolioId?, assetId? }) => Promise&lt;Investment[]&gt;</signature>
+      <path>src/lib/services/investment-service.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit tests, Playwright for E2E. Tests should mock database using vi.mock patterns from existing tests.
+      Follow describe/it structure with clear AC references. Calculation tests require 100% coverage.
+      E2E tests should use authenticated session and test complete user flows.
+    </standards>
+    <locations>
+      <location>tests/unit/services/export-service.test.ts (new)</location>
+      <location>tests/unit/calculations/history.test.ts (new)</location>
+      <location>tests/e2e/history.spec.ts (new)</location>
+    </locations>
+    <ideas>
+      <idea ac="3.9.1">Test date grouping logic - same day investments grouped together</idea>
+      <idea ac="3.9.1">Test sorting - most recent first</idea>
+      <idea ac="3.9.3">Test variance calculation - positive, negative, zero variance</idea>
+      <idea ac="3.9.3">Test display when no recommended amount</idea>
+      <idea ac="3.9.4">Test CSV export format - all columns present</idea>
+      <idea ac="3.9.4">Test CSV filename format</idea>
+      <idea ac="3.9.4">Test multi-currency handling in CSV</idea>
+      <idea ac="3.9.5">Test date filter presets - Last 30 Days, Last 12 Months</idea>
+      <idea ac="3.9.5">Test custom date range filtering</idea>
+      <idea ac="3.9.6">Test empty state renders correctly</idea>
+      <idea ac="3.9.6">Test CTA link to portfolio page</idea>
+      <idea ac="e2e">Navigate to History page and verify timeline loads</idea>
+      <idea ac="e2e">Expand and collapse timeline entries</idea>
+      <idea ac="e2e">Apply date filter and verify results update</idea>
+      <idea ac="e2e">Export CSV and verify download</idea>
+    </ideas>
+  </tests>
+</story-context>

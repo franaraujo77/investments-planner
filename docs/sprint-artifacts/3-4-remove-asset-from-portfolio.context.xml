@@ -1,0 +1,512 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 3-4-remove-asset-from-portfolio
+  Generated: 2025-12-03
+  Epic: 3 - Portfolio Core
+  Story: Remove Asset from Portfolio
+-->
+<story-context story-id="3.4" story-key="3-4-remove-asset-from-portfolio">
+  <metadata>
+    <title>Remove Asset from Portfolio</title>
+    <epic>Epic 3 - Portfolio Core</epic>
+    <status>drafted</status>
+    <generated-date>2025-12-03</generated-date>
+  </metadata>
+
+  <!-- ==========================================================================
+       SECTION 1: STORY REQUIREMENTS
+       ========================================================================== -->
+  <requirements>
+    <user-story>
+      As a user, I want to remove assets from my portfolio so that I can track only current holdings.
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC-3.4.1" name="Delete Button Display">
+        Given I have assets in my portfolio, when I view the portfolio table, then each asset row displays a delete icon button (trash icon).
+      </criterion>
+      <criterion id="AC-3.4.2" name="Confirmation Dialog">
+        Given I click the delete icon on an asset row, when the confirmation dialog opens, then I see dialog title "Remove [TICKER]?", warning message "This cannot be undone.", current value being removed displayed, and "Cancel" and "Remove" buttons (Remove is destructive/red).
+      </criterion>
+      <criterion id="AC-3.4.3" name="Successful Removal">
+        Given I confirm deletion in the dialog, when the asset is removed, then asset is hard-deleted from database, portfolio table updates immediately (optimistic), portfolio totals recalculate, allocation percentages recalculate, and success toast shows "Asset removed successfully".
+      </criterion>
+      <criterion id="AC-3.4.4" name="Cancel Removal">
+        Given I am viewing the confirmation dialog, when I click "Cancel" or press Escape, then dialog closes and asset remains unchanged.
+      </criterion>
+      <criterion id="AC-3.4.5" name="Error Handling">
+        Given I confirm deletion, when the deletion fails (network error, etc.), then asset remains in the table (rollback), error toast shows "Failed to remove asset. Please try again."
+      </criterion>
+      <criterion id="AC-3.4.6" name="Multi-tenant Isolation">
+        Given I attempt to delete an asset, when the API processes the request, then verification ensures the asset belongs to a portfolio I own.
+      </criterion>
+    </acceptance-criteria>
+  </requirements>
+
+  <!-- ==========================================================================
+       SECTION 2: ARCHITECTURE CONTEXT
+       ========================================================================== -->
+  <architecture>
+    <patterns>
+      <pattern name="API Route Pattern">
+        <description>Standard Next.js API route with withAuth middleware, Zod validation, and handleApiError</description>
+        <reference>docs/architecture.md#API-Route-Pattern</reference>
+      </pattern>
+      <pattern name="Service Layer Pattern">
+        <description>Business logic in lib/services/ with database operations, custom error classes</description>
+        <reference>docs/architecture.md#Service-Layer-Pattern</reference>
+      </pattern>
+      <pattern name="React Query Pattern">
+        <description>Mutations with optimistic updates and rollback</description>
+        <reference>docs/architecture.md#React-Query-Pattern</reference>
+      </pattern>
+      <pattern name="Multi-tenant Isolation">
+        <description>All queries must filter by userId to ensure data isolation</description>
+        <reference>docs/architecture.md#Security-Architecture</reference>
+      </pattern>
+    </patterns>
+
+    <key-decisions>
+      <decision id="D3.4">
+        Portfolio deletion cascades to assets but preserves investments - investment records retain the symbol for historical reference.
+      </decision>
+    </key-decisions>
+
+    <security-requirements>
+      <requirement>Verify asset ownership through portfolio -> user chain before deletion</requirement>
+      <requirement>Use withAuth middleware on DELETE endpoint</requirement>
+      <requirement>Return 404 (not 403) for assets not owned by user (prevent enumeration)</requirement>
+    </security-requirements>
+  </architecture>
+
+  <!-- ==========================================================================
+       SECTION 3: TECH STACK
+       ========================================================================== -->
+  <tech-stack>
+    <framework name="Next.js" version="16.0.5">App Router with Server Components</framework>
+    <database name="PostgreSQL" version="16.x">Drizzle ORM with numeric types for financial precision</database>
+    <ui-library name="shadcn/ui">AlertDialog for confirmation dialogs</ui-library>
+    <validation name="Zod" version="4.x">Schema validation for API inputs</validation>
+    <notifications name="sonner" version="2.x">Toast notifications for success/error feedback</notifications>
+    <precision name="decimal.js" version="10.x">Financial calculations with proper precision</precision>
+  </tech-stack>
+
+  <!-- ==========================================================================
+       SECTION 4: DATABASE SCHEMA
+       ========================================================================== -->
+  <database-schema>
+    <table name="portfolio_assets" file="src/lib/db/schema.ts">
+      <column name="id" type="uuid" primary-key="true" />
+      <column name="portfolio_id" type="uuid" foreign-key="portfolios.id" on-delete="cascade" />
+      <column name="symbol" type="varchar(20)" />
+      <column name="name" type="varchar(100)" nullable="true" />
+      <column name="quantity" type="numeric(19,8)" />
+      <column name="purchase_price" type="numeric(19,4)" />
+      <column name="currency" type="varchar(3)" />
+      <column name="asset_class_id" type="uuid" nullable="true" />
+      <column name="subclass_id" type="uuid" nullable="true" />
+      <column name="is_ignored" type="boolean" default="false" />
+      <column name="created_at" type="timestamp" default="now()" />
+      <column name="updated_at" type="timestamp" default="now()" />
+      <constraint type="unique" columns="portfolio_id,symbol" name="portfolio_assets_portfolio_symbol_uniq" />
+      <index name="portfolio_assets_portfolio_id_idx" columns="portfolio_id" />
+    </table>
+
+    <table name="portfolios" file="src/lib/db/schema.ts">
+      <column name="id" type="uuid" primary-key="true" />
+      <column name="user_id" type="uuid" foreign-key="users.id" on-delete="cascade" />
+      <column name="name" type="varchar(50)" />
+      <column name="created_at" type="timestamp" default="now()" />
+      <column name="updated_at" type="timestamp" default="now()" />
+    </table>
+
+    <note>No migration needed - using existing tables with CASCADE delete already configured</note>
+  </database-schema>
+
+  <!-- ==========================================================================
+       SECTION 5: EXISTING CODE ARTIFACTS
+       ========================================================================== -->
+  <existing-code>
+    <!-- Portfolio Service -->
+    <artifact type="service" path="src/lib/services/portfolio-service.ts">
+      <description>Business logic for portfolio and asset operations</description>
+      <exports>
+        <export name="getAssetById" type="function">
+          Retrieves asset by ID with ownership verification through portfolio chain. Returns null if not found or not owned by user.
+        </export>
+        <export name="updateAsset" type="function">
+          Updates asset quantity/price with ownership verification. Throws AssetNotFoundError if not found.
+        </export>
+        <export name="addAsset" type="function">
+          Adds new asset to portfolio with duplicate check and ownership verification.
+        </export>
+        <export name="getPortfolioAssets" type="function">
+          Gets all assets for a portfolio with ownership verification.
+        </export>
+        <export name="getPortfolioById" type="function">
+          Gets portfolio by ID with user ownership check.
+        </export>
+        <export name="AssetNotFoundError" type="class">
+          Custom error for asset not found scenarios.
+        </export>
+        <export name="PortfolioNotFoundError" type="class">
+          Custom error for portfolio not found scenarios.
+        </export>
+        <export name="AssetExistsError" type="class">
+          Custom error for duplicate asset in portfolio.
+        </export>
+      </exports>
+      <note>Extend this file with removeAsset function following existing patterns</note>
+    </artifact>
+
+    <!-- Asset API Route -->
+    <artifact type="api-route" path="src/app/api/assets/[id]/route.ts">
+      <description>Individual asset API routes with PATCH handler</description>
+      <handlers>
+        <handler method="PATCH">Updates asset quantity/price with validation and auth</handler>
+      </handlers>
+      <note>Add DELETE handler to this file following PATCH pattern</note>
+    </artifact>
+
+    <!-- Portfolio Table Component -->
+    <artifact type="component" path="src/components/portfolio/portfolio-table.tsx">
+      <description>Portfolio assets table with inline editing</description>
+      <subcomponents>
+        <subcomponent name="AssetRow">Renders individual asset row with editable cells</subcomponent>
+      </subcomponents>
+      <hooks-used>
+        <hook name="useUpdateAsset">For inline asset updates</hook>
+      </hooks-used>
+      <note>Add delete button to AssetRow component</note>
+    </artifact>
+
+    <!-- useUpdateAsset Hook -->
+    <artifact type="hook" path="src/hooks/use-update-asset.ts">
+      <description>React hook for updating assets with optimistic updates</description>
+      <pattern>
+        - Fetch API call with error handling
+        - Toast notifications for success/error
+        - router.refresh() for data sync
+        - Loading state tracking
+      </pattern>
+      <note>Follow this pattern for useDeleteAsset hook</note>
+    </artifact>
+
+    <!-- EditableCell Component -->
+    <artifact type="component" path="src/components/portfolio/editable-cell.tsx">
+      <description>Inline edit cell component with save on blur</description>
+      <note>Reference for inline action patterns</note>
+    </artifact>
+
+    <!-- Validation Schemas -->
+    <artifact type="validation" path="src/lib/validations/portfolio.ts">
+      <description>Zod schemas for portfolio and asset operations</description>
+      <exports>
+        <export name="updateAssetSchema">Schema for asset update validation</export>
+        <export name="addAssetSchema">Schema for asset creation validation</export>
+        <export name="ASSET_MESSAGES">Error message constants</export>
+      </exports>
+    </artifact>
+
+    <!-- Auth Middleware -->
+    <artifact type="middleware" path="src/lib/auth/middleware.ts">
+      <description>withAuth higher-order function for protected API routes</description>
+      <usage>
+        export const DELETE = withAuth(async (request, session, context) => { ... });
+      </usage>
+    </artifact>
+
+    <!-- UI Components -->
+    <artifact type="ui-component" path="src/components/ui/alert-dialog.tsx">
+      <description>shadcn/ui AlertDialog for confirmation dialogs</description>
+      <note>Use for delete confirmation dialog</note>
+    </artifact>
+  </existing-code>
+
+  <!-- ==========================================================================
+       SECTION 6: TEST PATTERNS
+       ========================================================================== -->
+  <test-patterns>
+    <unit-tests>
+      <pattern file="tests/unit/services/portfolio-asset.test.ts">
+        <description>Service function unit tests with mocked database</description>
+        <mock-setup>
+          - Mock drizzle-orm operators (eq, and, count)
+          - Mock db module with query/insert/update/delete operations
+          - Mock schema tables
+          - Control mock results via variables
+        </mock-setup>
+        <test-cases>
+          - Function successfully performs operation
+          - Function throws appropriate error for not found
+          - Function verifies ownership (multi-tenant isolation)
+          - Error classes have correct properties
+        </test-cases>
+        <note>Extend with removeAsset tests following updateAsset pattern</note>
+      </pattern>
+    </unit-tests>
+
+    <e2e-tests>
+      <pattern file="tests/e2e/portfolio.spec.ts">
+        <description>Portfolio page E2E tests with Playwright</description>
+        <setup>
+          - loginUser helper function
+          - TEST_USER credentials
+          - Page navigation to /portfolio
+        </setup>
+        <test-patterns>
+          - Check element visibility before interaction
+          - Use data-testid for reliable element selection
+          - Wait for toasts/dialogs with timeout
+          - Handle conditional test execution (if element exists)
+        </test-patterns>
+        <note>Extend with delete asset tests following existing patterns</note>
+      </pattern>
+    </e2e-tests>
+  </test-patterns>
+
+  <!-- ==========================================================================
+       SECTION 7: IMPLEMENTATION TASKS
+       ========================================================================== -->
+  <tasks>
+    <task id="1" name="Add removeAsset Service Function">
+      <file>src/lib/services/portfolio-service.ts</file>
+      <description>
+        Implement removeAsset(userId, assetId) function:
+        - Verify asset ownership through getAssetById helper
+        - Hard delete from portfolioAssets table using db.delete()
+        - Throw AssetNotFoundError if not found or not owned
+      </description>
+      <acceptance-criteria>AC-3.4.3, AC-3.4.6</acceptance-criteria>
+      <code-pattern>
+```typescript
+export async function removeAsset(
+  userId: string,
+  assetId: string
+): Promise<void> {
+  // First verify asset belongs to user's portfolio
+  const asset = await getAssetById(userId, assetId);
+
+  if (!asset) {
+    throw new AssetNotFoundError();
+  }
+
+  await db
+    .delete(portfolioAssets)
+    .where(eq(portfolioAssets.id, assetId));
+}
+```
+      </code-pattern>
+    </task>
+
+    <task id="2" name="Add DELETE Handler to Asset API Route">
+      <file>src/app/api/assets/[id]/route.ts</file>
+      <description>
+        Add DELETE handler following PATCH pattern:
+        - Use withAuth middleware
+        - Call removeAsset service function
+        - Return 200 with { success: true } on success
+        - Return 404 for asset not found
+      </description>
+      <acceptance-criteria>AC-3.4.3, AC-3.4.5</acceptance-criteria>
+      <code-pattern>
+```typescript
+export const DELETE = withAuth<{ success: boolean } | ValidationError | AuthError>(
+  async (request, session, context) => {
+    try {
+      const { id: assetId } = await (context as RouteParams).params;
+
+      await removeAsset(session.userId, assetId);
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      if (error instanceof AssetNotFoundError) {
+        return NextResponse.json<ValidationError>(
+          { error: "Asset not found", code: "NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      console.error("Error deleting asset:", error);
+      return NextResponse.json<AuthError>(
+        { error: "Failed to delete asset", code: "INTERNAL_ERROR" },
+        { status: 500 }
+      );
+    }
+  }
+);
+```
+      </code-pattern>
+    </task>
+
+    <task id="3" name="Create Delete Asset Confirmation Dialog">
+      <file>src/components/portfolio/delete-asset-dialog.tsx</file>
+      <description>
+        Create AlertDialog-based confirmation component:
+        - Props: asset ({ symbol, value, currency }), open, onOpenChange, onConfirm, isLoading
+        - Display asset symbol in title: "Remove [TICKER]?"
+        - Display warning: "This cannot be undone."
+        - Display current value being removed
+        - Cancel button (outline/secondary)
+        - Remove button (destructive/red styling)
+        - Handle loading state during deletion
+      </description>
+      <acceptance-criteria>AC-3.4.1, AC-3.4.2, AC-3.4.4</acceptance-criteria>
+    </task>
+
+    <task id="4" name="Create useDeleteAsset Hook">
+      <file>src/hooks/use-delete-asset.ts</file>
+      <description>
+        React hook for asset deletion following useUpdateAsset pattern:
+        - Function deleteAsset(assetId) returns Promise&lt;true | string&gt;
+        - isDeleting loading state
+        - Success toast: "Asset removed successfully"
+        - Error toast: "Failed to remove asset. Please try again."
+        - router.refresh() on success
+      </description>
+      <acceptance-criteria>AC-3.4.3, AC-3.4.5</acceptance-criteria>
+      <code-pattern>
+```typescript
+export function useDeleteAsset() {
+  const router = useRouter();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const deleteAsset = useCallback(
+    async (assetId: string): Promise<true | string> => {
+      setIsDeleting(true);
+
+      try {
+        const response = await fetch(`/api/assets/${assetId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const result = await response.json();
+          if (result.code === "NOT_FOUND") {
+            toast.error("Asset not found");
+            return "Asset not found";
+          }
+          toast.error("Failed to remove asset. Please try again.");
+          return "Failed to remove asset";
+        }
+
+        toast.success("Asset removed successfully");
+        router.refresh();
+        return true;
+      } catch (error) {
+        console.error("Error deleting asset:", error);
+        toast.error("Failed to remove asset. Please try again.");
+        return "Failed to remove asset";
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [router]
+  );
+
+  return { deleteAsset, isDeleting };
+}
+```
+      </code-pattern>
+    </task>
+
+    <task id="5" name="Update Portfolio Table with Delete Action">
+      <file>src/components/portfolio/portfolio-table.tsx</file>
+      <description>
+        Add delete functionality to AssetRow component:
+        - Add trash icon button to each row (or last column)
+        - Track selectedAssetForDeletion state
+        - Integrate DeleteAssetDialog component
+        - Integrate useDeleteAsset hook
+        - Pass calculated value to dialog for display
+      </description>
+      <acceptance-criteria>AC-3.4.1, AC-3.4.2</acceptance-criteria>
+    </task>
+
+    <task id="6" name="Create Unit Tests">
+      <file>tests/unit/services/portfolio-asset.test.ts</file>
+      <description>
+        Add test cases to existing file:
+        - removeAsset successfully deletes asset
+        - removeAsset throws AssetNotFoundError for invalid asset ID
+        - removeAsset throws AssetNotFoundError for asset belonging to different user
+        - removeAsset verifies ownership through portfolio chain
+      </description>
+      <acceptance-criteria>All</acceptance-criteria>
+    </task>
+
+    <task id="7" name="Create E2E Tests">
+      <file>tests/e2e/portfolio.spec.ts</file>
+      <description>
+        Add test cases to existing file:
+        - Delete button is visible on asset row
+        - Clicking delete opens confirmation dialog
+        - Confirmation dialog shows asset symbol and value
+        - Cancel closes dialog without removing asset
+        - Confirm removes asset and updates table
+        - Portfolio summary updates after removal
+      </description>
+      <acceptance-criteria>All</acceptance-criteria>
+    </task>
+
+    <task id="8" name="Run Verification">
+      <commands>
+        <command>pnpm lint</command>
+        <command>pnpm build</command>
+        <command>pnpm test</command>
+      </commands>
+      <success-criteria>0 lint errors, successful build, all tests pass</success-criteria>
+    </task>
+  </tasks>
+
+  <!-- ==========================================================================
+       SECTION 8: DEPENDENCIES
+       ========================================================================== -->
+  <dependencies>
+    <dependency story="3.3" name="Update Asset Holdings" status="done">
+      Provides asset API infrastructure at /api/assets/[id]
+    </dependency>
+    <dependency story="3.2" name="Add Asset to Portfolio" status="done">
+      Provides asset service functions and table infrastructure
+    </dependency>
+    <dependency story="3.1" name="Create Portfolio" status="done">
+      Provides portfolio infrastructure
+    </dependency>
+    <dependency story="1.3" name="Authentication System" status="done">
+      Provides JWT authentication and withAuth middleware
+    </dependency>
+  </dependencies>
+
+  <!-- ==========================================================================
+       SECTION 9: PREVIOUS STORY LEARNINGS
+       ========================================================================== -->
+  <previous-story-learnings story="3-3-update-asset-holdings" status="done">
+    <patterns-to-reuse>
+      <pattern>Asset service pattern at src/lib/services/portfolio-service.ts</pattern>
+      <pattern>Asset API route pattern at src/app/api/assets/[id]/route.ts</pattern>
+      <pattern>useUpdateAsset hook pattern at src/hooks/use-update-asset.ts</pattern>
+      <pattern>Test patterns at tests/unit/services/portfolio-asset.test.ts</pattern>
+      <pattern>E2E patterns at tests/e2e/portfolio.spec.ts</pattern>
+    </patterns-to-reuse>
+
+    <new-infrastructure>
+      <item>Asset API route at /api/assets/[id] with PATCH handler - add DELETE handler</item>
+      <item>AssetNotFoundError custom error class pattern</item>
+      <item>Optimistic update with rollback pattern in useUpdateAsset</item>
+      <item>EditableCell component demonstrates inline action pattern</item>
+    </new-infrastructure>
+
+    <technical-decisions>
+      <decision>sonner for toast notifications</decision>
+      <decision>router.refresh() for data refresh after mutations</decision>
+      <decision>Verify asset ownership through getAssetById helper</decision>
+    </technical-decisions>
+
+    <review-notes>
+      <note>All acceptance criteria passed review</note>
+      <note>No unresolved action items</note>
+      <note>Advisory: Consider explicit performance tests</note>
+      <note>Advisory: Test fixtures for E2E would improve test isolation</note>
+    </review-notes>
+  </previous-story-learnings>
+</story-context>
