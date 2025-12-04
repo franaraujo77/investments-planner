@@ -25,6 +25,7 @@ import {
   getClientIp,
 } from "@/lib/auth/rate-limit";
 import { AUTH_MESSAGES, AUTH_CONSTANTS } from "@/lib/auth/constants";
+import { logger, redactEmail } from "@/lib/telemetry/logger";
 import type { AuthResponse, AuthError } from "@/lib/auth/types";
 import crypto from "crypto";
 
@@ -56,8 +57,8 @@ const loginSchema = z.object({
 export async function POST(request: Request): Promise<NextResponse<AuthResponse | AuthError>> {
   const ip = getClientIp(request);
 
-  // Check rate limit first (AC5)
-  const rateLimitResult = checkRateLimit(ip);
+  // Check rate limit first (AC5) - uses Vercel KV in production
+  const rateLimitResult = await checkRateLimit(ip);
   if (!rateLimitResult.allowed) {
     const retryAfter = rateLimitResult.retryAfter ?? 3600;
     return NextResponse.json(
@@ -99,7 +100,7 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
     // Treat soft-deleted users as non-existent (AC-2.3.3)
     if (!user || user.deletedAt !== null) {
       // Record failed attempt before returning
-      recordFailedAttempt(ip);
+      await recordFailedAttempt(ip);
       return NextResponse.json(
         {
           error: AUTH_MESSAGES.INVALID_CREDENTIALS,
@@ -114,7 +115,7 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
 
     if (!isValidPassword) {
       // Record failed attempt before returning
-      recordFailedAttempt(ip);
+      await recordFailedAttempt(ip);
       return NextResponse.json(
         {
           error: AUTH_MESSAGES.INVALID_CREDENTIALS,
@@ -136,7 +137,7 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
     }
 
     // Clear rate limit on successful login
-    clearRateLimit(ip);
+    await clearRateLimit(ip);
 
     // Generate token ID for refresh token
     const tokenId = crypto.randomUUID();
@@ -182,7 +183,9 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
 
     return response;
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error("Login error", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       {
         error: "An error occurred during login",

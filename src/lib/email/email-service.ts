@@ -5,10 +5,11 @@
  * Story 2.2: Email Verification - Resend integration
  *
  * Sends verification and password reset emails via Resend.
- * Falls back to console logging in development without API key.
+ * Falls back to logging in development without API key.
  */
 
 import { Resend } from "resend";
+import { logger, redactEmail } from "@/lib/telemetry/logger";
 
 /**
  * Email configuration from environment
@@ -205,12 +206,13 @@ ${EMAIL_CONFIG.appName} - Your trusted investment portfolio advisor
 async function sendEmail(template: EmailTemplate): Promise<void> {
   const client = getResendClient();
 
-  // Development fallback - log to console
+  // Development fallback - log info
   if (!client) {
-    console.log("📧 [Email Service - Dev Mode]");
-    console.log(`   To: ${template.to}`);
-    console.log(`   Subject: ${template.subject}`);
-    console.log("   Note: Set RESEND_API_KEY to enable real email sending");
+    logger.info("Email service in dev mode", {
+      to: redactEmail(template.to),
+      subject: template.subject,
+      note: "Set RESEND_API_KEY to enable real email sending",
+    });
     return;
   }
 
@@ -224,11 +226,11 @@ async function sendEmail(template: EmailTemplate): Promise<void> {
   });
 
   if (error) {
-    console.error("Email send error:", error);
+    logger.error("Email send error", { error: error.message, to: redactEmail(template.to) });
     throw new Error(`Failed to send email: ${error.message}`);
   }
 
-  console.log(`📧 Email sent to ${template.to}`);
+  logger.info("Email sent successfully", { to: redactEmail(template.to) });
 }
 
 /**

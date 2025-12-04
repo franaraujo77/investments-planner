@@ -20,7 +20,8 @@ import {
 } from "@/lib/auth/service";
 import { signVerificationToken } from "@/lib/auth/jwt";
 import { checkEmailRateLimit, recordEmailResendAttempt } from "@/lib/auth/rate-limit";
-import { sendVerificationEmail } from "@/lib/email/email-service";
+import { inngest } from "@/lib/inngest";
+import { logger } from "@/lib/telemetry/logger";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { z } from "zod/v4";
 
@@ -92,8 +93,8 @@ export async function POST(request: Request): Promise<NextResponse<ResendRespons
 
       span.setAttribute("user.email_domain", normalizedEmail.split("@")[1] ?? "unknown");
 
-      // Check rate limit (3 per hour per email)
-      const rateLimit = checkEmailRateLimit(normalizedEmail);
+      // Check rate limit (3 per hour per email) - uses Vercel KV in production
+      const rateLimit = await checkEmailRateLimit(normalizedEmail);
 
       if (!rateLimit.allowed) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: "Rate limited" });
@@ -115,7 +116,7 @@ export async function POST(request: Request): Promise<NextResponse<ResendRespons
       }
 
       // Record the attempt (before any early returns)
-      recordEmailResendAttempt(normalizedEmail);
+      await recordEmailResendAttempt(normalizedEmail);
 
       // Find user by email
       const user = await findUserByEmail(normalizedEmail);
@@ -153,9 +154,15 @@ export async function POST(request: Request): Promise<NextResponse<ResendRespons
       // Store token in database
       await storeVerificationToken(user.id, verificationToken);
 
-      // Send verification email (async, fire-and-forget)
-      void sendVerificationEmail(normalizedEmail, verificationToken).catch((err) => {
-        console.error("Failed to send verification email:", err);
+      // Send verification email via Inngest (async with retries)
+      await inngest.send({
+        name: "email/verification.requested",
+        data: {
+          userId: user.id,
+          email: normalizedEmail,
+          token: verificationToken,
+          requestedAt: new Date().toISOString(),
+        },
       });
 
       span.setStatus({ code: SpanStatusCode.OK });
@@ -166,7 +173,9 @@ export async function POST(request: Request): Promise<NextResponse<ResendRespons
         message: RESEND_MESSAGE,
       });
     } catch (error) {
-      console.error("Resend verification error:", error);
+      logger.error("Resend verification error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
       span.recordException(error as Error);

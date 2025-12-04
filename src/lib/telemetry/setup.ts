@@ -126,7 +126,10 @@ export function setupTelemetry(): void {
 
   // Graceful degradation: if not enabled, skip setup silently
   if (!config.enabled || !config.endpoint) {
-    console.log("[telemetry] Telemetry disabled: OTEL_EXPORTER_OTLP_ENDPOINT not set");
+    // Use console.log here as logger isn't available yet during bootstrap
+    if (process.env.NODE_ENV === "development") {
+      console.log("[telemetry] Telemetry disabled: OTEL_EXPORTER_OTLP_ENDPOINT not set");
+    }
     isInitialized = true;
     return;
   }
@@ -145,9 +148,12 @@ export function setupTelemetry(): void {
     // Start the SDK
     sdkInstance.start();
 
-    console.log(
-      `[telemetry] OpenTelemetry initialized: ${config.serviceName} -> ${config.endpoint}`
-    );
+    // Use console.log here as this runs during bootstrap
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `[telemetry] OpenTelemetry initialized: ${config.serviceName} -> ${config.endpoint}`
+      );
+    }
 
     // Register shutdown handlers for graceful termination
     registerShutdownHandlers();
@@ -155,6 +161,7 @@ export function setupTelemetry(): void {
     isInitialized = true;
   } catch (error) {
     // Log error but don't throw - telemetry failure shouldn't break the app
+    // Use console.error as logger may not be available during bootstrap
     console.error("[telemetry] Failed to initialize OpenTelemetry:", error);
     isInitialized = true; // Mark as initialized to prevent retry loops
   }
@@ -170,7 +177,10 @@ function registerShutdownHandlers(): void {
     if (sdkInstance) {
       try {
         await sdkInstance.shutdown();
-        console.log("[telemetry] OpenTelemetry SDK shut down successfully");
+        // Shutdown logs use console as logger may not be available
+        if (process.env.NODE_ENV === "development") {
+          console.log("[telemetry] OpenTelemetry SDK shut down successfully");
+        }
       } catch (error) {
         console.error("[telemetry] Error shutting down SDK:", error);
       }

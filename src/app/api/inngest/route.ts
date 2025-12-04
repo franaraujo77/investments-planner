@@ -2,6 +2,8 @@
  * Inngest API Route Handler
  *
  * Story 2.8: Account Deletion
+ * Story 2.1, 2.2: Email Verification
+ * Story 2.5: Password Reset Flow
  * Architecture: ADR-003 - Background Jobs Framework
  *
  * This route handles Inngest events and function invocations.
@@ -14,20 +16,20 @@
  */
 
 import { serve } from "inngest/next";
-import { inngest } from "@/lib/inngest/client";
-import { purgeDeletedUser } from "@/lib/inngest/functions/purge-deleted-user";
+import { inngest, functions } from "@/lib/inngest";
 
 /**
  * Inngest serve handler
  *
  * Registers all Inngest functions and exposes GET/POST/PUT handlers
  * for the Inngest platform to communicate with.
+ *
+ * Functions include:
+ * - purgeDeletedUser: Hard delete after 30-day grace period
+ * - sendVerificationEmailJob: Verification emails with retries
+ * - sendPasswordResetEmailJob: Password reset emails with retries
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [
-    purgeDeletedUser,
-    // Add more functions here as they are created
-    // (e.g., overnight scoring job in Epic 8)
-  ],
+  functions,
 });

@@ -15,6 +15,7 @@
 
 import { inngest } from "../client";
 import { hardDeleteUserData } from "@/lib/services/account-service";
+import { logger, redactUserId } from "@/lib/telemetry/logger";
 
 /**
  * Purge Deleted User Function
@@ -36,9 +37,11 @@ export const purgeDeletedUser = inngest.createFunction(
     const { userId, scheduledPurgeDate, deletedAt } = event.data;
 
     // Log the scheduling
-    console.log(
-      `User ${userId} scheduled for purge. Deleted at: ${deletedAt}, Purge date: ${scheduledPurgeDate}`
-    );
+    logger.info("User scheduled for purge", {
+      userId: redactUserId(userId),
+      deletedAt,
+      scheduledPurgeDate,
+    });
 
     // Sleep until the scheduled purge date
     // Inngest handles this durably - survives restarts
@@ -46,9 +49,9 @@ export const purgeDeletedUser = inngest.createFunction(
 
     // Perform the hard delete
     await step.run("hard-delete-user-data", async () => {
-      console.log(`Starting hard delete for user ${userId}`);
+      logger.info("Starting hard delete for user", { userId: redactUserId(userId) });
       await hardDeleteUserData(userId);
-      console.log(`Completed hard delete for user ${userId}`);
+      logger.info("Completed hard delete for user", { userId: redactUserId(userId) });
     });
 
     return {

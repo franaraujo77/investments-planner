@@ -16,7 +16,8 @@ import { createUser, emailExists, storeVerificationToken } from "@/lib/auth/serv
 import { signVerificationToken } from "@/lib/auth/jwt";
 import { AUTH_MESSAGES } from "@/lib/auth/constants";
 import { registerSchema } from "@/lib/auth/validation";
-import { sendVerificationEmail } from "@/lib/email/email-service";
+import { inngest } from "@/lib/inngest";
+import { logger } from "@/lib/telemetry/logger";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 
 /**
@@ -122,10 +123,16 @@ export async function POST(
       // Store token in database (for single-use validation)
       await storeVerificationToken(user.id, verificationToken);
 
-      // Send verification email (async, fire-and-forget for <2s response) (AC6, AC8)
-      // Using void to explicitly mark as intentionally not awaited
-      void sendVerificationEmail(email, verificationToken).catch((err) => {
-        console.error("Failed to send verification email:", err);
+      // Send verification email via Inngest (async with retries) (AC6, AC8)
+      // Inngest handles retries and failure visibility in dashboard
+      await inngest.send({
+        name: "email/verification.requested",
+        data: {
+          userId: user.id,
+          email,
+          token: verificationToken,
+          requestedAt: new Date().toISOString(),
+        },
       });
 
       span.setStatus({ code: SpanStatusCode.OK });
@@ -143,7 +150,9 @@ export async function POST(
         { status: 201 }
       );
     } catch (error) {
-      console.error("Registration error:", error);
+      logger.error("Registration error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
       span.recordException(error as Error);

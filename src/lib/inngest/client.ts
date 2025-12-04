@@ -31,6 +31,32 @@ export type Events = {
       deletedAt: string; // ISO date string
     };
   };
+
+  /**
+   * Triggered when a verification email needs to be sent
+   * Story 2.1, 2.2: User Registration & Email Verification
+   */
+  "email/verification.requested": {
+    data: {
+      userId: string;
+      email: string;
+      token: string;
+      requestedAt: string; // ISO date string
+    };
+  };
+
+  /**
+   * Triggered when a password reset email needs to be sent
+   * Story 2.5: Password Reset Flow
+   */
+  "email/password-reset.requested": {
+    data: {
+      userId: string;
+      email: string;
+      token: string;
+      requestedAt: string; // ISO date string
+    };
+  };
 };
 
 /**

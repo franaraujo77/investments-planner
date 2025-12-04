@@ -16,7 +16,7 @@ import {
   createPasswordResetToken,
   invalidateUserPasswordResetTokens,
 } from "@/lib/auth/service";
-import { sendPasswordResetEmail } from "@/lib/email/email-service";
+import { inngest } from "@/lib/inngest";
 
 /**
  * Request validation schema
@@ -57,14 +57,11 @@ export async function POST(request: Request) {
 
     const { email } = result.data;
 
-    // Log the request for security monitoring
-    console.log(`[Password Reset] Request received for email: ${email.substring(0, 3)}***`);
-
     // Look up user by email
     const user = await findUserByEmail(email);
 
     if (user) {
-      // User exists - generate token and send email
+      // User exists - generate token and send email via Inngest
       try {
         // Invalidate any existing unused reset tokens for this user
         await invalidateUserPasswordResetTokens(user.id);
@@ -72,25 +69,25 @@ export async function POST(request: Request) {
         // Generate new reset token
         const token = await createPasswordResetToken(user.id);
 
-        // Send password reset email
-        await sendPasswordResetEmail(email, token);
-
-        console.log(`[Password Reset] Email sent successfully for user: ${user.id}`);
-      } catch (error) {
-        // Log error but don't expose to client
-        console.error("[Password Reset] Failed to process reset request:", error);
-        // Still return success to prevent enumeration
+        // Send password reset email via Inngest (async with retries)
+        await inngest.send({
+          name: "email/password-reset.requested",
+          data: {
+            userId: user.id,
+            email,
+            token,
+            requestedAt: new Date().toISOString(),
+          },
+        });
+      } catch {
+        // Silently fail to prevent enumeration - Inngest handles retries
+        // Still return success response
       }
-    } else {
-      // User doesn't exist - log but return same response
-      console.log(`[Password Reset] No user found for email: ${email.substring(0, 3)}***`);
     }
 
     // Always return the same response (AC-2.5.2)
     return NextResponse.json(STANDARD_RESPONSE);
-  } catch (error) {
-    console.error("[Password Reset] Unexpected error:", error);
-
+  } catch {
     // Even on error, return same message to prevent information leakage
     return NextResponse.json(STANDARD_RESPONSE);
   }
