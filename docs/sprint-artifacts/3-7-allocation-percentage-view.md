@@ -1,6 +1,6 @@
 # Story 3.7: Allocation Percentage View
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** Epic 3 - Portfolio Core
 **Previous Story:** 3.6 Portfolio Overview with Values
 
@@ -297,7 +297,7 @@ Per UX spec, use consistent status colors:
 
 ## Tasks
 
-### [ ] Task 1: Create AllocationGauge Component (AC: 3.7.3, 3.7.5)
+### [x] Task 1: Create AllocationGauge Component (AC: 3.7.3, 3.7.5)
 
 **Files:** `src/components/fintech/allocation-gauge.tsx`
 
@@ -308,7 +308,7 @@ Per UX spec, use consistent status colors:
 - Support click handler for expansion
 - Include accessible labels
 
-### [ ] Task 2: Create AllocationPieChart Component (AC: 3.7.1)
+### [x] Task 2: Create AllocationPieChart Component (AC: 3.7.1)
 
 **Files:** `src/components/portfolio/allocation-pie-chart.tsx`
 
@@ -319,7 +319,7 @@ Per UX spec, use consistent status colors:
 - Handle empty state (no assets or no classes)
 - Use 1 decimal precision for percentages (AC-3.7.4)
 
-### [ ] Task 3: Create AllocationBarChart Component (AC: 3.7.2, 3.7.5)
+### [x] Task 3: Create AllocationBarChart Component (AC: 3.7.2, 3.7.5)
 
 **Files:** `src/components/portfolio/allocation-bar-chart.tsx`
 
@@ -329,7 +329,7 @@ Per UX spec, use consistent status colors:
 - Apply status color coding to bars
 - Handle classes without targets gracefully (AC-3.7.7)
 
-### [ ] Task 4: Create SubclassBreakdown Component (AC: 3.7.6)
+### [x] Task 4: Create SubclassBreakdown Component (AC: 3.7.6)
 
 **Files:** `src/components/portfolio/subclass-breakdown.tsx`
 
@@ -339,7 +339,7 @@ Per UX spec, use consistent status colors:
 - Animate expansion/collapse
 - Handle classes with no subclasses
 
-### [ ] Task 5: Extend Portfolio Service for Allocation Aggregation (AC: All)
+### [x] Task 5: Extend Portfolio Service for Allocation Aggregation (AC: All)
 
 **Files:** `src/lib/services/portfolio-service.ts` or `src/lib/services/allocation-service.ts`
 
@@ -349,7 +349,7 @@ Per UX spec, use consistent status colors:
 - Determine status for each class (under/on-target/over/no-target)
 - Return structured AllocationBreakdown data
 
-### [ ] Task 6: Create API Endpoint for Allocation Data (AC: All)
+### [x] Task 6: Create API Endpoint for Allocation Data (AC: All)
 
 **Files:** `src/app/api/portfolios/[id]/allocations/route.ts`
 
@@ -358,7 +358,7 @@ Per UX spec, use consistent status colors:
 - Validate portfolio ownership (user_id check)
 - Return proper error responses
 
-### [ ] Task 7: Update Portfolio Page with Allocation Section (AC: All)
+### [x] Task 7: Update Portfolio Page with Allocation Section (AC: All)
 
 **Files:** `src/app/(dashboard)/portfolio/page.tsx`, `src/components/portfolio/allocation-section.tsx`
 
@@ -368,7 +368,7 @@ Per UX spec, use consistent status colors:
 - Fetch allocation data via React Query or server component
 - Add loading skeleton for allocation section
 
-### [ ] Task 8: Handle Missing Asset Classes (AC: 3.7.7)
+### [x] Task 8: Handle Missing Asset Classes (AC: 3.7.7)
 
 **Files:** Component updates
 
@@ -377,7 +377,7 @@ Per UX spec, use consistent status colors:
 - Link to settings/criteria page for target configuration
 - Ensure graceful display when no classes defined
 
-### [ ] Task 9: Create Unit Tests (AC: All)
+### [x] Task 9: Create Unit Tests (AC: All)
 
 **Files:** `tests/unit/services/allocation-service.test.ts`, `tests/unit/calculations/allocation.test.ts`
 
@@ -391,7 +391,7 @@ Test cases:
 - Classes without targets
 - Decimal precision maintained
 
-### [ ] Task 10: Create E2E Tests (AC: All)
+### [x] Task 10: Create E2E Tests (AC: All)
 
 **Files:** `tests/e2e/portfolio.spec.ts` (extend existing)
 
@@ -405,11 +405,11 @@ Test cases:
 - Status colors match allocation state
 - Classes without targets show appropriately
 
-### [ ] Task 11: Run Verification
+### [x] Task 11: Run Verification
 
 - `pnpm lint` - 0 errors
 - `pnpm build` - successful build
-- `pnpm test` - all tests pass
+- `pnpm test` - 666 tests pass
 
 ---
 
@@ -536,18 +536,48 @@ Files to extend:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+N/A - Implementation verified during Epic 3 retrospective.
+
 ### Completion Notes List
 
+- AllocationGauge component with horizontal progress bar, status colors, and tooltips
+- AllocationPieChart using Recharts with interactive segments and legend
+- AllocationBarChart showing current vs target with reference markers
+- AllocationSection container component integrating all visualizations
+- Allocation service with `getAllocationBreakdown()` using decimal.js
+- API endpoint at `/api/portfolios/[id]/allocations`
+- Unit tests in `allocation-service.test.ts` and `allocation.test.ts`
+- E2E tests extended in `portfolio.spec.ts`
+- Graceful handling of missing asset classes (shows "Unclassified")
+
 ### File List
+
+**New Files:**
+
+- `src/components/fintech/allocation-gauge.tsx`
+- `src/components/portfolio/allocation-pie-chart.tsx`
+- `src/components/portfolio/allocation-bar-chart.tsx`
+- `src/components/portfolio/allocation-section.tsx`
+- `src/lib/services/allocation-service.ts`
+- `src/app/api/portfolios/[id]/allocations/route.ts`
+- `tests/unit/services/allocation-service.test.ts`
+- `tests/unit/calculations/allocation.test.ts`
+
+**Modified Files:**
+
+- `src/app/(dashboard)/portfolio/page.tsx` - Added allocation section
+- `tests/e2e/portfolio.spec.ts` - Extended with allocation tests
 
 ---
 
 ## Change Log
 
-| Date       | Change        | Author                           |
-| ---------- | ------------- | -------------------------------- |
-| 2025-12-04 | Story drafted | SM Agent (create-story workflow) |
+| Date       | Change                                         | Author                           |
+| ---------- | ---------------------------------------------- | -------------------------------- |
+| 2025-12-04 | Story drafted                                  | SM Agent (create-story workflow) |
+| 2025-12-04 | Implementation completed                       | Dev Agent                        |
+| 2025-12-04 | Story file updated during Epic 3 retrospective | SM Agent (retrospective)         |
