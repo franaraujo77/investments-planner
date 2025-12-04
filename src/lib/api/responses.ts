@@ -27,6 +27,7 @@ import {
   INTERNAL_ERRORS,
   getHttpStatusForErrorCode,
 } from "./error-codes";
+import { logger } from "@/lib/telemetry/logger";
 
 // =============================================================================
 // RESPONSE TYPES
@@ -279,8 +280,11 @@ export function withErrorHandling<T extends unknown[]>(
     try {
       return await handler(...args);
     } catch (error) {
-      // Log the error (should use structured logger in production)
-      console.error("API Error:", error);
+      // Log the error with structured logger for trace correlation
+      logger.error("API Error", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
 
       // Return generic error (don't expose internal details)
       return internalError();

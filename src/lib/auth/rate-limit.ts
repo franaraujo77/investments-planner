@@ -204,7 +204,7 @@ export async function clearRateLimit(ip: string): Promise<void> {
  * @param ip - String to validate
  * @returns true if valid IP address
  */
-function isValidIp(ip: string): boolean {
+export function isValidIp(ip: string): boolean {
   // IPv4 pattern: 0-255 for each octet
   const ipv4Pattern =
     /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -228,7 +228,7 @@ function isValidIp(ip: string): boolean {
  * @param ip - Raw IP string from header
  * @returns Validated IP or null if invalid
  */
-function validateAndSanitizeIp(ip: string | null): string | null {
+export function validateAndSanitizeIp(ip: string | null): string | null {
   if (!ip) return null;
 
   // Trim whitespace
