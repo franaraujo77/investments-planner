@@ -13,6 +13,7 @@
 import { AUTH_CONSTANTS } from "./constants";
 import type { RateLimitResult } from "./types";
 import { getCacheConfig } from "@/lib/cache/config";
+import { logger } from "@/lib/telemetry/logger";
 import {
   checkRateLimitKV,
   recordFailedAttemptKV,
@@ -198,12 +199,76 @@ export async function clearRateLimit(ip: string): Promise<void> {
 }
 
 /**
+ * Validates if a string is a valid IP address (IPv4 or IPv6)
+ *
+ * @param ip - String to validate
+ * @returns true if valid IP address
+ */
+function isValidIp(ip: string): boolean {
+  // IPv4 pattern: 0-255 for each octet
+  const ipv4Pattern =
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
+  // IPv6 pattern: simplified check for valid hex groups
+  const ipv6Pattern = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+
+  // IPv6 compressed pattern (with ::)
+  const ipv6CompressedPattern = /^(?:[0-9a-fA-F]{1,4}:)*(?::[0-9a-fA-F]{1,4})*$/;
+
+  return (
+    ipv4Pattern.test(ip) ||
+    ipv6Pattern.test(ip) ||
+    (ipv6CompressedPattern.test(ip) && ip.includes("::"))
+  );
+}
+
+/**
+ * Sanitizes and validates an IP address from a header value
+ *
+ * @param ip - Raw IP string from header
+ * @returns Validated IP or null if invalid
+ */
+function validateAndSanitizeIp(ip: string | null): string | null {
+  if (!ip) return null;
+
+  // Trim whitespace
+  const trimmed = ip.trim();
+
+  // Reject if empty after trim
+  if (!trimmed) return null;
+
+  // Reject if contains suspicious characters (potential injection)
+  if (/[<>"'`;\\]/.test(trimmed)) {
+    logger.warn("Suspicious IP address rejected", { rawIp: trimmed.slice(0, 50) });
+    return null;
+  }
+
+  // Validate IP format
+  if (!isValidIp(trimmed)) {
+    logger.debug("Invalid IP format rejected", { rawIp: trimmed.slice(0, 50) });
+    return null;
+  }
+
+  return trimmed;
+}
+
+/**
  * Gets IP address from Next.js request
  *
  * Checks common headers for proxy/load balancer scenarios.
+ * Validates IP format to prevent header spoofing attacks.
+ *
+ * Trusted Headers (in order of priority):
+ * 1. X-Forwarded-For - Standard proxy header (first IP in chain)
+ * 2. X-Real-IP - nginx proxy header
+ * 3. CF-Connecting-IP - Cloudflare header
+ *
+ * Note: On Vercel, X-Forwarded-For is populated by Vercel's edge network
+ * and can be trusted. For other deployments, ensure your load balancer
+ * is configured to set these headers correctly.
  *
  * @param request - Next.js request object
- * @returns IP address string
+ * @returns Validated IP address string
  */
 export function getClientIp(request: Request): string {
   // Check X-Forwarded-For header (common with proxies/load balancers)
@@ -211,19 +276,24 @@ export function getClientIp(request: Request): string {
   if (forwardedFor) {
     // Take the first IP in the list (client IP)
     const firstIp = forwardedFor.split(",")[0];
-    return firstIp ? firstIp.trim() : "127.0.0.1";
+    const validatedIp = validateAndSanitizeIp(firstIp ?? null);
+    if (validatedIp) {
+      return validatedIp;
+    }
   }
 
   // Check X-Real-IP header (nginx)
   const realIp = request.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp;
+  const validatedRealIp = validateAndSanitizeIp(realIp);
+  if (validatedRealIp) {
+    return validatedRealIp;
   }
 
   // Check CF-Connecting-IP header (Cloudflare)
   const cfIp = request.headers.get("cf-connecting-ip");
-  if (cfIp) {
-    return cfIp;
+  const validatedCfIp = validateAndSanitizeIp(cfIp);
+  if (validatedCfIp) {
+    return validatedCfIp;
   }
 
   // Fallback to localhost for development

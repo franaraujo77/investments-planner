@@ -80,7 +80,7 @@ development_status:
   3-7-allocation-percentage-view: done
   3-8-record-investment-amount: done
   3-9-investment-history-view: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: completed
 
   # =============================================================================
   # EPIC 4: ASSET CLASS & ALLOCATION CONFIGURATION
