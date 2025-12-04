@@ -9,7 +9,7 @@
 
 import { SignJWT, jwtVerify, errors } from "jose";
 import { AUTH_CONSTANTS, JWT_ALGORITHM, AUTH_MESSAGES } from "./constants";
-import type { JwtPayload, RefreshTokenPayload } from "./types";
+import type { JwtPayload, RefreshTokenPayload, VerificationTokenPayload } from "./types";
 
 /**
  * Get the JWT secret key as Uint8Array
@@ -145,6 +145,69 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
     return {
       userId: payload.userId,
       tokenId: payload.tokenId,
+      iat: payload.iat as number,
+      exp: payload.exp as number,
+    };
+  } catch (error) {
+    if (error instanceof errors.JWTExpired) {
+      throw new Error(AUTH_MESSAGES.TOKEN_EXPIRED);
+    }
+    if (
+      error instanceof errors.JWTInvalid ||
+      error instanceof errors.JWSSignatureVerificationFailed
+    ) {
+      throw new Error(AUTH_MESSAGES.TOKEN_INVALID);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Signs a verification token JWT
+ *
+ * Story 2.1: User Registration Flow
+ * Verification tokens are single-use (24h expiry) for email verification.
+ *
+ * @param userId - User ID to include in token
+ * @returns Promise resolving to signed JWT string
+ */
+export async function signVerificationToken(userId: string): Promise<string> {
+  const secret = getSecretKey();
+  const now = Math.floor(Date.now() / 1000);
+
+  return new SignJWT({
+    userId,
+    purpose: "email_verification",
+  })
+    .setProtectedHeader({ alg: JWT_ALGORITHM })
+    .setIssuedAt(now)
+    .setExpirationTime(now + AUTH_CONSTANTS.VERIFICATION_TOKEN_EXPIRY)
+    .sign(secret);
+}
+
+/**
+ * Verifies and decodes a verification token
+ *
+ * @param token - JWT string to verify
+ * @returns Promise resolving to decoded payload
+ * @throws Error if token is invalid, expired, or malformed
+ */
+export async function verifyVerificationToken(token: string): Promise<VerificationTokenPayload> {
+  const secret = getSecretKey();
+
+  try {
+    const { payload } = await jwtVerify(token, secret, {
+      algorithms: [JWT_ALGORITHM],
+    });
+
+    // Validate required fields
+    if (typeof payload.userId !== "string" || payload.purpose !== "email_verification") {
+      throw new Error(AUTH_MESSAGES.TOKEN_INVALID);
+    }
+
+    return {
+      userId: payload.userId,
+      purpose: "email_verification",
       iat: payload.iat as number,
       exp: payload.exp as number,
     };

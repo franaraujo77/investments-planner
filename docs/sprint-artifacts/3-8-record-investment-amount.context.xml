@@ -1,0 +1,185 @@
+<story-context id="3-8-record-investment-amount" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>8</storyId>
+    <title>Record Investment Amount</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-8-record-investment-amount.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>record actual investment amounts after making purchases</iWant>
+    <soThat>my portfolio reflects real transactions</soThat>
+    <tasks>
+      <task id="1" ac="3.8.1,3.8.2">Create InvestmentService with recordInvestments() and getInvestmentHistory()</task>
+      <task id="2" ac="3.8.1,3.8.2">Create Investment API Routes (POST/GET /api/investments)</task>
+      <task id="3" ac="3.8.1,3.8.5">Create InvestmentForm Component with validation</task>
+      <task id="4" ac="3.8.3,3.8.4,3.8.6">Create Investment Confirmation Modal with dynamic month toast</task>
+      <task id="5" ac="3.8.4">Integrate with Portfolio Page for updated allocations</task>
+      <task id="6" ac="all">Create React Query hooks (useRecordInvestments, useInvestmentHistory)</task>
+      <task id="7" ac="3.8.1,3.8.2">Create unit tests for InvestmentService</task>
+      <task id="8" ac="3.8.1,3.8.2">Create API integration tests</task>
+      <task id="9" ac="all">Create E2E tests for investment recording flow</task>
+      <task id="10" ac="all">Run verification (lint, build, test)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="3.8.1" title="Investment Record Data Completeness">
+      Given I have confirmed a recommendation or am making a manual investment
+      When I enter the actual amount invested and ticker
+      Then the investment is recorded with: date, ticker, quantity, price per unit, total amount, currency
+      And the investment record is persisted to the database
+    </ac>
+    <ac id="3.8.2" title="Portfolio Holdings Auto-Update">
+      Given an investment is recorded
+      When the recording transaction completes
+      Then the corresponding portfolio asset quantity updates automatically
+      And the new quantity equals previous quantity plus invested quantity
+      And the update is atomic (transaction)
+    </ac>
+    <ac id="3.8.3" title="Investment Confirmation UI Feedback">
+      Given I have successfully recorded an investment
+      When the transaction completes
+      Then a success toast shows: "[Month] investment recorded" (dynamic month)
+    </ac>
+    <ac id="3.8.4" title="Updated Allocation Display">
+      Given I have just recorded an investment
+      When viewing the confirmation or portfolio page
+      Then I see the updated allocation percentages reflecting the new investment
+    </ac>
+    <ac id="3.8.5" title="Investment Form Validation">
+      Given I am recording an investment
+      When I enter invalid data (quantity less than or equal to 0, price less than or equal to 0)
+      Then validation errors appear inline below the fields
+      And the form cannot be submitted until errors are corrected
+    </ac>
+    <ac id="3.8.6" title="Recommended vs Actual Amount Tracking">
+      Given I am recording an investment that was previously recommended
+      When I enter the actual amount
+      Then both the recommended amount and actual amount are stored
+      And they can be compared later in investment history
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Epic 3 Technical Specification" section="AC-3.9, Transaction Pattern">
+        Investment recording specifications with transaction pattern, database schema, API endpoints, and acceptance criteria. Details the atomic transaction requirement for investment + quantity update.
+      </doc>
+      <doc path="docs/epics.md" title="Epics Document" section="Story 3.8">
+        Original story definition with acceptance criteria. Links to FR16 (Record Investments). Prerequisites: Story 3.3.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Decimal Precision, Event Sourcing">
+        Architecture constraints including decimal.js for all monetary calculations, PostgreSQL numeric types, and event sourcing for audit trail.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="portfolioAssets, calculationEvents" lines="202-224,86-102" reason="Portfolio assets table for quantity updates. Calculation events table for INVESTMENT_RECORDED audit events. No investments table exists yet - needs to be created."/>
+      <file path="src/lib/services/portfolio-service.ts" kind="service" symbol="PortfolioService" lines="1-693" reason="Existing portfolio service with patterns for asset management, decimal.js usage, and multi-tenant isolation. Follow same patterns for InvestmentService."/>
+      <file path="src/lib/services/allocation-service.ts" kind="service" symbol="AllocationService" lines="all" reason="Allocation calculation patterns to reuse for showing updated allocations after investment recording."/>
+      <file path="src/lib/validations/portfolio.ts" kind="validation" symbol="Zod schemas" lines="all" reason="Existing validation schemas pattern. Need to add recordInvestmentSchema if not present."/>
+      <file path="src/lib/calculations/decimal-config.ts" kind="utility" symbol="Decimal" lines="all" reason="Configured decimal.js for financial calculations. MUST use for all monetary math."/>
+      <file path="src/app/api/portfolios/route.ts" kind="api" symbol="GET,POST handlers" lines="all" reason="API route pattern to follow for investments endpoints."/>
+      <file path="src/app/api/portfolios/[id]/assets/route.ts" kind="api" symbol="POST handler" lines="all" reason="Asset creation pattern with validation and error handling."/>
+      <file path="src/components/portfolio/add-asset-modal.tsx" kind="component" symbol="AddAssetModal" lines="all" reason="Modal pattern with react-hook-form and Zod validation. Reuse pattern for investment form."/>
+      <file path="src/components/portfolio/portfolio-table.tsx" kind="component" symbol="PortfolioTable" lines="all" reason="Table pattern and integration point for investment recording action."/>
+      <file path="src/app/(dashboard)/portfolio/page.tsx" kind="page" symbol="PortfolioPage" lines="all" reason="Portfolio page that needs investment recording integration."/>
+      <file path="src/app/(dashboard)/portfolio/portfolio-page-client.tsx" kind="component" symbol="PortfolioPageClient" lines="all" reason="Client component for portfolio page. May need investment form integration."/>
+      <file path="tests/unit/services/portfolio-service.test.ts" kind="test" symbol="describe blocks" lines="all" reason="Unit test patterns for service testing with vitest."/>
+      <file path="tests/e2e/portfolio.spec.ts" kind="test" symbol="test cases" lines="all" reason="E2E test patterns for portfolio operations. Extend with investment recording tests."/>
+    </code>
+
+    <dependencies>
+      <npm>
+        <package name="decimal.js" version="^10.6.0" usage="CRITICAL - All monetary calculations"/>
+        <package name="drizzle-orm" version="^0.44.7" usage="Database operations, transactions"/>
+        <package name="react-hook-form" version="^7.67.0" usage="Investment form state"/>
+        <package name="@hookform/resolvers" version="^5.2.2" usage="Zod resolver for forms"/>
+        <package name="zod" version="^4.1.13" usage="Schema validation"/>
+        <package name="sonner" version="^2.0.7" usage="Toast notifications"/>
+        <package name="@radix-ui/react-dialog" version="^1.1.15" usage="Modal/dialog for confirmation"/>
+        <package name="vitest" version="^4.0.14" usage="Unit testing"/>
+        <package name="@playwright/test" version="^1.57.0" usage="E2E testing"/>
+      </npm>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="financial" priority="critical">
+      All monetary calculations MUST use decimal.js. Never use JavaScript arithmetic operators (+, -, *, /) on monetary values.
+    </constraint>
+    <constraint type="database" priority="critical">
+      PostgreSQL numeric(19,4) for amounts, numeric(19,8) for quantities. Store as strings in TypeScript.
+    </constraint>
+    <constraint type="transaction" priority="critical">
+      Investment recording MUST be atomic. Use db.transaction() to ensure investment record + portfolio asset quantity update succeed or fail together.
+    </constraint>
+    <constraint type="audit" priority="high">
+      Emit INVESTMENT_RECORDED event to calculationEvents table for audit trail per event sourcing architecture.
+    </constraint>
+    <constraint type="security" priority="high">
+      Multi-tenant isolation: All queries must be scoped by user_id. Verify asset/portfolio ownership before updates.
+    </constraint>
+    <constraint type="validation" priority="high">
+      Server-side validation required even if client validates. Use Zod schemas for all API inputs.
+    </constraint>
+    <constraint type="pattern" priority="medium">
+      Follow existing service patterns in portfolio-service.ts for error handling, type exports, and function signatures.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/investments" kind="REST">
+      <signature>POST /api/investments - Record new investments</signature>
+      <request>{investments: Array of {assetId: uuid, quantity: string, pricePerUnit: string, totalAmount: string}}</request>
+      <response>{data: Investment[]}</response>
+      <path>src/app/api/investments/route.ts (to be created)</path>
+    </interface>
+    <interface name="GET /api/investments" kind="REST">
+      <signature>GET /api/investments?from=date&amp;to=date - Get investment history</signature>
+      <response>{data: Investment[], meta: {count, from, to}}</response>
+      <path>src/app/api/investments/route.ts (to be created)</path>
+    </interface>
+    <interface name="InvestmentService" kind="service">
+      <signature>recordInvestments(userId: string, investments: RecordInvestmentInput[]): Promise&lt;Investment[]&gt;</signature>
+      <signature>getInvestmentHistory(userId: string, options?: {from?: Date, to?: Date}): Promise&lt;Investment[]&gt;</signature>
+      <path>src/lib/services/investment-service.ts (to be created)</path>
+    </interface>
+    <interface name="recordInvestmentSchema" kind="Zod">
+      <signature>z.object({investments: z.array({assetId, quantity, pricePerUnit, totalAmount})})</signature>
+      <path>src/lib/validations/portfolio.ts (may need to add)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests use Vitest for unit/integration and Playwright for E2E. Unit test coverage target is 80% minimum, with 100% for calculation functions. All services should have unit tests for CRUD operations and edge cases. E2E tests cover critical user flows. Test files follow pattern: tests/unit/services/*.test.ts for services, tests/e2e/*.spec.ts for E2E.
+    </standards>
+    <locations>
+      <location>tests/unit/services/investment-service.test.ts (to be created)</location>
+      <location>tests/unit/api/investments.test.ts (to be created)</location>
+      <location>tests/e2e/portfolio.spec.ts (extend existing)</location>
+    </locations>
+    <ideas>
+      <idea ac="3.8.1">Test investment record creation with all required fields (date, ticker, quantity, price, amount, currency)</idea>
+      <idea ac="3.8.2">Test atomic transaction: investment + quantity update succeed together</idea>
+      <idea ac="3.8.2">Test transaction rollback: if quantity update fails, investment record also rolls back</idea>
+      <idea ac="3.8.2">Test quantity calculation: newQty = oldQty + investedQty using decimal.js</idea>
+      <idea ac="3.8.3">Test success toast shows dynamic month name</idea>
+      <idea ac="3.8.4">Test portfolio cache invalidation after investment</idea>
+      <idea ac="3.8.4">Test allocation percentages update immediately</idea>
+      <idea ac="3.8.5">Test form validation: quantity less than or equal to 0 shows error</idea>
+      <idea ac="3.8.5">Test form validation: price less than or equal to 0 shows error</idea>
+      <idea ac="3.8.5">Test form submit disabled until valid</idea>
+      <idea ac="3.8.6">Test recommended vs actual amount both stored</idea>
+      <idea ac="3.8.6">Test recommended amount can be null for manual investments</idea>
+      <idea ac="security">Test user cannot access other user's investments</idea>
+      <idea ac="security">Test auth middleware blocks unauthenticated requests</idea>
+    </ideas>
+  </tests>
+</story-context>

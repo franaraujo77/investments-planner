@@ -1,0 +1,415 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>1</storyId>
+    <title>User Registration Flow</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-1-user-registration-flow.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>new visitor</asA>
+    <iWant>to create an account using my email and a secure password</iWant>
+    <soThat>I can access the investment portfolio management features</soThat>
+    <tasks>
+      <task id="1" ac="1,7">
+        <name>Extend database schema for Epic 2</name>
+        <subtasks>
+          <subtask>Add new columns to users table: emailVerified (exists), emailVerifiedAt, disclaimerAcknowledgedAt, deletedAt</subtask>
+          <subtask>Create verification_tokens table with id, userId, token, expiresAt, usedAt, createdAt</subtask>
+          <subtask>Create password_reset_tokens table with id, userId, tokenHash, expiresAt, usedAt, createdAt</subtask>
+          <subtask>Add indexes for email lookup and token lookup</subtask>
+          <subtask>Run pnpm db:generate to create migration</subtask>
+          <subtask>Verify schema with pnpm db:push (development)</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="1-8">
+        <name>Install Epic 2 dependencies</name>
+        <subtasks>
+          <subtask>Install bcrypt for password hashing - ALREADY INSTALLED (v6.0.0)</subtask>
+          <subtask>Install @types/bcrypt for TypeScript types - ALREADY INSTALLED (v5.0.2)</subtask>
+          <subtask>Install resend for email sending (verify already present or add)</subtask>
+          <subtask>Verify jose is available for JWT tokens (from Epic 1) - INSTALLED (v6.1.2)</subtask>
+          <subtask>Verify zod is available for validation (from Epic 1) - INSTALLED (v4.1.13)</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="2">
+        <name>Create password service</name>
+        <note>lib/auth/password.ts ALREADY EXISTS - needs enhancement for complexity validation</note>
+        <subtasks>
+          <subtask>hashPassword(password) - EXISTS</subtask>
+          <subtask>verifyPassword(password, hash) - EXISTS</subtask>
+          <subtask>validatePassword(password) - EXISTS but only checks length</subtask>
+          <subtask>ENHANCE: Add validatePasswordComplexity to check: 8+ chars, 1 uppercase, 1 number, 1 special char</subtask>
+          <subtask>Password regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/</subtask>
+          <subtask>Write unit tests in tests/unit/auth/password.test.ts (test file EXISTS - extend it)</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="1,2,4">
+        <name>Create auth validation schemas</name>
+        <subtasks>
+          <subtask>Create lib/auth/validation.ts</subtask>
+          <subtask>Define registerSchema with Zod: email (RFC 5322), password (complexity), name (optional), disclaimerAcknowledged (required boolean)</subtask>
+          <subtask>Define email validation using Zod email() with custom RFC 5322 refinement if needed</subtask>
+          <subtask>Export type RegisterInput inferred from schema</subtask>
+          <subtask>Write unit tests in tests/unit/auth/validation.test.ts</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="1,6,7,8">
+        <name>Create auth service - registration logic</name>
+        <note>lib/auth/service.ts EXISTS with createUser, emailExists - needs enhancement</note>
+        <subtasks>
+          <subtask>ENHANCE register(input: RegisterInput) to handle disclaimerAcknowledgedAt</subtask>
+          <subtask>Check email not already registered (case-insensitive) - EXISTS</subtask>
+          <subtask>Hash password with bcrypt - EXISTS</subtask>
+          <subtask>Insert user with emailVerified: false - EXISTS</subtask>
+          <subtask>ADD: Record disclaimerAcknowledgedAt timestamp</subtask>
+          <subtask>ADD: Generate verification token (JWT, 24h expiry)</subtask>
+          <subtask>ADD: Store token in verification_tokens table</subtask>
+          <subtask>ADD: Queue email via EmailService (async)</subtask>
+          <subtask>Return within 2 seconds (async email sending)</subtask>
+          <subtask>Write integration tests in tests/integration/auth-registration.test.ts</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="8">
+        <name>Create email service stub</name>
+        <subtasks>
+          <subtask>Create lib/email/email-service.ts</subtask>
+          <subtask>Implement sendVerificationEmail(email, token) - stub that logs</subtask>
+          <subtask>For this story: Log email content instead of sending</subtask>
+          <subtask>Define email template structure for verification</subtask>
+          <subtask>Add environment variable placeholder: RESEND_API_KEY</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="1,4,6,8">
+        <name>Create registration API endpoint</name>
+        <note>src/app/api/auth/register/route.ts EXISTS - needs update</note>
+        <subtasks>
+          <subtask>UPDATE POST handler to use new registerSchema with disclaimerAcknowledged</subtask>
+          <subtask>Return 400 with field errors if validation fails - EXISTS</subtask>
+          <subtask>Call AuthService.register() - EXISTS but update for new fields</subtask>
+          <subtask>Return 201 with { user, message: "Verification email sent" }</subtask>
+          <subtask>Return 409 if email already exists - EXISTS</subtask>
+          <subtask>Add OpenTelemetry span for registration tracking</subtask>
+          <subtask>Write API tests in tests/integration/api/auth-register.test.ts</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="1,2,3,4,5,7">
+        <name>Create registration form component</name>
+        <subtasks>
+          <subtask>Create src/components/auth/registration-form.tsx</subtask>
+          <subtask>Use React Hook Form + Zod resolver (react-hook-form v7.67.0, @hookform/resolvers v5.2.2)</subtask>
+          <subtask>Fields: email (input), password (input type=password), name (optional input)</subtask>
+          <subtask>Add password visibility toggle (eye icon)</subtask>
+          <subtask>Add financial disclaimer checkbox (required)</subtask>
+          <subtask>Inline error display: red text below each field (14px, destructive color)</subtask>
+          <subtask>Submit button disabled until form is valid (all fields + disclaimer)</subtask>
+          <subtask>Handle API errors and display appropriately</subtask>
+          <subtask>On success: show "Verification email sent" message</subtask>
+        </subtasks>
+      </task>
+      <task id="9" ac="3">
+        <name>Create password strength meter component</name>
+        <subtasks>
+          <subtask>Create src/components/auth/password-strength-meter.tsx</subtask>
+          <subtask>Accept password: string as prop</subtask>
+          <subtask>Calculate strength based on length, character variety, common patterns</subtask>
+          <subtask>Display visual indicator: bar with color (red/yellow/green)</subtask>
+          <subtask>Display text label: "Weak", "Medium", "Strong"</subtask>
+          <subtask>Update in real-time as user types</subtask>
+        </subtasks>
+      </task>
+      <task id="10" ac="1-8">
+        <name>Create registration page</name>
+        <subtasks>
+          <subtask>Create src/app/(auth)/layout.tsx for auth pages (centered layout, no sidebar)</subtask>
+          <subtask>Create src/app/(auth)/register/page.tsx</subtask>
+          <subtask>Include registration form component</subtask>
+          <subtask>Add "Already have an account? Log in" link</subtask>
+          <subtask>Add app branding/logo</subtask>
+          <subtask>Responsive design (mobile-first)</subtask>
+        </subtasks>
+      </task>
+      <task id="11" ac="1-8">
+        <name>Add E2E tests for registration</name>
+        <subtasks>
+          <subtask>Create tests/e2e/registration.spec.ts</subtask>
+          <subtask>Test: Valid registration shows success message</subtask>
+          <subtask>Test: Invalid email shows validation error</subtask>
+          <subtask>Test: Weak password shows complexity errors</subtask>
+          <subtask>Test: Password strength meter updates as user types</subtask>
+          <subtask>Test: Submit button disabled until form valid</subtask>
+          <subtask>Test: Disclaimer checkbox required</subtask>
+          <subtask>Test: Duplicate email shows appropriate error</subtask>
+        </subtasks>
+      </task>
+      <task id="12" ac="1-8">
+        <name>Verify build, lint, and tests</name>
+        <subtasks>
+          <subtask>Run pnpm lint - No errors</subtask>
+          <subtask>Run pnpm build - Build succeeds</subtask>
+          <subtask>Run pnpm test - All unit tests pass</subtask>
+          <subtask>Run pnpm test:e2e - All E2E tests pass</subtask>
+          <subtask>Run pnpm exec tsc --noEmit - No TypeScript errors</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">User can register with valid email (RFC 5322 format) and password</criterion>
+    <criterion id="AC2">Password must meet complexity: 8+ chars, 1 uppercase, 1 number, 1 special character</criterion>
+    <criterion id="AC3">Password strength meter shows real-time feedback (weak/medium/strong)</criterion>
+    <criterion id="AC4">Form shows inline validation errors below fields (red, 14px)</criterion>
+    <criterion id="AC5">Submit button is disabled until form is valid</criterion>
+    <criterion id="AC6">Registration completes in &lt;2 seconds</criterion>
+    <criterion id="AC7">User sees financial disclaimer that must be acknowledged</criterion>
+    <criterion id="AC8">Success shows "Verification email sent" message</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>User Account &amp; Access (FR1-FR8)</section>
+        <snippet>FR1: Users can create an account with email and password. FR2: Users can verify their email address. Authentication requirements: email/password registration, email verification, secure password requirements.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Story 2.1 Acceptance Criteria, Registration Flow</section>
+        <snippet>Complete technical spec for User Onboarding &amp; Profile epic. Contains registration flow diagram, password validation regex, security requirements, NPM dependencies, and data model schemas.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Authentication, Security Architecture</section>
+        <snippet>JWT + refresh tokens (ADR-001), bcrypt cost factor 12, httpOnly cookies, rate limiting 5 attempts/15min. Service Layer Pattern for AuthService, PasswordService in lib/auth/.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>First-Time Setup, Form Patterns</section>
+        <snippet>Registration as part of first-time setup flow. Form patterns: validation on blur, inline error display (red text below field), required fields with asterisk. shadcn/ui design system.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/lib/auth/password.ts</path>
+        <kind>service</kind>
+        <symbol>hashPassword, verifyPassword, validatePassword</symbol>
+        <lines>1-66</lines>
+        <reason>Existing password service - needs enhancement for complexity validation (AC2). Currently only validates length min/max.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/auth/service.ts</path>
+        <kind>service</kind>
+        <symbol>createUser, findUserByEmail, emailExists, storeRefreshToken</symbol>
+        <lines>1-208</lines>
+        <reason>Core auth service for user management. createUser needs update for disclaimerAcknowledgedAt field.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/auth/types.ts</path>
+        <kind>types</kind>
+        <symbol>AuthResponse, AuthError, RegisterRequest, JwtPayload</symbol>
+        <lines>1-115</lines>
+        <reason>Type definitions for auth system. RegisterRequest needs disclaimerAcknowledged field.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/auth/constants.ts</path>
+        <kind>constants</kind>
+        <symbol>AUTH_CONSTANTS, PASSWORD_RULES, AUTH_MESSAGES</symbol>
+        <lines>1-94</lines>
+        <reason>Auth constants including bcrypt cost factor 12, token expiry times, password rules. May need new messages for password complexity.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>users, refreshTokens, calculationEvents</symbol>
+        <lines>1-126</lines>
+        <reason>Database schema - users table needs new columns (emailVerifiedAt, disclaimerAcknowledgedAt, deletedAt). Need new tables (verification_tokens, password_reset_tokens).</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/api/auth/register/route.ts</path>
+        <kind>controller</kind>
+        <symbol>POST /api/auth/register</symbol>
+        <lines>1-140</lines>
+        <reason>Registration endpoint - needs update for disclaimer field, verification token generation, email queuing.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/auth/jwt.ts</path>
+        <kind>service</kind>
+        <symbol>signAccessToken, signRefreshToken, verifyAccessToken</symbol>
+        <reason>JWT signing/verification - reuse for verification tokens.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/form.tsx</path>
+        <kind>component</kind>
+        <symbol>Form, FormField, FormItem, FormControl, FormMessage</symbol>
+        <reason>shadcn/ui form components with React Hook Form integration - use for registration form.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/input.tsx</path>
+        <kind>component</kind>
+        <symbol>Input</symbol>
+        <reason>shadcn/ui input component - use for email/password fields.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/button.tsx</path>
+        <kind>component</kind>
+        <symbol>Button</symbol>
+        <reason>shadcn/ui button component - use for submit button.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/label.tsx</path>
+        <kind>component</kind>
+        <symbol>Label</symbol>
+        <reason>shadcn/ui label component - use for form labels.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/card.tsx</path>
+        <kind>component</kind>
+        <symbol>Card, CardHeader, CardContent, CardFooter</symbol>
+        <reason>shadcn/ui card component - use for registration form container.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/progress.tsx</path>
+        <kind>component</kind>
+        <symbol>Progress</symbol>
+        <reason>shadcn/ui progress component - use for password strength meter bar.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/auth/password.test.ts</path>
+        <kind>test</kind>
+        <symbol>password hashing tests</symbol>
+        <reason>Existing password tests - extend with complexity validation tests.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/auth-flow.test.ts</path>
+        <kind>test</kind>
+        <symbol>auth flow integration tests</symbol>
+        <reason>Existing auth integration tests - reference for new registration tests.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/e2e/layout.spec.ts</path>
+        <kind>test</kind>
+        <symbol>layout E2E tests</symbol>
+        <reason>Reference for E2E test patterns in this project.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="bcrypt" version="^6.0.0" purpose="Password hashing (already installed)" />
+        <package name="@types/bcrypt" version="^5.0.2" purpose="TypeScript types (already installed)" />
+        <package name="jose" version="^6.1.2" purpose="JWT tokens (already installed)" />
+        <package name="zod" version="^4.1.13" purpose="Schema validation (already installed)" />
+        <package name="react-hook-form" version="^7.67.0" purpose="Form state management (already installed)" />
+        <package name="@hookform/resolvers" version="^5.2.2" purpose="Zod resolver for RHF (already installed)" />
+        <package name="resend" version="^4.x" purpose="Email sending - TO BE INSTALLED" />
+        <package name="lucide-react" version="^0.555.0" purpose="Icons for password visibility toggle (already installed)" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Service Layer: AuthService, PasswordService, EmailService in lib/auth/ and lib/email/</constraint>
+    <constraint source="architecture">API Routes: Next.js App Router API routes at src/app/api/auth/</constraint>
+    <constraint source="architecture">Form Handling: React Hook Form with Zod validation</constraint>
+    <constraint source="architecture">Password Security: bcrypt with cost factor 12</constraint>
+    <constraint source="tech-spec">Async Operations: Email sending is fire-and-forget to meet &lt;2s response time</constraint>
+    <constraint source="tech-spec">Password regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/</constraint>
+    <constraint source="tech-spec">Verification tokens: JWT format, 24h expiry, single-use</constraint>
+    <constraint source="tech-spec">Email enumeration prevention: Return same UX for existing/new emails at registration</constraint>
+    <constraint source="ux-spec">Inline validation: On blur, not on change. Error display: red text below field</constraint>
+    <constraint source="ux-spec">Design system: shadcn/ui (Radix + Tailwind) with Slate Professional theme</constraint>
+    <constraint source="code">Existing validation uses Zod v4 syntax (z.string().email(), etc.)</constraint>
+    <constraint source="code">Tests use Vitest for unit/integration, Playwright for E2E</constraint>
+    <constraint source="code">Database uses Drizzle ORM with PostgreSQL</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/auth/register</name>
+      <kind>REST endpoint</kind>
+      <signature>POST { email: string, password: string, name?: string, disclaimerAcknowledged: boolean } => 200 { user, accessToken } | 400 validation error | 409 email exists</signature>
+      <path>src/app/api/auth/register/route.ts</path>
+    </interface>
+    <interface>
+      <name>createUser</name>
+      <kind>function</kind>
+      <signature>createUser(email: string, password: string, name?: string, disclaimerAcknowledgedAt?: Date): Promise&lt;SafeUser&gt;</signature>
+      <path>src/lib/auth/service.ts</path>
+    </interface>
+    <interface>
+      <name>hashPassword</name>
+      <kind>function</kind>
+      <signature>hashPassword(password: string): Promise&lt;string&gt;</signature>
+      <path>src/lib/auth/password.ts</path>
+    </interface>
+    <interface>
+      <name>validatePasswordComplexity</name>
+      <kind>function (NEW)</kind>
+      <signature>validatePasswordComplexity(password: string): { valid: boolean, errors: string[], strength: 'weak' | 'medium' | 'strong' }</signature>
+      <path>src/lib/auth/password.ts</path>
+    </interface>
+    <interface>
+      <name>sendVerificationEmail</name>
+      <kind>function (NEW)</kind>
+      <signature>sendVerificationEmail(email: string, token: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/email/email-service.ts</path>
+    </interface>
+    <interface>
+      <name>registerSchema</name>
+      <kind>Zod schema (NEW)</kind>
+      <signature>z.object({ email, password, name?, disclaimerAcknowledged })</signature>
+      <path>src/lib/auth/validation.ts</path>
+    </interface>
+    <interface>
+      <name>users table</name>
+      <kind>database table</kind>
+      <signature>users { id, email, passwordHash, name, baseCurrency, emailVerified, emailVerifiedAt, disclaimerAcknowledgedAt, deletedAt, createdAt, updatedAt }</signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+    <interface>
+      <name>verification_tokens table (NEW)</name>
+      <kind>database table</kind>
+      <signature>verification_tokens { id, userId, token, expiresAt, usedAt, createdAt }</signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing uses Vitest for unit and integration tests with coverage reporting (v8). E2E tests use Playwright. Unit tests should be fast and isolated. Integration tests may use test database. E2E tests should cover critical user flows. Test files follow pattern: tests/unit/**/*.test.ts, tests/integration/**/*.test.ts, tests/e2e/**/*.spec.ts. Existing baseline: 219 unit tests, 21 E2E tests all passing.
+    </standards>
+    <locations>
+      <location>tests/unit/auth/ - Unit tests for auth services</location>
+      <location>tests/integration/ - Integration tests with database</location>
+      <location>tests/e2e/ - Playwright E2E tests</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Unit test: registerSchema validates RFC 5322 email format</idea>
+      <idea ac="AC1">Unit test: email normalization (lowercase, trim)</idea>
+      <idea ac="AC2">Unit test: validatePasswordComplexity rejects missing uppercase</idea>
+      <idea ac="AC2">Unit test: validatePasswordComplexity rejects missing number</idea>
+      <idea ac="AC2">Unit test: validatePasswordComplexity rejects missing special char</idea>
+      <idea ac="AC2">Unit test: validatePasswordComplexity accepts valid complex password</idea>
+      <idea ac="AC3">Component test: password strength meter shows "weak" for short password</idea>
+      <idea ac="AC3">Component test: password strength meter shows "strong" for complex password</idea>
+      <idea ac="AC4">E2E test: invalid email shows error below field</idea>
+      <idea ac="AC4">E2E test: weak password shows complexity errors</idea>
+      <idea ac="AC5">E2E test: submit button disabled with empty form</idea>
+      <idea ac="AC5">E2E test: submit button disabled without disclaimer checked</idea>
+      <idea ac="AC5">E2E test: submit button enabled with valid form</idea>
+      <idea ac="AC6">Integration test: registration completes in under 2 seconds</idea>
+      <idea ac="AC7">E2E test: disclaimer checkbox is required</idea>
+      <idea ac="AC7">Unit test: registerSchema requires disclaimerAcknowledged: true</idea>
+      <idea ac="AC8">E2E test: successful registration shows verification message</idea>
+      <idea ac="AC8">Integration test: verification token stored in database</idea>
+      <idea ac="general">E2E test: duplicate email shows 409 error</idea>
+    </ideas>
+  </tests>
+</story-context>

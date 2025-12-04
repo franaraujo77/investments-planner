@@ -1,0 +1,161 @@
+<story-context id="bmm/story-context" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>1</storyId>
+    <title>Create Portfolio</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-1-create-portfolio.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>create a named portfolio</iWant>
+    <soThat>I can organize my investments and start tracking my holdings</soThat>
+    <tasks>
+      <task id="1" status="pending">Add Portfolios Table to Database Schema - src/lib/db/schema.ts</task>
+      <task id="2" status="pending">Create Portfolio Validation Schema - src/lib/validations/portfolio.ts</task>
+      <task id="3" status="pending">Create Portfolio Service - src/lib/services/portfolio-service.ts</task>
+      <task id="4" status="pending">Create Portfolio API Routes - src/app/api/portfolios/route.ts</task>
+      <task id="5" status="pending">Create Empty State Component - src/components/portfolio/portfolio-empty-state.tsx</task>
+      <task id="6" status="pending">Create Portfolio Modal Component - src/components/portfolio/create-portfolio-modal.tsx</task>
+      <task id="7" status="pending">Create Portfolio Page - src/app/(dashboard)/portfolio/page.tsx</task>
+      <task id="8" status="pending">Add Portfolio Link to Sidebar - src/components/dashboard/app-sidebar.tsx</task>
+      <task id="9" status="pending">Create Unit Tests - tests/unit/services/portfolio-service.test.ts</task>
+      <task id="10" status="pending">Create E2E Tests - tests/e2e/portfolio-crud.spec.ts</task>
+      <task id="11" status="pending">Run Verification - pnpm lint, pnpm build, pnpm test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-3.1.1" title="Create Portfolio Button on Empty State">
+      <given>I am logged in and have no portfolios</given>
+      <when>I navigate to the Portfolio page</when>
+      <then>I see an empty state with "Create your first portfolio" message and a "Create Portfolio" button</then>
+    </criterion>
+    <criterion id="AC-3.1.2" title="Create Portfolio Form Validation">
+      <given>I click "Create Portfolio"</given>
+      <when>the create portfolio modal appears</when>
+      <then>I see: Name input field with 50 character limit, Character counter showing remaining characters, Create and Cancel buttons, Create button disabled until name is entered</then>
+    </criterion>
+    <criterion id="AC-3.1.3" title="Portfolio Creation Success">
+      <given>I enter a valid portfolio name (1-50 characters)</given>
+      <when>I click "Create"</when>
+      <then>Portfolio is created and saved to database, I see the empty portfolio view with "Add your first asset" message, Success toast: "Portfolio created successfully", Portfolio appears in sidebar/portfolio list</then>
+    </criterion>
+    <criterion id="AC-3.1.4" title="Portfolio Limit Enforcement">
+      <given>I already have 5 portfolios</given>
+      <when>I try to create another portfolio</when>
+      <then>I see error message: "Maximum portfolios reached (5)" and the Create button is disabled or shows limit warning</then>
+    </criterion>
+    <criterion id="AC-3.1.5" title="Performance Requirement">
+      <given>I create a portfolio</given>
+      <when>creation completes</when>
+      <then>the portfolio appears in my list within 500ms</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Epic 3 Technical Specification" section="AC-3.1, Data Models, APIs and Interfaces">
+        Portfolio schema design with uuid, userId, name(50), timestamps. API endpoints: GET/POST /api/portfolios. MAX_PORTFOLIOS_PER_USER = 5.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Technology Stack, Data Architecture">
+        Drizzle ORM with PostgreSQL, multi-tenant isolation via user_id, decimal.js for precision.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Specification" section="Empty States, Forms">
+        Empty state pattern with friendly illustration and CTA. Form validation with inline errors and character counters.
+      </doc>
+      <doc path="docs/epics.md" title="Epics Document" section="Epic 3, Story 3.1">
+        Story 3.1: Create and name portfolios. FR9 coverage. Part of Portfolio Core epic.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="users, refreshTokens, calculationEvents" lines="1-209" reason="Existing Drizzle schema to extend with portfolios table. Follow same pattern: uuid PK, userId FK, timestamps."/>
+      <file path="src/middleware.ts" kind="middleware" symbol="middleware, PROTECTED_ROUTES" lines="1-125" reason="Route protection - /portfolio already in PROTECTED_ROUTES (line 18). Auth verification pattern."/>
+      <file path="src/components/dashboard/app-sidebar.tsx" kind="component" symbol="AppSidebar, navItems" lines="1-117" reason="Sidebar already has Portfolio link (line 45). May need to update if dynamic portfolio count needed."/>
+      <file path="src/lib/services/account-service.ts" kind="service" symbol="deleteUserAccount, hardDeleteUserData" lines="1-194" reason="Service pattern to follow: db import, interface definition, async functions with userId, error handling."/>
+      <file path="src/app/api/user/export/route.ts" kind="api-route" symbol="GET" lines="1-64" reason="API route pattern: withAuth middleware, try/catch, NextResponse.json for errors. Follow this structure."/>
+      <file path="src/app/api/user/account/route.ts" kind="api-route" symbol="DELETE" reason="DELETE route pattern with Zod validation in request body."/>
+      <file path="tests/unit/services/account-service.test.ts" kind="test" reason="Unit test pattern for services: describe/it blocks, mock db calls, test error cases."/>
+      <file path="tests/unit/services/export-service.test.ts" kind="test" reason="Another service test pattern example."/>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="drizzle-orm" version="^0.44.7" usage="Database ORM for portfolios table"/>
+        <package name="zod" version="^4.1.13" usage="Schema validation for createPortfolioSchema"/>
+        <package name="react-hook-form" version="^7.67.0" usage="Form handling in create modal"/>
+        <package name="@hookform/resolvers" version="^5.2.2" usage="Zod resolver for form validation"/>
+        <package name="@radix-ui/react-dialog" version="^1.1.15" usage="Modal dialog for create portfolio"/>
+        <package name="sonner" version="^2.0.7" usage="Toast notifications"/>
+        <package name="lucide-react" version="^0.555.0" usage="Icons (Briefcase for portfolio)"/>
+        <package name="vitest" version="^4.0.14" usage="Unit testing"/>
+        <package name="@playwright/test" version="^1.57.0" usage="E2E testing"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface name="withAuth" kind="middleware" signature="withAuth(handler: AuthenticatedHandler) => NextHandler" path="src/lib/auth/middleware.ts">
+      Wrap API routes to require authentication. Provides session with userId.
+    </interface>
+    <interface name="db" kind="database" signature="drizzle(client)" path="src/lib/db/index.ts">
+      Drizzle database client. Use db.insert(), db.select(), db.query for operations.
+    </interface>
+    <interface name="Portfolio Service" kind="service" signature="createPortfolio(userId: string, input: CreatePortfolioInput): Promise&lt;Portfolio&gt;" path="src/lib/services/portfolio-service.ts">
+      To be created. Follow account-service.ts pattern.
+    </interface>
+    <interface name="POST /api/portfolios" kind="REST" signature="POST { name: string } => { data: Portfolio }">
+      Create portfolio endpoint. Returns 201 on success, 400 on validation error, 409 on limit exceeded.
+    </interface>
+    <interface name="GET /api/portfolios" kind="REST" signature="GET => { data: Portfolio[] }">
+      List user portfolios endpoint. Returns 200 with array of portfolios.
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint source="tech-spec-epic-3.md" type="security">
+      All portfolio queries MUST include userId filter for multi-tenant isolation.
+    </constraint>
+    <constraint source="tech-spec-epic-3.md" type="limit">
+      MAX_PORTFOLIOS_PER_USER = 5. Enforce on server-side, not just UI.
+    </constraint>
+    <constraint source="architecture.md" type="pattern">
+      Services in src/lib/services/, API routes in src/app/api/, Components in src/components/.
+    </constraint>
+    <constraint source="architecture.md" type="validation">
+      All API inputs validated with Zod schemas. Return proper HTTP status codes (400, 401, 409, 500).
+    </constraint>
+    <constraint source="tech-spec-epic-3.md" type="performance">
+      Portfolio creation response within 500ms.
+    </constraint>
+    <constraint source="previous-story" type="pattern">
+      Follow withAuth middleware pattern from account-service. Use sonner for toast notifications. Error responses use AuthError type with error and code fields.
+    </constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Vitest for unit tests (tests/unit/), Playwright for E2E tests (tests/e2e/). Unit tests mock database calls and test service logic in isolation. E2E tests use real browser interactions. Test files follow pattern: {feature}.test.ts for unit, {feature}.spec.ts for E2E.
+    </standards>
+    <locations>
+      <location>tests/unit/services/*.test.ts</location>
+      <location>tests/e2e/*.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-3.1.1">E2E: Navigate to /portfolio with no portfolios, verify empty state message and button visible</idea>
+      <idea ac="AC-3.1.2">E2E: Click create button, verify modal has name input, character counter, disabled submit</idea>
+      <idea ac="AC-3.1.2">Unit: Test createPortfolioSchema rejects empty name, name over 50 chars</idea>
+      <idea ac="AC-3.1.3">E2E: Enter valid name, submit, verify success toast and portfolio in list</idea>
+      <idea ac="AC-3.1.3">Unit: Test createPortfolio service creates record with correct userId</idea>
+      <idea ac="AC-3.1.4">Unit: Test createPortfolio throws error when user has 5 portfolios</idea>
+      <idea ac="AC-3.1.4">E2E: Create 5 portfolios, verify 6th attempt shows limit error</idea>
+      <idea ac="AC-3.1.5">E2E: Measure time from submit to portfolio appearing, assert under 500ms</idea>
+      <idea ac="general">Unit: Test getUserPortfolios returns only current user's portfolios (multi-tenant)</idea>
+      <idea ac="general">Unit: Test getPortfolioCount returns correct count</idea>
+    </ideas>
+  </tests>
+</story-context>

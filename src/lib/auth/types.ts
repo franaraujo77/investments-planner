@@ -87,12 +87,30 @@ export interface RateLimitResult {
 }
 
 /**
+ * JWT Verification Token Payload
+ * Story 2.1: User Registration Flow
+ * Single-use token (24h expiry) for email verification
+ */
+export interface VerificationTokenPayload {
+  /** User's unique identifier (UUID) */
+  userId: string;
+  /** Token purpose identifier */
+  purpose: "email_verification";
+  /** Issued at timestamp (Unix seconds) */
+  iat: number;
+  /** Expiration timestamp (Unix seconds) */
+  exp: number;
+}
+
+/**
  * Registration request body
+ * Story 2.1: User Registration Flow
  */
 export interface RegisterRequest {
   email: string;
   password: string;
   name?: string;
+  disclaimerAcknowledged: boolean;
 }
 
 /**

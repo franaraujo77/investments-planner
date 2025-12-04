@@ -54,15 +54,15 @@ development_status:
   # Goal: Enable users to create accounts, log in, manage profile, control data
   # Stories: 8 | FRs: FR1-FR8, FR40
   # =============================================================================
-  epic-2: backlog
-  2-1-user-registration-flow: backlog
-  2-2-email-verification: backlog
-  2-3-user-login: backlog
-  2-4-user-logout: backlog
-  2-5-password-reset-flow: backlog
-  2-6-profile-settings-base-currency: backlog
-  2-7-data-export: backlog
-  2-8-account-deletion: backlog
+  epic-2: contexted
+  2-1-user-registration-flow: done
+  2-2-email-verification: done
+  2-3-user-login: done
+  2-4-user-logout: done
+  2-5-password-reset-flow: done
+  2-6-profile-settings-base-currency: done
+  2-7-data-export: done
+  2-8-account-deletion: done
   epic-2-retrospective: optional
 
   # =============================================================================
@@ -70,16 +70,16 @@ development_status:
   # Goal: Enable users to manage their investment portfolio
   # Stories: 9 | FRs: FR9-FR17, FR43
   # =============================================================================
-  epic-3: backlog
-  3-1-create-portfolio: backlog
-  3-2-add-asset-to-portfolio: backlog
-  3-3-update-asset-holdings: backlog
-  3-4-remove-asset-from-portfolio: backlog
-  3-5-mark-asset-as-ignored: backlog
-  3-6-portfolio-overview-with-values: backlog
-  3-7-allocation-percentage-view: backlog
-  3-8-record-investment-amount: backlog
-  3-9-investment-history-view: backlog
+  epic-3: contexted
+  3-1-create-portfolio: done
+  3-2-add-asset-to-portfolio: done
+  3-3-update-asset-holdings: done
+  3-4-remove-asset-from-portfolio: done
+  3-5-mark-asset-as-ignored: done
+  3-6-portfolio-overview-with-values: done
+  3-7-allocation-percentage-view: done
+  3-8-record-investment-amount: done
+  3-9-investment-history-view: done
   epic-3-retrospective: optional
 
   # =============================================================================

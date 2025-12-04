@@ -1,0 +1,203 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>4</storyId>
+    <title>User Logout</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-4-user-logout.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>logged-in user</asA>
+    <iWant>log out of my account</iWant>
+    <soThat>my session is securely terminated and no one else can access my account on this device</soThat>
+    <tasks>
+      <task id="1" title="Create LogoutButton Component">
+        <file>src/components/auth/logout-button.tsx</file>
+        <description>Create a client component that renders a button with LogOut icon, calls POST /api/auth/logout on click, shows loading spinner during request, redirects to /login on success, shows toast "You have been logged out", handles errors gracefully, no confirmation dialog</description>
+        <interface>
+          <![CDATA[
+interface LogoutButtonProps {
+  variant?: "sidebar" | "menu"; // Different styles for placement
+  showLabel?: boolean; // Show text label or icon-only
+}
+          ]]>
+        </interface>
+      </task>
+      <task id="2" title="Integrate LogoutButton into AppSidebar">
+        <file>src/components/dashboard/app-sidebar.tsx</file>
+        <description>Add LogoutButton to SidebarFooter next to user info. When sidebar is collapsed, show icon-only. When expanded, show icon + "Logout" text. Style consistently with other sidebar items.</description>
+      </task>
+      <task id="3" title="Add User Menu Dropdown to Header (Optional)" optional="true">
+        <file>src/app/(dashboard)/layout.tsx</file>
+        <description>Replace user avatar placeholder with DropdownMenu including: User name/email, Settings link, Logout option. LogoutButton inside dropdown with variant="menu"</description>
+      </task>
+      <task id="4" title="Create Unit Tests">
+        <file>tests/unit/auth/logout.test.ts</file>
+        <description>Test cases: LogoutButton renders correctly, Click triggers API call, Loading state shown during request, Redirect occurs on success, Error handling works correctly</description>
+      </task>
+      <task id="5" title="Create E2E Tests">
+        <file>tests/e2e/logout.spec.ts</file>
+        <description>Test cases: Logout button visible in sidebar when logged in, Clicking logout redirects to login page, Session cookies are cleared after logout, Cannot access dashboard after logout</description>
+      </task>
+      <task id="6" title="Run Verification">
+        <commands>
+          <command>pnpm lint</command>
+          <command>pnpm build</command>
+          <command>pnpm test</command>
+        </commands>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-2.4.1" title="Logout Action and Redirect">
+      <given>I am logged in and on any dashboard page</given>
+      <when>I click the "Logout" button in the sidebar or user menu</when>
+      <then>my session is terminated and I am redirected to the login page</then>
+    </criterion>
+    <criterion id="AC-2.4.2" title="JWT Cookie Cleared">
+      <given>I click "Logout"</given>
+      <when>the logout completes</when>
+      <then>the access token cookie is cleared (set to empty with maxAge: 0)</then>
+      <and>the refresh token cookie is cleared (set to empty with maxAge: 0)</and>
+    </criterion>
+    <criterion id="AC-2.4.3" title="Refresh Token Invalidated">
+      <given>I click "Logout"</given>
+      <when>the logout API processes my request</when>
+      <then>my refresh token is deleted from the database</then>
+      <and>it cannot be used to obtain new access tokens</and>
+    </criterion>
+    <criterion id="AC-2.4.4" title="No Confirmation Required">
+      <given>I click "Logout"</given>
+      <when>the button is pressed</when>
+      <then>logout happens immediately without a confirmation dialog</then>
+      <and>no additional user interaction is required</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" title="Product Requirements Document" section="FR4: User Logout">
+        <snippet>FR4: Users can log out and terminate their session. Authentication with session management, secure tokens.</snippet>
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Security Architecture">
+        <snippet>Token Strategy: Access Token 15 minutes, Refresh Token 7 days. Cookie security: httpOnly, secure, sameSite=strict. Authentication Flow shows logout clearing cookies and invalidating refresh token.</snippet>
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Specification" section="Confirmation Patterns">
+        <snippet>Logout: No confirmation required - immediate action. Toast notifications with sonner for success feedback.</snippet>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Story 2.4">
+        <snippet>AC-2.4.1: Clicking "Logout" terminates session and redirects to login. AC-2.4.2: JWT cookie is cleared. AC-2.4.3: Refresh token is invalidated in database. AC-2.4.4: No confirmation dialog required.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact path="src/app/api/auth/logout/route.ts" kind="api-route" symbol="POST" lines="34-72" reason="Logout API already fully implemented - deletes refresh token, clears auth cookies, returns { success: true }. Protected by withAuth middleware.">
+        <signature>POST /api/auth/logout</signature>
+        <response>{ success: true } | { error: string, code: string }</response>
+      </artifact>
+      <artifact path="src/lib/auth/cookies.ts" kind="utility" symbol="clearAuthCookies" lines="80-89" reason="Clears access_token and refresh_token cookies by setting to empty with maxAge: 0">
+        <signature>function clearAuthCookies(response: NextResponse): void</signature>
+      </artifact>
+      <artifact path="src/lib/auth/service.ts" kind="service" symbol="deleteRefreshToken" lines="197-199" reason="Deletes a refresh token by ID from database">
+        <signature>async function deleteRefreshToken(tokenId: string): Promise&lt;void&gt;</signature>
+      </artifact>
+      <artifact path="src/lib/auth/middleware.ts" kind="middleware" symbol="withAuth" reason="Authentication middleware wrapper for protected API routes">
+        <signature>function withAuth&lt;T&gt;(handler: AuthenticatedHandler&lt;T&gt;): RouteHandler</signature>
+      </artifact>
+      <artifact path="src/components/dashboard/app-sidebar.tsx" kind="component" symbol="AppSidebar" lines="42-91" reason="Sidebar component where LogoutButton needs to be integrated in SidebarFooter">
+        <signature>export function AppSidebar()</signature>
+      </artifact>
+      <artifact path="src/app/(dashboard)/layout.tsx" kind="layout" symbol="DashboardLayout" lines="16-42" reason="Dashboard layout with header user menu placeholder (line 34) that can optionally include logout">
+        <signature>export default function DashboardLayout({ children })</signature>
+      </artifact>
+      <artifact path="src/app/(auth)/login/login-form.tsx" kind="component" symbol="LoginForm" reason="Reference for client component patterns: useRouter, fetch API, toast notifications, loading states">
+        <patterns>useRouter().push() for navigation, toast.success() for notifications, useState for loading state, fetch with error handling</patterns>
+      </artifact>
+      <artifact path="src/components/auth/registration-form.tsx" kind="component" symbol="RegistrationForm" reason="Reference for auth component patterns and styling">
+        <patterns>Form structure, button loading states, error display</patterns>
+      </artifact>
+      <artifact path="src/lib/auth/types.ts" kind="types" symbol="AuthError" lines="126-132" reason="Error response format for API calls">
+        <signature>interface AuthError { error: string; code?: string; retryAfter?: number; }</signature>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.5">Full-stack React framework, App Router</package>
+        <package name="react" version="19.2.0">UI library</package>
+        <package name="lucide-react" version="^0.555.0">Icons - use LogOut icon</package>
+        <package name="sonner" version="^2.0.7">Toast notifications - use toast.success()</package>
+        <package name="@radix-ui/react-dropdown-menu" version="^2.1.16">For optional user menu dropdown</package>
+        <package name="vitest" version="^4.0.14" dev="true">Unit testing framework</package>
+        <package name="@playwright/test" version="^1.57.0" dev="true">E2E testing framework</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="story" type="pattern">No confirmation dialog for logout - immediate action (AC-2.4.4)</constraint>
+    <constraint source="architecture" type="security">Use httpOnly, secure, sameSite=strict for cookie operations</constraint>
+    <constraint source="architecture" type="pattern">API routes protected with withAuth middleware require valid access token</constraint>
+    <constraint source="ux-design" type="feedback">Show toast notification "You have been logged out" on success</constraint>
+    <constraint source="ux-design" type="navigation">Redirect to /login page after successful logout</constraint>
+    <constraint source="story" type="ui">LogoutButton in sidebar: icon-only when collapsed, icon + text when expanded</constraint>
+    <constraint source="story" type="error-handling">Handle network errors gracefully - still redirect to login on error</constraint>
+    <constraint source="story" type="ui">Disable button during API call to prevent double-clicks</constraint>
+    <constraint source="story" type="icon">Use LogOut icon from lucide-react for visual consistency</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Logout API" kind="REST endpoint" path="src/app/api/auth/logout/route.ts">
+      <signature>POST /api/auth/logout</signature>
+      <request>No body required - uses refresh token from cookie</request>
+      <response>
+        <success status="200">{ success: true }</success>
+        <error status="401">{ error: "Authentication required", code: "UNAUTHORIZED" }</error>
+        <error status="500">{ error: "An error occurred during logout", code: "INTERNAL_ERROR" }</error>
+      </response>
+    </interface>
+    <interface name="clearAuthCookies" kind="function" path="src/lib/auth/cookies.ts">
+      <signature>function clearAuthCookies(response: NextResponse): void</signature>
+      <description>Sets access_token and refresh_token cookies to empty string with maxAge: 0</description>
+    </interface>
+    <interface name="deleteRefreshToken" kind="function" path="src/lib/auth/service.ts">
+      <signature>async function deleteRefreshToken(tokenId: string): Promise&lt;void&gt;</signature>
+      <description>Deletes refresh token record from database by ID</description>
+    </interface>
+    <interface name="toast" kind="function" path="sonner">
+      <signature>toast.success(message: string): void</signature>
+      <description>Display success toast notification</description>
+    </interface>
+    <interface name="useRouter" kind="hook" path="next/navigation">
+      <signature>const router = useRouter(); router.push('/login')</signature>
+      <description>Client-side navigation to login page after logout</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest for unit tests and Playwright for E2E tests. Unit tests mock API calls and verify component behavior. E2E tests run against a real browser with test database. Toast notifications use sonner. Authentication flows use httpOnly cookies. Test files are located in tests/unit/ and tests/e2e/ directories. Use describe/it blocks for organization. Mock fetch calls in unit tests. E2E tests should log in first, then test logout flow.
+    </standards>
+    <locations>
+      <location>tests/unit/auth/*.test.ts</location>
+      <location>tests/e2e/*.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea acId="AC-2.4.1">E2E: Login as verified user, click logout in sidebar, verify redirect to /login page</idea>
+      <idea acId="AC-2.4.1">E2E: After logout, verify dashboard is not accessible (redirects to login)</idea>
+      <idea acId="AC-2.4.2">E2E: After logout, verify access_token cookie is cleared (check browser cookies)</idea>
+      <idea acId="AC-2.4.2">E2E: After logout, verify refresh_token cookie is cleared</idea>
+      <idea acId="AC-2.4.3">Integration: After logout, attempt to use old refresh token - should fail</idea>
+      <idea acId="AC-2.4.4">Unit: LogoutButton does not render confirmation dialog</idea>
+      <idea acId="AC-2.4.4">E2E: Single click on logout immediately triggers action (no modal)</idea>
+      <idea acId="all">Unit: LogoutButton renders with correct icon and label based on variant prop</idea>
+      <idea acId="all">Unit: LogoutButton shows loading spinner during API call</idea>
+      <idea acId="all">Unit: LogoutButton is disabled during loading state</idea>
+      <idea acId="all">Unit: LogoutButton calls POST /api/auth/logout on click</idea>
+      <idea acId="all">Unit: Toast notification shown on successful logout</idea>
+      <idea acId="all">Unit: Error handling - still redirects to login on network error</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,544 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context
+  story-id="2.7"
+  story-key="2-7-data-export"
+  epic-id="2"
+  title="Data Export"
+  generated="2025-12-02"
+  schema-version="1.0">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                           STORY OVERVIEW                                 -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <story-overview>
+    <user-story>
+      <as-a>user</as-a>
+      <i-want>to export all my data</i-want>
+      <so-that>I have a backup and can analyze my data externally</so-that>
+    </user-story>
+
+    <status>drafted</status>
+    <epic>Epic 2 - User Onboarding &amp; Profile</epic>
+    <previous-story>2.6 Profile Settings &amp; Base Currency</previous-story>
+
+    <functional-requirement>FR7: Users can export all their data (portfolio, configurations, history)</functional-requirement>
+  </story-overview>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                       ACCEPTANCE CRITERIA                                -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <acceptance-criteria>
+    <ac id="2.7.1" title="Export Button on Settings Page">
+      <given>I am on the Settings page</given>
+      <when>I view the page</when>
+      <then>I see an "Export My Data" button</then>
+    </ac>
+
+    <ac id="2.7.2" title="ZIP File Contents">
+      <given>I click "Export My Data"</given>
+      <when>the export completes</when>
+      <then>a ZIP file downloads containing:
+        - portfolio.json (all holdings with values)
+        - criteria.json (all scoring criteria)
+        - history.json (all investment records)
+        - README.txt (data format documentation)</then>
+    </ac>
+
+    <ac id="2.7.3" title="Export Performance">
+      <given>I have data to export</given>
+      <when>I click "Export My Data"</when>
+      <then>export completes within 30 seconds</then>
+    </ac>
+
+    <ac id="2.7.4" title="Human-Readable Data">
+      <given>the export ZIP is downloaded</given>
+      <when>I open the JSON files</when>
+      <then>data is formatted/indented JSON (human-readable)</then>
+      <and>includes schema version for future compatibility</and>
+    </ac>
+
+    <ac id="2.7.5" title="Progress Indicator">
+      <given>I click "Export My Data"</given>
+      <when>the export is in progress</when>
+      <then>I see a progress/loading indicator</then>
+      <and>the button is disabled during export</and>
+    </ac>
+  </acceptance-criteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                       TECHNICAL REQUIREMENTS                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <technical-requirements>
+    <dependencies>
+      <dependency status="complete">Story 1.3: Authentication System (JWT infrastructure)</dependency>
+      <dependency status="complete">Story 1.8: App Shell &amp; Layout (dashboard layout)</dependency>
+      <dependency status="complete">Story 2.6: Profile Settings &amp; Base Currency (settings page)</dependency>
+    </dependencies>
+
+    <new-dependencies>
+      <package name="archiver" version="^7.x" purpose="ZIP file generation">
+        Install command: pnpm add archiver @types/archiver
+      </package>
+    </new-dependencies>
+
+    <performance-targets>
+      <target metric="export-completion">Less than 30 seconds</target>
+    </performance-targets>
+  </technical-requirements>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                        EXISTING CODE CONTEXT                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <existing-code>
+    <file path="src/app/(dashboard)/settings/page.tsx" relevance="high">
+      <description>Settings page server component - add ExportDataSection here</description>
+      <pattern>Server component with authentication check via cookies and verifyAccessToken</pattern>
+      <modification-needed>Import and add ExportDataSection component after ProfileSettingsForm</modification-needed>
+    </file>
+
+    <file path="src/lib/services/user-service.ts" relevance="high">
+      <description>User service with profile operations - extend with export functions or create new service</description>
+      <pattern>Service pattern with async functions, db queries, error handling</pattern>
+      <functions>
+        <function>updateUserProfile(userId, data) - PATCH profile</function>
+        <function>getUserProfile(userId) - GET profile</function>
+      </functions>
+    </file>
+
+    <file path="src/app/api/user/profile/route.ts" relevance="high">
+      <description>User profile API routes - follow this pattern for export route</description>
+      <pattern>withAuth HOC for authentication, Zod validation, typed responses</pattern>
+      <key-pattern><![CDATA[
+export const GET = withAuth<ResponseType>(async (_request, session) => {
+  // session.userId available
+  // Return NextResponse.json(...)
+});
+      ]]></key-pattern>
+    </file>
+
+    <file path="src/lib/auth/middleware.ts" relevance="high">
+      <description>withAuth HOC for protected routes</description>
+      <usage>Wrap route handlers: export const GET = withAuth(async (request, session) => { ... })</usage>
+    </file>
+
+    <file path="src/components/settings/profile-settings-form.tsx" relevance="medium">
+      <description>Client component pattern with hooks, loading states, toast notifications</description>
+      <patterns-to-follow>
+        <pattern>useState for loading/success states</pattern>
+        <pattern>toast from sonner for user feedback</pattern>
+        <pattern>Card component for visual grouping</pattern>
+        <pattern>Lucide icons (Check, Loader2)</pattern>
+      </patterns-to-follow>
+    </file>
+
+    <file path="src/lib/db/schema.ts" relevance="high">
+      <description>Database schema with users, refreshTokens, calculationEvents tables</description>
+      <note>Portfolio tables not yet implemented - export will return empty arrays for portfolio/criteria/history</note>
+      <tables>
+        <table name="users">id, email, name, baseCurrency, emailVerified, createdAt, updatedAt</table>
+        <table name="refreshTokens">id, userId, tokenHash, expiresAt</table>
+        <table name="calculationEvents">id, correlationId, userId, eventType, payload</table>
+        <table name="verificationTokens">id, userId, token, expiresAt, usedAt</table>
+        <table name="passwordResetTokens">id, userId, tokenHash, expiresAt, usedAt</table>
+      </tables>
+    </file>
+
+    <file path="src/middleware.ts" relevance="low">
+      <description>Next.js middleware for route protection</description>
+      <protected-routes>/dashboard, /portfolio, /settings</protected-routes>
+    </file>
+  </existing-code>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                       FILES TO CREATE/MODIFY                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <implementation-plan>
+    <new-files>
+      <file path="src/lib/services/export-service.ts" purpose="Export business logic">
+        <functions>
+          <function name="generateUserExport" signature="(userId: string) => Promise&lt;Buffer&gt;">
+            Main orchestration function - fetches data, creates ZIP
+          </function>
+          <function name="getPortfolioData" signature="(userId: string) => Promise&lt;PortfolioExport[]&gt;">
+            Fetch and format portfolio data (returns empty array until Epic 3)
+          </function>
+          <function name="getCriteriaData" signature="(userId: string) => Promise&lt;CriteriaExport[]&gt;">
+            Fetch and format criteria data (returns empty array until Epic 5)
+          </function>
+          <function name="getHistoryData" signature="(userId: string) => Promise&lt;HistoryExport[]&gt;">
+            Fetch and format investment history (returns empty array until Story 3.8)
+          </function>
+          <function name="generateReadme" signature="(exportDate: string) => string">
+            Generate README.txt content with schema version and format documentation
+          </function>
+          <function name="createZipArchive" signature="(data: ExportData) => Promise&lt;Buffer&gt;">
+            Bundle all files into ZIP buffer using archiver
+          </function>
+        </functions>
+        <constants>
+          <constant name="EXPORT_SCHEMA_VERSION" value="1.0.0" />
+        </constants>
+      </file>
+
+      <file path="src/app/api/user/export/route.ts" purpose="Export API endpoint">
+        <method>GET</method>
+        <authentication>withAuth</authentication>
+        <response-type>ZIP file (application/zip)</response-type>
+        <headers>
+          <header name="Content-Type">application/zip</header>
+          <header name="Content-Disposition">attachment; filename="investments-planner-export-{date}.zip"</header>
+          <header name="Content-Length">{buffer.length}</header>
+        </headers>
+      </file>
+
+      <file path="src/components/settings/export-data-section.tsx" purpose="Export UI component">
+        <type>Client component ("use client")</type>
+        <features>
+          <feature>Card wrapper with title and description</feature>
+          <feature>"Export My Data" button</feature>
+          <feature>Loading spinner during export (Loader2 icon)</feature>
+          <feature>useState for isExporting state</feature>
+          <feature>Download trigger using blob URL</feature>
+          <feature>Error handling with sonner toast</feature>
+        </features>
+      </file>
+
+      <file path="tests/unit/services/export-service.test.ts" purpose="Unit tests">
+        <test-cases>
+          <test>Export service generates valid ZIP buffer</test>
+          <test>Portfolio data is correctly formatted</test>
+          <test>Empty data exports successfully (no portfolios case)</test>
+          <test>README contains correct schema version</test>
+          <test>JSON is properly indented (2 spaces)</test>
+          <test>Export includes all required files</test>
+        </test-cases>
+      </file>
+
+      <file path="tests/e2e/export.spec.ts" purpose="E2E tests">
+        <test-cases>
+          <test>Export button visible on settings page</test>
+          <test>Clicking export shows loading state</test>
+          <test>Export downloads file (mock or verify filename)</test>
+          <test>Unauthenticated requests are rejected</test>
+          <test>Export button is disabled during export</test>
+        </test-cases>
+      </file>
+    </new-files>
+
+    <modified-files>
+      <file path="src/app/(dashboard)/settings/page.tsx">
+        <change>Import ExportDataSection component</change>
+        <change>Add ExportDataSection after ProfileSettingsForm</change>
+      </file>
+    </modified-files>
+  </implementation-plan>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                         CODE PATTERNS                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <code-patterns>
+    <pattern name="API Route with withAuth" source="src/app/api/user/profile/route.ts">
+      <![CDATA[
+import { NextResponse } from "next/server";
+import { withAuth } from "@/lib/auth/middleware";
+import type { AuthError } from "@/lib/auth/types";
+
+export const GET = withAuth<ResponseType>(async (_request, session) => {
+  try {
+    const result = await someService(session.userId);
+    return NextResponse.json({ data: result }, { status: 200 });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json<AuthError>(
+      { error: "An error occurred", code: "INTERNAL_ERROR" },
+      { status: 500 }
+    );
+  }
+});
+      ]]>
+    </pattern>
+
+    <pattern name="Client Component with Loading State" source="src/components/settings/profile-settings-form.tsx">
+      <![CDATA[
+"use client";
+
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+
+export function ExampleComponent() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAction = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/endpoint");
+      if (!response.ok) throw new Error("Failed");
+      toast.success("Success!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Button onClick={handleAction} disabled={isLoading}>
+      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      Action
+    </Button>
+  );
+}
+      ]]>
+    </pattern>
+
+    <pattern name="ZIP File Response" source="tech-spec-epic-2.md">
+      <![CDATA[
+// API route returning ZIP file
+export async function GET(request: NextRequest) {
+  const { userId } = await withAuth(request);
+
+  try {
+    const zipBuffer = await generateUserExport(userId);
+    const date = new Date().toISOString().split('T')[0];
+
+    return new NextResponse(zipBuffer, {
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="investments-planner-export-${date}.zip"`,
+        'Content-Length': zipBuffer.length.toString(),
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to generate export' },
+      { status: 500 }
+    );
+  }
+}
+      ]]>
+    </pattern>
+
+    <pattern name="Client-Side Download Trigger" source="story-2.7">
+      <![CDATA[
+const handleExport = async () => {
+  setIsExporting(true);
+  try {
+    const response = await fetch('/api/user/export');
+    if (!response.ok) throw new Error('Export failed');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `investments-planner-export-${new Date().toISOString().split('T')[0]}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast.success('Export downloaded successfully');
+  } catch (error) {
+    toast.error('Failed to export data');
+  } finally {
+    setIsExporting(false);
+  }
+};
+      ]]>
+    </pattern>
+
+    <pattern name="Archiver ZIP Creation" source="story-2.7">
+      <![CDATA[
+import archiver from 'archiver';
+
+async function createZipArchive(data: ExportData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+
+    archive.on('data', (chunk) => chunks.push(chunk));
+    archive.on('end', () => resolve(Buffer.concat(chunks)));
+    archive.on('error', reject);
+
+    // Add files with formatted JSON (2 space indent)
+    archive.append(JSON.stringify(data.portfolio, null, 2), { name: 'portfolio.json' });
+    archive.append(JSON.stringify(data.criteria, null, 2), { name: 'criteria.json' });
+    archive.append(JSON.stringify(data.history, null, 2), { name: 'history.json' });
+    archive.append(generateReadme(data.exportedAt), { name: 'README.txt' });
+
+    archive.finalize();
+  });
+}
+      ]]>
+    </pattern>
+  </code-patterns>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                      ARCHITECTURE CONSTRAINTS                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <architecture-constraints>
+    <constraint type="security">
+      All API endpoints MUST use withAuth middleware for authentication
+    </constraint>
+    <constraint type="security">
+      User data MUST be scoped by userId - no cross-user data access
+    </constraint>
+    <constraint type="patterns">
+      Services handle business logic, routes handle HTTP
+    </constraint>
+    <constraint type="patterns">
+      Use sonner toast for user feedback
+    </constraint>
+    <constraint type="patterns">
+      Client components must be marked with "use client"
+    </constraint>
+    <constraint type="naming">
+      Files: kebab-case (export-service.ts)
+      Components: PascalCase (ExportDataSection)
+      Functions: camelCase (generateUserExport)
+    </constraint>
+    <constraint type="testing">
+      Unit tests in tests/unit/, E2E tests in tests/e2e/
+    </constraint>
+  </architecture-constraints>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                          TYPE DEFINITIONS                                -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <type-definitions>
+    <![CDATA[
+// Export data types (to be created in export-service.ts)
+export interface ExportData {
+  portfolio: PortfolioExport[];
+  criteria: CriteriaExport[];
+  history: InvestmentHistoryExport[];
+  exportedAt: string;
+  schemaVersion: string;
+}
+
+export interface PortfolioExport {
+  // Placeholder until Epic 3 - Portfolio Management
+  id: string;
+  name: string;
+  baseCurrency: string;
+  assets: AssetExport[];
+  createdAt: string;
+}
+
+export interface AssetExport {
+  symbol: string;
+  quantity: string;
+  purchasePrice: string;
+  currency: string;
+}
+
+export interface CriteriaExport {
+  // Placeholder until Epic 5 - Scoring Criteria
+  id: string;
+  name: string;
+  market: string;
+  rules: unknown[];
+  createdAt: string;
+}
+
+export interface InvestmentHistoryExport {
+  // Placeholder until Story 3.8 - Investment History
+  id: string;
+  date: string;
+  assetId: string;
+  amount: string;
+  currency: string;
+}
+    ]]>
+  </type-definitions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                        README.TXT TEMPLATE                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <readme-template>
+    <![CDATA[
+Investments Planner - Data Export
+=================================
+Exported: {date}
+Schema Version: 1.0.0
+
+Files Included:
+- portfolio.json: Your portfolio holdings and asset values
+- criteria.json: Your scoring criteria configurations
+- history.json: Your investment history records
+
+Data Format:
+All JSON files use ISO 8601 date formats and numeric strings
+for monetary values to preserve precision.
+
+For questions or re-import assistance, contact support.
+    ]]>
+  </readme-template>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                         TASK CHECKLIST                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <task-checklist>
+    <task id="1" status="pending">Add archiver dependency: pnpm add archiver @types/archiver</task>
+    <task id="2" status="pending">Create export service: src/lib/services/export-service.ts</task>
+    <task id="3" status="pending">Create export API route: src/app/api/user/export/route.ts</task>
+    <task id="4" status="pending">Create export button component: src/components/settings/export-data-section.tsx</task>
+    <task id="5" status="pending">Integrate export section into settings page</task>
+    <task id="6" status="pending">Create unit tests: tests/unit/services/export-service.test.ts</task>
+    <task id="7" status="pending">Create E2E tests: tests/e2e/export.spec.ts</task>
+    <task id="8" status="pending">Run verification: pnpm lint, pnpm build, pnpm test</task>
+  </task-checklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!--                         NOTES FOR DEV AGENT                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <dev-notes>
+    <note type="important">
+      Portfolio, criteria, and history tables are NOT yet implemented.
+      The export should return empty arrays for these data types until
+      their respective epics are complete. Include schema version and
+      placeholder structure for forward compatibility.
+    </note>
+
+    <note type="pattern">
+      Follow the existing API route pattern from src/app/api/user/profile/route.ts.
+      Use withAuth HOC for authentication.
+    </note>
+
+    <note type="pattern">
+      Follow the existing component pattern from profile-settings-form.tsx
+      for loading states and toast notifications.
+    </note>
+
+    <note type="testing">
+      For E2E tests, mock the download or verify the response headers.
+      Playwright can intercept network requests to verify the export endpoint.
+    </note>
+
+    <note type="previous-story-learnings" source="2-6-profile-settings-base-currency">
+      New Files Created:
+      - src/app/api/user/profile/route.ts - API route pattern to follow
+      - src/lib/services/user-service.ts - Service pattern to follow
+      - src/components/settings/profile-settings-form.tsx - Component pattern
+
+      Patterns Established:
+      - API routes use withAuth for authentication
+      - Services handle business logic, routes handle HTTP
+      - Toast notifications via sonner for user feedback
+      - Settings page structure with profile form
+    </note>
+  </dev-notes>
+
+</story-context>

@@ -1,0 +1,185 @@
+<story-context id="bmad/bmm/story-context" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2</storyId>
+    <title>Email Verification</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-2-email-verification.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>registered user</asA>
+    <iWant>to verify my email address by clicking a verification link</iWant>
+    <soThat>my account is activated and I can securely access the investment platform</soThat>
+    <tasks>
+      <task id="1" ac="1,2,3">Create verification API endpoint (POST /api/auth/verify)</task>
+      <task id="2" ac="5">Create resend verification API endpoint (POST /api/auth/resend-verification)</task>
+      <task id="3" ac="1,5">Implement EmailService with Resend integration</task>
+      <task id="4" ac="1,2,3">Create verification page (/verify?token=xxx)</task>
+      <task id="5" ac="4,5">Create verification pending page (/verify-pending)</task>
+      <task id="6" ac="4">Add auth middleware for unverified users (redirect to verify-pending)</task>
+      <task id="7" ac="5">Update login page with resend verification link</task>
+      <task id="8" ac="1-5">Write unit tests (tests/unit/auth/verification.test.ts)</task>
+      <task id="9" ac="1-5">Write E2E tests (tests/e2e/verification.spec.ts)</task>
+      <task id="10" ac="1-5">Verify build, lint, and tests pass</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-2.2.1">Clicking a valid verification link activates the account and redirects to login with "Email verified!" toast</criterion>
+    <criterion id="AC-2.2.2">Verification link expires after 24 hours with appropriate error message ("Link expired")</criterion>
+    <criterion id="AC-2.2.3">Link is single-use; reuse returns "Link already used" error</criterion>
+    <criterion id="AC-2.2.4">Unverified users accessing dashboard routes redirect to "Please verify your email" page</criterion>
+    <criterion id="AC-2.2.5">"Resend verification email" link available on login page and verification pending page</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Tech Spec" section="Email Verification Flow">
+        Token validation workflow, security requirements, API contracts for verify and resend endpoints.
+      </doc>
+      <doc path="docs/sprint-artifacts/2-1-user-registration-flow.md" title="Story 2.1 Implementation" section="Dev Agent Record">
+        Previous story learnings: verification_tokens table created, AuthService methods available, EmailService stub ready for upgrade.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Authentication">
+        JWT authentication patterns, middleware requirements, security controls.
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 2.2">
+        Original story definition with acceptance criteria from PRD FR2.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Spec" section="Form Patterns">
+        Toast notifications, error states, loading patterns for auth flows.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/auth/service.ts" kind="service" reason="Contains verification token CRUD: storeVerificationToken, findVerificationToken, markVerificationTokenUsed, markEmailVerified">
+        <symbol name="storeVerificationToken" lines="235-256">Stores verification token with 24h expiry</symbol>
+        <symbol name="findVerificationToken" lines="264-286">Finds token, checks expiry and usedAt</symbol>
+        <symbol name="markVerificationTokenUsed" lines="293-298">Marks token as used</symbol>
+        <symbol name="markEmailVerified" lines="305-313">Sets emailVerified=true on user</symbol>
+      </file>
+      <file path="src/lib/auth/jwt.ts" kind="service" reason="JWT token signing/verification for verification tokens">
+        <symbol name="signVerificationToken" lines="174-186">Creates JWT with userId and 24h expiry</symbol>
+        <symbol name="verifyVerificationToken" lines="195-226">Verifies JWT, returns userId</symbol>
+      </file>
+      <file path="src/lib/auth/constants.ts" kind="config" reason="Token expiry constants and error messages">
+        <symbol name="VERIFICATION_TOKEN_EXPIRY" lines="25">24 hours (86400 seconds)</symbol>
+        <symbol name="AUTH_MESSAGES" lines="89-105">Error messages including TOKEN_EXPIRED, TOKEN_INVALID</symbol>
+      </file>
+      <file path="src/lib/auth/middleware.ts" kind="middleware" reason="Auth middleware to extend for emailVerified check">
+        <symbol name="verifyAuth" lines="24-41">Extracts session from JWT cookie</symbol>
+        <symbol name="withAuth" lines="75-90">HOF for protected routes</symbol>
+      </file>
+      <file path="src/lib/email/email-service.ts" kind="service" reason="Email stub to upgrade to Resend">
+        <symbol name="sendVerificationEmail" lines="117-142">Current stub implementation - needs Resend integration</symbol>
+        <symbol name="generateVerificationEmailTemplate" lines="42-106">HTML/text email template - ready to use</symbol>
+      </file>
+      <file path="src/lib/db/schema.ts" kind="schema" reason="Database tables for users and verification_tokens">
+        <symbol name="users" lines="22-34">User table with emailVerified, emailVerifiedAt columns</symbol>
+        <symbol name="verificationTokens" lines="105-121">Token table with expiresAt, usedAt columns</symbol>
+      </file>
+      <file path="src/app/(auth)/layout.tsx" kind="layout" reason="Auth pages layout (centered, no sidebar) - reuse for verify pages"/>
+      <file path="src/app/(auth)/register/page.tsx" kind="page" reason="Registration page pattern to follow for verify pages"/>
+      <file path="src/app/api/auth/register/route.ts" kind="api" reason="API route pattern with OpenTelemetry and Zod validation"/>
+      <file path="tests/e2e/registration.spec.ts" kind="test" reason="E2E test patterns to follow for verification tests"/>
+      <file path="tests/unit/auth/password.test.ts" kind="test" reason="Unit test patterns with Vitest"/>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="jose" version="^6.1.2" purpose="JWT signing/verification"/>
+        <package name="zod" version="^4.1.13" purpose="Input validation"/>
+        <package name="bcrypt" version="^6.0.0" purpose="Password hashing"/>
+        <package name="@vercel/kv" version="^3.0.0" purpose="Rate limiting storage"/>
+        <package name="sonner" version="^2.0.7" purpose="Toast notifications"/>
+        <package name="next" version="16.0.5" purpose="Framework"/>
+        <package name="drizzle-orm" version="^0.44.7" purpose="Database ORM"/>
+        <package name="resend" version="NOT_INSTALLED" purpose="Email sending - NEEDS TO BE INSTALLED"/>
+      </node>
+      <devDependencies>
+        <package name="vitest" version="^4.0.14" purpose="Unit testing"/>
+        <package name="@playwright/test" version="^1.57.0" purpose="E2E testing"/>
+      </devDependencies>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface name="POST /api/auth/verify" kind="REST endpoint">
+      <signature>POST /api/auth/verify { token: string } => { success: boolean, message: string } | { error: string, code: string }</signature>
+      <path>src/app/api/auth/verify/route.ts (TO CREATE)</path>
+      <notes>Returns 200 on success, 400 for invalid token, 410 for expired, 409 for already used</notes>
+    </interface>
+    <interface name="POST /api/auth/resend-verification" kind="REST endpoint">
+      <signature>POST /api/auth/resend-verification { email: string } => { message: string }</signature>
+      <path>src/app/api/auth/resend-verification/route.ts (TO CREATE)</path>
+      <notes>Always returns same message to prevent email enumeration. Rate limited: 3/hr/email</notes>
+    </interface>
+    <interface name="findVerificationToken" kind="function">
+      <signature>async function findVerificationToken(token: string): Promise&lt;VerificationToken | null&gt;</signature>
+      <path>src/lib/auth/service.ts</path>
+      <notes>Returns null if expired or already used</notes>
+    </interface>
+    <interface name="markVerificationTokenUsed" kind="function">
+      <signature>async function markVerificationTokenUsed(tokenId: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/auth/service.ts</path>
+    </interface>
+    <interface name="markEmailVerified" kind="function">
+      <signature>async function markEmailVerified(userId: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/auth/service.ts</path>
+    </interface>
+    <interface name="sendVerificationEmail" kind="function">
+      <signature>async function sendVerificationEmail(email: string, token: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/email/email-service.ts</path>
+      <notes>Currently stub - needs Resend integration in this story</notes>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint type="security">Verification tokens are single-use (marked with usedAt timestamp after use)</constraint>
+    <constraint type="security">24-hour token expiry enforced via expiresAt column</constraint>
+    <constraint type="security">No email enumeration on resend - always return same message</constraint>
+    <constraint type="security">Rate limiting on resend: 3 requests per hour per email</constraint>
+    <constraint type="security">Old tokens should be invalidated when new token is generated</constraint>
+    <constraint type="architecture">Use Next.js App Router for API routes and pages</constraint>
+    <constraint type="architecture">Follow existing auth middleware pattern (withAuth HOF)</constraint>
+    <constraint type="architecture">Use Zod for input validation on all endpoints</constraint>
+    <constraint type="architecture">Add OpenTelemetry spans for observability</constraint>
+    <constraint type="ui">Toast notifications via sonner for success/error states</constraint>
+    <constraint type="ui">Follow UX spec form patterns (inline errors, loading states)</constraint>
+    <constraint type="testing">Maintain 266+ unit test baseline</constraint>
+    <constraint type="testing">Follow existing E2E patterns from registration.spec.ts</constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Vitest for unit/integration tests. Playwright for E2E tests.
+      Coverage target: 80%+ for auth modules.
+      Test files in tests/unit/, tests/integration/, tests/e2e/.
+      Use factories for test data. Mock external services (email, KV).
+      Follow existing patterns in tests/unit/auth/password.test.ts and tests/e2e/registration.spec.ts.
+    </standards>
+    <locations>
+      <location>tests/unit/auth/verification.test.ts (TO CREATE)</location>
+      <location>tests/e2e/verification.spec.ts (TO CREATE)</location>
+      <location>tests/unit/auth/ (existing auth tests)</location>
+      <location>tests/e2e/ (existing E2E tests)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-2.2.1">Unit: valid token verification updates user.emailVerified and token.usedAt</idea>
+      <idea ac="AC-2.2.1">E2E: full registration → verification → login flow</idea>
+      <idea ac="AC-2.2.2">Unit: expired token (expiresAt in past) returns null from findVerificationToken</idea>
+      <idea ac="AC-2.2.2">E2E: expired token shows "Link expired" error with resend link</idea>
+      <idea ac="AC-2.2.3">Unit: already-used token (usedAt not null) returns null from findVerificationToken</idea>
+      <idea ac="AC-2.2.3">E2E: reusing verification link shows "Link already used" error</idea>
+      <idea ac="AC-2.2.4">E2E: unverified user accessing /dashboard redirects to /verify-pending</idea>
+      <idea ac="AC-2.2.4">Unit: middleware check for emailVerified status</idea>
+      <idea ac="AC-2.2.5">E2E: login page shows "Resend verification email" link</idea>
+      <idea ac="AC-2.2.5">E2E: resend creates new token and invalidates old one</idea>
+      <idea ac="AC-2.2.5">Unit: resend rate limiting (3/hr/email)</idea>
+      <idea ac="AC-2.2.5">Unit: resend for already-verified user returns same message (no enumeration)</idea>
+    </ideas>
+  </tests>
+</story-context>

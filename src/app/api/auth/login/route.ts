@@ -3,8 +3,13 @@
  *
  * User login endpoint.
  * Story 1.3: Authentication System with JWT + Refresh Tokens
+ * Story 2.3: User Login - Enhanced with email verification and soft-delete checks
  *
- * AC1, AC3, AC4, AC5: Login with rate limiting and secure cookies
+ * AC-2.3.1: Valid credentials redirect to dashboard
+ * AC-2.3.3: Failed login shows "Invalid credentials" (no hints)
+ * AC-2.3.4: Rate limiting (5 attempts/hour, 15min lockout)
+ * AC-2.3.5: JWT in httpOnly cookie (15min expiry)
+ * AC-2.3.6: Remember me extends refresh token to 30 days
  */
 
 import { NextResponse } from "next/server";
@@ -91,7 +96,8 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
     // Find user by email
     const user = await findUserByEmail(email);
 
-    if (!user) {
+    // Treat soft-deleted users as non-existent (AC-2.3.3)
+    if (!user || user.deletedAt !== null) {
       // Record failed attempt before returning
       recordFailedAttempt(ip);
       return NextResponse.json(
@@ -103,7 +109,7 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
       );
     }
 
-    // Verify password (AC3)
+    // Verify password (AC-2.3.3)
     const isValidPassword = await verifyPassword(password, user.passwordHash);
 
     if (!isValidPassword) {
@@ -115,6 +121,17 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
           code: "INVALID_CREDENTIALS",
         },
         { status: 401 }
+      );
+    }
+
+    // Check email verification (AC-2.3.3) - unverified users cannot login
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        {
+          error: AUTH_MESSAGES.EMAIL_NOT_VERIFIED,
+          code: "EMAIL_NOT_VERIFIED",
+        },
+        { status: 403 }
       );
     }
 

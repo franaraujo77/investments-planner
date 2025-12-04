@@ -192,3 +192,136 @@ export function getClientIp(request: Request): string {
 export function _resetRateLimitStore(): void {
   rateLimitStore.clear();
 }
+
+// =============================================================================
+// EMAIL-BASED RATE LIMITING
+// Story 2.2: Email Verification - Rate limit resend requests by email
+// =============================================================================
+
+/**
+ * Email-based rate limit configuration
+ */
+const EMAIL_RATE_LIMIT = {
+  /** Maximum resend attempts per hour per email */
+  MAX_RESEND_ATTEMPTS: 3,
+  /** Rate limit window: 1 hour in milliseconds */
+  WINDOW_MS: 60 * 60 * 1000,
+} as const;
+
+/**
+ * In-memory store for email rate limit data
+ * Key: Email address (lowercase), Value: Rate limit entry
+ */
+const emailRateLimitStore = new Map<string, RateLimitEntry>();
+
+/**
+ * Cleans up expired email rate limit entries
+ */
+function cleanupExpiredEmailEntries(): void {
+  const now = Date.now();
+
+  for (const [email, entry] of emailRateLimitStore.entries()) {
+    if (now - entry.windowStart >= EMAIL_RATE_LIMIT.WINDOW_MS) {
+      emailRateLimitStore.delete(email);
+    }
+  }
+}
+
+// Run cleanup every 10 minutes
+if (typeof setInterval !== "undefined") {
+  setInterval(cleanupExpiredEmailEntries, 10 * 60 * 1000);
+}
+
+/**
+ * Checks if an email is rate limited for resend requests
+ *
+ * Rate limit: 3 resend attempts per hour per email.
+ *
+ * @param email - Email address to check
+ * @returns Rate limit result with allowed status and retry info
+ */
+export function checkEmailRateLimit(email: string): RateLimitResult {
+  const normalizedEmail = email.toLowerCase().trim();
+  const now = Date.now();
+  const entry = emailRateLimitStore.get(normalizedEmail);
+
+  // No entry means no previous attempts
+  if (!entry) {
+    return {
+      allowed: true,
+      remaining: EMAIL_RATE_LIMIT.MAX_RESEND_ATTEMPTS,
+    };
+  }
+
+  // Check if window has expired
+  const windowExpired = now - entry.windowStart >= EMAIL_RATE_LIMIT.WINDOW_MS;
+
+  if (windowExpired) {
+    // Window expired, allow request
+    emailRateLimitStore.delete(normalizedEmail);
+    return {
+      allowed: true,
+      remaining: EMAIL_RATE_LIMIT.MAX_RESEND_ATTEMPTS,
+    };
+  }
+
+  // Window still active, check attempts
+  if (entry.attempts >= EMAIL_RATE_LIMIT.MAX_RESEND_ATTEMPTS) {
+    // Rate limited
+    const retryAfter = Math.ceil((entry.windowStart + EMAIL_RATE_LIMIT.WINDOW_MS - now) / 1000);
+    return {
+      allowed: false,
+      retryAfter,
+      remaining: 0,
+    };
+  }
+
+  // Under limit
+  return {
+    allowed: true,
+    remaining: EMAIL_RATE_LIMIT.MAX_RESEND_ATTEMPTS - entry.attempts,
+  };
+}
+
+/**
+ * Records a resend attempt for an email
+ *
+ * @param email - Email address to record attempt for
+ */
+export function recordEmailResendAttempt(email: string): void {
+  const normalizedEmail = email.toLowerCase().trim();
+  const now = Date.now();
+  const entry = emailRateLimitStore.get(normalizedEmail);
+
+  if (!entry) {
+    // First attempt, start new window
+    emailRateLimitStore.set(normalizedEmail, {
+      attempts: 1,
+      windowStart: now,
+    });
+    return;
+  }
+
+  // Check if window has expired
+  const windowExpired = now - entry.windowStart >= EMAIL_RATE_LIMIT.WINDOW_MS;
+
+  if (windowExpired) {
+    // Start new window
+    emailRateLimitStore.set(normalizedEmail, {
+      attempts: 1,
+      windowStart: now,
+    });
+  } else {
+    // Increment in existing window
+    entry.attempts += 1;
+  }
+}
+
+/**
+ * Resets the email rate limit store (for testing)
+ *
+ * @internal
+ */
+export function _resetEmailRateLimitStore(): void {
+  emailRateLimitStore.clear();
+}

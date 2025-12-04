@@ -1,0 +1,173 @@
+<story-context id="3-7-allocation-percentage-view" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>7</storyId>
+    <title>Allocation Percentage View</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-7-allocation-percentage-view.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>see current allocation percentages by asset class and subclass</iWant>
+    <soThat>I can understand my portfolio balance</soThat>
+    <tasks>
+      <task id="1" ac="3.7.3,3.7.5">Create AllocationGauge Component - horizontal progress bar with status color coding</task>
+      <task id="2" ac="3.7.1">Create AllocationPieChart Component - donut chart using Recharts</task>
+      <task id="3" ac="3.7.2,3.7.5">Create AllocationBarChart Component - horizontal bar chart with target ranges</task>
+      <task id="4" ac="3.7.6">Create SubclassBreakdown Component - collapsible panel for subclass details</task>
+      <task id="5" ac="all">Extend Portfolio Service for allocation aggregation - getAllocationBreakdown()</task>
+      <task id="6" ac="all">Create API endpoint - GET /api/portfolios/[id]/allocations</task>
+      <task id="7" ac="all">Update Portfolio Page with allocation section</task>
+      <task id="8" ac="3.7.7">Handle missing asset classes - Unclassified category, hints for targets</task>
+      <task id="9" ac="all">Create unit tests for allocation service</task>
+      <task id="10" ac="all">Create E2E tests for allocation views</task>
+      <task id="11" ac="all">Run verification - lint, build, test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-3.7.1" title="Allocation Pie/Donut Chart">
+      Pie/donut chart showing allocation by asset class with labeled segments and legend
+    </criterion>
+    <criterion id="AC-3.7.2" title="Current vs Target Bar Chart">
+      Bar chart comparing current allocation vs target range for each class
+    </criterion>
+    <criterion id="AC-3.7.3" title="AllocationGauge Component">
+      Gauge for each asset class showing current position within target range
+    </criterion>
+    <criterion id="AC-3.7.4" title="Percentage Display Precision">
+      Percentages show with 1 decimal precision (e.g., 42.5%), sum to 100%
+    </criterion>
+    <criterion id="AC-3.7.5" title="Status Color Coding">
+      Green (on target), Amber (near boundary within 5%), Red (out of range)
+    </criterion>
+    <criterion id="AC-3.7.6" title="Subclass Breakdown Expansion">
+      Click on class expands to show subclass breakdown with percentages
+    </criterion>
+    <criterion id="AC-3.7.7" title="Graceful Handling of Missing Targets">
+      Classes without targets show percentage only, neutral color, hint to set target
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture" section="Decimal Precision Strategy">
+        All monetary/percentage calculations must use decimal.js. Never use JavaScript arithmetic.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Component Library">
+        Uses shadcn/ui with Recharts for data visualization. Radix primitives for accessibility.
+      </doc>
+      <doc path="docs/epics.md" title="Epics" section="Story 3.7">
+        Allocation visualization including pie chart, bar chart, gauges, and subclass breakdown.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-3.md" title="Tech Spec Epic 3" section="AC-3.8 Allocation">
+        Technical requirements for allocation percentage display and status indicators.
+      </doc>
+      <doc path="docs/sprint-artifacts/3-6-portfolio-overview-with-values.md" title="Previous Story" section="Dev Agent Record">
+        Patterns for portfolio service extension, allocation calculation excluding ignored assets.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/services/portfolio-service.ts" kind="service" symbol="getPortfolioWithValues" lines="564-692">
+        Main portfolio service with value calculations. Extend for allocation aggregation by class.
+      </file>
+      <file path="src/lib/services/portfolio-service.ts" kind="service" symbol="AssetWithValue" lines="474-493">
+        Interface for asset with calculated values including allocationPercent field.
+      </file>
+      <file path="src/lib/calculations/decimal-config.ts" kind="config" symbol="Decimal" lines="1-26">
+        Decimal.js configuration for financial precision - MUST use for all percentage calculations.
+      </file>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="portfolioAssets" lines="202-224">
+        Database schema with assetClassId and subclassId fields (optional, for Epic 4).
+      </file>
+      <file path="src/components/fintech/currency-display.tsx" kind="component" symbol="CurrencyDisplay" lines="111-183">
+        Currency formatting component with tooltip - reuse pattern for allocation display.
+      </file>
+      <file path="src/components/fintech/data-freshness-badge.tsx" kind="component" symbol="DataFreshnessBadge">
+        Status badge with color coding - reuse pattern for allocation status.
+      </file>
+      <file path="src/components/portfolio/portfolio-table.tsx" kind="component" symbol="PortfolioTableWithValues">
+        Enhanced table with sorting/filtering - allocation column already exists.
+      </file>
+      <file path="src/app/(dashboard)/portfolio/page.tsx" kind="page" symbol="PortfolioPage">
+        Portfolio page - add allocation section below summary.
+      </file>
+      <file path="src/app/api/portfolios/[id]/values/route.ts" kind="api" symbol="GET">
+        Portfolio values API - pattern for new allocations endpoint.
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="recharts" version="not-installed">Chart library needed for pie/bar charts - install via shadcn/ui or npm</package>
+        <package name="decimal.js" version="^10.6.0">Financial precision calculations</package>
+        <package name="@radix-ui/react-progress" version="^1.1.8">Progress bar for gauge component</package>
+        <package name="@radix-ui/react-tooltip" version="^1.2.8">Tooltips for exact values</package>
+        <package name="lucide-react" version="^0.555.0">Icons for expand/collapse</package>
+        <package name="sonner" version="^2.0.7">Toast notifications</package>
+        <package name="zod" version="^4.1.13">Schema validation</package>
+        <package name="tailwind-merge" version="^3.4.0">Class merging utility</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="calculation">All percentage calculations MUST use decimal.js - NEVER JavaScript arithmetic</constraint>
+    <constraint type="precision">Display percentages with .toFixed(1) for 1 decimal precision</constraint>
+    <constraint type="allocation">Ignored assets are EXCLUDED from allocation percentage calculation (per AC-3.5.3)</constraint>
+    <constraint type="epic4-dependency">Epic 4 (Asset Class Configuration) not yet implemented - handle missing classes gracefully</constraint>
+    <constraint type="styling">Status colors: Green (emerald-600), Amber (amber-500), Red (red-500), Gray (slate-500)</constraint>
+    <constraint type="accessibility">All chart components must have accessible labels and keyboard navigation</constraint>
+    <constraint type="performance">Portfolio page uses client component for interactivity</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="ClassAllocation" kind="type" path="src/lib/services/portfolio-service.ts">
+      {classId: string, className: string, value: string, percentage: string, assetCount: number, targetMin: string|null, targetMax: string|null, status: 'under'|'on-target'|'over'|'no-target'}
+    </interface>
+    <interface name="SubclassAllocation" kind="type" path="src/lib/services/portfolio-service.ts">
+      {subclassId: string, subclassName: string, value: string, percentageOfClass: string, percentageOfPortfolio: string, assetCount: number}
+    </interface>
+    <interface name="AllocationBreakdown" kind="type" path="src/lib/services/portfolio-service.ts">
+      {classes: ClassAllocation[], unclassified: {value: string, percentage: string, assetCount: number}, totalValueBase: string}
+    </interface>
+    <interface name="GET /api/portfolios/[id]/allocations" kind="REST" path="src/app/api/portfolios/[id]/allocations/route.ts">
+      Returns AllocationBreakdown with class allocations, subclass breakdowns, and statuses
+    </interface>
+    <interface name="AllocationGaugeProps" kind="component-props" path="src/components/fintech/allocation-gauge.tsx">
+      {className: string, currentPercent: string, targetMin?: string, targetMax?: string, status: 'under'|'on-target'|'over'|'no-target', onClick?: () => void}
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit tests with mocked database connections. Use Playwright for E2E tests.
+      Follow existing test patterns in tests/unit/services/portfolio-values.test.ts for service testing.
+      All tests should verify decimal.js precision is maintained (no floating point errors).
+      E2E tests should use real browser interactions for chart component testing.
+    </standards>
+    <locations>
+      <location>tests/unit/services/allocation-service.test.ts</location>
+      <location>tests/unit/calculations/allocation.test.ts</location>
+      <location>tests/e2e/portfolio.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-3.7.1">Verify pie chart renders correct number of segments matching class count</idea>
+      <idea ac="AC-3.7.2">Verify bar chart shows target range markers when targets defined</idea>
+      <idea ac="AC-3.7.3">Verify gauge position calculation: (current - min) / (max - min) * 100</idea>
+      <idea ac="AC-3.7.4">Verify percentages sum to 100% (within rounding tolerance 99.9-100.1)</idea>
+      <idea ac="AC-3.7.5">Verify status calculation: under (curr < min), on-target (min <= curr <= max), over (curr > max)</idea>
+      <idea ac="AC-3.7.5">Verify near-boundary detection: within 5% of min or max triggers amber</idea>
+      <idea ac="AC-3.7.6">Verify subclass percentages sum to parent class percentage</idea>
+      <idea ac="AC-3.7.7">Verify classes without targets show 'no-target' status with gray color</idea>
+      <idea ac="AC-3.7.7">Verify "Set allocation target" hint appears for classes without targets</idea>
+      <idea ac="all">Verify empty portfolio shows appropriate empty state (no charts)</idea>
+      <idea ac="all">Verify assets with no class assigned appear in "Unclassified" category</idea>
+      <idea ac="all">Verify decimal.js used throughout - no parseFloat for calculations</idea>
+    </ideas>
+  </tests>
+</story-context>

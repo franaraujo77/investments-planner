@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * AppSidebar Component
+ *
+ * Main navigation sidebar for the dashboard.
+ *
+ * Story 2.4: User Logout - Added LogoutButton to footer
+ */
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -24,6 +32,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 interface NavItem {
   label: string;
@@ -77,12 +86,28 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t">
-        <div className="flex items-center gap-2 p-2">
-          <div className="h-8 w-8 rounded-full bg-muted" aria-label="User avatar" />
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-medium">User</span>
-            <span className="text-xs text-muted-foreground">user@example.com</span>
+        <div className="flex items-center justify-between gap-2 p-2">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-muted" aria-label="User avatar" />
+            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+              <span className="text-sm font-medium">User</span>
+              <span className="text-xs text-muted-foreground">user@example.com</span>
+            </div>
           </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <LogoutButton
+                variant="sidebar"
+                showLabel={false}
+                className="group-data-[collapsible=icon]:hidden"
+              />
+              <LogoutButton
+                variant="sidebar"
+                showLabel={false}
+                className="hidden group-data-[collapsible=icon]:flex"
+              />
+            </SidebarMenuItem>
+          </SidebarMenu>
         </div>
       </SidebarFooter>
       <SidebarRail />
