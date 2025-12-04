@@ -127,12 +127,13 @@ function log(level: LogLevel, message: string, context?: LogContext): void {
   }
 
   // Production: structured JSON
+  // Build entry conditionally to satisfy exactOptionalPropertyTypes
   const logEntry: StructuredLog = {
     timestamp: new Date().toISOString(),
     level,
     message,
-    traceId,
-    spanId,
+    ...(traceId !== undefined && { traceId }),
+    ...(spanId !== undefined && { spanId }),
     ...context,
   };
 
