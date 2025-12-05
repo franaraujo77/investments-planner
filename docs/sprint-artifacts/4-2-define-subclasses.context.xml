@@ -1,0 +1,171 @@
+<story-context id="4-2-define-subclasses" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>2</storyId>
+    <title>Define Subclasses</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-2-define-subclasses.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>define subclasses within my asset classes (e.g., REITs, Stocks, ETFs within Variable Income)</iWant>
+    <soThat>I can organize my investments into granular categories for more precise allocation management</soThat>
+    <tasks>
+      <task id="1">Extend Zod Validation Schemas (AC: 4.2.2)</task>
+      <task id="2">Extend AssetClassService with Subclass Operations (AC: All)</task>
+      <task id="3">Create Subclass API Routes (AC: All)</task>
+      <task id="4">Extend React Query Hooks (AC: All)</task>
+      <task id="5">Create SubclassCard Component (AC: 4.2.1, 4.2.3, 4.2.4, 4.2.5)</task>
+      <task id="6">Create SubclassForm Component (AC: 4.2.2)</task>
+      <task id="7">Create SubclassList Component (AC: 4.2.1)</task>
+      <task id="8">Extend AssetClassCard with Subclasses (AC: 4.2.1)</task>
+      <task id="9">Create Unit Tests (AC: All)</task>
+      <task id="10">Create API Integration Tests (AC: All)</task>
+      <task id="11">Create E2E Tests (AC: All)</task>
+      <task id="12">Run Verification</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-4.2.1" name="View Subclasses Within Asset Class">
+      Given I am authenticated and have at least one asset class, when I view an asset class (expanded card or detail view), then I see a list of subclasses within that class (or empty state) and I see a call-to-action "Add Subclass" button.
+    </criterion>
+    <criterion id="AC-4.2.2" name="Create Subclass">
+      Given I have an asset class, when I click "Add Subclass", then I see a form with name field (required, max 50 chars), and when I save, the new subclass appears in the parent class list with a success toast "Subclass created".
+    </criterion>
+    <criterion id="AC-4.2.3" name="Edit Subclass Name">
+      Given I have a subclass in an asset class, when I click to edit and change the name, then the change is saved immediately with visual confirmation.
+    </criterion>
+    <criterion id="AC-4.2.4" name="Delete Subclass (No Assets)">
+      Given I have a subclass with no associated assets, when I click delete and confirm the dialog, then the subclass is removed with a success toast.
+    </criterion>
+    <criterion id="AC-4.2.5" name="Delete Subclass (With Assets Warning)">
+      Given I have a subclass with associated assets, when I attempt to delete it, then I see a warning with asset count and must explicitly confirm.
+    </criterion>
+    <criterion id="AC-4.2.6" name="Cascade Delete with Parent Class">
+      Given I delete an asset class that has subclasses, then all subclasses within that class are also deleted automatically via database cascade.
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-4.md" title="Epic 4 Technical Specification" section="Story 4.2: Define Subclasses">
+        AC-4.2.1 through AC-4.2.4 defined. Creates subclass within parent class, edit name, delete subclass, cascade on parent delete.
+      </doc>
+      <doc path="docs/sprint-artifacts/4-1-define-asset-classes.md" title="Story 4.1: Define Asset Classes" section="Dev Agent Record">
+        Completed implementation patterns: Strategy page at /strategy, Notion-style inline editing, 10 limit enforcement, service pattern with userId scoping.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Service Layer Pattern">
+        All services must use parameterized queries via Drizzle ORM, multi-tenant isolation via userId, Zod validation on all inputs.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Specification" section="Component Library">
+        CriteriaBlock (Notion-style) for configuration, nested blocks pattern, inline editing with click-to-edit/blur-to-save.
+      </doc>
+      <doc path="docs/prd.md" title="PRD" section="FR19">
+        FR19: Users can define subclasses within asset classes (e.g., REITs, Stocks, ETFs within Variable Income).
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="assetSubclasses" lines="278-295" reason="Target table definition already exists - add subclass CRUD operations against this schema">
+        export const assetSubclasses = pgTable('asset_subclasses', { id, classId (FK to assetClasses with cascade), name, targetMin, targetMax, maxAssets, minAllocationValue, sortOrder, timestamps });
+      </file>
+      <file path="src/lib/services/asset-class-service.ts" kind="service" symbol="AssetClassService" lines="1-290" reason="Extend this service with subclass operations following same patterns (getSubclassesForClass, createSubclass, updateSubclass, deleteSubclass, getAssetCountBySubclass)">
+        Service pattern: getAssetClassById for ownership verification, AssetClassLimitError/AssetClassNotFoundError for errors, MAX_ASSET_CLASSES_PER_USER constant.
+      </file>
+      <file path="src/lib/validations/asset-class-schemas.ts" kind="validation" symbol="createAssetClassSchema" lines="60-75" reason="Add createSubclassSchema and updateSubclassSchema following same patterns">
+        Pattern: z.object with name transform/trim/pipe, min/max length validation, TypeScript type exports.
+      </file>
+      <file path="src/hooks/use-asset-classes.ts" kind="hooks" symbol="useAssetClasses" lines="1-405" reason="Add useSubclasses, useCreateSubclass, useUpdateSubclass, useDeleteSubclass following same fetch/mutation patterns">
+        Pattern: useState for loading/error/data, useCallback for fetch/mutate functions, router.refresh() on success, toast for feedback.
+      </file>
+      <file path="src/app/api/asset-classes/route.ts" kind="api" symbol="GET/POST" lines="1-152" reason="Reference for API route patterns (withAuth, response types, error handling)">
+        Pattern: withAuth wrapper, NextResponse.json with typed responses, validation with safeParse, error codes.
+      </file>
+      <file path="src/app/api/asset-classes/[id]/route.ts" kind="api" symbol="GET/PATCH/DELETE" lines="1-247" reason="Reference for single resource routes, delete with warning pattern">
+        Pattern: Route params via context, ownership verification, delete warning with assetCount, force=true query param.
+      </file>
+      <file path="src/components/strategy/asset-class-card.tsx" kind="component" symbol="AssetClassCard" lines="1-213" reason="Extend with expandable subclass section, integrate SubclassList">
+        Pattern: useState for isEditing, useRef for input focus, inline edit with Enter/Escape keys, AlertDialog for delete confirmation.
+      </file>
+      <file path="tests/unit/services/asset-class-service.test.ts" kind="test" lines="1-100" reason="Extend with subclass service tests following same mock patterns">
+        Pattern: vi.mock for db and schema, mockAssetClassesResult for query results, test create/update/delete/limits.
+      </file>
+      <file path="tests/e2e/strategy.spec.ts" kind="test" lines="1-100" reason="Extend with subclass E2E tests following same auth/navigation patterns">
+        Pattern: loginUser helper, test.describe groups, page.goto/getByRole/waitForURL assertions.
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="next" version="16.0.5" />
+        <package name="react" version="19.2.0" />
+        <package name="drizzle-orm" version="^0.44.7" />
+        <package name="zod" version="^4.1.13" />
+        <package name="sonner" version="^2.0.7" />
+        <package name="lucide-react" version="^0.555.0" />
+        <package name="@radix-ui/react-alert-dialog" version="^1.1.15" />
+        <package name="vitest" version="^4.0.14" dev="true" />
+        <package name="@playwright/test" version="^1.57.0" dev="true" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="multi-tenant" source="architecture">All subclass operations MUST verify parent asset class ownership via userId. Two-level verification: first check class belongs to user, then allow subclass operations.</constraint>
+    <constraint type="limit" source="tech-spec">Maximum 10 subclasses per asset class (mirror asset class limit pattern).</constraint>
+    <constraint type="cascade" source="schema">Subclass deletes cascade when parent asset class is deleted (ON DELETE CASCADE on classId FK).</constraint>
+    <constraint type="validation" source="architecture">All API inputs validated with Zod schemas before processing.</constraint>
+    <constraint type="feedback" source="ux-spec">Use sonner toast for success/error notifications. Inline edit uses visual confirmation (not toast).</constraint>
+    <constraint type="testing" source="CLAUDE.md">Every code change requires test coverage - unit tests for service/API, E2E for user flows.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/asset-classes/[id]/subclasses" kind="REST endpoint">
+      Returns { data: AssetSubclass[] } for authenticated user's asset class. Requires classId path param.
+    </interface>
+    <interface name="POST /api/asset-classes/[id]/subclasses" kind="REST endpoint">
+      Creates subclass. Body: { name: string }. Returns { data: AssetSubclass } with 201 status.
+    </interface>
+    <interface name="GET /api/asset-subclasses/[id]" kind="REST endpoint">
+      Returns single subclass { data: AssetSubclass } with ownership verification.
+    </interface>
+    <interface name="PATCH /api/asset-subclasses/[id]" kind="REST endpoint">
+      Updates subclass. Body: { name?: string }. Returns { data: AssetSubclass }.
+    </interface>
+    <interface name="DELETE /api/asset-subclasses/[id]" kind="REST endpoint">
+      Deletes subclass. Returns { warning: true, assetCount: number } if has assets, { success: true } if deleted. Use ?force=true to force delete.
+    </interface>
+    <interface name="getSubclassById" kind="function" path="src/lib/services/asset-class-service.ts">
+      async (userId: string, subclassId: string): Promise&lt;AssetSubclass | null&gt; - Two-level ownership verification via parent class.
+    </interface>
+    <interface name="createSubclass" kind="function" path="src/lib/services/asset-class-service.ts">
+      async (userId: string, classId: string, input: CreateSubclassInput): Promise&lt;AssetSubclass&gt; - Throws SubclassLimitError if limit exceeded.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows project standards: Vitest for unit tests, Playwright for E2E. All tests must pass before PR merge. Unit tests mock database layer. E2E tests use test user credentials. Test coverage required for all new code per CLAUDE.md.
+    </standards>
+    <locations>
+      <location>tests/unit/services/asset-class-service.test.ts (extend existing)</location>
+      <location>tests/unit/validations/asset-class.test.ts (extend existing)</location>
+      <location>tests/unit/api/asset-subclasses.test.ts (new)</location>
+      <location>tests/e2e/strategy.spec.ts (extend existing)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-4.2.1">E2E: Expand asset class card, verify subclass list renders or empty state shown</idea>
+      <idea ac="AC-4.2.2">Unit: createSubclass returns new subclass with sortOrder. E2E: Fill form, submit, verify appears in list.</idea>
+      <idea ac="AC-4.2.3">Unit: updateSubclass modifies name. E2E: Click edit, change name, blur, verify saved.</idea>
+      <idea ac="AC-4.2.4">Unit: deleteSubclass removes when no assets. E2E: Click delete, confirm dialog, verify removed.</idea>
+      <idea ac="AC-4.2.5">Unit: getAssetCountBySubclass returns count. API: DELETE returns warning object. E2E: Attempt delete, see warning with asset count.</idea>
+      <idea ac="AC-4.2.6">Unit: Parent class delete cascades (verify via DB FK). Integration: Delete class, verify subclasses gone.</idea>
+      <idea ac="isolation">Unit: getSubclassById returns null for other user's subclass. API: Returns 404 for unauthorized access.</idea>
+      <idea ac="limit">Unit: createSubclass throws SubclassLimitError at 10. API: Returns 409 Conflict.</idea>
+    </ideas>
+  </tests>
+</story-context>

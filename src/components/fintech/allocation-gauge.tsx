@@ -4,8 +4,10 @@
  * AllocationGauge Component
  *
  * Story 3.7: Allocation Percentage View
+ * Story 4.3: Set Allocation Ranges for Classes
  * AC-3.7.3: Gauge for each asset class showing current position within target range
  * AC-3.7.5: Status color coding (green/amber/red/gray)
+ * AC-4.3.4: Visual AllocationGauge display with color coding
  *
  * Features:
  * - Horizontal gauge/progress bar

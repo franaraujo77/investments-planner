@@ -1,0 +1,166 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4</storyId>
+    <title>Set Allocation Ranges for Subclasses</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-4-set-allocation-ranges-for-subclasses.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>set allocation percentage ranges (minimum and maximum targets) for each subclass</iWant>
+    <soThat>I can fine-tune my investment distribution within asset classes and the system can provide more granular recommendations</soThat>
+    <tasks>
+      <task id="1" ac="4.4.1,4.4.4">Extend Zod Validation Schemas for Subclass Allocation - extend updateAssetSubclassSchema with targetMin/targetMax validation, min<=max refinement</task>
+      <task id="2" ac="ALL">Extend AssetClassService with Subclass Allocation Operations - updateSubclassAllocationRange, validateSubclassAllocationRanges</task>
+      <task id="3" ac="4.4.1,4.4.4">Extend API Route for Subclass Allocation Update - PATCH /api/asset-subclasses/[id] with targetMin/targetMax</task>
+      <task id="4" ac="4.4.2,4.4.3">Create Subclass Validation API Endpoint - GET /api/asset-classes/[id]/validate-subclasses</task>
+      <task id="5" ac="ALL">Extend React Query Hooks for Subclass Allocation - useUpdateSubclassAllocation, useSubclassValidation</task>
+      <task id="6" ac="4.4.1,4.4.5">Extend SubclassCard with AllocationRangeEditor - reuse component, show "Flexible" indicator</task>
+      <task id="7" ac="4.4.2,4.4.3">Create SubclassAllocationWarning Component - warning when subclass allocations exceed parent</task>
+      <task id="8" ac="4.4.2,4.4.3">Update AssetClassCard to Show Subclass Warnings - fetch validation, display warning component</task>
+      <task id="9" ac="ALL">Create Unit Tests for Subclass Allocation - service and validation tests</task>
+      <task id="10" ac="ALL">Create API Integration Tests</task>
+      <task id="11" ac="ALL">Create E2E Tests</task>
+      <task id="12" ac="ALL">Run Verification - lint, build, test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-4.4.1" title="View and Set Subclass Allocation Ranges">
+      Given I have subclasses defined within an asset class, When I view a subclass row/card, Then I see allocation range inputs for min and max percentages, And I can set target values, And values are saved automatically on blur, And I see visual confirmation (checkmark/toast)
+    </criterion>
+    <criterion id="AC-4.4.2" title="Validation - Subclass Ranges Must Fit Within Parent Class">
+      Given parent class has allocation ranges defined (e.g., targetMax=50%), When I set subclass ranges that exceed parent max (e.g., subclass max=60%), Then I see warning "Subclass range exceeds parent class maximum (50%)", And this is a WARNING (not blocking) - can still save
+    </criterion>
+    <criterion id="AC-4.4.3" title="Warning - Sum of Subclass Minimums Exceeds Parent Maximum">
+      Given multiple subclasses within an asset class, When sum of subclass minimums exceeds parent targetMax, Then I see warning "Sum of subclass minimums (55%) exceeds parent maximum (50%)", And this is a WARNING (not blocking)
+    </criterion>
+    <criterion id="AC-4.4.4" title="Validation - Min Cannot Exceed Max">
+      Given I am editing allocation ranges for a subclass, When I try to set min > max, Then I see validation error "Minimum cannot exceed maximum", And the invalid configuration is NOT saved (blocking error)
+    </criterion>
+    <criterion id="AC-4.4.5" title="Flexible Subclasses (Optional Ranges)">
+      Given I have subclasses defined, When I leave allocation ranges empty (null), Then subclass is treated as "flexible", And no allocation constraints applied, And UI shows "Flexible" indicator
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Decimal-Calculation-Pattern, Security-Architecture">
+        decimal.js for all percentage calculations; multi-tenant isolation via userId; Drizzle ORM parameterized queries; Zod validation for all API inputs
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-4.md" title="Tech Spec Epic 4" section="Story 4.4, Data Models">
+        Defines subclass allocation schema, API contracts, validation rules, and parent-child constraint logic
+      </doc>
+      <doc path="docs/sprint-artifacts/4-3-set-allocation-ranges-for-classes.md" title="Previous Story 4.3" section="Dev Agent Record">
+        AllocationRangeEditor component created and working; validation pattern established; 884 tests passing baseline
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Specification" section="Component-Library">
+        Inline editing pattern; warning banners; auto-save on blur; toast feedback
+      </doc>
+      <doc path="CLAUDE.md" title="Project Standards" section="Test-Requirements-for-All-Code-Changes">
+        Every code change requires test coverage; unit tests for services/API; E2E for critical flows
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/validations/asset-class-schemas.ts" kind="validation" symbol="updateSubclassSchema, percentageSchema" lines="196-227" reason="EXTEND: Add targetMin/targetMax fields with min<=max refinement (same pattern as updateAssetClassSchema)"/>
+      <file path="src/lib/services/asset-class-service.ts" kind="service" symbol="updateSubclass, getSubclassById, getSubclassesForClass" lines="500-532, 408-428, 382-397" reason="EXTEND: Add updateSubclassAllocationRange, validateSubclassAllocationRanges functions"/>
+      <file path="src/app/api/asset-subclasses/[id]/route.ts" kind="api-route" symbol="PATCH" lines="120-165" reason="EXTEND: Accept targetMin/targetMax in PATCH body"/>
+      <file path="src/hooks/use-asset-classes.ts" kind="hooks" symbol="useUpdateSubclass, useAllocationValidation" lines="602-659, 836-876" reason="EXTEND: Add useUpdateSubclassAllocation, useSubclassValidation hooks"/>
+      <file path="src/components/strategy/allocation-range-editor.tsx" kind="component" symbol="AllocationRangeEditor" lines="1-236" reason="REUSE: Apply same component for subclass allocation ranges"/>
+      <file path="src/components/strategy/subclass-card.tsx" kind="component" symbol="SubclassCard" lines="1-206" reason="EXTEND: Add AllocationRangeEditor, show Flexible indicator"/>
+      <file path="src/components/strategy/allocation-warning-banner.tsx" kind="component" symbol="AllocationWarningBanner" lines="*" reason="REFERENCE: Pattern for SubclassAllocationWarning component"/>
+      <file path="src/components/strategy/asset-class-card.tsx" kind="component" symbol="AssetClassCard" lines="*" reason="EXTEND: Display SubclassAllocationWarning when expanded"/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="assetSubclasses" lines="278-295" reason="REFERENCE: Schema already has targetMin, targetMax columns"/>
+      <file path="tests/unit/services/asset-class-service.test.ts" kind="test" symbol="describe" lines="*" reason="EXTEND: Add subclass allocation service tests"/>
+      <file path="tests/unit/validations/asset-class.test.ts" kind="test" symbol="describe" lines="*" reason="EXTEND: Add subclass allocation validation tests"/>
+      <file path="tests/e2e/strategy.spec.ts" kind="e2e-test" symbol="test" lines="*" reason="EXTEND: Add subclass allocation E2E tests"/>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="decimal.js" version="^10.6.0" reason="Percentage calculations with precision"/>
+        <package name="zod" version="^4.1.13" reason="Input validation schemas"/>
+        <package name="sonner" version="^2.0.7" reason="Toast notifications"/>
+        <package name="lucide-react" version="^0.555.0" reason="Icons (Check, Loader2, AlertCircle, AlertTriangle)"/>
+        <package name="drizzle-orm" version="^0.44.7" reason="Database operations"/>
+        <package name="vitest" version="^4.0.14" devDependency="true" reason="Unit testing"/>
+        <package name="@playwright/test" version="^1.57.0" devDependency="true" reason="E2E testing"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture.md" type="calculation">All percentage calculations MUST use decimal.js for financial precision - never use native JS floating point</constraint>
+    <constraint source="architecture.md" type="security">Multi-tenant isolation: Subclass ownership verified via parent class userId (two-level verification)</constraint>
+    <constraint source="architecture.md" type="database">Drizzle ORM only - use parameterized queries, no raw SQL</constraint>
+    <constraint source="architecture.md" type="validation">All API inputs must be validated with Zod schemas before processing</constraint>
+    <constraint source="tech-spec" type="business">Parent-child validation: warnings (not blocking) for subclass constraints exceeding parent</constraint>
+    <constraint source="tech-spec" type="business">Only min > max validation is blocking; other validations are warnings</constraint>
+    <constraint source="CLAUDE.md" type="testing">Every code change requires test coverage - unit tests for services, E2E for critical flows</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="UpdateSubclassInput (extended)" kind="TypeScript interface" path="src/lib/validations/asset-class-schemas.ts">
+      {
+        name?: string;
+        targetMin?: string | null;  // "0.00" to "100.00" or null
+        targetMax?: string | null;  // "0.00" to "100.00" or null
+      }
+    </interface>
+    <interface name="SubclassValidationResult" kind="TypeScript interface" path="src/lib/services/asset-class-service.ts">
+      {
+        valid: boolean;
+        errors: string[];      // Blocking errors (e.g., min > max)
+        warnings: SubclassValidationWarning[];  // Non-blocking warnings
+      }
+    </interface>
+    <interface name="SubclassValidationWarning" kind="TypeScript interface" path="src/lib/services/asset-class-service.ts">
+      {
+        type: "SUBCLASS_EXCEEDS_PARENT_MAX" | "SUBCLASS_SUM_EXCEEDS_PARENT_MAX";
+        message: string;
+        subclassId?: string;
+        subclassName?: string;
+        totalMinimums?: string;
+        parentMax?: string;
+      }
+    </interface>
+    <interface name="PATCH /api/asset-subclasses/[id]" kind="REST endpoint" path="src/app/api/asset-subclasses/[id]/route.ts">
+      Request: { name?: string, targetMin?: string | null, targetMax?: string | null }
+      Response: { data: AssetSubclass } or { error: string, code: string }
+    </interface>
+    <interface name="GET /api/asset-classes/[id]/validate-subclasses" kind="REST endpoint" path="src/app/api/asset-classes/[id]/validate-subclasses/route.ts">
+      Response: { valid: boolean, warnings: SubclassValidationWarning[] }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Vitest for unit/integration tests, Playwright for E2E. Tests live in tests/ directory mirroring src/ structure. Mock external dependencies (db, fetch). Use describe/it blocks with clear test names. Every service function needs success, error, and edge case tests. API routes need request/response validation tests. E2E tests cover critical user flows with real browser interactions.
+    </standards>
+    <locations>
+      <location>tests/unit/services/asset-class-service.test.ts</location>
+      <location>tests/unit/validations/asset-class.test.ts</location>
+      <location>tests/unit/api/asset-subclasses.test.ts</location>
+      <location>tests/e2e/strategy.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="4.4.1">Test updateSubclassAllocationRange saves valid range (20.00, 30.00)</idea>
+      <idea ac="4.4.1">Test auto-save on blur triggers API call</idea>
+      <idea ac="4.4.2">Test validateSubclassAllocationRanges returns warning when subclass max > parent max</idea>
+      <idea ac="4.4.3">Test warning when sum of subclass minimums exceeds parent maximum</idea>
+      <idea ac="4.4.4">Test validation error blocks save when min > max</idea>
+      <idea ac="4.4.4">Test API returns 400 for invalid range (min > max)</idea>
+      <idea ac="4.4.5">Test null targetMin/targetMax creates "flexible" subclass</idea>
+      <idea ac="4.4.5">Test UI shows "Flexible" indicator when ranges are null</idea>
+      <idea ac="ALL">Test multi-tenant isolation - subclass belonging to other user returns 404</idea>
+      <idea ac="ALL">E2E: Navigate to Strategy, expand class, set subclass allocation, verify saved</idea>
+      <idea ac="ALL">E2E: Set invalid range (min > max), verify error shown</idea>
+      <idea ac="ALL">E2E: Set subclass max > parent max, verify warning shown</idea>
+    </ideas>
+  </tests>
+</story-context>

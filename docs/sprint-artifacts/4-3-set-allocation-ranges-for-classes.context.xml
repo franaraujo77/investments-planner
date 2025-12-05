@@ -1,0 +1,173 @@
+<story-context id="4-3-set-allocation-ranges-for-classes" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>3</storyId>
+    <title>Set Allocation Ranges for Classes</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-3-set-allocation-ranges-for-classes.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>set allocation percentage ranges (minimum and maximum targets) for each asset class</iWant>
+    <soThat>the system knows my target portfolio balance and can provide recommendations that respect my investment strategy</soThat>
+    <tasks>
+      <task id="1" ac="4.3.1,4.3.2">Extend Zod Validation Schemas - add targetMin/targetMax validation with min<=max refinement</task>
+      <task id="2" ac="All">Extend AssetClassService with Allocation Operations - updateAllocationRange, validateAllocationRanges, getAllocationSummary</task>
+      <task id="3" ac="4.3.1,4.3.2">Extend API Route for Allocation Update - PATCH /api/asset-classes/[id] with targetMin/targetMax</task>
+      <task id="4" ac="4.3.3">Create Validation API Endpoint - GET /api/asset-classes/validate for sum>100% warning</task>
+      <task id="5" ac="All">Extend React Query Hooks - useUpdateAllocationRange, useAllocationValidation, useAllocationSummary</task>
+      <task id="6" ac="4.3.1,4.3.2">Create AllocationRangeEditor Component - dual input/slider for min/max percentages</task>
+      <task id="7" ac="4.3.4">Create AllocationGauge Component - visual bar showing current vs target range with color coding</task>
+      <task id="8" ac="4.3.3">Create AllocationWarningBanner Component - warning when sum of minimums >100%</task>
+      <task id="9" ac="All">Extend AssetClassCard with Allocation UI - add AllocationRangeEditor and AllocationGauge</task>
+      <task id="10" ac="4.3.3">Update Strategy Page with Warning Banner - add AllocationWarningBanner at top</task>
+      <task id="11" ac="All">Create Unit Tests - service, validation, allocation calculation tests</task>
+      <task id="12" ac="All">Create API Integration Tests - PATCH and GET validation endpoint tests</task>
+      <task id="13" ac="All">Create E2E Tests - strategy page allocation workflow tests</task>
+      <task id="14" ac="All">Run Verification - pnpm lint, build, test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-4.3.1" title="View and Set Allocation Ranges">
+      <given>I have asset classes defined</given>
+      <when>I view an asset class card</when>
+      <then>I see allocation range inputs/sliders for min and max percentages</then>
+      <and>I can set target min and max allocation percentages for the class</and>
+      <and>the values are saved automatically (or on explicit save action)</and>
+      <and>I see a visual confirmation of the save (checkmark or toast)</and>
+    </criterion>
+    <criterion id="AC-4.3.2" title="Validation - Min Cannot Exceed Max">
+      <given>I am editing allocation ranges for an asset class</given>
+      <when>I try to set min > max (e.g., min=60%, max=40%)</when>
+      <then>I see a validation error "Minimum cannot exceed maximum"</then>
+      <and>the invalid configuration is not saved</and>
+    </criterion>
+    <criterion id="AC-4.3.3" title="Warning - Sum of Minimums Exceeds 100%">
+      <given>I have multiple asset classes with allocation ranges set</given>
+      <when>the sum of all class minimums exceeds 100%</when>
+      <then>I see a warning banner/indicator "Total minimums exceed 100%"</then>
+      <and>this is a warning (not blocking) - the configuration can still be saved</and>
+      <and>the warning explains this configuration may be impossible to satisfy</and>
+    </criterion>
+    <criterion id="AC-4.3.4" title="Visual AllocationGauge Display">
+      <given>I have an asset class with allocation ranges set</given>
+      <and>I have a portfolio with assets assigned to classes</and>
+      <when>I view my asset classes</when>
+      <then>I see an AllocationGauge showing current allocation, target range, and visual indication</then>
+      <and>the gauge uses color coding: green (on target), amber (near range), red (out of range)</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-4.md" title="Tech Spec Epic 4" section="Story 4.3" snippet="Defines allocation range requirements, validation rules (min<=max, sum>100% warning), and AllocationGauge component specifications." />
+      <doc path="docs/architecture.md" title="Architecture Document" section="Decimal Calculation Pattern" snippet="All percentage calculations MUST use decimal.js for precision. Multi-tenant isolation via userId filter." />
+      <doc path="docs/epics.md" title="Epics Document" section="Epic 4 - Story 4.3" snippet="Story requirements for setting allocation percentage ranges with validation and visual gauge display." />
+      <doc path="docs/sprint-artifacts/4-2-define-subclasses.md" title="Story 4.2 Define Subclasses" section="Code Review" snippet="Previous story patterns: inline editing, expandable cards, two-level ownership verification, 854 tests baseline." />
+      <doc path="CLAUDE.md" title="Development Standards" section="Test Requirements" snippet="Every code change requires test coverage. Unit tests for services, integration tests for APIs, E2E for user flows." />
+    </docs>
+    <code>
+      <file path="src/lib/services/asset-class-service.ts" kind="service" symbol="updateClass, getAssetClassById, getClassesForUser" lines="232-268" reason="Extend with updateAllocationRange, validateAllocationRanges, getAllocationSummary functions" />
+      <file path="src/lib/validations/asset-class-schemas.ts" kind="validation" symbol="updateAssetClassSchema, createAssetClassSchema" lines="104-120" reason="Extend with targetMin/targetMax validation and min<=max refinement" />
+      <file path="src/hooks/use-asset-classes.ts" kind="hooks" symbol="useUpdateAssetClass, useAssetClasses" lines="247-304" reason="Extend with useUpdateAllocationRange, useAllocationValidation, useAllocationSummary hooks" />
+      <file path="src/app/api/asset-classes/[id]/route.ts" kind="api" symbol="PATCH handler" lines="121-166" reason="Extend to accept targetMin/targetMax in request body" />
+      <file path="src/components/strategy/asset-class-card.tsx" kind="component" symbol="AssetClassCard" lines="42-242" reason="Extend with AllocationRangeEditor and AllocationGauge components" />
+      <file path="src/app/(dashboard)/strategy/page.tsx" kind="page" symbol="StrategyPage" reason="Add AllocationWarningBanner at top of page" />
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="assetClasses" reason="Table already has targetMin and targetMax columns defined" />
+      <file path="src/components/ui/progress.tsx" kind="ui-component" symbol="Progress" reason="Base shadcn/ui component for AllocationGauge implementation" />
+      <file path="tests/unit/services/asset-class-service.test.ts" kind="test" symbol="AssetClassService tests" reason="Extend with allocation range operation tests" />
+      <file path="tests/unit/validations/asset-class.test.ts" kind="test" symbol="Validation tests" reason="Extend with targetMin/targetMax validation tests" />
+      <file path="tests/e2e/strategy.spec.ts" kind="e2e-test" symbol="Strategy E2E tests" reason="Extend with allocation range UI tests" />
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.5" />
+        <package name="react" version="19.2.0" />
+        <package name="drizzle-orm" version="^0.44.7" />
+        <package name="zod" version="^4.1.13" />
+        <package name="decimal.js" version="^10.6.0" />
+        <package name="sonner" version="^2.0.7" />
+        <package name="lucide-react" version="^0.555.0" />
+        <package name="@radix-ui/react-progress" version="^1.1.8" />
+        <package name="@radix-ui/react-alert-dialog" version="^1.1.15" />
+        <package name="vitest" version="^4.0.14" />
+        <package name="@playwright/test" version="^1.57.0" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture" type="calculation">All percentage calculations MUST use decimal.js for precision</constraint>
+    <constraint source="architecture" type="security">Multi-tenant isolation: All queries MUST include userId filter via getAssetClassById ownership check</constraint>
+    <constraint source="architecture" type="orm">Use Drizzle ORM with parameterized queries (no raw SQL)</constraint>
+    <constraint source="architecture" type="validation">All API inputs must be validated with Zod schemas</constraint>
+    <constraint source="architecture" type="feedback">Use sonner toast for success/error notifications</constraint>
+    <constraint source="ux-design" type="component">AllocationGauge is a custom fintech component with color coding (green/amber/red)</constraint>
+    <constraint source="ux-design" type="pattern">Inline editing with auto-save on blur for allocation range inputs</constraint>
+    <constraint source="ux-design" type="pattern">Warning banners are non-blocking and dismissible per session</constraint>
+    <constraint source="story-4.2" type="pattern">Two-level multi-tenant isolation pattern from subclass operations applies here</constraint>
+    <constraint source="story-4.2" type="baseline">Test count baseline: 854 tests - maintain or increase</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="UpdateAllocationRangeInput" kind="type">
+      <signature>{ targetMin?: string | null; targetMax?: string | null; }</signature>
+      <path>src/lib/services/asset-class-service.ts</path>
+    </interface>
+    <interface name="AllocationValidationResult" kind="type">
+      <signature>{ valid: boolean; errors: string[]; warnings: string[]; }</signature>
+      <path>src/lib/services/asset-class-service.ts</path>
+    </interface>
+    <interface name="PATCH /api/asset-classes/[id]" kind="REST endpoint">
+      <signature>PATCH body: { name?, icon?, targetMin?, targetMax?, sortOrder? } -> { data: AssetClass }</signature>
+      <path>src/app/api/asset-classes/[id]/route.ts</path>
+    </interface>
+    <interface name="GET /api/asset-classes/validate" kind="REST endpoint">
+      <signature>GET -> { valid: boolean, warnings: [{ type, message, totalMinimums, affectedClasses }] }</signature>
+      <path>src/app/api/asset-classes/validate/route.ts (new)</path>
+    </interface>
+    <interface name="AllocationGaugeProps" kind="component props">
+      <signature>{ currentValue: string | null; targetMin: string | null; targetMax: string | null; showLabels?: boolean; size?: 'sm' | 'md' | 'lg'; }</signature>
+      <path>src/components/fintech/allocation-gauge.tsx (new)</path>
+    </interface>
+    <interface name="updateAssetClassSchema" kind="Zod schema">
+      <signature>z.object({ name?, icon?, targetMin?, targetMax?, sortOrder? }).refine(min <= max)</signature>
+      <path>src/lib/validations/asset-class-schemas.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use Vitest with mocked dependencies (db, external services). Integration tests verify API route behavior with mocked authentication. E2E tests use Playwright for browser-based user flow validation. All tests must pass before merge. Test coverage for services and API routes is mandatory per CLAUDE.md.
+    </standards>
+    <locations>
+      <location>tests/unit/services/*.test.ts</location>
+      <location>tests/unit/validations/*.test.ts</location>
+      <location>tests/unit/calculations/*.test.ts</location>
+      <location>tests/unit/api/*.test.ts</location>
+      <location>tests/e2e/*.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-4.3.1">Test updateAllocationRange service - valid range update succeeds</idea>
+      <idea ac="AC-4.3.1">Test updateAllocationRange service - class not found returns error</idea>
+      <idea ac="AC-4.3.1">Test updateAllocationRange service - multi-tenant isolation (other user's class rejected)</idea>
+      <idea ac="AC-4.3.2">Test Zod schema - valid range (40.00, 50.00) passes</idea>
+      <idea ac="AC-4.3.2">Test Zod schema - invalid range (60.00, 40.00) fails with "Minimum cannot exceed maximum"</idea>
+      <idea ac="AC-4.3.2">Test Zod schema - boundary values (0.00, 100.00) pass</idea>
+      <idea ac="AC-4.3.2">Test Zod schema - null values (optional fields) pass</idea>
+      <idea ac="AC-4.3.3">Test validateAllocationRanges - sum <= 100% returns valid=true</idea>
+      <idea ac="AC-4.3.3">Test validateAllocationRanges - sum > 100% returns warning with affected classes</idea>
+      <idea ac="AC-4.3.4">Test allocation percentage calculation - correct current % from portfolio data</idea>
+      <idea ac="AC-4.3.4">Test allocation status - below/within/above range calculation</idea>
+      <idea ac="AC-4.3.1">E2E: Navigate to Strategy, view asset class allocation inputs</idea>
+      <idea ac="AC-4.3.1">E2E: Set valid allocation range (40-50%), verify saved</idea>
+      <idea ac="AC-4.3.2">E2E: Attempt invalid range (min > max), see validation error</idea>
+      <idea ac="AC-4.3.3">E2E: Set multiple ranges triggering sum > 100%, see warning banner</idea>
+      <idea ac="AC-4.3.4">E2E: View AllocationGauge with color coding (green when within range)</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -211,8 +211,10 @@ export const portfolioAssets = pgTable(
     quantity: numeric("quantity", { precision: 19, scale: 8 }).notNull(),
     purchasePrice: numeric("purchase_price", { precision: 19, scale: 4 }).notNull(),
     currency: varchar("currency", { length: 3 }).notNull(),
-    assetClassId: uuid("asset_class_id"), // Optional, Epic 4 dependency
-    subclassId: uuid("subclass_id"), // Optional, Epic 4 dependency
+    assetClassId: uuid("asset_class_id").references(() => assetClasses.id, {
+      onDelete: "set null",
+    }), // Optional, Epic 4
+    subclassId: uuid("subclass_id").references(() => assetSubclasses.id, { onDelete: "set null" }), // Optional, Epic 4
     isIgnored: boolean("is_ignored").default(false),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -221,6 +223,77 @@ export const portfolioAssets = pgTable(
     unique("portfolio_assets_portfolio_symbol_uniq").on(table.portfolioId, table.symbol),
     index("portfolio_assets_portfolio_id_idx").on(table.portfolioId),
   ]
+);
+
+// =============================================================================
+// ASSET CLASSES TABLE (Epic 4)
+// =============================================================================
+
+/**
+ * Asset classes table - user-defined asset classification categories
+ *
+ * Story 4.1: Define Asset Classes
+ * AC-4.1.1: View list of asset classes
+ * AC-4.1.2: Create asset class with name (1-50 chars) and optional icon
+ * AC-4.1.3: Edit asset class name
+ * AC-4.1.4: Delete asset class (when no assets)
+ * AC-4.1.5: Delete asset class with warning (when has assets)
+ *
+ * Tech spec: Maximum 10 asset classes per user
+ * Multi-tenant isolation via user_id
+ */
+export const assetClasses = pgTable(
+  "asset_classes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 50 }).notNull(),
+    icon: varchar("icon", { length: 10 }), // Optional emoji icon
+    targetMin: numeric("target_min", { precision: 5, scale: 2 }), // e.g., 40.00%
+    targetMax: numeric("target_max", { precision: 5, scale: 2 }), // e.g., 50.00%
+    maxAssets: numeric("max_assets", { precision: 10, scale: 0 }), // null = no limit
+    minAllocationValue: numeric("min_allocation_value", { precision: 19, scale: 4 }), // in base currency
+    sortOrder: numeric("sort_order", { precision: 10, scale: 0 }).notNull().default("0"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [index("asset_classes_user_id_idx").on(table.userId)]
+);
+
+// =============================================================================
+// ASSET SUBCLASSES TABLE (Epic 4)
+// =============================================================================
+
+/**
+ * Asset subclasses table - subdivisions within asset classes
+ *
+ * Story 4.2: Define Subclasses
+ * AC-4.2.1: Create subclass within a class
+ * AC-4.2.2: Edit subclass name
+ * AC-4.2.3: Delete subclass
+ * AC-4.2.4: Cascade delete when parent class deleted
+ *
+ * Note: Created in Story 4.1 to establish foreign key relationships
+ */
+export const assetSubclasses = pgTable(
+  "asset_subclasses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => assetClasses.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 50 }).notNull(),
+    targetMin: numeric("target_min", { precision: 5, scale: 2 }),
+    targetMax: numeric("target_max", { precision: 5, scale: 2 }),
+    maxAssets: numeric("max_assets", { precision: 10, scale: 0 }),
+    minAllocationValue: numeric("min_allocation_value", { precision: 19, scale: 4 }),
+    sortOrder: numeric("sort_order", { precision: 10, scale: 0 }).notNull().default("0"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [index("asset_subclasses_class_id_idx").on(table.classId)]
 );
 
 // =============================================================================
@@ -276,6 +349,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   passwordResetTokens: many(passwordResetTokens),
   portfolios: many(portfolios),
   investments: many(investments),
+  assetClasses: many(assetClasses),
 }));
 
 export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
@@ -338,6 +412,21 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
   }),
 }));
 
+export const assetClassesRelations = relations(assetClasses, ({ one, many }) => ({
+  user: one(users, {
+    fields: [assetClasses.userId],
+    references: [users.id],
+  }),
+  subclasses: many(assetSubclasses),
+}));
+
+export const assetSubclassesRelations = relations(assetSubclasses, ({ one }) => ({
+  assetClass: one(assetClasses, {
+    fields: [assetSubclasses.classId],
+    references: [assetClasses.id],
+  }),
+}));
+
 // =============================================================================
 // TYPE EXPORTS
 // =============================================================================
@@ -365,3 +454,9 @@ export type NewPortfolioAsset = typeof portfolioAssets.$inferInsert;
 
 export type Investment = typeof investments.$inferSelect;
 export type NewInvestment = typeof investments.$inferInsert;
+
+export type AssetClass = typeof assetClasses.$inferSelect;
+export type NewAssetClass = typeof assetClasses.$inferInsert;
+
+export type AssetSubclass = typeof assetSubclasses.$inferSelect;
+export type NewAssetSubclass = typeof assetSubclasses.$inferInsert;
