@@ -1004,48 +1004,57 @@ function isOverLimitCheck(currentCount: number, maxAssets: number | null): boole
  *
  * Multi-tenant isolation: Only returns status for classes belonging to userId
  *
+ * Performance: Uses Promise.all for parallel query execution
+ * - Class-level queries run in parallel
+ * - Subclass-level queries within each class run in parallel
+ * - Reduces from ~121 sequential queries to ~3 parallel batches (worst case)
+ *
  * @param userId - User ID to get asset count status for
  * @returns Array of asset count status for all user's classes
  */
 export async function getAssetCountStatus(userId: string): Promise<AssetCountStatus[]> {
   const classes = await getClassesForUser(userId);
-  const statusList: AssetCountStatus[] = [];
 
-  for (const assetClass of classes) {
-    // Get class asset count
-    const classAssetCount = await calculateAssetCountForClass(userId, assetClass.id);
-    const classMaxAssets = assetClass.maxAssets ? parseInt(assetClass.maxAssets, 10) : null;
+  // Process all classes in parallel
+  const statusList = await Promise.all(
+    classes.map(async (assetClass) => {
+      // Run class asset count and subclass fetch in parallel
+      const [classAssetCount, subclassesList] = await Promise.all([
+        calculateAssetCountForClass(userId, assetClass.id),
+        db.query.assetSubclasses.findMany({
+          where: eq(assetSubclasses.classId, assetClass.id),
+          orderBy: (subclasses, { asc }) => [asc(subclasses.sortOrder)],
+        }),
+      ]);
 
-    // Get subclasses and their counts
-    const subclassesList = await db.query.assetSubclasses.findMany({
-      where: eq(assetSubclasses.classId, assetClass.id),
-      orderBy: (assetSubclasses, { asc }) => [asc(assetSubclasses.sortOrder)],
-    });
+      const classMaxAssets = assetClass.maxAssets ? parseInt(assetClass.maxAssets, 10) : null;
 
-    const subclassStatusList: SubclassAssetCountStatus[] = [];
+      // Process all subclasses in parallel
+      const subclassStatusList = await Promise.all(
+        subclassesList.map(async (subclass) => {
+          const subclassAssetCount = await calculateAssetCountForSubclass(userId, subclass.id);
+          const subclassMaxAssets = subclass.maxAssets ? parseInt(subclass.maxAssets, 10) : null;
 
-    for (const subclass of subclassesList) {
-      const subclassAssetCount = await calculateAssetCountForSubclass(userId, subclass.id);
-      const subclassMaxAssets = subclass.maxAssets ? parseInt(subclass.maxAssets, 10) : null;
+          return {
+            subclassId: subclass.id,
+            subclassName: subclass.name,
+            currentCount: subclassAssetCount,
+            maxAssets: subclassMaxAssets,
+            isOverLimit: isOverLimitCheck(subclassAssetCount, subclassMaxAssets),
+          };
+        })
+      );
 
-      subclassStatusList.push({
-        subclassId: subclass.id,
-        subclassName: subclass.name,
-        currentCount: subclassAssetCount,
-        maxAssets: subclassMaxAssets,
-        isOverLimit: isOverLimitCheck(subclassAssetCount, subclassMaxAssets),
-      });
-    }
-
-    statusList.push({
-      classId: assetClass.id,
-      className: assetClass.name,
-      currentCount: classAssetCount,
-      maxAssets: classMaxAssets,
-      isOverLimit: isOverLimitCheck(classAssetCount, classMaxAssets),
-      subclasses: subclassStatusList,
-    });
-  }
+      return {
+        classId: assetClass.id,
+        className: assetClass.name,
+        currentCount: classAssetCount,
+        maxAssets: classMaxAssets,
+        isOverLimit: isOverLimitCheck(classAssetCount, classMaxAssets),
+        subclasses: subclassStatusList,
+      };
+    })
+  );
 
   return statusList;
 }

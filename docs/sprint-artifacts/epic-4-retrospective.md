@@ -154,10 +154,10 @@ Epic 4 delivered the foundational asset classification and allocation configurat
 
 ### HIGH (During Epic 5)
 
-| #   | Action Item                                        | Owner | Success Criteria                              |
-| --- | -------------------------------------------------- | ----- | --------------------------------------------- |
-| 4   | **Optimize getAssetCountStatus()** - batch queries | Dev   | Single query or Promise.all, <100ms response  |
-| 5   | **Add API route unit tests** for asset-classes     | Dev   | `tests/unit/api/asset-classes.test.ts` exists |
+| #   | Action Item                                        | Owner | Success Criteria                              | Status       |
+| --- | -------------------------------------------------- | ----- | --------------------------------------------- | ------------ |
+| 4   | **Optimize getAssetCountStatus()** - batch queries | Dev   | Single query or Promise.all, <100ms response  | ✅ COMPLETED |
+| 5   | **Add API route unit tests** for asset-classes     | Dev   | `tests/unit/api/asset-classes.test.ts` exists | ✅ COMPLETED |
 
 ### TECHNICAL DEBT (Track for Future)
 
@@ -248,8 +248,13 @@ Epic 4 delivered the foundational asset classification and allocation configurat
 
 ## Change Log
 
-| Date       | Author              | Change                                              |
-| ---------- | ------------------- | --------------------------------------------------- |
-| 2025-12-05 | SM Agent (Bob)      | Retrospective document created                      |
-| 2025-12-05 | Bmad (Project Lead) | Identified console.log, performance, and CVE issues |
-| 2025-12-05 | SM Agent (Bob)      | Action items finalized, retrospective completed     |
+| Date       | Author              | Change                                                     |
+| ---------- | ------------------- | ---------------------------------------------------------- |
+| 2025-12-05 | SM Agent (Bob)      | Retrospective document created                             |
+| 2025-12-05 | Bmad (Project Lead) | Identified console.log, performance, and CVE issues        |
+| 2025-12-05 | SM Agent (Bob)      | Action items finalized, retrospective completed            |
+| 2025-12-05 | Dev                 | Completed: Next.js 16.0.7 update (CVE fix)                 |
+| 2025-12-05 | Dev                 | Completed: console.\* → logger migration (13 instances)    |
+| 2025-12-05 | Dev                 | Completed: ESLint no-console rule added                    |
+| 2025-12-05 | Dev                 | Completed: getAssetCountStatus() Promise.all optimization  |
+| 2025-12-05 | Dev                 | Completed: API route unit tests (61 new tests, 1007 total) |
