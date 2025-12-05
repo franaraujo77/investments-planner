@@ -22,6 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import {
   getSubclassById,
   updateSubclass,
@@ -92,7 +93,10 @@ export const GET = withAuth<SubclassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<SubclassResponse>({ data: subclass });
     } catch (error) {
-      console.error("Error fetching subclass:", error);
+      logger.error("Failed to fetch subclass", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        userId: session.userId,
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch subclass",
@@ -163,7 +167,10 @@ export const PATCH = withAuth<SubclassResponse | ValidationError | AuthError>(
         );
       }
 
-      console.error("Error updating subclass:", error);
+      logger.error("Failed to update subclass", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        userId: session.userId,
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to update subclass",
@@ -244,7 +251,10 @@ export const DELETE = withAuth<
       );
     }
 
-    console.error("Error deleting subclass:", error);
+    logger.error("Failed to delete subclass", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      userId: session.userId,
+    });
     return NextResponse.json<AuthError>(
       {
         error: "Failed to delete subclass",

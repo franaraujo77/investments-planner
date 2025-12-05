@@ -94,7 +94,7 @@ development_status:
   4-4-set-allocation-ranges-for-subclasses: done
   4-5-set-asset-count-limits: done
   4-6-set-minimum-allocation-values: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   # =============================================================================
   # EPIC 5: SCORING ENGINE

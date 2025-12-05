@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import { getAllocationSummary, type AllocationSummary } from "@/lib/services/asset-class-service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -31,7 +32,10 @@ export const GET = withAuth<AllocationSummary | AuthError>(async (_request, sess
 
     return NextResponse.json(summary);
   } catch (error) {
-    console.error("Error getting allocation summary:", error);
+    logger.error("Failed to get allocation summary", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      userId: session.userId,
+    });
     return NextResponse.json<AuthError>(
       {
         error: "Failed to get allocation summary",

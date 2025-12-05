@@ -22,6 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import {
   getAssetClassById,
   updateClass,
@@ -92,7 +93,10 @@ export const GET = withAuth<AssetClassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<AssetClassResponse>({ data: assetClass });
     } catch (error) {
-      console.error("Error fetching asset class:", error);
+      logger.error("Failed to fetch asset class", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        userId: session.userId,
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch asset class",
@@ -164,7 +168,10 @@ export const PATCH = withAuth<AssetClassResponse | ValidationError | AuthError>(
         );
       }
 
-      console.error("Error updating asset class:", error);
+      logger.error("Failed to update asset class", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        userId: session.userId,
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to update asset class",
@@ -245,7 +252,10 @@ export const DELETE = withAuth<
       );
     }
 
-    console.error("Error deleting asset class:", error);
+    logger.error("Failed to delete asset class", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      userId: session.userId,
+    });
     return NextResponse.json<AuthError>(
       {
         error: "Failed to delete asset class",

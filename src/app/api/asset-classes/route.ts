@@ -17,6 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import {
   getClassesForUser,
   createClass,
@@ -76,7 +77,10 @@ export const GET = withAuth<AssetClassListResponse | AuthError>(async (_request,
       },
     });
   } catch (error) {
-    console.error("Error fetching asset classes:", error);
+    logger.error("Failed to fetch asset classes", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      userId: session.userId,
+    });
     return NextResponse.json<AuthError>(
       {
         error: "Failed to fetch asset classes",
@@ -138,7 +142,10 @@ export const POST = withAuth<AssetClassResponse | ValidationError | AuthError>(
         );
       }
 
-      console.error("Error creating asset class:", error);
+      logger.error("Failed to create asset class", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        userId: session.userId,
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to create asset class",
