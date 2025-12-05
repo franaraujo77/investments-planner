@@ -50,14 +50,4 @@ CREATE INDEX IF NOT EXISTS "portfolio_assets_is_ignored_idx" ON "portfolio_asset
 -- Used in: queries fetching active (non-ignored) assets for a portfolio
 CREATE INDEX IF NOT EXISTS "portfolio_assets_portfolio_ignored_idx" ON "portfolio_assets" ("portfolio_id", "is_ignored");
 
--- =============================================================================
--- INVESTMENTS INDEXES
--- =============================================================================
-
--- Index for investment date range queries
--- Used in: history filtering by date range
-CREATE INDEX IF NOT EXISTS "investments_invested_at_idx" ON "investments" ("invested_at");
-
--- Composite index for user + date range queries
--- Used in: fetching user's investment history with date filtering
-CREATE INDEX IF NOT EXISTS "investments_user_date_idx" ON "investments" ("user_id", "invested_at");
+-- Note: INVESTMENTS INDEXES moved to 0004 migration (after table creation)

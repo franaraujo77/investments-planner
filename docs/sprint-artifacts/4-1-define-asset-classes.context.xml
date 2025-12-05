@@ -1,0 +1,170 @@
+<story-context id="4-1-define-asset-classes" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>1</storyId>
+    <title>Define Asset Classes</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-1-define-asset-classes.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>define asset classes for my portfolio (e.g., Fixed Income, Variable Income, Crypto)</iWant>
+    <soThat>I can organize my investments into logical categories and set up my allocation strategy structure</soThat>
+    <tasks>
+      <task id="1" ac="All">Database Schema and Migration - Add assetClasses and assetSubclasses tables to schema.ts</task>
+      <task id="2" ac="All">Create AssetClassService - CRUD operations with multi-tenant isolation</task>
+      <task id="3" ac="4.1.2">Create Zod Validation Schemas - createAssetClassSchema, updateAssetClassSchema</task>
+      <task id="4" ac="All">Create API Routes - GET/POST /api/asset-classes, PATCH/DELETE /api/asset-classes/[id]</task>
+      <task id="5" ac="All">Create React Query Hooks - useAssetClasses, useCreateAssetClass, useUpdateAssetClass, useDeleteAssetClass</task>
+      <task id="6" ac="4.1.1">Create Asset Classes Page - Server and Client components</task>
+      <task id="7" ac="4.1.1,4.1.3,4.1.4,4.1.5">Create AssetClassCard Component - Display, edit, delete actions</task>
+      <task id="8" ac="4.1.2">Create AssetClassForm Component - Name and icon fields with validation</task>
+      <task id="9" ac="All">Add Navigation Link - Asset Classes in sidebar</task>
+      <task id="10" ac="All">Create Unit Tests - Service, API, validation schemas</task>
+      <task id="11" ac="All">Create E2E Tests - Full user flows</task>
+      <task id="12" ac="All">Run Verification - lint, build, test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-4.1.1" type="Functional">
+      <title>View Asset Classes List</title>
+      <given>I am authenticated</given>
+      <when>I navigate to Settings or Asset Classes page</when>
+      <then>I see a list of my existing asset classes (or empty state with "No asset classes yet" message and "Add Asset Class" CTA)</then>
+    </criterion>
+    <criterion id="AC-4.1.2" type="Functional">
+      <title>Create Asset Class</title>
+      <given>I am on the Asset Classes page</given>
+      <when>I click "Add Asset Class", enter a valid name and save</when>
+      <then>The new class appears in my list with success toast "Asset class created"</then>
+    </criterion>
+    <criterion id="AC-4.1.3" type="Functional">
+      <title>Edit Asset Class Name</title>
+      <given>I have an asset class in my list</given>
+      <when>I click to edit and change the name</when>
+      <then>The change is saved immediately with visual confirmation</then>
+    </criterion>
+    <criterion id="AC-4.1.4" type="Functional">
+      <title>Delete Asset Class (No Assets)</title>
+      <given>I have an asset class with no associated assets</given>
+      <when>I click delete and confirm</when>
+      <then>The class is removed with success toast "Asset class deleted"</then>
+    </criterion>
+    <criterion id="AC-4.1.5" type="Functional">
+      <title>Delete Asset Class (With Assets Warning)</title>
+      <given>I have an asset class with associated assets</given>
+      <when>I attempt to delete it</when>
+      <then>I see a warning about orphaned assets and must explicitly confirm or cancel</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-4.md" title="Epic 4 Technical Specification" section="Story 4.1: Define Asset Classes">
+        Authoritative acceptance criteria, database schema design, API contracts, and service layer specifications for asset class management.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Service Layer Pattern, API Route Pattern">
+        Multi-tenant isolation requirements, Drizzle ORM patterns, Zod validation, and security architecture constraints.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Specification" section="Component Library, UX Pattern Decisions">
+        Notion-style block pattern for class management, inline editing, confirmation dialogs, and empty state design.
+      </doc>
+      <doc path="docs/prd.md" title="Product Requirements Document" section="FR18">
+        Users can define asset classes (e.g., Fixed Income, Variable Income, Crypto) - business requirement context.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="portfolioAssets" lines="202-224" reason="Reference pattern for new assetClasses table. Note: assetClassId and subclassId fields already exist in portfolioAssets for Epic 4 integration."/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="portfolios" lines="174-186" reason="Pattern for userId foreign key, CASCADE delete, and index creation."/>
+      <file path="src/lib/services/portfolio-service.ts" kind="service" symbol="PortfolioService" lines="1-210" reason="Reference pattern for CRUD service with multi-tenant isolation, custom errors, and Drizzle queries."/>
+      <file path="src/app/api/portfolios/route.ts" kind="api" symbol="GET, POST" lines="1-152" reason="Reference pattern for API routes with withAuth middleware, Zod validation, and error handling."/>
+      <file path="src/hooks/use-investments.ts" kind="hook" symbol="useInvestmentHistory" reason="Reference pattern for React Query hooks with cache invalidation."/>
+      <file path="src/lib/validations/portfolio.ts" kind="validation" reason="Reference pattern for Zod schemas with constants and error messages."/>
+      <file path="src/components/ui/dialog.tsx" kind="component" symbol="Dialog" reason="Reuse for confirmation dialogs."/>
+      <file path="src/components/ui/form.tsx" kind="component" symbol="Form" reason="Reuse for form handling with react-hook-form."/>
+      <file path="src/components/dashboard/app-sidebar.tsx" kind="component" symbol="AppSidebar" reason="Add Asset Classes navigation link here."/>
+      <file path="tests/unit/services/portfolio-service.test.ts" kind="test" reason="Reference pattern for service unit tests."/>
+      <file path="tests/e2e/history.spec.ts" kind="test" reason="Reference pattern for E2E tests with authentication."/>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="drizzle-orm" version="^0.44.7">ORM for database operations</package>
+        <package name="zod" version="^4.1.13">Schema validation for API inputs</package>
+        <package name="@tanstack/react-query" version="implicit">React Query for data fetching (via hooks)</package>
+        <package name="sonner" version="^2.0.7">Toast notifications for user feedback</package>
+        <package name="lucide-react" version="^0.555.0">Icons including FolderTree for navigation</package>
+        <package name="@radix-ui/react-dialog" version="^1.1.15">Dialog component for modals</package>
+        <package name="@hookform/resolvers" version="^5.2.2">Zod resolver for react-hook-form</package>
+        <package name="vitest" version="^4.0.14">Unit testing framework</package>
+        <package name="@playwright/test" version="^1.57.0">E2E testing framework</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture.md">Multi-tenant isolation: All database queries MUST include userId filter to prevent cross-tenant data access.</constraint>
+    <constraint source="architecture.md">Drizzle ORM: Use parameterized queries via Drizzle, never raw SQL strings.</constraint>
+    <constraint source="architecture.md">Zod validation: All API request bodies must be validated with Zod schemas before processing.</constraint>
+    <constraint source="architecture.md">Toast feedback: Use sonner for success/error notifications on all user actions.</constraint>
+    <constraint source="tech-spec-epic-4.md">Asset class limit: Maximum 10 asset classes per user (enforced in API).</constraint>
+    <constraint source="tech-spec-epic-4.md">Name constraints: 1-50 characters for asset class name.</constraint>
+    <constraint source="tech-spec-epic-4.md">Icon field: Optional, max 10 characters (for emoji).</constraint>
+    <constraint source="CLAUDE.md">Test coverage: Every code change requires corresponding unit and E2E tests.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="AssetClassService" kind="class" path="src/lib/services/asset-class-service.ts">
+      <signature>async createClass(userId: string, data: CreateAssetClassInput): Promise&lt;AssetClass&gt;</signature>
+      <signature>async updateClass(userId: string, classId: string, data: UpdateAssetClassInput): Promise&lt;AssetClass&gt;</signature>
+      <signature>async deleteClass(userId: string, classId: string): Promise&lt;void&gt;</signature>
+      <signature>async getClassesForUser(userId: string): Promise&lt;AssetClass[]&gt;</signature>
+      <signature>async getAssetCountByClass(userId: string, classId: string): Promise&lt;number&gt;</signature>
+    </interface>
+    <interface name="GET /api/asset-classes" kind="REST endpoint" path="src/app/api/asset-classes/route.ts">
+      <signature>GET /api/asset-classes -&gt; { data: AssetClass[], meta: { count, limit, canCreate } }</signature>
+    </interface>
+    <interface name="POST /api/asset-classes" kind="REST endpoint" path="src/app/api/asset-classes/route.ts">
+      <signature>POST /api/asset-classes { name, icon? } -&gt; { data: AssetClass } (201)</signature>
+    </interface>
+    <interface name="PATCH /api/asset-classes/[id]" kind="REST endpoint" path="src/app/api/asset-classes/[id]/route.ts">
+      <signature>PATCH /api/asset-classes/[id] { name?, icon? } -&gt; { data: AssetClass }</signature>
+    </interface>
+    <interface name="DELETE /api/asset-classes/[id]" kind="REST endpoint" path="src/app/api/asset-classes/[id]/route.ts">
+      <signature>DELETE /api/asset-classes/[id] -&gt; { success: true } or { warning: true, assetCount: N }</signature>
+    </interface>
+    <interface name="createAssetClassSchema" kind="Zod schema" path="src/lib/validations/asset-class-schemas.ts">
+      <signature>z.object({ name: z.string().min(1).max(50), icon: z.string().max(10).optional() })</signature>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit tests and Playwright for E2E tests. Follow existing patterns in tests/unit/services/ and tests/e2e/.
+      All new services require corresponding unit tests with mock database. API routes require unit tests for validation, auth, and error handling.
+      E2E tests verify complete user flows including authentication, navigation, CRUD operations, and error states.
+      Test coverage target: 80% minimum for new code, 100% for validation schemas.
+    </standards>
+    <locations>
+      <dir>tests/unit/services/</dir>
+      <dir>tests/unit/api/</dir>
+      <dir>tests/unit/validations/</dir>
+      <dir>tests/e2e/</dir>
+    </locations>
+    <ideas>
+      <idea ac="AC-4.1.1">Unit: getClassesForUser returns empty array for new user; E2E: Navigate to page, verify empty state message and CTA button</idea>
+      <idea ac="AC-4.1.2">Unit: createClass validates input, creates record, returns class; E2E: Click Add, fill form, verify class appears in list with toast</idea>
+      <idea ac="AC-4.1.3">Unit: updateClass modifies name, updates timestamp; E2E: Click edit, change name, verify inline save feedback</idea>
+      <idea ac="AC-4.1.4">Unit: deleteClass removes record when no assets; E2E: Delete class, confirm dialog, verify removed from list with toast</idea>
+      <idea ac="AC-4.1.5">Unit: deleteClass returns asset count when assets exist; E2E: Attempt delete with assets, verify warning dialog shown</idea>
+      <idea ac="All">Unit: Multi-tenant isolation - verify userId filter on all queries</idea>
+      <idea ac="All">Unit: Validation schema rejects invalid inputs (empty name, name > 50 chars)</idea>
+      <idea ac="All">E2E: Unauthenticated user redirected to login</idea>
+    </ideas>
+  </tests>
+</story-context>

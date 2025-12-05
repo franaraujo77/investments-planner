@@ -87,13 +87,13 @@ development_status:
   # Goal: Enable users to define investment strategy structure
   # Stories: 6 | FRs: FR18-FR23
   # =============================================================================
-  epic-4: backlog
-  4-1-define-asset-classes: backlog
-  4-2-define-subclasses: backlog
-  4-3-set-allocation-ranges-for-classes: backlog
-  4-4-set-allocation-ranges-for-subclasses: backlog
-  4-5-set-asset-count-limits: backlog
-  4-6-set-minimum-allocation-values: backlog
+  epic-4: contexted
+  4-1-define-asset-classes: done
+  4-2-define-subclasses: done
+  4-3-set-allocation-ranges-for-classes: done
+  4-4-set-allocation-ranges-for-subclasses: done
+  4-5-set-asset-count-limits: done
+  4-6-set-minimum-allocation-values: done
   epic-4-retrospective: optional
 
   # =============================================================================

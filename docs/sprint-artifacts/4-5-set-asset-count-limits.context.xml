@@ -1,0 +1,379 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>5</storyId>
+    <title>Set Asset Count Limits</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-5-set-asset-count-limits.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>set maximum asset count limits per class/subclass</iWant>
+    <soThat>I maintain a focused portfolio and the system can trigger opportunity alerts when at capacity</soThat>
+    <tasks>
+      <task id="1">Extend Zod Validation Schemas for Max Assets (AC: 4.5.1)</task>
+      <task id="2">Extend AssetClassService with Asset Count Operations (AC: All)</task>
+      <task id="3">Extend API Routes for Max Assets (AC: 4.5.1)</task>
+      <task id="4">Create Asset Count Status API Endpoint (AC: 4.5.2, 4.5.4, 4.5.5)</task>
+      <task id="5">Extend React Query Hooks for Asset Count (AC: All)</task>
+      <task id="6">Create AssetCountInput Component (AC: 4.5.1, 4.5.3)</task>
+      <task id="7">Create AssetCountBadge Component (AC: 4.5.2, 4.5.4, 4.5.5)</task>
+      <task id="8">Integrate AssetCountInput and Badge into AssetClassCard (AC: 4.5.1, 4.5.2, 4.5.4)</task>
+      <task id="9">Integrate AssetCountInput and Badge into SubclassCard (AC: 4.5.1, 4.5.2, 4.5.5)</task>
+      <task id="10">Create Unit Tests for Asset Count Operations (AC: All)</task>
+      <task id="11">Create API Integration Tests (AC: All)</task>
+      <task id="12">Create E2E Tests (AC: All)</task>
+      <task id="13">Run Verification</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="4.5.1" title="Set Maximum Asset Count Limit">
+      <given>I have an asset class or subclass defined</given>
+      <when>I navigate to the Strategy configuration page and view a class/subclass</when>
+      <then>
+        <item>I see an input field for "Max Assets" limit</item>
+        <item>I can enter a positive integer value (0 means no limit)</item>
+        <item>The value is saved automatically on blur or explicit save</item>
+        <item>I see a visual confirmation of the save (checkmark or toast)</item>
+      </then>
+    </ac>
+    <ac id="4.5.2" title="Display Warning When Asset Count Exceeds Limit">
+      <given>I have set max assets = 5 for a class or subclass AND I have 6 or more assets assigned</given>
+      <when>I view the class/subclass card</when>
+      <then>
+        <item>I see a warning indicator showing "6/5 assets" or similar</item>
+        <item>The indicator uses a warning color (amber/yellow)</item>
+        <item>Hovering/clicking the indicator shows an explanation</item>
+      </then>
+    </ac>
+    <ac id="4.5.3" title="No Limit When Max Assets Is Not Set">
+      <given>I have a class/subclass AND max assets field is empty or 0</given>
+      <when>I view the class/subclass</when>
+      <then>
+        <item>No asset count limit is enforced</item>
+        <item>The display shows "No limit" or omits the constraint display</item>
+        <item>Adding assets is unrestricted</item>
+      </then>
+    </ac>
+    <ac id="4.5.4" title="Asset Count Display for Classes">
+      <given>I have an asset class with a max assets limit</given>
+      <when>I view the asset class card</when>
+      <then>
+        <item>I see the current asset count vs the limit (e.g., "3/10 assets")</item>
+        <item>The count reflects non-ignored assets only</item>
+        <item>The display updates when assets are added/removed</item>
+      </then>
+    </ac>
+    <ac id="4.5.5" title="Asset Count Display for Subclasses">
+      <given>I have a subclass with a max assets limit</given>
+      <when>I view the expanded asset class with subclasses</when>
+      <then>
+        <item>Each subclass shows its asset count vs limit</item>
+        <item>Subclass count is independent of parent class count</item>
+      </then>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" relevance="high">
+        <summary>System architecture with data models, API patterns, multi-tenant isolation rules</summary>
+        <keyPoints>
+          <point>Multi-tenant isolation: All queries scoped by userId</point>
+          <point>Drizzle ORM: Use parameterized queries (no raw SQL)</point>
+          <point>Zod validation: All API inputs must be validated</point>
+          <point>Toast feedback: Use sonner for success/error notifications</point>
+          <point>Asset classes have maxAssets column (numeric, null = no limit)</point>
+        </keyPoints>
+      </doc>
+      <doc path="docs/epics.md" relevance="high">
+        <summary>Epic 4 story breakdown with user stories and acceptance criteria</summary>
+        <keyPoints>
+          <point>Story 4.5: Set maximum asset count limits per class/subclass</point>
+          <point>FR22 requirement: Asset count limits for focused portfolio</point>
+          <point>Dependencies: Stories 4.2-4.4 complete</point>
+        </keyPoints>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-4.md" relevance="high">
+        <summary>Technical specification for Epic 4 with detailed AC and implementation guidance</summary>
+        <keyPoints>
+          <point>AC-4.5.1 through AC-4.5.3 detailed specifications</point>
+          <point>maxAssets field in asset_classes and asset_subclasses tables</point>
+          <point>Warning indicator when current > max</point>
+        </keyPoints>
+      </doc>
+      <doc path="docs/sprint-artifacts/4-4-set-allocation-ranges-for-subclasses.md" relevance="high">
+        <summary>Previous story implementation with learnings and patterns to reuse</summary>
+        <keyPoints>
+          <point>AllocationRangeEditor pattern for inline editing with auto-save</point>
+          <point>SubclassAllocationWarning pattern for warning display</point>
+          <point>Validation pattern: Zod schema extension</point>
+          <point>Service pattern: validateSubclassAllocationRanges</point>
+          <point>Test baseline: 901 tests passing</point>
+        </keyPoints>
+      </doc>
+    </docs>
+    <code>
+      <file path="src/lib/db/schema.ts" relevance="critical">
+        <summary>Database schema with asset_classes and asset_subclasses tables including maxAssets column</summary>
+        <exports>
+          <export>assetClasses - pgTable with maxAssets: numeric('max_assets', { precision: 10, scale: 0 })</export>
+          <export>assetSubclasses - pgTable with maxAssets: numeric('max_assets', { precision: 10, scale: 0 })</export>
+          <export>portfolioAssets - pgTable with assetClassId, subclassId, isIgnored columns</export>
+          <export>AssetClass, NewAssetClass, AssetSubclass, NewAssetSubclass types</export>
+        </exports>
+        <schemaNote>maxAssets column already exists in both tables from Epic 4 setup</schemaNote>
+      </file>
+      <file path="src/lib/services/asset-class-service.ts" relevance="critical">
+        <summary>Service layer with CRUD operations for asset classes and subclasses</summary>
+        <exports>
+          <export>createClass, updateClass, deleteClass, getClassesForUser, getAssetClassById</export>
+          <export>createSubclass, updateSubclass, deleteSubclass, getSubclassesForClass, getSubclassById</export>
+          <export>getAssetCountByClass, getAssetCountBySubclass - existing asset count functions</export>
+          <export>validateAllocationRanges, validateSubclassAllocationRanges</export>
+          <export>AssetClassLimitError, AssetClassNotFoundError, SubclassLimitError, SubclassNotFoundError</export>
+        </exports>
+        <functionsToAdd>
+          <function>updateClassAssetCountLimit(userId, classId, maxAssets) - update class maxAssets</function>
+          <function>updateSubclassAssetCountLimit(userId, subclassId, maxAssets) - update subclass maxAssets</function>
+          <function>getAssetCountStatus(userId) - return all class/subclass counts with isOverLimit</function>
+          <function>calculateAssetCountForClass(userId, classId) - count non-ignored assets in class</function>
+          <function>calculateAssetCountForSubclass(userId, subclassId) - count non-ignored assets in subclass</function>
+        </functionsToAdd>
+      </file>
+      <file path="src/lib/validations/asset-class-schemas.ts" relevance="critical">
+        <summary>Zod validation schemas for asset class and subclass operations</summary>
+        <exports>
+          <export>createAssetClassSchema, updateAssetClassSchema, deleteAssetClassQuerySchema</export>
+          <export>createSubclassSchema, updateSubclassSchema, deleteSubclassQuerySchema</export>
+          <export>ASSET_CLASS_MESSAGES, SUBCLASS_MESSAGES</export>
+        </exports>
+        <schemaToAdd>
+          <schema>maxAssets: z.number().int().min(0).max(100).nullable().optional()</schema>
+          <note>Add to updateAssetClassSchema and updateSubclassSchema</note>
+        </schemaToAdd>
+      </file>
+      <file path="src/hooks/use-asset-classes.ts" relevance="critical">
+        <summary>React hooks for asset class and subclass operations</summary>
+        <exports>
+          <export>useAssetClasses, useCreateAssetClass, useUpdateAssetClass, useDeleteAssetClass</export>
+          <export>useSubclasses, useCreateSubclass, useUpdateSubclass, useDeleteSubclass</export>
+          <export>useAllocationValidation, useAllocationSummary, useSubclassAllocationValidation</export>
+        </exports>
+        <hooksToAdd>
+          <hook>useUpdateClassAssetCount() - mutation for updating class maxAssets</hook>
+          <hook>useUpdateSubclassAssetCount() - mutation for updating subclass maxAssets</hook>
+          <hook>useAssetCountStatus() - query for asset count status across all classes</hook>
+        </hooksToAdd>
+      </file>
+      <file path="src/components/strategy/asset-class-card.tsx" relevance="critical">
+        <summary>Asset class card component with inline editing and allocation ranges</summary>
+        <pattern>Expandable card with header, allocation range section, and subclass list</pattern>
+        <extensionNeeded>Add AssetCountInput for maxAssets and AssetCountBadge for count display</extensionNeeded>
+      </file>
+      <file path="src/components/strategy/subclass-card.tsx" relevance="critical">
+        <summary>Subclass card component with inline editing and allocation ranges</summary>
+        <pattern>Compact card with name, edit/delete buttons, and min/max allocation inputs</pattern>
+        <extensionNeeded>Add AssetCountInput for maxAssets and AssetCountBadge for count display</extensionNeeded>
+      </file>
+      <file path="src/components/strategy/allocation-range-editor.tsx" relevance="high">
+        <summary>Dual input component for min/max allocation percentages with auto-save</summary>
+        <pattern>
+          <item>useState for local values, useEffect for prop sync</item>
+          <item>validateRange function for min lte max validation</item>
+          <item>handleSave on blur with loading indicator</item>
+          <item>Error display for validation failures</item>
+          <item>Check icon for save confirmation</item>
+        </pattern>
+        <reuseFor>Reference pattern for AssetCountInput component</reuseFor>
+      </file>
+      <file path="src/components/strategy/subclass-allocation-warning.tsx" relevance="high">
+        <summary>Warning component for allocation constraint violations</summary>
+        <pattern>Badge-like display with warning color and tooltip</pattern>
+        <reuseFor>Reference pattern for AssetCountBadge component</reuseFor>
+      </file>
+      <file path="src/app/api/asset-classes/[id]/route.ts" relevance="critical">
+        <summary>API route for GET/PATCH/DELETE single asset class</summary>
+        <extensionNeeded>PATCH handler already accepts updateAssetClassSchema - extend schema with maxAssets</extensionNeeded>
+      </file>
+      <file path="src/app/api/asset-subclasses/[id]/route.ts" relevance="critical">
+        <summary>API route for GET/PATCH/DELETE single subclass</summary>
+        <extensionNeeded>PATCH handler already accepts updateSubclassSchema - extend schema with maxAssets</extensionNeeded>
+      </file>
+      <file path="src/app/api/asset-classes/validate/route.ts" relevance="medium">
+        <summary>API route for allocation validation</summary>
+        <pattern>GET handler returns validation result with warnings</pattern>
+      </file>
+    </code>
+    <dependencies>
+      <dependency name="zod" version="^4.1.13" usage="Schema validation for API inputs including maxAssets"/>
+      <dependency name="drizzle-orm" version="^0.44.7" usage="Database operations for asset classes and portfolioAssets"/>
+      <dependency name="decimal.js" version="^10.6.0" usage="Precise decimal calculations if needed"/>
+      <dependency name="lucide-react" version="^0.555.0" usage="Icons for UI components (Check, AlertTriangle, Loader2)"/>
+      <dependency name="sonner" version="^2.0.7" usage="Toast notifications for save feedback"/>
+      <dependency name="react-hook-form" version="^7.67.0" usage="Form handling if needed"/>
+      <dependency name="@radix-ui/react-tooltip" version="^1.2.8" usage="Tooltip for asset count badge hover state"/>
+      <dependency name="vitest" version="^4.0.14" usage="Unit testing framework"/>
+      <dependency name="@playwright/test" version="^1.57.0" usage="E2E testing framework"/>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture" source="docs/architecture.md">
+      Multi-tenant isolation: All database queries MUST be scoped by userId to prevent data leakage
+    </constraint>
+    <constraint type="architecture" source="docs/architecture.md">
+      Drizzle ORM: Use parameterized queries only, no raw SQL to prevent injection
+    </constraint>
+    <constraint type="validation" source="docs/architecture.md">
+      Zod validation: All API inputs MUST be validated with Zod schemas before processing
+    </constraint>
+    <constraint type="ux" source="docs/architecture.md">
+      Toast notifications: Use sonner for success/error feedback to users
+    </constraint>
+    <constraint type="testing" source="CLAUDE.md">
+      Every code change requires test coverage - unit tests for services/API, E2E for user flows
+    </constraint>
+    <constraint type="data" source="src/lib/db/schema.ts">
+      maxAssets is numeric(10,0) - store as integer, null = no limit
+    </constraint>
+    <constraint type="business" source="docs/epics.md">
+      Asset count calculation must exclude ignored assets (isIgnored = true)
+    </constraint>
+    <constraint type="business" source="docs/sprint-artifacts/tech-spec-epic-4.md">
+      0 or null maxAssets means no limit - do not enforce or display constraint
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="api" method="PATCH" path="/api/asset-classes/[id]">
+      <description>Update asset class including maxAssets field</description>
+      <request>
+        <field name="maxAssets" type="number | null" optional="true">Maximum asset count (0 or null = no limit)</field>
+      </request>
+      <response>
+        <field name="data" type="AssetClass">Updated asset class object</field>
+      </response>
+    </interface>
+    <interface type="api" method="PATCH" path="/api/asset-subclasses/[id]">
+      <description>Update subclass including maxAssets field</description>
+      <request>
+        <field name="maxAssets" type="number | null" optional="true">Maximum asset count (0 or null = no limit)</field>
+      </request>
+      <response>
+        <field name="data" type="AssetSubclass">Updated subclass object</field>
+      </response>
+    </interface>
+    <interface type="api" method="GET" path="/api/asset-classes/asset-counts">
+      <description>Get asset count status for all user's classes and subclasses</description>
+      <response>
+        <field name="data" type="AssetCountStatus[]">Array of class/subclass count status</field>
+        <schema>
+          {
+            classId: string,
+            className: string,
+            currentCount: number,
+            maxAssets: number | null,
+            isOverLimit: boolean,
+            subclasses: [{
+              subclassId: string,
+              subclassName: string,
+              currentCount: number,
+              maxAssets: number | null,
+              isOverLimit: boolean
+            }]
+          }
+        </schema>
+      </response>
+    </interface>
+    <interface type="component" name="AssetCountInput">
+      <props>
+        <prop name="value" type="number | null">Current maxAssets value</prop>
+        <prop name="onChange" type="(value: number | null) => void">Callback when value changes</prop>
+        <prop name="disabled" type="boolean" optional="true">Disable input</prop>
+        <prop name="className" type="string" optional="true">Additional CSS classes</prop>
+      </props>
+      <behavior>
+        <item>Input field for integers 0-100</item>
+        <item>0 displays as "No limit"</item>
+        <item>Clear button to reset to null</item>
+        <item>Auto-save on blur with debounce</item>
+      </behavior>
+    </interface>
+    <interface type="component" name="AssetCountBadge">
+      <props>
+        <prop name="currentCount" type="number">Current number of assets</prop>
+        <prop name="maxAssets" type="number | null">Maximum allowed (null = no limit)</prop>
+        <prop name="className" type="string" optional="true">Additional CSS classes</prop>
+      </props>
+      <behavior>
+        <item>Display format: "3/10 assets" or "No limit"</item>
+        <item>Colors: slate (no limit), green (under), amber (at), red (over)</item>
+        <item>Tooltip on hover with explanation</item>
+      </behavior>
+    </interface>
+    <interface type="hook" name="useAssetCountStatus">
+      <returns>
+        <field name="assetCountStatus" type="AssetCountStatus[] | null">Count status for all classes</field>
+        <field name="isLoading" type="boolean">Loading state</field>
+        <field name="error" type="string | null">Error message</field>
+        <field name="refresh" type="() => void">Manual refresh function</field>
+      </returns>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard source="CLAUDE.md">Every code change requires unit test coverage</standard>
+      <standard source="CLAUDE.md">Unit tests for services test individual functions in isolation with mocks</standard>
+      <standard source="CLAUDE.md">Integration tests for API routes test success/error cases</standard>
+      <standard source="CLAUDE.md">E2E tests for critical user flows with Playwright</standard>
+      <standard source="tests/unit/services/asset-class-service.test.ts">Use vitest with vi.mock for database mocking</standard>
+      <standard source="tests/unit/validations/asset-class.test.ts">Test both valid and invalid inputs for Zod schemas</standard>
+    </standards>
+    <locations>
+      <location>tests/unit/services/asset-class-service.test.ts - Extend with asset count operation tests</location>
+      <location>tests/unit/validations/asset-class.test.ts - Extend with maxAssets validation tests</location>
+      <location>tests/unit/api/asset-classes.test.ts - Add/extend with maxAssets PATCH tests</location>
+      <location>tests/e2e/strategy.spec.ts - Extend with asset count UI tests</location>
+    </locations>
+    <ideas>
+      <category name="Service Unit Tests">
+        <test>updateClassAssetCountLimit - success updates maxAssets</test>
+        <test>updateSubclassAssetCountLimit - success updates maxAssets</test>
+        <test>updateClassAssetCountLimit - invalid userId returns not found</test>
+        <test>getAssetCountStatus - returns correct counts for all classes</test>
+        <test>getAssetCountStatus - isOverLimit true when currentCount > maxAssets</test>
+        <test>getAssetCountStatus - isOverLimit false when maxAssets is null</test>
+        <test>calculateAssetCountForClass - excludes ignored assets</test>
+        <test>calculateAssetCountForSubclass - scoped to correct subclass</test>
+      </category>
+      <category name="Validation Unit Tests">
+        <test>maxAssets valid values - 0, 5, 10, 100</test>
+        <test>maxAssets invalid values - -1, 101, "abc", 1.5</test>
+        <test>maxAssets null handling - null = no limit</test>
+        <test>maxAssets undefined handling - undefined = no change</test>
+      </category>
+      <category name="API Integration Tests">
+        <test>PATCH /api/asset-classes/[id] with maxAssets - returns updated class</test>
+        <test>PATCH /api/asset-subclasses/[id] with maxAssets - returns updated subclass</test>
+        <test>GET /api/asset-classes/asset-counts - returns status array</test>
+        <test>GET /api/asset-classes/asset-counts - isOverLimit calculated correctly</test>
+        <test>PATCH with invalid maxAssets - returns 400 validation error</test>
+      </category>
+      <category name="E2E Tests">
+        <test>Navigate to Strategy page - see asset classes with max assets input</test>
+        <test>Set max assets limit to 5 - verify saved (checkmark indicator)</test>
+        <test>View asset count badge showing "3/5 assets" in green</test>
+        <test>Set max assets to 0 - displays "No limit"</test>
+        <test>View warning indicator when over limit (6/5 in red)</test>
+        <test>Set subclass max assets - independent from parent class</test>
+        <test>Hover over warning badge - see tooltip explanation</test>
+      </category>
+    </ideas>
+  </tests>
+</story-context>

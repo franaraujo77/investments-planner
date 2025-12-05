@@ -16,6 +16,7 @@ import {
   ListChecks,
   History,
   Settings,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +44,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", path: "/", icon: LayoutDashboard },
   { label: "Portfolio", path: "/portfolio", icon: Briefcase },
+  { label: "Strategy", path: "/strategy", icon: Target },
   { label: "Criteria", path: "/criteria", icon: ListChecks },
   { label: "History", path: "/history", icon: History },
   { label: "Settings", path: "/settings", icon: Settings },

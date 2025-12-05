@@ -1,0 +1,324 @@
+<story-context id="4-6-set-minimum-allocation-values" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>6</storyId>
+    <title>Set Minimum Allocation Values</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-6-set-minimum-allocation-values.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>set minimum allocation values per class/subclass</iWant>
+    <soThat>small, trivial allocations are avoided and my investment recommendations remain meaningful</soThat>
+    <tasks>
+      <task id="1" acs="4.6.1,4.6.4">Extend Zod Validation Schemas for Min Allocation - Add minAllocationValue field to updateAssetClassSchema and updateAssetSubclassSchema with 0-1,000,000 range validation</task>
+      <task id="2" acs="all">Extend AssetClassService with Min Allocation Operations - Implement updateClassMinAllocation and updateSubclassMinAllocation functions with multi-tenant isolation</task>
+      <task id="3" acs="4.6.1">Verify API Routes Support Min Allocation - Ensure PATCH handlers accept minAllocationValue field</task>
+      <task id="4" acs="4.6.5">Create Currency Formatting Utility - Implement formatCurrency function with Intl.NumberFormat</task>
+      <task id="5" acs="all">Extend React Query Hooks for Min Allocation - Add useUpdateClassMinAllocation and useUpdateSubclassMinAllocation mutations</task>
+      <task id="6" acs="4.6.1,4.6.3,4.6.4">Create MinAllocationInput Component - Currency input with decimal validation, auto-save on blur</task>
+      <task id="7" acs="4.6.2,4.6.5">Create MinAllocationBadge Component - Display "Min: $100" badge with currency formatting and tooltip</task>
+      <task id="8" acs="4.6.1,4.6.2">Integrate MinAllocationInput and Badge into AssetClassCard</task>
+      <task id="9" acs="4.6.1,4.6.2">Integrate MinAllocationInput and Badge into SubclassCard</task>
+      <task id="10" acs="all">Create Unit Tests for Min Allocation Operations</task>
+      <task id="11" acs="all">Create API Integration Tests</task>
+      <task id="12" acs="all">Create E2E Tests</task>
+      <task id="13" acs="all">Run Verification - lint, build, test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="4.6.1" type="functional">
+      <title>Set Minimum Allocation Value</title>
+      <given>I have an asset class or subclass defined</given>
+      <when>I navigate to the Strategy configuration page and view a class/subclass</when>
+      <then>
+        - I see an input field for "Minimum Allocation" value
+        - I can enter a currency amount in my base currency (e.g., $100)
+        - The value is saved automatically on blur or explicit save
+        - I see a visual confirmation of the save (checkmark or toast)
+      </then>
+    </ac>
+    <ac id="4.6.2" type="functional">
+      <title>Display Minimum Allocation Badge</title>
+      <given>I have set min allocation = $100 for a class or subclass</given>
+      <when>I view the class/subclass card</when>
+      <then>
+        - I see a badge showing "Min: $100" (formatted in base currency)
+        - The badge uses consistent styling with other configuration badges
+        - Hovering/clicking shows an explanation of what the minimum does
+      </then>
+    </ac>
+    <ac id="4.6.3" type="functional">
+      <title>No Minimum When Value Is Not Set</title>
+      <given>I have a class/subclass with minimum allocation field empty (null) or set to 0</given>
+      <when>I view the class/subclass</when>
+      <then>
+        - No minimum allocation is enforced
+        - The display shows "No minimum" or omits the constraint display
+        - Any positive recommendation amount is valid
+      </then>
+    </ac>
+    <ac id="4.6.4" type="functional">
+      <title>Validation of Minimum Allocation Value</title>
+      <given>I am editing the minimum allocation value</given>
+      <when>I enter an invalid value (negative number, non-numeric)</when>
+      <then>
+        - I see a validation error message
+        - The invalid value is not saved
+        - Valid range is 0 to 1,000,000 (reasonable upper bound)
+      </then>
+    </ac>
+    <ac id="4.6.5" type="functional">
+      <title>Currency Formatting</title>
+      <given>I have set a minimum allocation value</given>
+      <when>the value is displayed</when>
+      <then>
+        - It shows in my base currency format (e.g., "$100.00", "R$100,00", "€100,00")
+        - The input accepts decimal values with 2 decimal places
+        - The value is stored as numeric in the database
+      </then>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-4.md</path>
+        <title>Tech Spec Epic 4</title>
+        <section>Story 4.6 Requirements</section>
+        <snippet>Story 4.6: Set Minimum Allocation Values - AC-4.6.1: Save minimum allocation value in base currency, AC-4.6.2: Recommendations below minimum are suppressed (Epic 7 integration), AC-4.6.3: Any positive amount valid when not set</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics and Stories</title>
+        <section>Epic 4 - Story 4.6</section>
+        <snippet>Set minimum investment amounts per class/subclass so that small allocations are avoided. Minimum is in user's base currency. Display shows "Min: $100" badge. Default is $0 (no minimum).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Data Architecture, API Patterns</section>
+        <snippet>Use numeric(19,4) for currency values. All queries scoped by userId for multi-tenant isolation. Drizzle ORM for type-safe queries. Zod validation on all API inputs.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Component Library, Feedback Patterns</section>
+        <snippet>Inline editing with auto-save on blur. Toast notifications for success/error via sonner. Currency formatting with CurrencyDisplay component patterns.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/4-5-set-asset-count-limits.md</path>
+        <title>Story 4.5 - Previous Story</title>
+        <section>Dev Agent Record</section>
+        <snippet>Reference patterns: AssetCountInput for inline editing with auto-save, AssetCountBadge for badge display, validation schema extension pattern, 922 tests passing baseline.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/validations/asset-class-schemas.ts</path>
+        <kind>validation</kind>
+        <symbol>updateAssetClassSchema, updateSubclassSchema</symbol>
+        <lines>156-189, 262-290</lines>
+        <reason>Extend with minAllocationValue field - follows existing percentageSchema and maxAssetsSchema patterns</reason>
+      </file>
+      <file>
+        <path>src/lib/services/asset-class-service.ts</path>
+        <kind>service</kind>
+        <symbol>updateClass, updateSubclass, UpdateAssetClassInput, UpdateSubclassInput</symbol>
+        <lines>252-303, 520-567, 119-136</lines>
+        <reason>Extend with minAllocationValue handling - follows existing maxAssets pattern (lines 286-290, 550-554)</reason>
+      </file>
+      <file>
+        <path>src/app/api/asset-classes/[id]/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>PATCH handler</symbol>
+        <reason>Already supports partial updates - verify minAllocationValue field acceptance</reason>
+      </file>
+      <file>
+        <path>src/app/api/asset-subclasses/[id]/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>PATCH handler</symbol>
+        <reason>Already supports partial updates - verify minAllocationValue field acceptance</reason>
+      </file>
+      <file>
+        <path>src/hooks/use-asset-classes.ts</path>
+        <kind>hook</kind>
+        <symbol>useUpdateAssetClass, useUpdateSubclass</symbol>
+        <lines>270-327, 617-674</lines>
+        <reason>Existing hooks can be used directly - minAllocationValue passed through UpdateAssetClassInput</reason>
+      </file>
+      <file>
+        <path>src/components/strategy/asset-count-input.tsx</path>
+        <kind>component</kind>
+        <symbol>AssetCountInput</symbol>
+        <reason>Reference pattern for MinAllocationInput - auto-save on blur, validation, clear button</reason>
+      </file>
+      <file>
+        <path>src/components/strategy/asset-count-badge.tsx</path>
+        <kind>component</kind>
+        <symbol>AssetCountBadge</symbol>
+        <reason>Reference pattern for MinAllocationBadge - tooltip, status-based styling</reason>
+      </file>
+      <file>
+        <path>src/components/strategy/asset-class-card.tsx</path>
+        <kind>component</kind>
+        <symbol>AssetClassCard</symbol>
+        <lines>233-270</lines>
+        <reason>Integrate MinAllocationInput and MinAllocationBadge - add alongside existing AssetCountInput</reason>
+      </file>
+      <file>
+        <path>src/components/strategy/subclass-card.tsx</path>
+        <kind>component</kind>
+        <symbol>SubclassCard</symbol>
+        <reason>Integrate MinAllocationInput and MinAllocationBadge - follows AssetClassCard pattern</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>assetClasses, assetSubclasses</symbol>
+        <reason>minAllocationValue column already exists (numeric 19,4) - verify column presence</reason>
+      </file>
+      <file>
+        <path>tests/unit/validations/asset-class.test.ts</path>
+        <kind>test</kind>
+        <reason>Extend with minAllocationValue validation tests</reason>
+      </file>
+      <file>
+        <path>tests/unit/services/asset-class-service.test.ts</path>
+        <kind>test</kind>
+        <reason>Extend with minAllocationValue service operation tests</reason>
+      </file>
+      <file>
+        <path>tests/e2e/strategy.spec.ts</path>
+        <kind>test</kind>
+        <reason>Extend with minAllocationValue E2E tests</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <ecosystem name="node">
+        <package>next@16.0.5</package>
+        <package>react@19.2.0</package>
+        <package>typescript@^5</package>
+        <package>drizzle-orm@^0.44.7</package>
+        <package>zod@^4.1.13</package>
+        <package>decimal.js@^10.6.0</package>
+        <package>sonner@^2.0.7</package>
+        <package>lucide-react@^0.555.0</package>
+        <package>tailwind-merge@^3.4.0</package>
+        <package>@radix-ui/react-tooltip@^1.2.8</package>
+        <package>@radix-ui/react-label@^2.1.8</package>
+        <package>vitest@^4.0.14</package>
+        <package>@playwright/test@^1.57.0</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Multi-tenant isolation: All database queries MUST be scoped by userId</constraint>
+    <constraint source="architecture">Currency precision: Use decimal.js for calculations, numeric(19,4) for storage</constraint>
+    <constraint source="architecture">Validation: All API inputs MUST be validated with Zod schemas</constraint>
+    <constraint source="architecture">Toast feedback: Use sonner for success/error notifications</constraint>
+    <constraint source="CLAUDE.md">Every code change requires test coverage - unit tests for services, E2E for user flows</constraint>
+    <constraint source="story-4.5">Use structured logger instead of console.error in API routes</constraint>
+    <constraint source="tech-spec">minAllocationValue column type: numeric(19,4) - nullable, null or 0 = no minimum</constraint>
+    <constraint source="tech-spec">MVP constraint: Max 10 classes × 10 subclasses - sequential DB queries acceptable</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="UpdateAssetClassInput" kind="type">
+      <signature>
+interface UpdateAssetClassInput {
+  name?: string;
+  icon?: string | null;
+  targetMin?: string | null;
+  targetMax?: string | null;
+  maxAssets?: number | null;
+  minAllocationValue?: string | null;  // NEW: Story 4.6
+}
+      </signature>
+      <path>src/lib/services/asset-class-service.ts</path>
+    </interface>
+    <interface name="UpdateSubclassInput" kind="type">
+      <signature>
+interface UpdateSubclassInput {
+  name?: string;
+  targetMin?: string | null;
+  targetMax?: string | null;
+  maxAssets?: number | null;
+  minAllocationValue?: string | null;  // NEW: Story 4.6
+}
+      </signature>
+      <path>src/lib/services/asset-class-service.ts</path>
+    </interface>
+    <interface name="PATCH /api/asset-classes/[id]" kind="endpoint">
+      <signature>PATCH /api/asset-classes/[id] - Body: UpdateAssetClassInput - Returns: { data: AssetClass }</signature>
+      <path>src/app/api/asset-classes/[id]/route.ts</path>
+    </interface>
+    <interface name="PATCH /api/asset-subclasses/[id]" kind="endpoint">
+      <signature>PATCH /api/asset-subclasses/[id] - Body: UpdateSubclassInput - Returns: { data: AssetSubclass }</signature>
+      <path>src/app/api/asset-subclasses/[id]/route.ts</path>
+    </interface>
+    <interface name="MinAllocationInputProps" kind="component-props">
+      <signature>
+interface MinAllocationInputProps {
+  entityId: string;
+  minAllocationValue: string | null;
+  currency: string;
+  onUpdate: (entityId: string, minAllocationValue: string | null) => Promise&lt;unknown&gt;;
+  disabled?: boolean;
+  className?: string;
+}
+      </signature>
+      <path>src/components/strategy/min-allocation-input.tsx (to create)</path>
+    </interface>
+    <interface name="MinAllocationBadgeProps" kind="component-props">
+      <signature>
+interface MinAllocationBadgeProps {
+  value: string | null;
+  currency: string;
+  className?: string;
+}
+      </signature>
+      <path>src/components/strategy/min-allocation-badge.tsx (to create)</path>
+    </interface>
+    <interface name="formatCurrency" kind="function">
+      <signature>function formatCurrency(value: string | number, currency?: string): string</signature>
+      <path>src/lib/utils/currency.ts (to create or extend)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Vitest for unit/integration tests, Playwright for E2E tests. Unit tests follow describe/it pattern with clear test names.
+API route tests mock database operations. Service tests use transaction rollback for isolation.
+E2E tests use authenticated test user fixture. Test baseline: 922 tests passing (from Story 4.5).
+All new code must have corresponding tests before PR merge.
+    </standards>
+    <locations>
+      <location>tests/unit/validations/asset-class.test.ts</location>
+      <location>tests/unit/services/asset-class-service.test.ts</location>
+      <location>tests/e2e/strategy.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="4.6.1,4.6.4">Unit: Valid minAllocationValue values - "0", "100", "100.50", "1000000"</idea>
+      <idea ac="4.6.4">Unit: Invalid minAllocationValue values - "-1", "abc", "1000001", negative decimals</idea>
+      <idea ac="4.6.3">Unit: Null/undefined handling - null and "0" both mean no minimum</idea>
+      <idea ac="4.6.1">Unit: Service updateClass with minAllocationValue - success</idea>
+      <idea ac="4.6.1">Unit: Service updateSubclass with minAllocationValue - success</idea>
+      <idea ac="4.6.1">Unit: Multi-tenant isolation - reject update with wrong userId</idea>
+      <idea ac="4.6.5">Unit: formatCurrency function - USD, EUR, BRL, edge cases (null, 0)</idea>
+      <idea ac="4.6.1">E2E: Navigate to Strategy page, view asset class with min allocation input</idea>
+      <idea ac="4.6.1">E2E: Set min allocation to $100 - saved successfully, visual confirmation shown</idea>
+      <idea ac="4.6.2">E2E: View min allocation badge showing "Min: $100"</idea>
+      <idea ac="4.6.3">E2E: Set min allocation to 0 - badge hidden, displays "No minimum"</idea>
+      <idea ac="4.6.1">E2E: Set subclass min allocation - independent from parent class</idea>
+      <idea ac="4.6.4">E2E: Enter invalid value shows validation error, not saved</idea>
+    </ideas>
+  </tests>
+</story-context>
