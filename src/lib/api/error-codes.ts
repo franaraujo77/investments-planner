@@ -85,6 +85,14 @@ export const NOT_FOUND_ERRORS = {
   INVESTMENT_NOT_FOUND: "NOT_FOUND_INVESTMENT",
   /** Token not found (verification, password reset) */
   TOKEN_NOT_FOUND: "NOT_FOUND_TOKEN",
+  /** Score not found for asset */
+  SCORE_NOT_FOUND: "NOT_FOUND_SCORE",
+  /** Criteria not found */
+  CRITERIA_NOT_FOUND: "NOT_FOUND_CRITERIA",
+  /** No criteria configured for scoring */
+  NO_CRITERIA: "NOT_FOUND_NO_CRITERIA",
+  /** No assets found for calculation */
+  NO_ASSETS: "NOT_FOUND_NO_ASSETS",
 } as const;
 
 // =============================================================================

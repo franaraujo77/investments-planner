@@ -23,8 +23,10 @@ import { calculateScoresRequestSchema } from "@/lib/validations/score-schemas";
 import type { AssetWithFundamentals } from "@/lib/validations/score-schemas";
 import type { AuthError } from "@/lib/auth/types";
 import { db } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { portfolioAssets, portfolios } from "@/lib/db/schema";
+// TODO(epic-6): Replace mock fundamentals with real data from market data providers
+import { generateMockFundamentals } from "@/lib/mocks/fundamentals";
 
 /**
  * Response types
@@ -63,6 +65,7 @@ interface ValidationError {
 /**
  * Get assets with fundamentals for a user
  *
+ * TODO(epic-6): Replace mock fundamentals with real data from market data providers.
  * For now, this uses mock fundamentals data since Epic 6 (Data Pipeline)
  * will provide the actual external data fetching.
  *
@@ -81,19 +84,20 @@ async function getAssetsWithFundamentals(
     return [];
   }
 
-  // Get all assets from user's portfolios
+  // Get assets from user's portfolios using database-level filtering for performance
   const portfolioIds = userPortfolios.map((p) => p.id);
-  let assets = await db.select().from(portfolioAssets);
-  assets = assets.filter((a) => portfolioIds.includes(a.portfolioId));
+  let assets = await db
+    .select()
+    .from(portfolioAssets)
+    .where(inArray(portfolioAssets.portfolioId, portfolioIds));
 
-  // Filter by specific asset IDs if provided
+  // Filter by specific asset IDs if provided (also at DB level for consistency)
   if (assetIds && assetIds.length > 0) {
     assets = assets.filter((a) => assetIds.includes(a.id));
   }
 
   // Convert to AssetWithFundamentals format
-  // For now, use mock fundamentals since Epic 6 will provide real data
-  // In production, this would fetch from external data providers
+  // TODO(epic-6): Fetch real fundamentals from external data providers
   return assets.map((asset) => ({
     id: asset.id,
     symbol: asset.symbol,
@@ -101,36 +105,6 @@ async function getAssetsWithFundamentals(
     fundamentals: generateMockFundamentals(asset.symbol),
     targetMarket: undefined,
   }));
-}
-
-/**
- * Generate mock fundamentals for testing
- *
- * This is a placeholder until Epic 6 (Data Pipeline) provides real data.
- * In production, these would come from external data providers.
- */
-function generateMockFundamentals(symbol: string): Record<string, number | null> {
-  // Use symbol as seed for consistent but varied mock data
-  const seed = symbol.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-  return {
-    dividend_yield: (seed % 10) + 1, // 1-10%
-    pe_ratio: (seed % 30) + 5, // 5-35
-    pb_ratio: (seed % 5) + 0.5, // 0.5-5.5
-    market_cap: ((seed % 100) + 1) * 1_000_000_000, // 1B-100B
-    roe: (seed % 25) + 5, // 5-30%
-    roa: (seed % 15) + 2, // 2-17%
-    debt_to_equity: (seed % 200) / 100, // 0-2
-    current_ratio: (seed % 300) / 100 + 0.5, // 0.5-3.5
-    gross_margin: (seed % 40) + 20, // 20-60%
-    net_margin: (seed % 20) + 5, // 5-25%
-    payout_ratio: (seed % 60) + 20, // 20-80%
-    ev_ebitda: (seed % 15) + 5, // 5-20
-    // Some metrics intentionally null to test missing fundamentals
-    surplus_years: seed % 2 === 0 ? null : (seed % 10) + 1,
-    revenue: seed % 3 === 0 ? null : ((seed % 50) + 1) * 1_000_000_000,
-    earnings: seed % 4 === 0 ? null : ((seed % 20) + 1) * 1_000_000_000,
-  };
 }
 
 /**
