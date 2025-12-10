@@ -1,0 +1,250 @@
+<story-context id="5-6-compare-criteria-sets" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>6</storyId>
+    <title>Compare Criteria Sets</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-6-compare-criteria-sets.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>compare two criteria sets side-by-side</iWant>
+    <soThat>I can evaluate which scoring strategy performs better and make informed decisions about which criteria to use for my investments</soThat>
+    <tasks>
+      <task id="1" title="Create Criteria Comparison Service" ac="5.6.2,5.6.3,5.6.4">
+        <file>src/lib/services/criteria-comparison-service.ts</file>
+        <subtasks>
+          <item>Create CriteriaComparisonService class</item>
+          <item>Implement compareCriteriaSets method</item>
+          <item>Add calculateCriteriaDifferences helper for rule comparison</item>
+          <item>Add calculateRankingChanges helper for asset ranking comparison</item>
+          <item>Add getSampleAssets helper to retrieve sample data</item>
+          <item>Validate both criteria sets exist and belong to user</item>
+          <item>Use decimal.js for all score calculations</item>
+        </subtasks>
+      </task>
+      <task id="2" title="Create Comparison API Endpoint" ac="5.6.1">
+        <file>src/app/api/criteria/compare/route.ts</file>
+        <subtasks>
+          <item>Create POST endpoint for criteria comparison</item>
+          <item>Validate request with Zod schema (setAId, setBId required)</item>
+          <item>Verify both sets belong to authenticated user</item>
+          <item>Return 400 if same set selected for both A and B</item>
+          <item>Return comparison result from service</item>
+          <item>Handle errors appropriately (401, 404, 400)</item>
+        </subtasks>
+      </task>
+      <task id="3" title="Create Zod Schema for Compare Request" ac="5.6.1">
+        <file>src/lib/validations/criteria-schemas.ts</file>
+        <subtasks>
+          <item>Add compareCriteriaSchema with setAId and setBId validation</item>
+          <item>Both fields required, must be valid UUIDs</item>
+          <item>Custom validation: setAId !== setBId</item>
+        </subtasks>
+      </task>
+      <task id="4" title="Create Compare Criteria Dialog Component" ac="5.6.1,5.6.2">
+        <file>src/components/criteria/compare-criteria-dialog.tsx</file>
+        <subtasks>
+          <item>Create dialog with criteria set selection dropdowns</item>
+          <item>Use Select component from shadcn/ui</item>
+          <item>Prevent selection of same set for both A and B</item>
+          <item>Show criteria set info (name, market, criteria count)</item>
+          <item>Disable compare button until both sets selected</item>
+          <item>Handle loading state during comparison</item>
+        </subtasks>
+      </task>
+      <task id="5" title="Create Criteria Differences View Component" ac="5.6.2">
+        <file>src/components/criteria/criteria-differences-view.tsx</file>
+        <subtasks>
+          <item>Create side-by-side comparison layout</item>
+          <item>Show criteria from Set A on left, Set B on right</item>
+          <item>Color-code differences (only_a, only_b, modified, identical)</item>
+          <item>Display criterion details (name, metric, operator, value, points)</item>
+        </subtasks>
+      </task>
+      <task id="6" title="Create Score Comparison View Component" ac="5.6.3,5.6.4">
+        <file>src/components/criteria/score-comparison-view.tsx</file>
+        <subtasks>
+          <item>Display average score cards for Set A and Set B</item>
+          <item>Show score difference indicator with percentage</item>
+          <item>Display sample size information</item>
+          <item>Create ranking changes table</item>
+          <item>Show position change with arrows (green up, red down)</item>
+          <item>Emphasize significant changes (>3 positions)</item>
+        </subtasks>
+      </task>
+      <task id="7" title="Create useCompareCriteria Hook" ac="all">
+        <file>src/hooks/use-compare-criteria.ts</file>
+        <subtasks>
+          <item>Create mutation hook for comparison request</item>
+          <item>Handle loading, error, and success states</item>
+          <item>Use React Query pattern (follow use-copy-criteria.ts)</item>
+          <item>Cache comparison results briefly</item>
+        </subtasks>
+      </task>
+      <task id="8" title="Add Compare Action to Criteria Page" ac="5.6.1">
+        <file>src/components/criteria/criteria-list.tsx</file>
+        <subtasks>
+          <item>Add "Compare Criteria" button to criteria page header</item>
+          <item>Wire up dialog trigger</item>
+          <item>Pass available criteria sets to dialog</item>
+        </subtasks>
+      </task>
+      <task id="9" title="Create Unit Tests for Comparison Service" ac="all">
+        <file>tests/unit/services/criteria-comparison.test.ts</file>
+        <subtasks>
+          <item>Test criteria differences calculation</item>
+          <item>Test identical criteria detection</item>
+          <item>Test ranking change calculations</item>
+          <item>Test average score calculation with decimal.js</item>
+          <item>Test user isolation (can't compare others' criteria)</item>
+          <item>Test error handling for non-existent sets</item>
+        </subtasks>
+      </task>
+      <task id="10" title="Create Integration Tests for Compare API" ac="all">
+        <file>tests/unit/api/criteria-compare.test.ts</file>
+        <subtasks>
+          <item>Test POST /api/criteria/compare success</item>
+          <item>Test 400 for same set selected twice</item>
+          <item>Test 401 for unauthenticated request</item>
+          <item>Test 404 for non-existent criteria set</item>
+          <item>Test 403 for criteria not owned by user</item>
+          <item>Test validation errors for invalid UUIDs</item>
+        </subtasks>
+      </task>
+      <task id="11" title="Run Verification">
+        <subtasks>
+          <item>pnpm lint - passes with no new errors</item>
+          <item>pnpm build - successful build</item>
+          <item>pnpm test - all tests pass</item>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.6.1" title="Select Two Criteria Sets for Comparison">
+      <given>I am on the Criteria page</given>
+      <when>I click "Compare Criteria" action</when>
+      <then>I see a comparison selection interface with Set A and Set B dropdowns, can select from same or different markets, cannot proceed until both selected, cannot select same set for both</then>
+    </criterion>
+    <criterion id="AC-5.6.2" title="Side-by-Side Criteria Differences">
+      <given>I have selected two criteria sets</given>
+      <when>the comparison view loads</when>
+      <then>I see side-by-side comparison with Set A on left, Set B on right, visual highlighting for only_a, only_b, modified, and identical rules</then>
+    </criterion>
+    <criterion id="AC-5.6.3" title="Average Scores Per Set">
+      <given>the comparison view is displayed</given>
+      <when>sample assets are evaluated against both criteria sets</when>
+      <then>I see average score for Set A and Set B, score difference indicator percentage, and sample size clearly indicated</then>
+    </criterion>
+    <criterion id="AC-5.6.4" title="Assets with Different Rankings Highlighted">
+      <given>both criteria sets have been evaluated</given>
+      <when>I view the comparison results</when>
+      <then>I see list of assets with different rankings showing symbol, name, rank A vs B, score A vs B, green/red arrows for change, and emphasis on significant changes (>3 positions)</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Tech Spec" section="Story 5.6 Compare Criteria Sets" snippet="API contracts for POST /api/criteria/compare, CriteriaDifference and RankingChange interfaces, sample asset limit of 20, quick-calc integration requirements"/>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Implementation Patterns" snippet="All inputs validated with Zod schemas (server-side enforcement), user isolation via userId scoping, decimal.js for score calculations, quick-calc mode for fast preview"/>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 5.6" snippet="Compare two criteria sets side-by-side to evaluate scoring strategy performance"/>
+      <doc path="CLAUDE.md" title="Project Standards" section="Test Requirements" snippet="Every code change requires test coverage - unit tests for service logic, integration tests for API routes"/>
+      <doc path="docs/sprint-artifacts/5-5-copy-criteria-set.md" title="Previous Story" section="Dev Agent Record" snippet="Patterns established: module-level mockState in tests, useLayoutEffect for form reset, custom error classes, markets.ts constants"/>
+    </docs>
+    <code>
+      <artifact path="src/lib/services/criteria-service.ts" kind="service" symbol="getCriteriaById,getCriteriaSetsForUser,CriteriaNotFoundError,copyCriteriaSet" reason="Existing criteria service with user isolation patterns, error classes to reuse for comparison service"/>
+      <artifact path="src/lib/validations/criteria-schemas.ts" kind="validation" symbol="copyCriteriaSchema,criterionRuleSchema,AVAILABLE_OPERATORS" reason="Existing Zod schemas to extend with compareCriteriaSchema, operator and metric constants"/>
+      <artifact path="src/lib/constants/markets.ts" kind="constants" symbol="getMarketDisplayName,getAvailableMarkets,PREDEFINED_MARKETS" reason="Market display name helpers to reuse in comparison dialog"/>
+      <artifact path="src/hooks/use-copy-criteria.ts" kind="hook" symbol="useCopyCriteria" reason="Pattern to follow for use-compare-criteria.ts - useState, useCallback, toast notifications"/>
+      <artifact path="src/components/criteria/copy-criteria-dialog.tsx" kind="component" symbol="CopyCriteriaDialog" reason="Dialog pattern to follow - Select dropdowns, form state, loading states, shadcn Dialog"/>
+      <artifact path="src/components/criteria/criteria-list.tsx" kind="component" symbol="CriteriaList" lines="407-428" reason="DropdownMenu pattern for actions, where to add Compare action"/>
+      <artifact path="src/lib/db/schema.ts" kind="schema" symbol="criteriaVersions,CriteriaVersion,CriterionRule" lines="340-380" reason="Database schema for criteria, CriterionRule interface for comparison logic"/>
+      <artifact path="tests/unit/services/criteria-copy.test.ts" kind="test" symbol="describe,mockState" reason="Test pattern with module-level mockState, vi.mock for drizzle-orm"/>
+      <artifact path="tests/unit/api/criteria-copy.test.ts" kind="test" reason="API test pattern for criteria endpoints"/>
+    </code>
+    <dependencies>
+      <node>
+        <package name="decimal.js" version="^10.6.0" reason="Required for score calculations per architecture"/>
+        <package name="zod" version="^4.1.13" reason="Schema validation for API requests"/>
+        <package name="@radix-ui/react-dialog" version="^1.1.15" reason="shadcn Dialog component"/>
+        <package name="@radix-ui/react-select" version="^2.2.6" reason="shadcn Select for criteria set dropdowns"/>
+        <package name="@radix-ui/react-tabs" version="^1.1.13" reason="shadcn Tabs for differences/scores views"/>
+        <package name="sonner" version="^2.0.7" reason="Toast notifications"/>
+        <package name="lucide-react" version="^0.555.0" reason="Icons for comparison UI"/>
+        <package name="vitest" version="^4.0.14" reason="Unit testing framework"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="validation">All inputs validated with Zod schemas - server-side enforcement</constraint>
+    <constraint type="isolation">All database queries scoped by userId for multi-tenant isolation</constraint>
+    <constraint type="precision">Use decimal.js for all score calculations, never floats</constraint>
+    <constraint type="performance">Quick-calc preview under 500ms, limit to 20 sample assets</constraint>
+    <constraint type="architecture">API routes in src/app/api/, services in src/lib/services/, hooks in src/hooks/</constraint>
+    <constraint type="testing">Every code change requires unit tests and integration tests per CLAUDE.md</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/criteria/compare" kind="REST endpoint">
+      <signature>POST /api/criteria/compare { setAId: string, setBId: string } => { data: ComparisonResult }</signature>
+      <path>src/app/api/criteria/compare/route.ts</path>
+    </interface>
+    <interface name="CriteriaDifference" kind="TypeScript interface">
+      <signature>{ criterionName: string, inSetA: CriterionSummary | null, inSetB: CriterionSummary | null, differenceType: 'only_a' | 'only_b' | 'modified' | 'identical' }</signature>
+      <path>src/lib/services/criteria-comparison-service.ts</path>
+    </interface>
+    <interface name="RankingChange" kind="TypeScript interface">
+      <signature>{ assetSymbol: string, assetName: string, rankA: number, rankB: number, scoreA: string, scoreB: string, change: 'improved' | 'declined' | 'unchanged', positionChange: number }</signature>
+      <path>src/lib/services/criteria-comparison-service.ts</path>
+    </interface>
+    <interface name="CriteriaComparisonService" kind="service class">
+      <signature>class CriteriaComparisonService { async compareCriteriaSets(userId: string, setAId: string, setBId: string): Promise&lt;ComparisonResult&gt; }</signature>
+      <path>src/lib/services/criteria-comparison-service.ts</path>
+    </interface>
+    <interface name="compareCriteriaSchema" kind="Zod schema">
+      <signature>z.object({ setAId: z.string().uuid(), setBId: z.string().uuid() }).refine(data => data.setAId !== data.setBId)</signature>
+      <path>src/lib/validations/criteria-schemas.ts</path>
+    </interface>
+    <interface name="useCompareCriteria" kind="React hook">
+      <signature>function useCompareCriteria(): { compareCriteria: (setAId: string, setBId: string) => Promise&lt;ComparisonResult | null&gt;, isComparing: boolean, error: string | null }</signature>
+      <path>src/hooks/use-compare-criteria.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit and integration tests. Follow existing patterns from tests/unit/services/criteria-copy.test.ts:
+      - Module-level mock state variables to control mock behavior per test
+      - vi.mock for drizzle-orm and @/lib/db
+      - describe/it blocks organized by AC or feature
+      - Use vi.clearAllMocks() in beforeEach
+      - Test error handling with toThrow matchers
+      - For API tests, mock auth and return structured JSON responses
+    </standards>
+    <locations>
+      <location>tests/unit/services/ - Service unit tests</location>
+      <location>tests/unit/api/ - API route integration tests</location>
+      <location>tests/unit/hooks/ - Hook unit tests (optional)</location>
+      <location>tests/unit/validations/ - Schema validation tests</location>
+    </locations>
+    <ideas>
+      <idea ac="5.6.1">Test compareCriteriaSchema rejects same ID for both setAId and setBId</idea>
+      <idea ac="5.6.1">Test API returns 400 when setAId === setBId</idea>
+      <idea ac="5.6.1">Test API returns 401 for unauthenticated request</idea>
+      <idea ac="5.6.2">Test calculateCriteriaDifferences correctly identifies only_a, only_b, modified, identical</idea>
+      <idea ac="5.6.2">Test identical criteria with different IDs are matched by name+metric+operator</idea>
+      <idea ac="5.6.3">Test average score calculation uses decimal.js correctly</idea>
+      <idea ac="5.6.3">Test sample size is limited to 20 assets</idea>
+      <idea ac="5.6.4">Test ranking changes correctly identify improved/declined/unchanged</idea>
+      <idea ac="5.6.4">Test positionChange calculation is accurate</idea>
+      <idea ac="all">Test user isolation - cannot compare criteria from different user</idea>
+      <idea ac="all">Test CriteriaNotFoundError thrown for non-existent sets</idea>
+    </ideas>
+  </tests>
+</story-context>

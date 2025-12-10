@@ -1,0 +1,243 @@
+<story-context id="5-10-view-asset-score" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>10</storyId>
+    <title>View Asset Score</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-10-view-asset-score.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>view the current score for any asset</iWant>
+    <soThat>I can see how it ranks against my scoring criteria</soThat>
+    <tasks>
+      <task id="1" ac="5.10.1,5.10.4">Create ScoreBadge Component - src/components/fintech/score-badge.tsx</task>
+      <task id="2" ac="5.10.2">Create ScoreTooltip Component - src/components/fintech/score-tooltip.tsx</task>
+      <task id="3" ac="5.10.3">Create UnscoredIndicator Component - src/components/fintech/unscored-indicator.tsx</task>
+      <task id="4" ac="all">Create useAssetScore Hook - src/hooks/use-asset-score.ts</task>
+      <task id="5" ac="5.10.1">Integrate ScoreBadge into Portfolio List</task>
+      <task id="6" ac="5.10.1">Integrate ScoreBadge into Criteria Page Asset Preview</task>
+      <task id="7" ac="5.10.1,5.10.4">Create Unit Tests for ScoreBadge</task>
+      <task id="8" ac="5.10.3">Create Unit Tests for Unscored Handling</task>
+      <task id="9">Run Verification (tsc, lint, build, test)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="5.10.1" title="Score Badge Display">
+      <given>I am viewing an asset (in portfolio or search)</given>
+      <when>I see the asset card or row</when>
+      <then>I see the score displayed as a badge with color coding</then>
+      <and>color coding follows: green (80+), amber (50-79), red (&lt;50)</and>
+      <and>scores display as integers (0-100 scale)</and>
+    </criterion>
+    <criterion id="5.10.2" title="Score Tooltip with Preview">
+      <given>I hover over a score badge</given>
+      <when>the tooltip appears</when>
+      <then>I see: "Score: 87 - Click for breakdown"</then>
+      <and>tooltip includes score freshness timestamp</and>
+      <and>tooltip shows brief summary (e.g., "5/8 criteria matched")</and>
+    </criterion>
+    <criterion id="5.10.3" title="Unscored Asset Indicator">
+      <given>an asset exists but has no calculated score</given>
+      <when>I view that asset</when>
+      <then>I see "Not scored" indicator instead of score badge</then>
+      <and>indicator explains why (e.g., "No criteria configured for this market")</and>
+      <and>clicking shows option to configure criteria</and>
+    </criterion>
+    <criterion id="5.10.4" title="Score Freshness Timestamp">
+      <given>a score exists for an asset</given>
+      <when>I view the score badge</when>
+      <then>I can see when the score was calculated</then>
+      <and>freshness indicator shows: green (&lt;24h), amber (1-3 days), red (&gt;3 days)</and>
+      <and>stale scores (&gt;7 days) show warning icon</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic 5 Technical Specification: Scoring Engine</title>
+        <section>Story 5.10: View Asset Score</section>
+        <snippet>Score displayed as badge with color coding (green 80+, amber 50-79, red &lt;50). Score tooltip shows: "Score: 87 - Click for breakdown". Assets without scores show "Not scored" indicator. Score freshness timestamp visible.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Custom Components</section>
+        <snippet>Custom fintech components go in src/components/fintech/. State management uses React Query for server state. DataFreshnessBadge pattern shows freshness: green (&lt;24h), amber (1-3 days), red (&gt;3 days).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Project Structure</section>
+        <snippet>Custom hooks go in src/hooks/. Components use Tailwind CSS with shadcn/ui patterns. API routes follow pattern: /api/scores/:assetId returns score, breakdown, calculatedAt, isFresh.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/5-9-store-historical-scores.md</path>
+        <title>Story 5.9: Store Historical Scores</title>
+        <section>Dev Agent Record</section>
+        <snippet>Existing Services: src/lib/services/score-service.ts has score fetching methods (getAssetScore, getScoreHistory). API Pattern: /api/scores/[assetId]/ route structure established. Schema: scoreHistory table has calculatedAt timestamps for freshness.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>src/lib/services/score-service.ts</path>
+        <kind>service</kind>
+        <symbol>getAssetScore, ScoreQueryResult</symbol>
+        <lines>131-156</lines>
+        <reason>Core function to fetch score for an asset. Returns assetId, symbol, score, breakdown, criteriaVersionId, calculatedAt, isFresh. Hook should use this via API.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/api/scores/[assetId]/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET /api/scores/:assetId</symbol>
+        <lines>71-162</lines>
+        <reason>Existing API endpoint returning score data. Returns 404 with code "NOT_FOUND" for unscored assets. Response includes breakdown array and isFresh boolean.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/fintech/data-freshness-badge.tsx</path>
+        <kind>component</kind>
+        <symbol>DataFreshnessBadge, getFreshnessLevel</symbol>
+        <lines>all</lines>
+        <reason>Existing pattern for freshness display. Reuse getFreshnessLevel logic (fresh &lt;24h, stale 1-3d, very_stale &gt;3d). Follow same color patterns (green, amber, red).</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/fintech/criteria-block.tsx</path>
+        <kind>component</kind>
+        <symbol>CriteriaBlock</symbol>
+        <lines>all</lines>
+        <reason>Example of fintech component pattern to follow for consistency.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/(dashboard)/portfolio/portfolio-page-client.tsx</path>
+        <kind>page</kind>
+        <symbol>PortfolioPageClient</symbol>
+        <lines>all</lines>
+        <reason>Integration point for ScoreBadge in portfolio asset list. Add score display to asset rows.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/(dashboard)/criteria/criteria-page-client.tsx</path>
+        <kind>page</kind>
+        <symbol>CriteriaPageClient</symbol>
+        <lines>all</lines>
+        <reason>Integration point for ScoreBadge in criteria preview. Show before/after scores when previewing criteria changes.</reason>
+      </artifact>
+      <artifact>
+        <path>src/hooks/use-criteria.ts</path>
+        <kind>hook</kind>
+        <symbol>useCriteria</symbol>
+        <lines>all</lines>
+        <reason>Example hook pattern using React Query. Follow same structure for useAssetScore.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>assetScores, scoreHistory</symbol>
+        <lines>varies</lines>
+        <reason>Database schema for scores. Score stored as numeric(7,4). Has calculatedAt timestamp for freshness.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@radix-ui/react-tooltip</package>
+        <version>^1.2.8</version>
+        <purpose>Tooltip component from shadcn/ui</purpose>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.555.0</version>
+        <purpose>Icons for badge and indicators</purpose>
+      </node>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Score normalization (convert decimal to integer display)</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Input validation for API responses</purpose>
+      </node>
+      <node>
+        <package>react-hook-form</package>
+        <version>^7.67.0</version>
+        <purpose>Form handling if needed</purpose>
+      </node>
+      <node>
+        <package>@tanstack/react-query</package>
+        <version>implicit via react-hook-form resolvers</version>
+        <purpose>Server state management for score fetching</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Component Location: Custom fintech components MUST go in src/components/fintech/</constraint>
+    <constraint source="architecture">Hook Location: Custom hooks MUST go in src/hooks/</constraint>
+    <constraint source="architecture">State Management: Use React Query for server state (score fetching)</constraint>
+    <constraint source="architecture">Styling: Use Tailwind CSS with shadcn/ui patterns</constraint>
+    <constraint source="tech-spec">Decimal Precision: Scores stored as decimal.js, display as integers 0-100</constraint>
+    <constraint source="tech-spec">User Isolation: All queries MUST include userId filter for multi-tenant security</constraint>
+    <constraint source="dev-notes">Color Thresholds: green (80+), amber (50-79), red (&lt;50) - DO NOT deviate</constraint>
+    <constraint source="dev-notes">Freshness Thresholds: green (&lt;24h), amber (1-3d), red (&gt;3d), warning icon (&gt;7d)</constraint>
+    <constraint source="CLAUDE.md">Test Coverage: Every code change MUST include appropriate test coverage</constraint>
+    <constraint source="architecture">API Response Format: { data: T } for success, { error, code } for errors</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/scores/:assetId</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/scores/{assetId} -> { data: { assetId, symbol, score, breakdown[], criteriaVersionId, calculatedAt, isFresh } } | { error, code: "NOT_FOUND" }</signature>
+      <path>src/app/api/scores/[assetId]/route.ts</path>
+    </interface>
+    <interface>
+      <name>ScoreQueryResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface ScoreQueryResult { assetId: string; symbol: string; score: string; breakdown: CriterionResult[]; criteriaVersionId: string; calculatedAt: Date; isFresh: boolean; }</signature>
+      <path>src/lib/services/score-service.ts:48-57</path>
+    </interface>
+    <interface>
+      <name>CriterionResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface CriterionResult { criterionId: string; criterionName: string; matched: boolean; pointsAwarded: number; actualValue?: string; skippedReason?: string; }</signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+    <interface>
+      <name>FreshnessLevel</name>
+      <kind>TypeScript type</kind>
+      <signature>type FreshnessLevel = "fresh" | "stale" | "very_stale"</signature>
+      <path>src/components/fintech/data-freshness-badge.tsx:45</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing uses Vitest for unit/integration tests and Playwright for E2E. Tests follow naming convention: *.test.ts for unit tests in tests/unit/ directory. Component tests should verify: color thresholds, accessibility (aria-labels), click handlers, loading states, error states. API mocking uses vi.mock() pattern. Follow existing test patterns from Story 5.8/5.9.
+    </standards>
+    <locations>
+      <location>tests/unit/components/</location>
+      <location>tests/unit/hooks/</location>
+      <location>tests/e2e/</location>
+    </locations>
+    <ideas>
+      <idea ac="5.10.1">Test ScoreBadge renders green for score 80, amber for 65, red for 40</idea>
+      <idea ac="5.10.1">Test score displays as integer (85.5 -> 86)</idea>
+      <idea ac="5.10.2">Test tooltip content shows score, summary, and freshness</idea>
+      <idea ac="5.10.3">Test UnscoredIndicator shows "Not scored" with correct reason</idea>
+      <idea ac="5.10.3">Test UnscoredIndicator renders link to criteria configuration</idea>
+      <idea ac="5.10.4">Test freshness icon colors based on calculatedAt timestamp</idea>
+      <idea ac="5.10.4">Test warning icon shows for scores older than 7 days</idea>
+      <idea ac="all">Test useAssetScore hook loading, success, and error states</idea>
+      <idea ac="all">Test useAssetScore returns null for 404 (unscored asset)</idea>
+      <idea ac="all">Test accessibility: aria-label on badge, keyboard navigation</idea>
+    </ideas>
+  </tests>
+</story-context>

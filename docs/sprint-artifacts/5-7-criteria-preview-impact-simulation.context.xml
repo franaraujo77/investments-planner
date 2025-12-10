@@ -1,0 +1,179 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>7</storyId>
+    <title>Criteria Preview (Impact Simulation)</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-7-criteria-preview-impact-simulation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>preview which assets score highest with my current criteria before saving</iWant>
+    <soThat>I can validate my criteria strategy and understand its impact on asset rankings</soThat>
+    <tasks>
+      <task id="1" ac="5.7.2,5.7.3" files="src/lib/calculations/quick-calc.ts">
+        Create Quick-Calc Service - QuickCalcService class/module, calculatePreview method, sample assets with mock fundamentals, decimal.js scoring, sorted top N results, caching, &lt;500ms target
+      </task>
+      <task id="2" ac="5.7.1,5.7.2,5.7.4" files="src/app/api/criteria/preview/route.ts">
+        Create Preview API Endpoint - POST endpoint, Zod validation, savedVersionId comparison, QuickCalcService integration, top 10 assets response
+      </task>
+      <task id="3" ac="5.7.1" files="src/lib/validations/criteria-schemas.ts">
+        Create Zod Schema for Preview Request - previewCriteriaSchema, criteria array validation, optional savedVersionId UUID
+      </task>
+      <task id="4" ac="5.7.2,5.7.4" files="src/components/criteria/preview-impact-modal.tsx">
+        Create Preview Impact Modal Component - shadcn Dialog, top 10 assets table, comparison summary, color-coded indicators, score breakdown
+      </task>
+      <task id="5" ac="5.7.2" files="src/components/criteria/preview-assets-table.tsx">
+        Create Preview Assets Table Component - reusable table, Rank/Symbol/Name/Score/Change columns, ScoreBadge, expandable rows, loading skeleton
+      </task>
+      <task id="6" ac="5.7.3" files="src/hooks/use-preview-criteria.ts">
+        Create usePreviewCriteria Hook with Live Updates - mutation hook, 300ms debouncing, loading/error/success states, caching
+      </task>
+      <task id="7" ac="5.7.1,5.7.3" files="src/components/criteria/criteria-list.tsx">
+        Add Preview Button and Integration to Criteria Page - Preview Impact button, modal trigger, criteria change listener, debounced re-preview
+      </task>
+      <task id="8" ac="5.7.2,5.7.3" files="tests/unit/calculations/quick-calc.test.ts">
+        Create Unit Tests for Quick-Calc Service - score calculation accuracy, ranking order, decimal.js precision, performance &lt;500ms, edge cases
+      </task>
+      <task id="9" ac="All" files="tests/unit/api/criteria-preview.test.ts">
+        Create Integration Tests for Preview API - POST success, 401/400 errors, comparison mode, top 10 response, comparison summary
+      </task>
+      <task id="10" ac="All" files="">
+        Run Verification - pnpm lint, pnpm build, pnpm test
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.7.1" title="Preview Impact Button Available During Editing">
+      <given>I am editing criteria on the Criteria page</given>
+      <when>I view the criteria editing interface</when>
+      <then>I see a "Preview Impact" button available and the button is enabled when there are criteria to preview</then>
+    </criterion>
+    <criterion id="AC-5.7.2" title="Preview Shows Top 10 Scoring Assets">
+      <given>I have criteria defined</given>
+      <when>I click "Preview Impact"</when>
+      <then>I see a modal showing the top 10 scoring assets with the current criteria, each asset shows: symbol, name, score, and key metrics, and scores are calculated using cached asset data (no API calls)</then>
+    </criterion>
+    <criterion id="AC-5.7.3" title="Preview Updates Live as Criteria Modified">
+      <given>the preview modal is open</given>
+      <when>I modify criteria (add, edit, or remove rules)</when>
+      <then>the preview updates live to reflect changes, update occurs within 500ms of modification, and loading indicator appears during calculation</then>
+    </criterion>
+    <criterion id="AC-5.7.4" title="Shows Comparison (Improved/Worse/Same Counts)">
+      <given>I am viewing the preview</given>
+      <when>comparing current criteria against previous saved version</when>
+      <then>I see a summary showing: number of assets that improved/declined/unchanged, and visual indicators: green arrow up for improved, red arrow down for declined, neutral for same</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Technical Specification" section="Story 5.7">
+        Defines preview API contract POST /api/criteria/preview with PreviewAsset and ComparisonSummary types. Performance target: &lt;500ms, 20 sample assets max.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="lib/calculations/quick-calc.ts">
+        Defines quick-calc service location and purpose: fast preview calculations using cached data, no external API calls. Part of calculation services layer.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Frontstage-UI-Components">
+        Specifies UI component patterns: shadcn Dialog for modals, Table for data display, Badge for scores, Skeleton for loading states.
+      </doc>
+      <doc path="docs/sprint-artifacts/5-6-compare-criteria-sets.md" title="Story 5.6 Implementation" section="Dev-Agent-Record">
+        Previous story implementation: getSampleAssets(), scoring logic, MAX_SAMPLE_ASSETS=20, functional exports pattern, module-level mockState in tests.
+      </doc>
+      <doc path="docs/epics.md" title="Epic Overview" section="Epic-5-Story-5.7">
+        Story definition: As a user I want to preview which assets score highest with my current criteria before saving.
+      </doc>
+      <doc path="CLAUDE.md" title="Development Standards" section="Test-Requirements">
+        Mandatory test coverage for all code changes. Unit tests for services, integration tests for API routes.
+      </doc>
+    </docs>
+    <code>
+      <file path="src/lib/services/criteria-comparison-service.ts" kind="service" symbol="getSampleAssets" lines="247-275" reason="REUSE: Sample assets function with mock fundamentals data for preview scoring. MAX_SAMPLE_ASSETS=20 constant."/>
+      <file path="src/lib/services/criteria-comparison-service.ts" kind="service" symbol="evaluateCriterion" lines="284-322" reason="REUSE: Criterion evaluation logic against asset fundamentals. All operators handled."/>
+      <file path="src/lib/services/criteria-comparison-service.ts" kind="service" symbol="calculateAssetScore" lines="331-343" reason="REUSE: Total score calculation with decimal.js precision."/>
+      <file path="src/lib/services/criteria-comparison-service.ts" kind="service" symbol="calculateRankingChanges" lines="354-413" reason="REUSE: Ranking change calculation between two score sets."/>
+      <file path="src/lib/validations/criteria-schemas.ts" kind="validation" symbol="criterionRuleSchema" lines="235-309" reason="EXTEND: Add previewCriteriaSchema using existing criterion validation."/>
+      <file path="src/lib/validations/criteria-schemas.ts" kind="validation" symbol="compareCriteriaSchema" lines="488-496" reason="PATTERN: Follow same structure for previewCriteriaSchema."/>
+      <file path="src/hooks/use-compare-criteria.ts" kind="hook" symbol="useCompareCriteria" lines="47-121" reason="PATTERN: Follow same hook pattern for usePreviewCriteria with useState/useCallback."/>
+      <file path="src/components/criteria/compare-criteria-dialog.tsx" kind="component" symbol="CompareCriteriaDialog" lines="1-296" reason="PATTERN: Dialog component pattern for PreviewImpactModal."/>
+      <file path="src/components/criteria/score-comparison-view.tsx" kind="component" symbol="ScoreComparisonView" lines="1-270" reason="PATTERN: Score display, arrows, ranking change highlighting."/>
+      <file path="src/components/criteria/criteria-list.tsx" kind="component" symbol="CriteriaList" lines="1-150" reason="MODIFY: Add Preview Impact button alongside Compare button."/>
+      <file path="src/app/api/criteria/compare/route.ts" kind="api" symbol="POST" lines="1-128" reason="PATTERN: API route structure, withAuth, Zod validation, error handling."/>
+      <file path="src/lib/calculations/decimal-utils.ts" kind="utility" symbol="decimalUtils" lines="1-50" reason="IMPORT: Decimal.js utilities for score calculations."/>
+      <file path="tests/unit/services/criteria-comparison.test.ts" kind="test" symbol="describe" lines="1-300" reason="PATTERN: Service unit test structure with module-level mockState."/>
+      <file path="tests/unit/api/criteria-compare.test.ts" kind="test" symbol="describe" lines="1-250" reason="PATTERN: API integration test structure with auth mocking."/>
+    </code>
+    <dependencies>
+      <npm>
+        <package name="decimal.js" version="^10.6.0" reason="Financial precision for score calculations"/>
+        <package name="zod" version="^4.1.13" reason="Schema validation for API requests"/>
+        <package name="sonner" version="^2.0.7" reason="Toast notifications for user feedback"/>
+        <package name="@radix-ui/react-dialog" version="^1.1.15" reason="Dialog component for preview modal"/>
+        <package name="@radix-ui/react-tabs" version="^1.1.13" reason="Tabs for comparison views"/>
+        <package name="lucide-react" version="^0.555.0" reason="Icons for arrows, indicators"/>
+        <package name="vitest" version="^4.0.14" reason="Unit and integration testing"/>
+      </npm>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="performance">Preview calculation must complete in &lt;500ms using cached data only, no external API calls</constraint>
+    <constraint type="performance">Sample size limited to 20 assets maximum (MAX_SAMPLE_ASSETS constant)</constraint>
+    <constraint type="performance">Client-side debouncing (300ms) for live updates to prevent excessive recalculation</constraint>
+    <constraint type="precision">Use decimal.js for all score calculations to ensure financial precision</constraint>
+    <constraint type="validation">All API inputs must be validated with Zod schemas</constraint>
+    <constraint type="security">Multi-tenant isolation: All operations scoped by userId</constraint>
+    <constraint type="architecture">Services in src/lib/calculations/ for quick-calc, not services folder</constraint>
+    <constraint type="architecture">Functional exports pattern (not class) per project convention</constraint>
+    <constraint type="testing">Unit tests required for quick-calc service, integration tests for API</constraint>
+    <constraint type="testing">Follow module-level mockState pattern from criteria-comparison tests</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/criteria/preview" kind="REST endpoint" path="src/app/api/criteria/preview/route.ts">
+      Request: { criteria: CriterionRule[], savedVersionId?: string }
+      Response: { data: { topAssets: PreviewAsset[], comparison?: ComparisonSummary, calculatedAt: string, sampleSize: number } }
+    </interface>
+    <interface name="PreviewAsset" kind="type" path="src/lib/calculations/quick-calc.ts">
+      { symbol: string, name: string, score: string, rank: number, breakdown: CriterionScore[] }
+    </interface>
+    <interface name="ComparisonSummary" kind="type" path="src/lib/calculations/quick-calc.ts">
+      { improved: number, declined: number, unchanged: number, previousAverageScore: string, currentAverageScore: string }
+    </interface>
+    <interface name="previewCriteriaSchema" kind="Zod schema" path="src/lib/validations/criteria-schemas.ts">
+      z.object({ criteria: z.array(criterionRuleSchema), savedVersionId: z.string().uuid().optional() })
+    </interface>
+    <interface name="usePreviewCriteria" kind="React hook" path="src/hooks/use-preview-criteria.ts">
+      Returns: { previewCriteria, isLoading, error, result, reset }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit and integration tests. Follow module-level mockState pattern from criteria-comparison.test.ts. Mock auth with vi.mock. Use @testing-library/react for component tests if needed. All tests in tests/unit/ directory matching source structure.
+    </standards>
+    <locations>
+      <location>tests/unit/calculations/quick-calc.test.ts</location>
+      <location>tests/unit/api/criteria-preview.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="5.7.1">Test Preview button renders when criteria exist, disabled when no criteria</idea>
+      <idea ac="5.7.2">Test calculatePreview returns top 10 sorted by score descending</idea>
+      <idea ac="5.7.2">Test score calculation with known inputs produces expected output</idea>
+      <idea ac="5.7.2">Test empty criteria returns empty result</idea>
+      <idea ac="5.7.2">Test single criterion scoring correctness</idea>
+      <idea ac="5.7.3">Test performance: calculation completes in &lt;500ms for 20 assets</idea>
+      <idea ac="5.7.3">Test decimal.js precision maintained in calculations</idea>
+      <idea ac="5.7.4">Test comparison summary calculates improved/declined/unchanged correctly</idea>
+      <idea ac="5.7.4">Test comparison with savedVersionId loads and compares previous version</idea>
+      <idea ac="API">Test POST /api/criteria/preview returns 200 with valid criteria</idea>
+      <idea ac="API">Test POST /api/criteria/preview returns 401 without auth</idea>
+      <idea ac="API">Test POST /api/criteria/preview returns 400 for invalid criteria format</idea>
+      <idea ac="API">Test response contains exactly 10 or fewer assets</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,503 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context File
+  Story: 5.4 - Criteria Library View
+  Generated: 2025-12-09
+
+  This context provides a developer with everything needed to implement Story 5.4.
+  It includes relevant documentation, existing code interfaces, constraints, and testing guidance.
+-->
+<story-context>
+  <story-metadata>
+    <id>5-4-criteria-library-view</id>
+    <title>Story 5.4: Criteria Library View</title>
+    <epic>Epic 5 - Scoring Engine</epic>
+    <status>drafted</status>
+    <function-points>8</function-points>
+  </story-metadata>
+
+  <story-summary>
+    <description>
+      Implement a unified library view for managing scoring criteria. The view provides
+      organized tabs by asset type, displays criteria sets with their rules, and supports
+      drag-and-drop reordering. This story completes the criteria management UI by
+      integrating all previously built components (CriteriaBlock, CriteriaForm, etc.)
+      into a cohesive experience.
+    </description>
+    <user-story>
+      As a user managing investment criteria, I want to view all my criteria in an
+      organized library so I can easily navigate, edit, and organize my scoring rules.
+    </user-story>
+  </story-summary>
+
+  <acceptance-criteria>
+    <criterion id="AC-5.4.1">
+      <title>Library Header and Navigation</title>
+      <description>
+        Page header with title "Scoring Criteria", subtitle explaining purpose,
+        and "New Criteria Set" button that opens create dialog.
+      </description>
+      <testable-conditions>
+        - Header displays "Scoring Criteria" title
+        - Subtitle explains criteria purpose
+        - "New Criteria Set" button visible and functional
+        - Button disabled when user has reached limit (50 sets)
+      </testable-conditions>
+    </criterion>
+
+    <criterion id="AC-5.4.2">
+      <title>Asset Type Tabs Organization</title>
+      <description>
+        Criteria organized by asset type (stock, reit, etf, etc.) with tabs.
+        Each tab shows badge with criteria count. Active tab displays criteria sets.
+      </description>
+      <testable-conditions>
+        - Tabs appear for each asset type with criteria
+        - Badge shows total criteria count per asset type
+        - Clicking tab switches to that asset type's criteria
+        - Last modified date shown in tab content
+      </testable-conditions>
+    </criterion>
+
+    <criterion id="AC-5.4.3">
+      <title>Criteria Set Display</title>
+      <description>
+        Each criteria set displays as a card with name, target market, version number,
+        and list of individual criteria blocks. Sets can be selected for editing.
+      </description>
+      <testable-conditions>
+        - Criteria set shows name and target market
+        - Version number displayed (e.g., "Version 3")
+        - Criteria count badge shown
+        - Clicking set highlights it as selected
+        - Multiple sets per asset type displayed
+      </testable-conditions>
+    </criterion>
+
+    <criterion id="AC-5.4.4">
+      <title>Drag-and-Drop Reordering</title>
+      <description>
+        Criteria within a set can be reordered via drag-and-drop. Drag handle appears
+        on hover. Order persists after reordering (creates new version per AC-5.1.6).
+      </description>
+      <testable-conditions>
+        - Drag handle visible on hover
+        - Criteria can be dragged to new position
+        - Visual feedback during drag
+        - Order persists after drop
+        - New version created on reorder
+      </testable-conditions>
+    </criterion>
+
+    <criterion id="AC-5.4.5">
+      <title>Empty States</title>
+      <description>
+        Empty state shown when no criteria exist. Per-tab empty state when asset type
+        has no criteria. Clear call-to-action to create first criteria set.
+      </description>
+      <testable-conditions>
+        - Global empty state when user has no criteria
+        - Tab-specific empty state for asset types without criteria
+        - "Create Criteria Set" CTA in empty states
+        - Helpful messaging explaining what criteria are for
+      </testable-conditions>
+    </criterion>
+
+    <criterion id="AC-5.4.6">
+      <title>Add Criterion Flow</title>
+      <description>
+        "Add Criterion" button in tab content opens sheet/dialog with CriteriaForm.
+        New criterion added to the active criteria set with auto-incrementing sortOrder.
+      </description>
+      <testable-conditions>
+        - "Add Criterion" button visible per tab
+        - Button opens add criterion sheet
+        - Form pre-selects current asset type context
+        - Successful add refreshes list and closes sheet
+        - New criterion appears at end of list
+      </testable-conditions>
+    </criterion>
+
+    <criterion id="AC-5.4.7">
+      <title>Loading and Error States</title>
+      <description>
+        Loading spinner while fetching criteria. Error state with retry button
+        if fetch fails. Disabled state during mutations.
+      </description>
+      <testable-conditions>
+        - Loading spinner during initial fetch
+        - Error message and retry button on failure
+        - All interactions disabled during save/delete operations
+        - Loading indicators on individual operations
+      </testable-conditions>
+    </criterion>
+
+    <criterion id="AC-5.4.8">
+      <title>Responsive Layout</title>
+      <description>
+        Layout adapts to mobile and desktop viewports. Tabs scrollable on mobile.
+        Criteria blocks stack appropriately on small screens.
+      </description>
+      <testable-conditions>
+        - Tabs horizontally scrollable on mobile
+        - Criteria blocks full-width on mobile
+        - Adequate touch targets for mobile interactions
+        - Proper spacing on all viewport sizes
+      </testable-conditions>
+    </criterion>
+  </acceptance-criteria>
+
+  <technical-context>
+    <existing-components>
+      <component path="src/app/(dashboard)/criteria/criteria-page-client.tsx">
+        <description>Main client component for criteria page. Already implements most of Story 5.4.</description>
+        <status>PARTIALLY_COMPLETE</status>
+        <notes>
+          This component already contains the core implementation including:
+          - CriteriaHeader with "New Criteria Set" button
+          - EmptyState component for no criteria
+          - Integration with useCriteria hooks
+          - Create set dialog and add criterion sheet
+          Review and enhance for remaining ACs.
+        </notes>
+      </component>
+
+      <component path="src/components/criteria/criteria-list.tsx">
+        <description>List component with tabs, dnd-kit integration, and criteria display</description>
+        <status>COMPLETE</status>
+        <exports>
+          - CriteriaList (main component)
+          - SortableCriterionBlock (internal)
+        </exports>
+        <features>
+          - Tabs by asset type with badges
+          - DndContext for drag-and-drop
+          - SortableContext with vertical list strategy
+          - Empty states per tab
+          - Last modified dates
+        </features>
+      </component>
+
+      <component path="src/components/fintech/criteria-block.tsx">
+        <description>Individual criterion block with inline editing</description>
+        <status>COMPLETE</status>
+        <exports>CriteriaBlock</exports>
+        <features>
+          - Drag handle with GripVertical icon
+          - Inline editing for name, metric, operator, value(s), points
+          - Auto-save on blur
+          - Delete with confirmation dialog
+          - Visual save confirmation (checkmark)
+          - Loading states during mutations
+        </features>
+      </component>
+
+      <component path="src/components/criteria/criteria-form.tsx">
+        <description>Form for creating/editing criteria and criteria sets</description>
+        <status>COMPLETE</status>
+        <exports>
+          - CriteriaForm (for individual criteria)
+          - CriteriaSetForm (for criteria sets)
+        </exports>
+      </component>
+    </existing-components>
+
+    <existing-hooks>
+      <hook path="src/hooks/use-criteria.ts">
+        <description>React hooks for criteria CRUD operations</description>
+        <exports>
+          - useCriteria (list with filters, returns criteriaByAssetType)
+          - useCriteriaSet (single set by ID)
+          - useCreateCriteriaSet
+          - useUpdateCriteriaSet
+          - useDeleteCriteriaSet
+          - useAddCriterion
+          - useUpdateCriterion
+          - useDeleteCriterion
+          - useReorderCriteria
+        </exports>
+        <key-interface>
+          useCriteria returns:
+          - criteria: CriteriaVersion[]
+          - criteriaByAssetType: Record&lt;string, CriteriaVersion[]&gt;
+          - isLoading: boolean
+          - error: string | null
+          - canCreate: boolean
+          - limit: number
+          - refresh: () =&gt; void
+        </key-interface>
+      </hook>
+    </existing-hooks>
+
+    <existing-services>
+      <service path="src/lib/services/criteria-service.ts">
+        <description>Server-side business logic for criteria operations</description>
+        <key-functions>
+          - getCriteriaSetsForUser(userId, options?)
+          - getCriteriaByAssetType(userId)
+          - createCriteriaSet(userId, input)
+          - updateCriteriaSet(userId, criteriaId, input)
+          - addCriterion(userId, criteriaId, criterion)
+          - updateCriterion(userId, criteriaId, criterionId, updates)
+          - deleteCriterion(userId, criteriaId, criterionId)
+          - reorderCriteria(userId, criteriaId, criterionIds)
+          - deleteCriteriaSet(userId, criteriaId)
+        </key-functions>
+        <custom-errors>
+          - CriteriaSetLimitError
+          - CriteriaNotFoundError
+          - CriterionNotFoundError
+        </custom-errors>
+      </service>
+    </existing-services>
+
+    <api-routes>
+      <route path="src/app/api/criteria/route.ts" methods="GET, POST">
+        <description>List and create criteria sets</description>
+        <query-params>assetType, targetMarket, isActive</query-params>
+      </route>
+      <route path="src/app/api/criteria/[id]/route.ts" methods="GET, PATCH, DELETE">
+        <description>Get, update, or delete a single criteria set</description>
+      </route>
+      <route path="src/app/api/criteria/[id]/reorder/route.ts" methods="PATCH">
+        <description>Reorder criteria within a set</description>
+        <body>criterionIds: string[]</body>
+      </route>
+    </api-routes>
+
+    <database-schema>
+      <table name="criteria_versions">
+        <columns>
+          - id: uuid (PK)
+          - userId: uuid (FK to users)
+          - assetType: varchar(50) - e.g., 'stock', 'reit', 'etf'
+          - targetMarket: varchar(50) - e.g., 'BR_BANKS', 'US_TECH'
+          - name: varchar(100)
+          - criteria: jsonb - Array of CriterionRule objects
+          - version: integer - Increments on each change
+          - isActive: boolean - Soft delete flag
+          - createdAt, updatedAt: timestamp
+        </columns>
+        <indexes>
+          - criteria_versions_user_id_idx
+          - criteria_versions_user_asset_type_idx
+          - criteria_versions_user_market_idx
+        </indexes>
+      </table>
+
+      <type name="CriterionRule">
+        <fields>
+          - id: string (UUID)
+          - name: string
+          - metric: CriterionMetric (dividend_yield, pe_ratio, etc.)
+          - operator: CriterionOperator (gt, lt, gte, lte, between, equals, exists)
+          - value: string (decimal string)
+          - value2?: string (for 'between' operator)
+          - points: number (-100 to +100)
+          - requiredFundamentals: string[]
+          - sortOrder: number
+        </fields>
+      </type>
+    </database-schema>
+
+    <constants>
+      <constant name="MAX_CRITERIA_SETS_PER_USER" value="50" />
+      <constant name="MAX_CRITERIA_PER_SET" value="50" />
+      <constant name="POINTS_MIN" value="-100" />
+      <constant name="POINTS_MAX" value="100" />
+      <constant name="AVAILABLE_METRICS" source="src/lib/validations/criteria-schemas.ts">
+        dividend_yield, pe_ratio, pb_ratio, market_cap, revenue, earnings,
+        surplus_years, roe, roa, debt_to_equity, current_ratio, gross_margin,
+        net_margin, payout_ratio, ev_ebitda
+      </constant>
+      <constant name="AVAILABLE_OPERATORS" source="src/lib/validations/criteria-schemas.ts">
+        gt, lt, gte, lte, between, equals, exists
+      </constant>
+    </constants>
+  </technical-context>
+
+  <dependencies>
+    <frontend-libraries>
+      <library name="@dnd-kit/core" version="^6.3.1">
+        <usage>DndContext, closestCenter collision detection, sensors</usage>
+      </library>
+      <library name="@dnd-kit/sortable" version="^10.0.0">
+        <usage>SortableContext, useSortable hook, verticalListSortingStrategy</usage>
+      </library>
+      <library name="@dnd-kit/utilities" version="^3.2.2">
+        <usage>CSS.Transform for drag transforms</usage>
+      </library>
+      <library name="lucide-react">
+        <icons-used>
+          GripVertical, Trash2, Check, Loader2, AlertCircle, Plus, Settings2, FileQuestion
+        </icons-used>
+      </library>
+      <library name="sonner">
+        <usage>Toast notifications for success/error feedback</usage>
+      </library>
+    </frontend-libraries>
+
+    <ui-components>
+      <component path="@/components/ui/tabs">Tabs, TabsList, TabsTrigger, TabsContent</component>
+      <component path="@/components/ui/badge">Badge for counts</component>
+      <component path="@/components/ui/button">Button with variants</component>
+      <component path="@/components/ui/input">Input for inline editing</component>
+      <component path="@/components/ui/dialog">Dialog for create criteria set</component>
+      <component path="@/components/ui/sheet">Sheet for add criterion side panel</component>
+      <component path="@/components/ui/alert-dialog">AlertDialog for delete confirmation</component>
+    </ui-components>
+  </dependencies>
+
+  <validation-schemas>
+    <schema name="createCriteriaSetSchema" path="src/lib/validations/criteria-schemas.ts">
+      <fields>
+        - name: string (1-100 chars)
+        - assetType: enum
+        - targetMarket: string (1-50 chars)
+        - criteria: array of criterionRuleSchema (min 1)
+      </fields>
+    </schema>
+
+    <schema name="criterionRuleSchema">
+      <fields>
+        - id?: uuid (optional, auto-generated)
+        - name: string (1-100 chars)
+        - metric: enum (AVAILABLE_METRICS)
+        - operator: enum (AVAILABLE_OPERATORS)
+        - value: decimal string (validated via regex)
+        - value2?: decimal string (for 'between' operator)
+        - points: integer (-100 to +100)
+        - requiredFundamentals: string[]
+        - sortOrder: number (>= 0)
+      </fields>
+    </schema>
+
+    <schema name="reorderCriteriaSchema">
+      <fields>
+        - criterionIds: array of UUIDs (min 1)
+      </fields>
+    </schema>
+  </validation-schemas>
+
+  <implementation-notes>
+    <note priority="high">
+      The criteria-page-client.tsx already implements most of Story 5.4's requirements.
+      Review existing implementation against acceptance criteria before making changes.
+      Focus on:
+      1. Verify all ACs are met
+      2. Add any missing empty states
+      3. Ensure responsive behavior
+      4. Add comprehensive tests
+    </note>
+
+    <note priority="medium">
+      The CriteriaList component uses @dnd-kit for drag-and-drop. Key implementation:
+      - PointerSensor with 8px activation distance (prevents accidental drags)
+      - KeyboardSensor for accessibility
+      - verticalListSortingStrategy for vertical reordering
+      - useSortable hook in SortableCriterionBlock wrapper
+    </note>
+
+    <note priority="medium">
+      Immutable versioning: Every criteria modification creates a new version.
+      This is handled by the service layer - the UI just calls update/reorder
+      and the service creates the new version automatically.
+    </note>
+
+    <note priority="low">
+      The page is at /criteria route under the dashboard layout.
+      Page file: src/app/(dashboard)/criteria/page.tsx
+      Client component: src/app/(dashboard)/criteria/criteria-page-client.tsx
+    </note>
+  </implementation-notes>
+
+  <testing-requirements>
+    <unit-tests>
+      <test-file>tests/unit/components/criteria-list.test.tsx</test-file>
+      <test-cases>
+        - Renders tabs for each asset type
+        - Shows correct criteria count in tab badges
+        - Displays criteria sets within each tab
+        - Handles empty state when no criteria exist
+        - Handles per-tab empty state
+        - Renders criteria blocks within sets
+        - Calls onSelectSet when set clicked
+        - Calls onAddCriterion when add button clicked
+      </test-cases>
+    </unit-tests>
+
+    <unit-tests>
+      <test-file>tests/unit/components/criteria-page-client.test.tsx</test-file>
+      <test-cases>
+        - Shows loading state initially
+        - Shows error state with retry on failure
+        - Shows empty state when no criteria
+        - Renders CriteriaList when criteria exist
+        - Opens create set dialog on header button click
+        - Opens add criterion sheet on tab button click
+        - Disables interactions during mutations
+      </test-cases>
+    </unit-tests>
+
+    <integration-tests>
+      <test-file>tests/integration/criteria/criteria-library.test.ts</test-file>
+      <test-cases>
+        - Create criteria set flow (end-to-end)
+        - Add criterion to existing set
+        - Update criterion via inline edit
+        - Delete criterion with confirmation
+        - Reorder criteria via drag-and-drop simulation
+        - Tab switching and selection persistence
+      </test-cases>
+    </integration-tests>
+
+    <e2e-tests>
+      <test-file>tests/e2e/criteria-library.spec.ts</test-file>
+      <test-cases>
+        - Navigate to criteria page
+        - Create first criteria set from empty state
+        - Add multiple criteria to a set
+        - Edit criterion inline
+        - Delete criterion
+        - Switch between asset type tabs
+        - Verify responsive behavior on mobile viewport
+      </test-cases>
+    </e2e-tests>
+
+    <testing-patterns>
+      <pattern>
+        Use @testing-library/react with vi.mock for hooks
+        Mock useCriteria to return controlled test data
+        Use userEvent for click/type interactions
+      </pattern>
+      <pattern>
+        For drag-and-drop tests, use @dnd-kit test utilities
+        or mock the DndContext behavior
+      </pattern>
+    </testing-patterns>
+  </testing-requirements>
+
+  <related-stories>
+    <story id="5.1" title="Define Scoring Criteria" status="done">
+      Provides CriteriaBlock, CriteriaForm, and CRUD operations
+    </story>
+    <story id="5.2" title="Set Point Values" status="done">
+      Provides PointsBadge component and points validation
+    </story>
+    <story id="5.3" title="Define Criteria Operators" status="done">
+      Provides operator constants, OperatorSelector component
+    </story>
+  </related-stories>
+
+  <definition-of-done>
+    <item>All 8 acceptance criteria (AC-5.4.1 through AC-5.4.8) are implemented and verified</item>
+    <item>Unit tests for CriteriaList and CriteriaPageClient components</item>
+    <item>Integration tests for the complete criteria library flow</item>
+    <item>E2E tests covering main user journeys</item>
+    <item>Responsive layout tested on mobile and desktop viewports</item>
+    <item>Accessibility: keyboard navigation works, proper ARIA labels</item>
+    <item>No console errors or warnings in browser</item>
+    <item>Code passes lint and type check (pnpm lint, pnpm exec tsc --noEmit)</item>
+    <item>Build succeeds (pnpm build)</item>
+  </definition-of-done>
+</story-context>

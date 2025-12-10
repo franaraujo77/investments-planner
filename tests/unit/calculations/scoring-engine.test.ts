@@ -2,7 +2,16 @@
  * Scoring Engine Tests
  *
  * Story 1.4: Event-Sourced Calculation Pipeline
- * Tests for AC5 (deterministic calculations)
+ * Story 5.8: Score Calculation Engine
+ *
+ * Tests for:
+ * - AC5 (deterministic calculations) - Story 1.4
+ * - AC-5.8.1: Criteria-Driven Algorithm Execution Order
+ * - AC-5.8.2: Decimal Precision for All Calculations
+ * - AC-5.8.3: Deterministic Calculation
+ * - AC-5.8.4: Event Emission for Audit Trail
+ * - AC-5.8.5: Score Storage with Audit Trail
+ * - AC-5.8.6: Missing Fundamentals Handling
  *
  * Note: These tests require Vitest (configured in Story 1-7)
  */
@@ -12,8 +21,20 @@ import {
   ScoringEngine,
   createScoringFunction,
   type AssetData,
+  // New Story 5.8 exports
+  calculateScores,
+  calculateScoresWithEvents,
+  evaluateCriterion,
+  type EventEmitter,
 } from "@/lib/calculations/scoring-engine";
-import type { CriteriaConfig, CriterionDefinition, InputsCapturedEvent } from "@/lib/events/types";
+import type {
+  CriteriaConfig,
+  CriterionDefinition,
+  InputsCapturedEvent,
+  CalculationEvent,
+} from "@/lib/events/types";
+import type { CriterionRule } from "@/lib/db/schema";
+import type { AssetWithFundamentals } from "@/lib/validations/score-schemas";
 
 describe("ScoringEngine", () => {
   const engine = new ScoringEngine();
@@ -147,16 +168,16 @@ describe("ScoringEngine", () => {
             operator: "gte",
             value: "50",
             points: 7,
-            weight: 1.3, // Non-round weight
+            weight: 1, // Weight = 1 in new implementation
           },
         ],
       };
 
       const result = engine.calculateScore(asset, criteria, [], []);
 
-      // 7 * 1.3 = 9.1
-      expect(result.score).toBe("9.1000");
-      expect(result.maxPossibleScore).toBe("9.1000");
+      // Points awarded directly (weight not used in new implementation)
+      expect(result.score).toBe("7.0000");
+      expect(result.maxPossibleScore).toBe("7.0000");
     });
   });
 
@@ -590,7 +611,7 @@ describe("ScoringEngine", () => {
       expect(result.passed).toBe(true); // -3 > -5
     });
 
-    it("handles zero weight gracefully", () => {
+    it("handles zero points criterion", () => {
       const asset: AssetData = {
         id: "asset-1",
         symbol: "TEST",
@@ -600,23 +621,783 @@ describe("ScoringEngine", () => {
       const criteria: CriteriaConfig = {
         id: "crit-1",
         version: "1.0",
-        name: "Zero Weight Test",
+        name: "Zero Points Test",
         criteria: [
           {
             id: "c1",
             name: "value",
             operator: "gte",
             value: "50",
-            points: 10,
-            weight: 0, // Zero weight
+            points: 0, // Zero points
+            weight: 1,
           },
         ],
       };
 
       const result = engine.calculateScore(asset, criteria, [], []);
 
+      // Criterion passes but awards 0 points
       expect(result.score).toBe("0.0000");
       expect(result.maxPossibleScore).toBe("0.0000");
+    });
+  });
+});
+
+// =============================================================================
+// STORY 5.8: SCORE CALCULATION ENGINE - NEW TESTS
+// =============================================================================
+
+describe("Story 5.8: Score Calculation Engine", () => {
+  // Helper to create criterion rules
+  function createCriterionRule(overrides: Partial<CriterionRule>): CriterionRule {
+    return {
+      id: crypto.randomUUID(),
+      name: "Test Criterion",
+      metric: "dividend_yield",
+      operator: "gt",
+      value: "5.0",
+      value2: undefined,
+      points: 10,
+      requiredFundamentals: ["dividend_yield"],
+      sortOrder: 0,
+      ...overrides,
+    };
+  }
+
+  // Helper to create assets with fundamentals
+  function createAsset(overrides: Partial<AssetWithFundamentals>): AssetWithFundamentals {
+    return {
+      id: crypto.randomUUID(),
+      symbol: "TEST",
+      fundamentals: {},
+      ...overrides,
+    };
+  }
+
+  describe("AC-5.8.1: Criteria-Driven Algorithm Execution Order", () => {
+    it("processes criteria in order, then assets", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          name: "High Dividend",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "5.0",
+          points: 10,
+          sortOrder: 0,
+        }),
+        createCriterionRule({
+          id: "c2",
+          name: "Low PE",
+          metric: "pe_ratio",
+          operator: "lt",
+          value: "15.0",
+          points: 5,
+          sortOrder: 1,
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "AAPL",
+          fundamentals: { dividend_yield: 6.0, pe_ratio: 12.0 },
+        }),
+        createAsset({
+          id: "asset-2",
+          symbol: "MSFT",
+          fundamentals: { dividend_yield: 3.0, pe_ratio: 18.0 },
+        }),
+      ];
+
+      const results = calculateScores(criteria, assets, "version-1");
+
+      // Verify both assets are scored
+      expect(results).toHaveLength(2);
+
+      // Asset 1: dividend_yield 6 > 5 (10pts), pe_ratio 12 < 15 (5pts) = 15
+      const asset1 = results.find((r) => r.assetId === "asset-1");
+      expect(asset1?.score).toBe("15.0000");
+      expect(asset1?.breakdown).toHaveLength(2);
+
+      // Asset 2: dividend_yield 3 <= 5 (0pts), pe_ratio 18 >= 15 (0pts) = 0
+      const asset2 = results.find((r) => r.assetId === "asset-2");
+      expect(asset2?.score).toBe("0.0000");
+    });
+
+    it("sums points correctly across multiple criteria", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+        }),
+        createCriterionRule({
+          id: "c2",
+          metric: "pe_ratio",
+          operator: "lt",
+          value: "20.0",
+          points: 5,
+        }),
+        createCriterionRule({ id: "c3", metric: "roe", operator: "gte", value: "15.0", points: 8 }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { dividend_yield: 5.0, pe_ratio: 10.0, roe: 20.0 },
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      // All criteria pass: 10 + 5 + 8 = 23
+      expect(result.score).toBe("23.0000");
+      expect(result.breakdown.filter((b) => b.matched)).toHaveLength(3);
+    });
+  });
+
+  describe("AC-5.8.2: Decimal Precision for All Calculations", () => {
+    it("uses decimal.js precision - 0.1 + 0.2 = 0.3 exactly", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "value",
+          operator: "equals",
+          value: "0.3",
+          points: 10,
+          requiredFundamentals: ["value"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { value: 0.3 }, // This is exactly 0.3
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.breakdown[0].matched).toBe(true);
+      expect(result.score).toBe("10.0000");
+    });
+
+    it("stores scores with exactly 4 decimal places", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "value",
+          operator: "gt",
+          value: "5.0",
+          points: 7, // Non-round number
+          requiredFundamentals: ["value"], // Make sure to include the metric
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { value: 10.0 },
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("7.0000");
+      expect(result.score.split(".")[1]).toHaveLength(4);
+    });
+  });
+
+  describe("AC-5.8.3: Deterministic Calculation", () => {
+    it("produces identical scores across multiple runs", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+        }),
+        createCriterionRule({
+          id: "c2",
+          metric: "pe_ratio",
+          operator: "lt",
+          value: "20.0",
+          points: 5,
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { dividend_yield: 5.0, pe_ratio: 15.0 },
+        }),
+      ];
+
+      // Run 100 times
+      const scores: string[] = [];
+      for (let i = 0; i < 100; i++) {
+        const [result] = calculateScores(criteria, assets, "version-1");
+        scores.push(result.score);
+      }
+
+      // All scores should be identical
+      const uniqueScores = new Set(scores);
+      expect(uniqueScores.size).toBe(1);
+      expect(scores[0]).toBe("15.0000");
+    });
+  });
+
+  describe("AC-5.8.4: Event Emission for Audit Trail", () => {
+    it("emits all 4 events in correct order per calculation", async () => {
+      const emittedEvents: CalculationEvent[] = [];
+      const mockEmitter: EventEmitter = {
+        emit: async (userId, event) => {
+          emittedEvents.push(event);
+        },
+      };
+
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { dividend_yield: 5.0 },
+        }),
+      ];
+
+      await calculateScoresWithEvents(
+        { userId: "user-1", criteriaVersionId: "version-1" },
+        criteria,
+        assets,
+        mockEmitter
+      );
+
+      // Should emit exactly 4 events
+      expect(emittedEvents).toHaveLength(4);
+      expect(emittedEvents[0].type).toBe("CALC_STARTED");
+      expect(emittedEvents[1].type).toBe("INPUTS_CAPTURED");
+      expect(emittedEvents[2].type).toBe("SCORES_COMPUTED");
+      expect(emittedEvents[3].type).toBe("CALC_COMPLETED");
+    });
+
+    it("correlationId is consistent across all events", async () => {
+      const emittedEvents: CalculationEvent[] = [];
+      const mockEmitter: EventEmitter = {
+        emit: async (userId, event) => {
+          emittedEvents.push(event);
+        },
+      };
+
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { dividend_yield: 5.0 },
+        }),
+      ];
+
+      await calculateScoresWithEvents(
+        { userId: "user-1", criteriaVersionId: "version-1" },
+        criteria,
+        assets,
+        mockEmitter
+      );
+
+      // All correlationIds should match
+      const correlationIds = emittedEvents.map((e) => e.correlationId);
+      const uniqueIds = new Set(correlationIds);
+      expect(uniqueIds.size).toBe(1);
+    });
+
+    it("CALC_COMPLETED includes accurate duration and assetCount", async () => {
+      const emittedEvents: CalculationEvent[] = [];
+      const mockEmitter: EventEmitter = {
+        emit: async (userId, event) => {
+          emittedEvents.push(event);
+        },
+      };
+
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({ id: "asset-1", symbol: "TEST1", fundamentals: { dividend_yield: 5.0 } }),
+        createAsset({ id: "asset-2", symbol: "TEST2", fundamentals: { dividend_yield: 6.0 } }),
+        createAsset({ id: "asset-3", symbol: "TEST3", fundamentals: { dividend_yield: 7.0 } }),
+      ];
+
+      await calculateScoresWithEvents(
+        { userId: "user-1", criteriaVersionId: "version-1" },
+        criteria,
+        assets,
+        mockEmitter
+      );
+
+      const completedEvent = emittedEvents.find((e) => e.type === "CALC_COMPLETED");
+      expect(completedEvent).toBeDefined();
+
+      if (completedEvent?.type === "CALC_COMPLETED") {
+        expect(completedEvent.assetCount).toBe(3);
+        expect(completedEvent.duration).toBeGreaterThanOrEqual(0);
+        expect(completedEvent.status).toBe("success");
+      }
+    });
+  });
+
+  describe("AC-5.8.5: Score Storage with Audit Trail", () => {
+    it("breakdown includes all required fields", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          name: "High Dividend",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { dividend_yield: 5.0 },
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      const breakdown = result.breakdown[0];
+      expect(breakdown).toHaveProperty("criterionId");
+      expect(breakdown).toHaveProperty("criterionName");
+      expect(breakdown).toHaveProperty("matched");
+      expect(breakdown).toHaveProperty("pointsAwarded");
+      expect(breakdown).toHaveProperty("actualValue");
+      expect(breakdown).toHaveProperty("skippedReason");
+    });
+
+    it("includes criteriaVersionId in score result", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({ id: "c1", metric: "value", operator: "gt", value: "0", points: 5 }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({ id: "asset-1", symbol: "TEST", fundamentals: { value: 10.0 } }),
+      ];
+
+      const versionId = "my-criteria-version-123";
+      const [result] = calculateScores(criteria, assets, versionId);
+
+      expect(result.criteriaVersionId).toBe(versionId);
+    });
+  });
+
+  describe("AC-5.8.6: Missing Fundamentals Handling", () => {
+    it("skips criterion with skippedReason when fundamentals missing", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          name: "High Dividend",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+          requiredFundamentals: ["dividend_yield"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: {}, // Missing dividend_yield
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.breakdown[0].matched).toBe(false);
+      expect(result.breakdown[0].pointsAwarded).toBe(0);
+      expect(result.breakdown[0].skippedReason).toBe("missing_fundamental");
+    });
+
+    it("evaluates available criteria when only some fundamentals missing", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          name: "High Dividend",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+          requiredFundamentals: ["dividend_yield"],
+        }),
+        createCriterionRule({
+          id: "c2",
+          name: "Low PE",
+          metric: "pe_ratio",
+          operator: "lt",
+          value: "15.0",
+          points: 5,
+          requiredFundamentals: ["pe_ratio"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { pe_ratio: 10.0 }, // dividend_yield missing
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      // First criterion skipped due to missing fundamental
+      expect(result.breakdown[0].skippedReason).toBe("missing_fundamental");
+      expect(result.breakdown[0].pointsAwarded).toBe(0);
+
+      // Second criterion evaluated (pe_ratio 10 < 15)
+      expect(result.breakdown[1].matched).toBe(true);
+      expect(result.breakdown[1].pointsAwarded).toBe(5);
+
+      expect(result.score).toBe("5.0000");
+    });
+
+    it("returns zero points when all criteria skipped", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+          requiredFundamentals: ["dividend_yield"],
+        }),
+        createCriterionRule({
+          id: "c2",
+          metric: "pe_ratio",
+          operator: "lt",
+          value: "15.0",
+          points: 5,
+          requiredFundamentals: ["pe_ratio"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: {}, // All fundamentals missing
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("0.0000");
+      expect(result.breakdown.every((b) => b.skippedReason === "missing_fundamental")).toBe(true);
+    });
+
+    it("handles null fundamental values as missing", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+          requiredFundamentals: ["dividend_yield"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { dividend_yield: null as unknown as number },
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.breakdown[0].skippedReason).toBe("missing_fundamental");
+    });
+  });
+
+  describe("All Operators", () => {
+    it("gt operator works correctly", () => {
+      const criterion = createCriterionRule({
+        id: "c1",
+        metric: "value",
+        operator: "gt",
+        value: "10",
+        points: 5,
+        requiredFundamentals: ["value"],
+      });
+
+      const pass = evaluateCriterion(criterion, { value: 11 });
+      const fail = evaluateCriterion(criterion, { value: 10 });
+
+      expect(pass.matched).toBe(true);
+      expect(fail.matched).toBe(false);
+    });
+
+    it("lt operator works correctly", () => {
+      const criterion = createCriterionRule({
+        id: "c1",
+        metric: "value",
+        operator: "lt",
+        value: "10",
+        points: 5,
+        requiredFundamentals: ["value"],
+      });
+
+      const pass = evaluateCriterion(criterion, { value: 9 });
+      const fail = evaluateCriterion(criterion, { value: 10 });
+
+      expect(pass.matched).toBe(true);
+      expect(fail.matched).toBe(false);
+    });
+
+    it("gte operator works correctly", () => {
+      const criterion = createCriterionRule({
+        id: "c1",
+        metric: "value",
+        operator: "gte",
+        value: "10",
+        points: 5,
+        requiredFundamentals: ["value"],
+      });
+
+      const pass1 = evaluateCriterion(criterion, { value: 11 });
+      const pass2 = evaluateCriterion(criterion, { value: 10 });
+      const fail = evaluateCriterion(criterion, { value: 9 });
+
+      expect(pass1.matched).toBe(true);
+      expect(pass2.matched).toBe(true);
+      expect(fail.matched).toBe(false);
+    });
+
+    it("lte operator works correctly", () => {
+      const criterion = createCriterionRule({
+        id: "c1",
+        metric: "value",
+        operator: "lte",
+        value: "10",
+        points: 5,
+        requiredFundamentals: ["value"],
+      });
+
+      const pass1 = evaluateCriterion(criterion, { value: 9 });
+      const pass2 = evaluateCriterion(criterion, { value: 10 });
+      const fail = evaluateCriterion(criterion, { value: 11 });
+
+      expect(pass1.matched).toBe(true);
+      expect(pass2.matched).toBe(true);
+      expect(fail.matched).toBe(false);
+    });
+
+    it("between operator works correctly", () => {
+      const criterion = createCriterionRule({
+        id: "c1",
+        metric: "value",
+        operator: "between",
+        value: "5",
+        value2: "15",
+        points: 5,
+        requiredFundamentals: ["value"],
+      });
+
+      const pass1 = evaluateCriterion(criterion, { value: 5 });
+      const pass2 = evaluateCriterion(criterion, { value: 10 });
+      const pass3 = evaluateCriterion(criterion, { value: 15 });
+      const fail1 = evaluateCriterion(criterion, { value: 4 });
+      const fail2 = evaluateCriterion(criterion, { value: 16 });
+
+      expect(pass1.matched).toBe(true);
+      expect(pass2.matched).toBe(true);
+      expect(pass3.matched).toBe(true);
+      expect(fail1.matched).toBe(false);
+      expect(fail2.matched).toBe(false);
+    });
+
+    it("equals operator works correctly", () => {
+      const criterion = createCriterionRule({
+        id: "c1",
+        metric: "value",
+        operator: "equals",
+        value: "10",
+        points: 5,
+        requiredFundamentals: ["value"],
+      });
+
+      const pass = evaluateCriterion(criterion, { value: 10 });
+      const fail = evaluateCriterion(criterion, { value: 10.01 });
+
+      expect(pass.matched).toBe(true);
+      expect(fail.matched).toBe(false);
+    });
+
+    it("exists operator works correctly", () => {
+      const criterion = createCriterionRule({
+        id: "c1",
+        metric: "value",
+        operator: "exists",
+        value: "0", // Value doesn't matter for exists
+        points: 5,
+        requiredFundamentals: [], // Empty for exists
+      });
+
+      const pass = evaluateCriterion(criterion, { value: 10 });
+      const fail = evaluateCriterion(criterion, { value: null as unknown as number });
+
+      expect(pass.matched).toBe(true);
+      expect(fail.matched).toBe(false);
+    });
+  });
+
+  describe("Edge Cases", () => {
+    it("handles zero points criterion", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "value",
+          operator: "gt",
+          value: "5",
+          points: 0, // Zero points
+          requiredFundamentals: ["value"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { value: 10 },
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.breakdown[0].matched).toBe(true);
+      expect(result.breakdown[0].pointsAwarded).toBe(0);
+      expect(result.score).toBe("0.0000");
+    });
+
+    it("handles negative points criterion", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "value",
+          operator: "gt",
+          value: "5",
+          points: -10, // Negative points
+          requiredFundamentals: ["value"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { value: 10 },
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.breakdown[0].matched).toBe(true);
+      expect(result.breakdown[0].pointsAwarded).toBe(-10);
+      expect(result.score).toBe("-10.0000");
+    });
+
+    it("handles no matching criteria", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "value",
+          operator: "gt",
+          value: "100",
+          points: 10,
+          requiredFundamentals: ["value"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { value: 50 }, // Below threshold
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.breakdown[0].matched).toBe(false);
+      expect(result.score).toBe("0.0000");
+    });
+
+    it("handles empty assets array", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({ id: "c1", metric: "value", operator: "gt", value: "5", points: 10 }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [];
+
+      const results = calculateScores(criteria, assets, "version-1");
+
+      expect(results).toHaveLength(0);
+    });
+
+    it("handles empty criteria array", () => {
+      const criteria: CriterionRule[] = [];
+
+      const assets: AssetWithFundamentals[] = [
+        createAsset({
+          id: "asset-1",
+          symbol: "TEST",
+          fundamentals: { value: 10 },
+        }),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("0.0000");
+      expect(result.breakdown).toHaveLength(0);
     });
   });
 });

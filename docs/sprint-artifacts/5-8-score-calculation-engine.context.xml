@@ -1,0 +1,304 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>8</storyId>
+    <title>Score Calculation Engine</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-09</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-8-score-calculation-engine.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>calculate scores for assets using a criteria-driven algorithm</iWant>
+    <soThat>recommendations can be generated based on user-defined criteria</soThat>
+    <tasks>
+      <task id="1" files="src/lib/calculations/scoring-engine.ts">
+        Create Scoring Engine Service (AC: 5.8.1, 5.8.2, 5.8.3)
+        - Create ScoringEngine class/module with calculateScores method
+        - Implement criteria-driven algorithm (iterate: criteria -> markets -> assets)
+        - Use decimal.js for all mathematical operations
+        - Implement score aggregation (sum of matched criterion points)
+        - Return deterministic results for identical inputs
+        - Integrate with existing quick-calc evaluation logic from Story 5.7
+      </task>
+      <task id="2" files="src/lib/events/types.ts, src/lib/events/event-store.ts">
+        Implement Event Store Integration (AC: 5.8.4)
+        - Extend CalculationEvent type with all 4 event types
+        - Implement event emission at each calculation stage
+        - Ensure correlationId links all events from single calculation
+        - Store events in calculation_events table
+        - Include timing information (duration) in CALC_COMPLETED
+      </task>
+      <task id="3" files="src/app/api/scores/calculate/route.ts">
+        Create Score Calculation API Endpoint (AC: 5.8.1, 5.8.5)
+        - Create POST endpoint for score calculation
+        - Validate request with Zod schema
+        - Load user's active criteria version (or specified version)
+        - Load assets with fundamentals for calculation
+        - Call ScoringEngine.calculateScores()
+        - Persist scores to asset_scores table
+        - Return scores with correlationId for audit
+      </task>
+      <task id="4" files="src/lib/calculations/scoring-engine.ts">
+        Implement Fundamentals Checking (AC: 5.8.6)
+        - For each criterion, check requiredFundamentals against asset data
+        - Skip criterion if fundamentals missing
+        - Record skippedReason in breakdown
+        - Continue evaluation for other criteria
+        - Log skipped criteria for debugging
+      </task>
+      <task id="5" files="src/lib/services/score-query-service.ts">
+        Add Score Query Service (AC: 5.8.5)
+        - Create service to query scores by assetId and userId
+        - Support fetching breakdown for specific asset
+        - Scope all queries by userId for multi-tenant isolation
+        - Return scores with freshness timestamp
+      </task>
+      <task id="6" files="src/app/api/scores/[assetId]/route.ts">
+        Create Score Endpoint for Individual Asset (AC: 5.8.5)
+        - Create GET endpoint to retrieve asset score
+        - Return score, breakdown, criteriaVersionId, calculatedAt
+        - Return 404 if no score exists
+        - Enforce user authorization
+      </task>
+      <task id="7" files="src/lib/validations/score-schemas.ts">
+        Create Zod Schemas for Score Operations
+        - Create calculateScoresRequestSchema
+        - Create assetScoreResponseSchema
+        - Create criterionResultSchema for breakdown typing
+        - Export TypeScript types from schemas
+      </task>
+      <task id="8" files="tests/unit/calculations/scoring-engine.test.ts">
+        Create Unit Tests for Scoring Engine (AC: All)
+        - Test criteria-driven algorithm order
+        - Test decimal.js precision in calculations
+        - Test deterministic output (same inputs = same results)
+        - Test missing fundamentals handling
+        - Test score aggregation across multiple criteria
+        - Test all operators (gt, lt, gte, lte, between, equals, exists)
+        - Test edge cases: zero points, negative points, no matching criteria
+      </task>
+      <task id="9" files="tests/unit/api/scores-calculate.test.ts">
+        Create Integration Tests for Score API (AC: 5.8.4, 5.8.5)
+        - Test POST /api/scores/calculate success
+        - Test 401 for unauthenticated request
+        - Test 400 for invalid request body
+        - Test event emission (mock event store)
+        - Test score persistence in database
+        - Test response includes correlationId
+      </task>
+      <task id="10" files="tests/unit/events/calculation-events.test.ts">
+        Create Event Store Tests (AC: 5.8.4)
+        - Test all 4 events are emitted per calculation
+        - Test correlationId consistency across events
+        - Test event payloads contain required data
+        - Test replay capability (same results from events)
+      </task>
+      <task id="11">
+        Run Verification
+        - pnpm lint - passes with no new errors
+        - pnpm build - successful build
+        - pnpm test - all tests pass
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.8.1" title="Criteria-Driven Algorithm Execution Order">
+      Given user criteria and asset data are available
+      When score calculation runs
+      Then the algorithm executes in this order:
+        1. For each criterion in user's criteria set:
+           a. Get the criterion's target market/sector
+           b. Find all assets that belong to that market/sector
+           c. For each matching asset:
+              - Check if asset has the required fundamentals
+              - If fundamentals missing: skip this criterion for this asset
+              - If fundamentals present: evaluate criterion condition
+              - If condition met: add criterion points to asset's score
+        2. Aggregate scores: sum all points per asset across all criteria
+        3. Store results with audit trail
+    </criterion>
+    <criterion id="AC-5.8.2" title="Decimal Precision for All Calculations">
+      Given scores are being calculated
+      When any mathematical operation occurs
+      Then decimal.js is used for all calculations
+      And configuration is: precision: 20, rounding: ROUND_HALF_UP
+      And scores are stored as numeric(7,4) in the database
+    </criterion>
+    <criterion id="AC-5.8.3" title="Deterministic Calculation">
+      Given the same inputs (criteria, asset data, fundamentals)
+      When score calculation runs multiple times
+      Then identical results are produced each time
+      And calculation can be replayed from event store
+    </criterion>
+    <criterion id="AC-5.8.4" title="Event Emission for Audit Trail">
+      Given a score calculation is triggered
+      When the calculation completes
+      Then 4 events are emitted:
+        - CALC_STARTED: correlationId, userId, timestamp
+        - INPUTS_CAPTURED: criteriaVersionId, criteria config, prices snapshot, rates snapshot, assetIds
+        - SCORES_COMPUTED: Array of assetId, score, breakdown
+        - CALC_COMPLETED: correlationId, duration, assetCount
+    </criterion>
+    <criterion id="AC-5.8.5" title="Score Storage with Audit Trail">
+      Given scores are computed
+      When they are persisted
+      Then asset_scores table contains:
+        - asset_id, user_id, criteria_version_id, score, breakdown (JSONB), calculated_at
+      And breakdown includes: criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason
+    </criterion>
+    <criterion id="AC-5.8.6" title="Missing Fundamentals Handling">
+      Given an asset is missing required fundamentals for a criterion
+      When that criterion is evaluated
+      Then the criterion is skipped for that asset
+      And breakdown records skippedReason: 'missing_fundamental'
+      And no points are awarded or deducted for that criterion
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Technical Specification" section="Story 5.8">
+        Defines the scoring engine requirements, criteria-driven algorithm, event emission, and database schema for asset_scores table.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="ADR-002: Event-Sourced Calculations">
+        Mandates event sourcing for all calculations with 4 event types. Requires decimal.js for deterministic calculations.
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 5.8: Score Calculation Engine">
+        User story definition, acceptance criteria, and technical notes for criteria-driven scoring algorithm.
+      </doc>
+      <doc path="docs/sprint-artifacts/5-7-criteria-preview-impact-simulation.md" title="Previous Story" section="Completion Notes">
+        Contains reusable patterns from quick-calc implementation including evaluateCriterion logic and operator handling.
+      </doc>
+      <doc path="CLAUDE.md" title="Project Guidelines" section="Test Requirements">
+        Mandates test coverage for all code changes including unit tests for scoring engine and integration tests for API routes.
+      </doc>
+    </docs>
+    <code>
+      <file path="src/lib/calculations/scoring-engine.ts" kind="service" symbol="ScoringEngine">
+        Existing scoring engine with calculateScore, evaluateCriterion methods. EXTEND this for criteria-driven algorithm and event emission.
+        Lines: 1-255
+        Reason: Core module to extend with criteria-driven algorithm, fundamentals checking, and event integration
+      </file>
+      <file path="src/lib/calculations/quick-calc.ts" kind="service" symbol="evaluateCriterion, calculatePreview">
+        Preview calculation logic with all operators (gt, lt, gte, lte, between, equals, exists) and decimal.js usage.
+        Lines: 148-186
+        Reason: REUSE operator evaluation logic and sample asset patterns for scoring engine
+      </file>
+      <file path="src/lib/events/types.ts" kind="types" symbol="CalculationEvent, CalcStartedEvent, InputsCapturedEvent, ScoresComputedEvent, CalcCompletedEvent">
+        Event type definitions for calculation pipeline. Already has all 4 event types defined.
+        Lines: 1-189
+        Reason: Event types already exist - verify compatibility with story requirements
+      </file>
+      <file path="src/lib/events/event-store.ts" kind="service" symbol="EventStore">
+        Event store service with append, appendBatch, getByCorrelationId methods.
+        Lines: 1-207
+        Reason: REUSE for persisting calculation events during score calculation
+      </file>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="calculationEvents, criteriaVersions, CriterionRule">
+        Database schema with calculation_events table and CriterionRule interface.
+        Lines: 87-103, 300-386
+        Reason: Verify schema supports story requirements, may need asset_scores table
+      </file>
+      <file path="src/lib/validations/criteria-schemas.ts" kind="validation" symbol="OPERATOR_LABELS, METRIC_LABELS">
+        Criteria validation schemas with operator and metric label constants.
+        Reason: REUSE for score validation schemas
+      </file>
+      <file path="src/app/api/criteria/route.ts" kind="api" symbol="POST, GET">
+        Criteria API patterns for authentication, validation, error handling.
+        Reason: REUSE API patterns for score endpoints
+      </file>
+      <file path="tests/unit/calculations/quick-calc.test.ts" kind="test" symbol="describe, createCriterion">
+        Test patterns for calculation services including criterion creation helpers.
+        Lines: 1-100
+        Reason: REUSE test structure and helper functions for scoring engine tests
+      </file>
+      <file path="tests/unit/calculations/scoring-engine.test.ts" kind="test" symbol="describe">
+        Existing scoring engine tests - EXTEND with new criteria-driven tests.
+        Reason: Add tests for criteria-driven algorithm, fundamentals checking, event emission
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package name="decimal.js" version="^10.6.0">Arbitrary precision decimal arithmetic for deterministic calculations</package>
+        <package name="drizzle-orm" version="^0.44.7">ORM for database operations</package>
+        <package name="zod" version="^4.1.13">Schema validation for API requests/responses</package>
+        <package name="vitest" version="^4.0.14" dev="true">Unit testing framework</package>
+        <package name="@playwright/test" version="^1.57.0" dev="true">E2E testing framework</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Use decimal.js for ALL score calculations - never use native JS number for financial math</constraint>
+    <constraint source="architecture">Every calculation MUST emit 4 events: CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED</constraint>
+    <constraint source="architecture">Same inputs MUST always produce same scores (deterministic)</constraint>
+    <constraint source="architecture">All queries scoped by user_id for multi-tenant isolation</constraint>
+    <constraint source="tech-spec">Algorithm is CRITERIA-DRIVEN, not asset-driven - iterate: criteria -> markets -> assets</constraint>
+    <constraint source="tech-spec">Score calculation target: less than 100ms per asset</constraint>
+    <constraint source="tech-spec">Use cached fundamentals data - no external API calls during calculation</constraint>
+    <constraint source="CLAUDE.md">Every code change requires test coverage including unit and integration tests</constraint>
+    <constraint source="schema">Scores stored as numeric(7,4) for precision</constraint>
+    <constraint source="schema">breakdown stored as JSONB with criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="ScoringEngine.calculateScores" kind="function" path="src/lib/calculations/scoring-engine.ts">
+      calculateScores(assets: AssetData[], criteria: CriteriaConfig, prices: PriceSnapshot[], rates: ExchangeRateSnapshot[]): AssetScoreResult[]
+    </interface>
+    <interface name="EventStore.append" kind="function" path="src/lib/events/event-store.ts">
+      append(userId: string, event: CalculationEvent): Promise&lt;void&gt;
+    </interface>
+    <interface name="EventStore.appendBatch" kind="function" path="src/lib/events/event-store.ts">
+      appendBatch(userId: string, events: CalculationEvent[]): Promise&lt;void&gt;
+    </interface>
+    <interface name="POST /api/scores/calculate" kind="REST" path="src/app/api/scores/calculate/route.ts">
+      Request: { assetIds?: string[], criteriaVersionId?: string }
+      Response: { data: { jobId: string, scores: AssetScore[], calculatedAt: string, correlationId: string } }
+    </interface>
+    <interface name="GET /api/scores/[assetId]" kind="REST" path="src/app/api/scores/[assetId]/route.ts">
+      Response: { data: { assetId: string, score: string, breakdown: CriterionResult[], criteriaVersionId: string, calculatedAt: string } }
+    </interface>
+    <interface name="CriterionRule" kind="interface" path="src/lib/db/schema.ts">
+      { id: string, name: string, metric: CriterionMetric, operator: CriterionOperator, value: string, value2?: string, points: number, requiredFundamentals: string[], sortOrder: number }
+    </interface>
+    <interface name="CalculationEvent" kind="type" path="src/lib/events/types.ts">
+      CalcStartedEvent | InputsCapturedEvent | ScoresComputedEvent | CalcCompletedEvent
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest for unit tests and Playwright for E2E. Unit tests should cover all scoring engine logic including operator evaluation, decimal precision, deterministic output, and missing fundamentals handling. Integration tests should verify API endpoints with mocked database and event store. All tests must use decimal.js for numeric comparisons to ensure precision. Test files are organized in tests/unit/ matching source structure.
+    </standards>
+    <locations>
+      tests/unit/calculations/scoring-engine.test.ts
+      tests/unit/api/scores-calculate.test.ts
+      tests/unit/events/calculation-events.test.ts
+      tests/unit/services/score-query.test.ts
+    </locations>
+    <ideas>
+      <idea ac="AC-5.8.1">Test criteria-driven algorithm processes criteria in order, then markets, then assets</idea>
+      <idea ac="AC-5.8.1">Test score aggregation sums points correctly across multiple criteria</idea>
+      <idea ac="AC-5.8.2">Test decimal.js precision: verify 0.1 + 0.2 = 0.3 exactly</idea>
+      <idea ac="AC-5.8.2">Test scores stored with exactly 4 decimal places</idea>
+      <idea ac="AC-5.8.3">Test same inputs produce identical scores across multiple runs</idea>
+      <idea ac="AC-5.8.3">Test calculation can be replayed from stored events</idea>
+      <idea ac="AC-5.8.4">Test all 4 events are emitted in correct order per calculation</idea>
+      <idea ac="AC-5.8.4">Test correlationId is consistent across all events from one calculation</idea>
+      <idea ac="AC-5.8.4">Test CALC_COMPLETED includes accurate duration and assetCount</idea>
+      <idea ac="AC-5.8.5">Test scores are persisted with criteriaVersionId for audit</idea>
+      <idea ac="AC-5.8.5">Test breakdown JSON includes all required fields</idea>
+      <idea ac="AC-5.8.6">Test missing fundamentals results in skipped criterion with skippedReason</idea>
+      <idea ac="AC-5.8.6">Test partial fundamentals still evaluates available criteria</idea>
+      <idea ac="AC-5.8.6">Test zero points when all criteria skipped due to missing fundamentals</idea>
+      <idea ac="all">Test all operators: gt, lt, gte, lte, between, equals, exists</idea>
+      <idea ac="all">Test edge cases: zero points, negative points, no matching criteria</idea>
+      <idea ac="all">Test API 401 for unauthenticated request</idea>
+      <idea ac="all">Test API 400 for invalid request body</idea>
+    </ideas>
+  </tests>
+</story-context>

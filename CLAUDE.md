@@ -463,3 +463,64 @@ describe("withErrorHandling", () => {
 - **CI Pipeline:** All tests must pass before merge
 - **Code Review Checklist:** Include test verification as mandatory step
 - **Retrospectives:** Track test coverage as a quality metric
+
+## PR Review Checklist
+
+**MANDATORY:** Before submitting any PR for review, verify all items below. This checklist prevents common issues identified in past reviews.
+
+### Code Quality Checks
+
+- [ ] **No console.log/console.error:** Use `logger` from `@/lib/telemetry/logger` instead
+- [ ] **No explicit `any` types:** Use proper TypeScript types or add eslint-disable with explanation
+- [ ] **Unused variables prefixed with `_`:** e.g., `_unusedParam` to indicate intentional non-use
+- [ ] **Use standardized API responses:** Import from `@/lib/api/responses.ts`
+- [ ] **Use standardized error codes:** Import from `@/lib/api/error-codes.ts`
+
+### Database & Performance Checks
+
+- [ ] **No full table scans:** Use `where()` clauses with `eq()`, `inArray()`, etc.
+- [ ] **Foreign key constraints defined:** Use appropriate `ON DELETE` behavior:
+  - `cascade` - Delete related records automatically
+  - `restrict` - Prevent deletion if related records exist
+  - `no action` - Only for non-critical relationships
+- [ ] **Indexes for frequently queried columns:** Add to schema if needed
+
+### Client-Side Code Checks
+
+- [ ] **No console.error in client components:** Errors display via UI state, server logs via API
+- [ ] **Error boundaries for component failures:** Use React error boundaries where appropriate
+- [ ] **Loading states handled:** Show spinners/skeletons during async operations
+
+### Mock Data & Testing Checks
+
+- [ ] **Mock data in separate files:** Place in `src/lib/mocks/` not in production routes
+- [ ] **TODO comments for placeholders:** Use `TODO(epic-N)` format for future work
+- [ ] **Test coverage for new code:** All new functions have corresponding tests
+
+### Pre-Commit Verification
+
+Run these commands before committing:
+
+```bash
+# Type checking
+pnpm exec tsc --noEmit
+
+# Linting (catches console.error, unused vars, etc.)
+pnpm lint
+
+# Run tests
+pnpm test
+
+# Build verification
+pnpm build
+```
+
+### Common Issues and Fixes
+
+| Issue          | Bad Pattern                   | Good Pattern                          |
+| -------------- | ----------------------------- | ------------------------------------- |
+| Logging        | `console.error("Failed")`     | `logger.error("Failed", { context })` |
+| DB Query       | `db.select().filter(...)`     | `db.select().where(eq(...))`          |
+| Error Response | `{ error: "msg", code: "X" }` | `errorResponse("msg", ERROR_CODES.X)` |
+| Unused Var     | `const data = ...` (unused)   | `const _data = ...` or remove         |
+| Mock Data      | Function in API route         | Import from `@/lib/mocks/`            |

@@ -252,7 +252,8 @@ function PortfolioCardWithValues({
 
       setPortfolioWithValues(data);
     } catch (err) {
-      console.error("Error fetching portfolio values:", err);
+      // Error is captured in state and displayed to user - no console.error needed
+      // Server-side logging happens in the API route
       setError(err instanceof Error ? err.message : "Failed to load portfolio");
     } finally {
       setIsLoading(false);
@@ -279,7 +280,8 @@ function PortfolioCardWithValues({
 
       setAllocationData(data);
     } catch (err) {
-      console.error("Error fetching allocation data:", err);
+      // Error is captured in state and displayed to user - no console.error needed
+      // Server-side logging happens in the API route
       setAllocationError(err instanceof Error ? err.message : "Failed to load allocation");
     } finally {
       setIsLoadingAllocation(false);

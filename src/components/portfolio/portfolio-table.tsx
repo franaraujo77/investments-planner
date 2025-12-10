@@ -8,6 +8,7 @@
  * Story 3.4: Remove Asset from Portfolio
  * Story 3.5: Mark Asset as Ignored
  * Story 3.6: Portfolio Overview with Values
+ * Story 5.10: View Asset Score
  *
  * AC-3.2.5: Uses decimal.js for value calculations
  * AC-3.2.6: Displays assets with calculated total value
@@ -22,6 +23,7 @@
  * AC-3.6.3: Base currency conversion
  * AC-3.6.5: Table sorting
  * AC-3.6.6: Table filtering
+ * AC-5.10.1: Score badge display in asset rows
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -48,6 +50,11 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CurrencyDisplay } from "@/components/fintech/currency-display";
+import { ScoreBadge } from "@/components/fintech/score-badge";
+import { ScoreBreakdown } from "@/components/fintech/score-breakdown";
+import { UnscoredIndicator } from "@/components/fintech/unscored-indicator";
+import { useAssetScores } from "@/hooks/use-asset-score";
+import { useScoreBreakdown } from "@/hooks/use-score-breakdown";
 import type { PortfolioAsset, AssetWithValue } from "@/types/portfolio";
 
 // =============================================================================
@@ -82,7 +89,8 @@ type SortKey =
   | "price"
   | "valueNative"
   | "valueBase"
-  | "allocation";
+  | "allocation"
+  | "score";
 
 interface SortState {
   key: SortKey;
@@ -287,11 +295,21 @@ function AssetRowWithValues({
   baseCurrency,
   onDeleteClick,
   onInvestmentRecorded,
+  scoreData,
+  unscoredReason,
+  onScoreClick,
 }: {
   asset: AssetWithValue;
   baseCurrency: string;
   onDeleteClick: (asset: AssetWithValue, value: string) => void;
   onInvestmentRecorded?: (() => void) | undefined;
+  scoreData?: {
+    score: string;
+    calculatedAt: Date;
+    breakdown: { matched: boolean }[];
+  } | null;
+  unscoredReason?: { code: string; message: string } | null;
+  onScoreClick?: (assetId: string) => void;
 }) {
   const { updateAsset } = useUpdateAsset();
   const { toggleIgnore, isToggling } = useToggleIgnore();
@@ -394,6 +412,37 @@ function AssetRowWithValues({
           <span className="text-muted-foreground">-</span>
         ) : (
           formatAllocation(asset.allocationPercent)
+        )}
+      </TableCell>
+
+      {/* Score - Story 5.10, AC-5.10.1 */}
+      <TableCell className="text-center">
+        {scoreData ? (
+          <ScoreBadge
+            score={scoreData.score}
+            calculatedAt={scoreData.calculatedAt}
+            criteriaMatched={{
+              matched: scoreData.breakdown.filter((b) => b.matched).length,
+              total: scoreData.breakdown.length,
+            }}
+            assetId={asset.id}
+            onClick={onScoreClick ? () => onScoreClick(asset.id) : undefined}
+            size="sm"
+          />
+        ) : unscoredReason ? (
+          <UnscoredIndicator
+            reason={{
+              code: unscoredReason.code as
+                | "NO_CRITERIA"
+                | "MISSING_FUNDAMENTALS"
+                | "NOT_CALCULATED",
+              message: unscoredReason.message,
+            }}
+            assetId={asset.id}
+            size="sm"
+          />
+        ) : (
+          <span className="text-muted-foreground text-xs">-</span>
         )}
       </TableCell>
 
@@ -567,6 +616,38 @@ export function PortfolioTableWithValues({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<AssetForDeletion | null>(null);
 
+  // Story 5.10: Fetch scores for all assets
+  const assetIds = useMemo(() => assets.map((a) => a.id), [assets]);
+  const { scores, unscoredReasons } = useAssetScores(assetIds, { enabled: assets.length > 0 });
+
+  // Story 5.11: Score breakdown panel state
+  const [breakdownAssetId, setBreakdownAssetId] = useState<string | null>(null);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const { breakdown: breakdownData } = useScoreBreakdown(breakdownAssetId, {
+    enabled: breakdownOpen,
+  });
+
+  // Get the asset info for the breakdown panel
+  const breakdownAsset = useMemo(() => {
+    if (!breakdownAssetId) return null;
+    return assets.find((a) => a.id === breakdownAssetId) ?? null;
+  }, [breakdownAssetId, assets]);
+
+  // Handle score badge click - opens breakdown panel (AC-5.11.1)
+  const handleScoreClick = useCallback((assetId: string) => {
+    setBreakdownAssetId(assetId);
+    setBreakdownOpen(true);
+  }, []);
+
+  // Handle breakdown panel close
+  const handleBreakdownClose = useCallback((open: boolean) => {
+    setBreakdownOpen(open);
+    if (!open) {
+      // Delay clearing the asset ID to allow animation to complete
+      setTimeout(() => setBreakdownAssetId(null), 300);
+    }
+  }, []);
+
   // AC-3.6.6: Search/filter state
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -623,13 +704,22 @@ export function PortfolioTableWithValues({
         case "allocation":
           comparison = parseFloat(a.allocationPercent) - parseFloat(b.allocationPercent);
           break;
+        case "score": {
+          // Story 5.10: Sort by score, unscored assets go to end
+          const scoreA = scores.get(a.id)?.score;
+          const scoreB = scores.get(b.id)?.score;
+          const numA = scoreA ? parseFloat(scoreA) : -1;
+          const numB = scoreB ? parseFloat(scoreB) : -1;
+          comparison = numA - numB;
+          break;
+        }
       }
 
       return sortState.direction === "asc" ? comparison : -comparison;
     });
 
     return sorted;
-  }, [assets, searchQuery, sortState]);
+  }, [assets, searchQuery, sortState, scores]);
 
   const handleDeleteClick = useCallback((asset: AssetWithValue, value: string) => {
     setAssetToDelete({
@@ -745,21 +835,43 @@ export function PortfolioTableWithValues({
                   onSort={handleSort}
                   className="text-right"
                 />
+                <SortableHeader
+                  label="Score"
+                  sortKey="score"
+                  currentSort={sortState}
+                  onSort={handleSort}
+                  className="text-center"
+                />
                 <TableHead className="w-20">Ignore</TableHead>
                 <TableHead className="w-10"></TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSortedAssets.map((asset) => (
-                <AssetRowWithValues
-                  key={asset.id}
-                  asset={asset}
-                  baseCurrency={baseCurrency}
-                  onDeleteClick={handleDeleteClick}
-                  onInvestmentRecorded={onInvestmentRecorded}
-                />
-              ))}
+              {filteredAndSortedAssets.map((asset) => {
+                const scoreData = scores.get(asset.id);
+                const unscoredReason = unscoredReasons.get(asset.id);
+                return (
+                  <AssetRowWithValues
+                    key={asset.id}
+                    asset={asset}
+                    baseCurrency={baseCurrency}
+                    onDeleteClick={handleDeleteClick}
+                    onInvestmentRecorded={onInvestmentRecorded}
+                    scoreData={
+                      scoreData
+                        ? {
+                            score: scoreData.score,
+                            calculatedAt: scoreData.calculatedAt,
+                            breakdown: scoreData.breakdown,
+                          }
+                        : null
+                    }
+                    unscoredReason={unscoredReason ?? null}
+                    onScoreClick={handleScoreClick}
+                  />
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -772,6 +884,22 @@ export function PortfolioTableWithValues({
         onConfirm={handleConfirmDelete}
         isLoading={isDeleting}
       />
+
+      {/* Story 5.11: Score Breakdown Panel */}
+      {breakdownAsset && breakdownData && (
+        <ScoreBreakdown
+          open={breakdownOpen}
+          onOpenChange={handleBreakdownClose}
+          assetId={breakdownAsset.id}
+          symbol={breakdownAsset.symbol}
+          name={breakdownAsset.name ?? undefined}
+          score={breakdownData.score}
+          breakdown={breakdownData.breakdown}
+          calculatedAt={breakdownData.calculatedAt}
+          criteriaVersionId={breakdownData.criteriaVersionId}
+          targetMarket={breakdownData.targetMarket}
+        />
+      )}
     </div>
   );
 }
