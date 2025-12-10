@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   jsonb,
   numeric,
   pgTable,
@@ -297,6 +298,199 @@ export const assetSubclasses = pgTable(
 );
 
 // =============================================================================
+// CRITERIA VERSIONS TABLE (Epic 5)
+// =============================================================================
+
+/**
+ * CriterionRule interface - defines a single scoring rule
+ *
+ * Stored as JSONB array in criteria_versions.criteria column
+ * Each rule evaluates a metric against a threshold and awards points
+ */
+/**
+ * Available metrics for criteria evaluation
+ */
+export const CRITERION_METRICS = [
+  "dividend_yield",
+  "pe_ratio",
+  "pb_ratio",
+  "market_cap",
+  "revenue",
+  "earnings",
+  "surplus_years",
+  "roe",
+  "roa",
+  "debt_to_equity",
+  "current_ratio",
+  "gross_margin",
+  "net_margin",
+  "payout_ratio",
+  "ev_ebitda",
+] as const;
+
+export type CriterionMetric = (typeof CRITERION_METRICS)[number];
+
+/**
+ * Available operators for criteria comparison
+ */
+export const CRITERION_OPERATORS = [
+  "gt",
+  "lt",
+  "gte",
+  "lte",
+  "between",
+  "equals",
+  "exists",
+] as const;
+
+export type CriterionOperator = (typeof CRITERION_OPERATORS)[number];
+
+export interface CriterionRule {
+  id: string;
+  name: string;
+  metric: CriterionMetric;
+  operator: CriterionOperator;
+  value: string; // Decimal string for comparison
+  value2?: string | null | undefined; // For 'between' operator
+  points: number; // -100 to +100
+  requiredFundamentals: string[]; // Data points needed for evaluation
+  sortOrder: number;
+}
+
+/**
+ * Criteria versions table - immutable scoring criteria sets
+ *
+ * Story 5.1: Define Scoring Criteria
+ * AC-5.1.1: Create new criterion
+ * AC-5.1.6: Criteria versioning (immutable)
+ *
+ * Key design decisions:
+ * - Immutable versioning: Every change creates a new version for audit trail
+ * - JSONB criteria array: Flexible storage for multiple criterion rules
+ * - Asset type + market targeting: Criteria apply to specific asset categories
+ * - Multi-tenant isolation via user_id
+ */
+export const criteriaVersions = pgTable(
+  "criteria_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assetType: varchar("asset_type", { length: 50 }).notNull(), // 'stock', 'reit', 'etf'
+    targetMarket: varchar("target_market", { length: 50 }).notNull(), // 'BR_BANKS', 'US_TECH'
+    name: varchar("name", { length: 100 }).notNull(),
+    criteria: jsonb("criteria").notNull().$type<CriterionRule[]>(),
+    version: integer("version").notNull(),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    index("criteria_versions_user_id_idx").on(table.userId),
+    index("criteria_versions_user_asset_type_idx").on(table.userId, table.assetType),
+    index("criteria_versions_user_market_idx").on(table.userId, table.targetMarket),
+  ]
+);
+
+// =============================================================================
+// ASSET SCORES TABLE (Epic 5)
+// =============================================================================
+
+/**
+ * CriterionResult interface - breakdown of a single criterion evaluation
+ *
+ * Story 5.8: Score Calculation Engine
+ * AC-5.8.5: breakdown includes criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason
+ */
+export interface CriterionResult {
+  criterionId: string;
+  criterionName: string;
+  matched: boolean;
+  pointsAwarded: number;
+  actualValue?: string | null;
+  skippedReason?: string | null; // 'missing_fundamental', 'data_stale', etc.
+}
+
+/**
+ * Asset scores table - calculated scores for assets
+ *
+ * Story 5.8: Score Calculation Engine
+ * AC-5.8.5: Score Storage with Audit Trail
+ *
+ * Key design decisions:
+ * - Links to criteria_versions for audit trail
+ * - Uses numeric(7,4) for score precision
+ * - JSONB breakdown for flexible criterion result storage
+ * - Multi-tenant isolation via user_id
+ */
+export const assetScores = pgTable(
+  "asset_scores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assetId: uuid("asset_id").notNull(), // Reference to portfolio asset or external asset
+    symbol: varchar("symbol", { length: 20 }).notNull(),
+    criteriaVersionId: uuid("criteria_version_id")
+      .notNull()
+      .references(() => criteriaVersions.id),
+    score: numeric("score", { precision: 7, scale: 4 }).notNull(),
+    breakdown: jsonb("breakdown").notNull().$type<CriterionResult[]>(),
+    calculatedAt: timestamp("calculated_at").defaultNow(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("asset_scores_user_id_idx").on(table.userId),
+    index("asset_scores_asset_id_idx").on(table.assetId),
+    index("asset_scores_user_asset_idx").on(table.userId, table.assetId),
+    index("asset_scores_calculated_at_idx").on(table.calculatedAt),
+  ]
+);
+
+// =============================================================================
+// SCORE HISTORY TABLE (Epic 5)
+// =============================================================================
+
+/**
+ * Score history table - immutable historical score records
+ *
+ * Story 5.9: Store Historical Scores
+ * AC-5.9.1: Score History Retention
+ * AC-5.9.4: History Append-Only
+ * AC-5.9.5: Database Indexing for Performance
+ *
+ * Key design decisions:
+ * - Append-only: Historical scores are never updated or deleted
+ * - Indexed: Composite index on (userId, assetId, calculatedAt) for < 300ms queries
+ * - Multi-tenant: All queries scoped by userId
+ * - Audit trail: Links to criteria_versions for reproducibility
+ */
+export const scoreHistory = pgTable(
+  "score_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assetId: uuid("asset_id").notNull(),
+    symbol: varchar("symbol", { length: 20 }).notNull(),
+    score: numeric("score", { precision: 7, scale: 4 }).notNull(),
+    criteriaVersionId: uuid("criteria_version_id")
+      .notNull()
+      .references(() => criteriaVersions.id),
+    calculatedAt: timestamp("calculated_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    // AC-5.9.5: Composite index for efficient trend queries (< 300ms for 90-day query)
+    index("score_history_user_asset_date_idx").on(table.userId, table.assetId, table.calculatedAt),
+    index("score_history_user_id_idx").on(table.userId),
+  ]
+);
+
+// =============================================================================
 // INVESTMENTS TABLE
 // =============================================================================
 
@@ -350,6 +544,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   portfolios: many(portfolios),
   investments: many(investments),
   assetClasses: many(assetClasses),
+  criteriaVersions: many(criteriaVersions),
+  assetScores: many(assetScores),
+  scoreHistory: many(scoreHistory),
 }));
 
 export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
@@ -427,6 +624,37 @@ export const assetSubclassesRelations = relations(assetSubclasses, ({ one }) => 
   }),
 }));
 
+export const criteriaVersionsRelations = relations(criteriaVersions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [criteriaVersions.userId],
+    references: [users.id],
+  }),
+  assetScores: many(assetScores),
+  scoreHistory: many(scoreHistory),
+}));
+
+export const assetScoresRelations = relations(assetScores, ({ one }) => ({
+  user: one(users, {
+    fields: [assetScores.userId],
+    references: [users.id],
+  }),
+  criteriaVersion: one(criteriaVersions, {
+    fields: [assetScores.criteriaVersionId],
+    references: [criteriaVersions.id],
+  }),
+}));
+
+export const scoreHistoryRelations = relations(scoreHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [scoreHistory.userId],
+    references: [users.id],
+  }),
+  criteriaVersion: one(criteriaVersions, {
+    fields: [scoreHistory.criteriaVersionId],
+    references: [criteriaVersions.id],
+  }),
+}));
+
 // =============================================================================
 // TYPE EXPORTS
 // =============================================================================
@@ -460,3 +688,12 @@ export type NewAssetClass = typeof assetClasses.$inferInsert;
 
 export type AssetSubclass = typeof assetSubclasses.$inferSelect;
 export type NewAssetSubclass = typeof assetSubclasses.$inferInsert;
+
+export type CriteriaVersion = typeof criteriaVersions.$inferSelect;
+export type NewCriteriaVersion = typeof criteriaVersions.$inferInsert;
+
+export type AssetScore = typeof assetScores.$inferSelect;
+export type NewAssetScore = typeof assetScores.$inferInsert;
+
+export type ScoreHistory = typeof scoreHistory.$inferSelect;
+export type NewScoreHistory = typeof scoreHistory.$inferInsert;

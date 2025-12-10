@@ -1,0 +1,276 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>3</storyId>
+    <title>Define Criteria Operators</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-3-define-criteria-operators.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>use various operators when defining criteria</iWant>
+    <soThat>I can create nuanced evaluation rules for my investment strategy</soThat>
+    <tasks>
+      <task id="1" ac="5.3.1">Create Operators Constants File
+        <files>src/lib/constants/operators.ts</files>
+        <subtasks>
+          <subtask>Create new constants file for operator definitions</subtask>
+          <subtask>Add OPERATOR_LABELS mapping (code to display label)</subtask>
+          <subtask>Add OPERATOR_DESCRIPTIONS mapping (code to description)</subtask>
+          <subtask>Export CriterionOperator type from schema</subtask>
+          <subtask>Add helper function getOperatorConfig(operator) returning { label, description, requiresValue, requiresValue2 }</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="5.3.3">Enhance Validation Schema for Operators
+        <files>src/lib/validations/criteria-schemas.ts</files>
+        <subtasks>
+          <subtask>Add refinement for value requirement based on operator</subtask>
+          <subtask>Add refinement for value2 requirement when operator is 'between'</subtask>
+          <subtask>Add refinement for min &lt; max validation on 'between' operator</subtask>
+          <subtask>Create custom error messages: VALUE_REQUIRED_FOR_OPERATOR, VALUE2_REQUIRED_FOR_BETWEEN, MIN_MUST_BE_LESS_THAN_MAX</subtask>
+          <subtask>Unit tests for all validation scenarios</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="5.3.2,5.3.4">Update CriteriaForm for Dynamic Fields
+        <files>src/components/criteria/criteria-form.tsx</files>
+        <subtasks>
+          <subtask>Import operator constants</subtask>
+          <subtask>Update operator Select to use OPERATOR_LABELS</subtask>
+          <subtask>Add conditional rendering for value field (hidden when 'exists')</subtask>
+          <subtask>Add conditional rendering for value2 field (shown when 'between')</subtask>
+          <subtask>Add useEffect to clear value2 when switching away from 'between'</subtask>
+          <subtask>Add tooltip with operator description on hover</subtask>
+          <subtask>Update form layout to accommodate two-value display</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="5.3.1">Update CriteriaBlock for Operator Display
+        <files>src/components/fintech/criteria-block.tsx</files>
+        <subtasks>
+          <subtask>Import OPERATOR_LABELS constant</subtask>
+          <subtask>Display operator using friendly label instead of code</subtask>
+          <subtask>Format "between" display as "between X and Y"</subtask>
+          <subtask>Format "exists" display without value</subtask>
+          <subtask>Add operator icon or badge for visual distinction</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="5.3.3">Create Unit Tests for Operator Validation
+        <files>tests/unit/validations/criteria-operators.test.ts</files>
+        <subtasks>
+          <subtask>Test 'exists' operator passes without value</subtask>
+          <subtask>Test other operators fail without value</subtask>
+          <subtask>Test 'between' operator fails without value2</subtask>
+          <subtask>Test 'between' operator fails when min &gt;= max</subtask>
+          <subtask>Test 'between' operator passes when min &lt; max</subtask>
+          <subtask>Test value2 is ignored for non-between operators</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="5.3.2,5.3.4">Create Component Tests for Form Adaptation
+        <files>tests/unit/components/criteria-form-operators.test.tsx</files>
+        <subtasks>
+          <subtask>Test value field hidden when 'exists' selected</subtask>
+          <subtask>Test value2 field shown when 'between' selected</subtask>
+          <subtask>Test value2 field hidden when switching from 'between' to other</subtask>
+          <subtask>Test value2 is cleared on operator change</subtask>
+          <subtask>Test form submission blocked with invalid min/max</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="all">Integration Tests for API
+        <files>tests/unit/api/criteria-operators.test.ts</files>
+        <subtasks>
+          <subtask>Test API accepts criterion with all valid operators</subtask>
+          <subtask>Test API rejects criterion with 'between' and invalid range</subtask>
+          <subtask>Test API rejects criterion with non-exists operator and missing value</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="all">Run Verification
+        <subtasks>
+          <subtask>pnpm lint - no new errors</subtask>
+          <subtask>pnpm build - successful build</subtask>
+          <subtask>pnpm test - all tests pass</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.3.1" title="All Operators Available">
+      <given>I am creating a criterion</given>
+      <when>I select an operator from the dropdown</when>
+      <then>The following operators are available: &gt; (gt), &lt; (lt), &gt;= (gte), &lt;= (lte), between, equals, exists</then>
+      <and>Each operator shows appropriate input fields (single value, two values, or no value)</and>
+    </criterion>
+    <criterion id="AC-5.3.2" title="Between Operator Shows Two Value Inputs">
+      <given>I am creating a criterion</given>
+      <when>I select the "between" operator</when>
+      <then>The form displays two value inputs: "Min value" and "Max value"</then>
+      <and>Both fields are required when "between" is selected</and>
+    </criterion>
+    <criterion id="AC-5.3.3" title="Form Prevents Invalid Criteria">
+      <given>I am using the "between" operator</given>
+      <when>I enter min value greater than max value (e.g., min=10, max=5)</when>
+      <then>Validation error is displayed: "Min value must be less than max value"</then>
+      <and>Form submission is prevented until corrected</and>
+    </criterion>
+    <criterion id="AC-5.3.4" title="Operator Selection Adapts Form Fields">
+      <given>I am editing a criterion</given>
+      <when>I change the operator selection</when>
+      <then>Form fields adapt: 'exists' hides value inputs, 'between' shows two inputs, others show single input</then>
+      <and>Any existing value2 is cleared when switching away from "between"</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Tech Spec" section="Story 5.3: Define Criteria Operators">
+        Operators: &gt;, &lt;, &gt;=, &lt;=, between, equals, exists. 'between' shows two value inputs. Form prevents invalid criteria.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Implementation Patterns">
+        Validation with Zod schemas (server-side enforcement). User isolation. Immutable versioning for criteria changes. decimal.js for value precision.
+      </doc>
+      <doc path="docs/epics.md" title="Epics" section="Story 5.3 Define Criteria Operators">
+        FR26 implementation. Operators available for criteria: &gt;, &lt;, &gt;=, &lt;=, between, equals, exists.
+      </doc>
+      <doc path="docs/sprint-artifacts/5-1-define-scoring-criteria.md" title="Story 5.1 Reference" section="Technical Notes">
+        Base implementation of CriteriaBlock, CriteriaForm, criterionRuleSchema with operator field.
+      </doc>
+      <doc path="docs/sprint-artifacts/5-2-set-point-values.md" title="Story 5.2 Reference" section="Completion Notes">
+        Patterns: Zod validation with custom error messages, template selector, sonner toast for feedback.
+      </doc>
+      <doc path="CLAUDE.md" title="Project Standards" section="Test Requirements">
+        Every code change requires test coverage. Unit tests for validation, component tests for UI.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/validations/criteria-schemas.ts" kind="schema" lines="84-126,214-274">
+        <symbol>AVAILABLE_OPERATORS</symbol>
+        <symbol>OPERATOR_LABELS</symbol>
+        <symbol>criterionRuleSchema</symbol>
+        <symbol>CRITERIA_MESSAGES</symbol>
+        <reason>Core validation schema - has existing operator enum, labels, and refinements for between/value2. Extend with exists operator handling and enhanced error messages.</reason>
+      </file>
+      <file path="src/components/criteria/criteria-form.tsx" kind="component" lines="49,163-164,303-333">
+        <symbol>CriteriaForm</symbol>
+        <symbol>operatorRequiresSecondValue</symbol>
+        <reason>Form component - already uses OperatorSelector and has conditional value2 rendering. Enhance for 'exists' operator hiding value field.</reason>
+      </file>
+      <file path="src/components/criteria/operator-selector.tsx" kind="component" lines="52-60,104-120">
+        <symbol>OperatorSelector</symbol>
+        <symbol>OPERATOR_DESCRIPTIONS</symbol>
+        <symbol>operatorRequiresSecondValue</symbol>
+        <symbol>operatorRequiresValue</symbol>
+        <reason>Operator dropdown component with descriptions. Has helper functions for operator requirements. May need enhancement for better user-facing labels.</reason>
+      </file>
+      <file path="src/components/fintech/criteria-block.tsx" kind="component" lines="159-176,262,340-356,370-386">
+        <symbol>CriteriaBlock</symbol>
+        <symbol>handleOperatorChange</symbol>
+        <reason>Block component handling operator display and inline editing. Already handles value2 clearing when switching from 'between'. Verify display formatting for all operators.</reason>
+      </file>
+      <file path="src/lib/services/criteria-service.ts" kind="service">
+        <symbol>CriteriaService</symbol>
+        <reason>Service for criteria CRUD - validates with criterionRuleSchema. Will use enhanced validation.</reason>
+      </file>
+      <file path="src/hooks/use-criteria.ts" kind="hook">
+        <symbol>useCriteria</symbol>
+        <symbol>useCreateCriterion</symbol>
+        <symbol>useUpdateCriterion</symbol>
+        <reason>React Query hooks for criteria operations. Uses mutations with cache invalidation.</reason>
+      </file>
+      <file path="tests/unit/validations/criteria.test.ts" kind="test">
+        <symbol>criterionRuleSchema tests</symbol>
+        <reason>Existing criteria validation tests. Add operator-specific test cases here or in new file.</reason>
+      </file>
+      <file path="src/lib/constants/criteria-templates.ts" kind="constants">
+        <symbol>CRITERION_TEMPLATES</symbol>
+        <reason>Templates use operators - verify all templates use valid operator/value combinations.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="zod" version="^4.1.13">Schema validation with refinements</package>
+        <package name="react-hook-form" version="^7.67.0">Form state management</package>
+        <package name="@hookform/resolvers" version="^5.2.2">Zod resolver for react-hook-form</package>
+        <package name="vitest" version="^4.0.14">Test framework</package>
+        <package name="@radix-ui/react-select" version="^2.2.6">Operator dropdown base component</package>
+        <package name="@radix-ui/react-tooltip" version="^1.2.8">Operator description tooltips</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">All operator validation must be server-side enforced via Zod schemas</constraint>
+    <constraint source="architecture">Operator changes create new criteria versions (immutable versioning)</constraint>
+    <constraint source="architecture">Values stored as strings, compared using decimal.js for precision</constraint>
+    <constraint source="architecture">User isolation - all queries scoped by userId</constraint>
+    <constraint source="ux">Use shadcn Select component for operator dropdown</constraint>
+    <constraint source="ux">Smooth transitions when showing/hiding value fields</constraint>
+    <constraint source="ux">Inline validation errors below affected fields (red, 14px)</constraint>
+    <constraint source="patterns">Follow Zod error message pattern from pointsSchema (Story 5.2)</constraint>
+    <constraint source="patterns">Use existing OperatorSelector component - enhance, don't recreate</constraint>
+    <constraint source="patterns">Add tests to criteria.test.ts or new criteria-operators.test.ts</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="CriterionRule" kind="type" path="src/lib/validations/criteria-schemas.ts:424">
+      <signature>
+interface CriterionRule {
+  id: string;
+  name: string;
+  metric: MetricValue;
+  operator: 'gt' | 'lt' | 'gte' | 'lte' | 'between' | 'equals' | 'exists';
+  value: string;
+  value2?: string | null;
+  points: number;
+  requiredFundamentals: string[];
+  sortOrder: number;
+}
+      </signature>
+    </interface>
+    <interface name="AVAILABLE_OPERATORS" kind="const" path="src/lib/validations/criteria-schemas.ts:84-92">
+      <signature>
+const AVAILABLE_OPERATORS = ['gt', 'lt', 'gte', 'lte', 'between', 'equals', 'exists'] as const;
+      </signature>
+    </interface>
+    <interface name="operatorRequiresSecondValue" kind="function" path="src/components/criteria/operator-selector.tsx:111-113">
+      <signature>function operatorRequiresSecondValue(operator: OperatorValue): boolean</signature>
+    </interface>
+    <interface name="operatorRequiresValue" kind="function" path="src/components/criteria/operator-selector.tsx:118-120">
+      <signature>function operatorRequiresValue(operator: OperatorValue): boolean</signature>
+    </interface>
+    <interface name="POST /api/criteria" kind="REST endpoint" path="src/app/api/criteria/route.ts">
+      <signature>POST /api/criteria - Creates new criteria set with validated criteria array</signature>
+    </interface>
+    <interface name="PATCH /api/criteria/:id" kind="REST endpoint" path="src/app/api/criteria/[id]/route.ts">
+      <signature>PATCH /api/criteria/:id - Updates criteria (creates new version)</signature>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing uses Vitest with Testing Library. All code changes require test coverage. Unit tests for validation schemas and operator logic. Component tests for form field adaptation. Integration tests for API routes. Tests located in tests/unit/ directory mirroring src/ structure. Use describe/it blocks with clear test names. Mock external dependencies.
+    </standards>
+    <locations>
+      <location>tests/unit/validations/criteria.test.ts (existing - extend)</location>
+      <location>tests/unit/validations/criteria-operators.test.ts (new - operator-specific)</location>
+      <location>tests/unit/components/criteria-form-operators.test.tsx (new - form adaptation)</location>
+      <location>tests/unit/api/criteria-operators.test.ts (new - API integration)</location>
+    </locations>
+    <ideas>
+      <idea ac="5.3.1">Test all 7 operators are present in AVAILABLE_OPERATORS constant</idea>
+      <idea ac="5.3.1">Test getOperatorLabel returns correct labels for all operators</idea>
+      <idea ac="5.3.2">Test operatorRequiresSecondValue returns true only for 'between'</idea>
+      <idea ac="5.3.2">Test form shows value2 field when 'between' selected</idea>
+      <idea ac="5.3.3">Test criterionRuleSchema rejects between with min &gt;= max</idea>
+      <idea ac="5.3.3">Test criterionRuleSchema rejects between without value2</idea>
+      <idea ac="5.3.3">Test form displays validation error for invalid min/max</idea>
+      <idea ac="5.3.4">Test operatorRequiresValue returns false only for 'exists'</idea>
+      <idea ac="5.3.4">Test form hides value field when 'exists' selected</idea>
+      <idea ac="5.3.4">Test value2 is cleared when switching from 'between' to other operator</idea>
+      <idea ac="5.3.4">Test form layout transitions smoothly on operator change</idea>
+    </ideas>
+  </tests>
+</story-context>

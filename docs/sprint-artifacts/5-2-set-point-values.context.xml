@@ -1,0 +1,155 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>2</storyId>
+    <title>Set Point Values</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-08</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-2-set-point-values.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>set point values for each criterion</iWant>
+    <soThat>I can weight factors based on importance to my investment strategy</soThat>
+    <tasks>
+      <task id="1" ac="5.2.1">Enhance Points Validation Schema - Add dedicated pointsSchema with descriptive error messages</task>
+      <task id="2" ac="5.2.2">Create PointsBadge Component - Color-coded display for points (EXISTS - needs enhancement)</task>
+      <task id="3" ac="5.2.4">Add Tooltip to PointsBadge - Optional tooltip with impact description (EXISTS - already implemented)</task>
+      <task id="4" ac="5.2.1,5.2.2">Integrate Points Input in CriteriaBlock - Enhanced number input with +/- buttons</task>
+      <task id="5" ac="5.2.3">Create Cerrado Criterion Template - Template for surplus years methodology</task>
+      <task id="6" ac="5.2.3">Add Template Selection to CriteriaForm - Start from template dropdown</task>
+      <task id="7" ac="5.2.2,5.2.4">Update CriteriaList to Use PointsBadge - Replace inline display</task>
+      <task id="8" ac="all">Create Unit Tests for Points Functionality</task>
+      <task id="9" ac="all">Create Integration Tests</task>
+      <task id="10" ac="all">Run Verification - lint, build, test</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="5.2.1" title="Points Input Accepts Valid Range">
+      <given>I am editing a criterion's points value</given>
+      <when>I enter a value</when>
+      <then>The system accepts integers from -100 to +100</then>
+      <and>Values outside this range are rejected with validation error</and>
+    </criterion>
+    <criterion id="5.2.2" title="Visual Point Value Indicators">
+      <given>I am viewing criteria in the criteria list</given>
+      <when>Points are displayed</when>
+      <then>Positive points displayed with green indicator/badge</then>
+      <and>Negative points displayed with red indicator/badge</and>
+      <and>Zero points display with neutral/gray indicator</and>
+    </criterion>
+    <criterion id="5.2.3" title="Cerrado Historical Surplus Scoring Support">
+      <given>I am creating a criterion for historical surplus consistency</given>
+      <when>I select the surplus_years metric</when>
+      <then>System supports Cerrado methodology: +5 points for 5 consecutive years, -2 per missing year</then>
+      <and>This calculation can be configured as a criterion template</and>
+    </criterion>
+    <criterion id="5.2.4" title="Point Impact Preview on Hover">
+      <given>I am viewing a criterion in the list</given>
+      <when>I hover over the points badge</when>
+      <then>I see a tooltip showing the potential impact</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Tech Spec Epic 5" section="Story 5.2" snippet="Defines acceptance criteria for point values, validation requirements, and Cerrado methodology" />
+      <doc path="docs/epics.md" title="Epics" section="Epic 5 - Scoring Engine" snippet="Story 5.2 Set Point Values: User story and high-level requirements" />
+      <doc path="docs/architecture.md" title="Architecture" section="Implementation Patterns" snippet="Validation with Zod, decimal.js for calculations, immutable versioning, user isolation" />
+      <doc path="docs/sprint-artifacts/5-1-define-scoring-criteria.md" title="Story 5.1" section="All" snippet="Previous story - defines CriteriaBlock, CriteriaForm, criteria-schemas.ts, use-criteria.ts" />
+      <doc path="CLAUDE.md" title="Project Standards" section="Test Requirements" snippet="Every code change requires test coverage - unit, integration, component tests" />
+    </docs>
+    <code>
+      <file path="src/lib/validations/criteria-schemas.ts" kind="validation" symbol="criterionRuleSchema, pointsSchema" lines="all" reason="Contains existing points validation (-100 to +100), needs enhanced error messages for AC-5.2.1" />
+      <file path="src/components/criteria/points-badge.tsx" kind="component" symbol="PointsBadge" lines="all" reason="ALREADY EXISTS - Component with color-coded display and tooltip. AC-5.2.2, AC-5.2.4 may be partially complete" />
+      <file path="src/components/fintech/criteria-block.tsx" kind="component" symbol="CriteriaBlock" lines="all" reason="Main editing component - needs points input with +/- buttons per AC-5.2.1" />
+      <file path="src/components/criteria/criteria-form.tsx" kind="component" symbol="CriteriaForm" lines="all" reason="Form needs template selection dropdown for AC-5.2.3" />
+      <file path="src/components/criteria/criteria-list.tsx" kind="component" symbol="CriteriaList" lines="all" reason="List view needs PointsBadge integration for AC-5.2.2" />
+      <file path="src/hooks/use-criteria.ts" kind="hook" symbol="useUpdateCriterion, useCreateCriteriaSet" lines="all" reason="React hooks for criteria operations - reuse for points updates" />
+      <file path="src/lib/services/criteria-service.ts" kind="service" symbol="CriteriaService" lines="all" reason="Backend service for criteria CRUD - handles versioning" />
+      <file path="src/app/api/criteria/route.ts" kind="api" symbol="POST, GET handlers" lines="all" reason="API routes for criteria management" />
+      <file path="src/app/api/criteria/[id]/route.ts" kind="api" symbol="PATCH, DELETE handlers" lines="all" reason="API routes for individual criteria updates" />
+      <file path="tests/unit/validations/criteria.test.ts" kind="test" symbol="test suite" lines="all" reason="Existing validation tests - extend for Story 5.2" />
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="zod" version="^4.1.13" />
+        <package name="decimal.js" version="^10.6.0" />
+        <package name="sonner" version="^2.0.7" />
+        <package name="@radix-ui/react-tooltip" version="^1.2.8" />
+        <package name="lucide-react" version="^0.555.0" />
+        <package name="tailwind-merge" version="^3.4.0" />
+        <package name="class-variance-authority" version="^0.7.1" />
+        <package name="react" version="19.2.0" />
+        <package name="next" version="16.0.7" />
+      </ecosystem>
+      <devDependencies>
+        <package name="vitest" version="^4.0.14" />
+        <package name="@vitest/ui" version="^4.0.14" />
+        <package name="@playwright/test" version="^1.57.0" />
+        <package name="typescript" version="^5" />
+      </devDependencies>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint category="validation">All inputs validated with Zod schemas - server-side enforcement</constraint>
+    <constraint category="calculation">Use decimal.js for any score calculations (points are integers but scores use decimal)</constraint>
+    <constraint category="versioning">Point value changes create new criteria versions (immutable)</constraint>
+    <constraint category="security">All queries scoped by userId - user isolation required</constraint>
+    <constraint category="state">Use React hooks from use-criteria.ts for state management</constraint>
+    <constraint category="feedback">Use sonner toast for success/error feedback</constraint>
+    <constraint category="styling">Use shadcn/ui components (Badge, Tooltip) - semantic colors (green=positive, red=negative)</constraint>
+    <constraint category="patterns">Auto-save on blur pattern established in CriteriaBlock - follow same pattern</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="CriterionRule" kind="type" signature="{ id: string; name: string; metric: string; operator: string; value: string; value2?: string; points: number; requiredFundamentals: string[]; sortOrder: number; }" path="src/lib/validations/criteria-schemas.ts" />
+    <interface name="PointsBadgeProps" kind="component-props" signature="{ points: number; className?: string; showIcon?: boolean; size?: 'sm' | 'md' | 'lg'; }" path="src/components/criteria/points-badge.tsx" />
+    <interface name="useUpdateCriterion" kind="hook" signature="() => { updateCriterion: (criteriaId: string, criterionId: string, updates: UpdateCriterionInput) => Promise<CriteriaVersion | null>; isUpdating: boolean; error: string | null; }" path="src/hooks/use-criteria.ts" />
+    <interface name="POINTS_MIN" kind="constant" signature="-100" path="src/lib/validations/criteria-schemas.ts" />
+    <interface name="POINTS_MAX" kind="constant" signature="100" path="src/lib/validations/criteria-schemas.ts" />
+    <interface name="PATCH /api/criteria/:id" kind="REST" signature="PATCH { criteria?: CriterionRule[] } => { data: CriteriaVersion }" path="src/app/api/criteria/[id]/route.ts" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests use Vitest for unit/integration tests and Playwright for E2E. Follow AAA pattern (Arrange-Act-Assert).
+      Unit tests in tests/unit/ mirror src/ structure. Integration tests in tests/integration/.
+      Use describe/it blocks with clear names. Mock external dependencies.
+      Per CLAUDE.md: Every code change requires corresponding tests.
+    </standards>
+    <locations>
+      <location>tests/unit/validations/</location>
+      <location>tests/unit/components/</location>
+      <location>tests/unit/api/</location>
+      <location>tests/integration/</location>
+    </locations>
+    <ideas>
+      <idea ac="5.2.1">Test pointsSchema accepts -100, 0, +100 boundary values</idea>
+      <idea ac="5.2.1">Test pointsSchema rejects -101, +101 out-of-range</idea>
+      <idea ac="5.2.1">Test pointsSchema rejects decimal values (10.5)</idea>
+      <idea ac="5.2.1">Test pointsSchema provides descriptive error messages</idea>
+      <idea ac="5.2.2">Test PointsBadge renders green for positive points</idea>
+      <idea ac="5.2.2">Test PointsBadge renders red for negative points</idea>
+      <idea ac="5.2.2">Test PointsBadge renders gray for zero points</idea>
+      <idea ac="5.2.3">Test Cerrado template has correct default values</idea>
+      <idea ac="5.2.3">Test template selection pre-fills form correctly</idea>
+      <idea ac="5.2.4">Test PointsBadge tooltip shows correct impact text</idea>
+      <idea ac="5.2.4">Test tooltip accessibility (aria-label)</idea>
+      <idea ac="all">Integration: API accepts valid points, rejects invalid</idea>
+      <idea ac="all">Integration: Points update creates new version</idea>
+    </ideas>
+  </tests>
+
+  <important-notes>
+    <note priority="high">PointsBadge component ALREADY EXISTS with tooltip and color-coding - verify before implementing. May need enhancement only.</note>
+    <note priority="high">Points validation (-100 to +100) already exists in criterionRuleSchema - enhance error messages only.</note>
+    <note priority="medium">Story 5.1 is in review status - check for any review findings before implementing.</note>
+    <note priority="medium">Create criteria-templates.ts for Cerrado template - new file in src/lib/constants/</note>
+    <note priority="medium">Existing tests in tests/unit/validations/criteria.test.ts already cover points validation - extend for new scenarios.</note>
+  </important-notes>
+</story-context>

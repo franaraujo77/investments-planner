@@ -1,0 +1,356 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>11</storyId>
+    <title>Score Breakdown View</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-11-score-breakdown-view.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>view which criteria contributed to an asset's score</iWant>
+    <soThat>I can understand why it scored high or low</soThat>
+    <tasks>
+      <task id="1" title="Create ScoreBreakdown Component Shell" acs="5.11.1, 5.11.2">
+        <subtask>Create ScoreBreakdown component with Sheet wrapper</subtask>
+        <subtask>Implement header section with asset symbol, name, and overall score</subtask>
+        <subtask>Display score with color coding (matching ScoreBadge colors)</subtask>
+        <subtask>Show data freshness timestamp with relative time</subtask>
+        <subtask>Add close button functionality</subtask>
+        <subtask>Export from components index</subtask>
+      </task>
+      <task id="2" title="Implement Criterion List View" acs="5.11.3">
+        <subtask>Create CriterionResultRow sub-component for each criterion</subtask>
+        <subtask>Display criterion name, condition, points awarded</subtask>
+        <subtask>Add pass/fail indicator with checkmark/X icons</subtask>
+        <subtask>Show actual value from asset when available</subtask>
+        <subtask>Sort criteria by absolute points impact (highest contribution first)</subtask>
+        <subtask>Color-code points: green for positive, red for negative</subtask>
+      </task>
+      <task id="3" title="Implement Bar Chart Visualization" acs="5.11.4">
+        <subtask>Create PointsContributionChart sub-component</subtask>
+        <subtask>Use Recharts horizontal bar chart</subtask>
+        <subtask>Color positive bars green, negative bars red</subtask>
+        <subtask>Label bars with criterion names</subtask>
+        <subtask>Make chart responsive to sheet width</subtask>
+        <subtask>Show total score as reference line</subtask>
+      </task>
+      <task id="4" title="Implement Skipped Criteria Section" acs="5.11.5">
+        <subtask>Create separate section for skipped criteria</subtask>
+        <subtask>Display "Skipped" badge with gray styling</subtask>
+        <subtask>Show skip reason (e.g., "Missing dividend_yield data")</subtask>
+        <subtask>Use muted/disabled visual styling</subtask>
+        <subtask>Collapsible section if many skipped criteria</subtask>
+      </task>
+      <task id="5" title="Add Navigation Links" acs="5.11.6, 5.11.7">
+        <subtask>Add "Edit Criteria" button/link</subtask>
+        <subtask>Navigate to /criteria?market={market} when clicked</subtask>
+        <subtask>Add "View calculation history" link (placeholder for future)</subtask>
+        <subtask>Style links consistently with app design</subtask>
+      </task>
+      <task id="6" title="Create useScoreBreakdown Hook" acs="All">
+        <subtask>Create React Query hook for fetching breakdown data</subtask>
+        <subtask>Handle loading state with skeleton</subtask>
+        <subtask>Handle error state gracefully</subtask>
+        <subtask>Include refetch capability</subtask>
+        <subtask>Cache with appropriate staleTime (5 minutes)</subtask>
+      </task>
+      <task id="7" title="Implement Breakdown API Route" acs="All">
+        <subtask>Create GET handler for breakdown endpoint</subtask>
+        <subtask>Query score with full breakdown from database</subtask>
+        <subtask>Include criterion names and conditions</subtask>
+        <subtask>Return formatted response per tech-spec contract</subtask>
+        <subtask>Add user authentication check</subtask>
+      </task>
+      <task id="8" title="Integrate with ScoreBadge Click" acs="5.11.1">
+        <subtask>Add state management for breakdown sheet open/close</subtask>
+        <subtask>Connect ScoreBadge onClick to open breakdown</subtask>
+        <subtask>Pass assetId to ScoreBreakdown component</subtask>
+        <subtask>Ensure sheet closes properly on navigation</subtask>
+      </task>
+      <task id="9" title="Create Unit Tests for ScoreBreakdown" acs="All">
+        <subtask>Test breakdown panel opens on trigger</subtask>
+        <subtask>Test criterion list renders correctly</subtask>
+        <subtask>Test pass/fail indicators display correctly</subtask>
+        <subtask>Test skipped criteria section renders</subtask>
+        <subtask>Test navigation links work</subtask>
+        <subtask>Test accessibility (focus management, aria labels)</subtask>
+      </task>
+      <task id="10" title="Create Unit Tests for Breakdown API" acs="All">
+        <subtask>Test successful breakdown response</subtask>
+        <subtask>Test 404 for non-existent asset score</subtask>
+        <subtask>Test user authorization (can only view own scores)</subtask>
+        <subtask>Test response format matches contract</subtask>
+      </task>
+      <task id="11" title="Run Verification">
+        <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+        <subtask>ESLint passes with no new errors (pnpm lint)</subtask>
+        <subtask>pnpm build successful</subtask>
+        <subtask>pnpm test - all tests pass</subtask>
+        <subtask>Manual verification: click ScoreBadge opens breakdown panel</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.11.1" title="Breakdown Panel Opens on Score Click">
+      <given>I see an asset's ScoreBadge</given>
+      <when>I click on the score badge</when>
+      <then>a slide-over panel (Sheet component) opens showing the score breakdown</then>
+      <and>the panel displays the asset symbol and overall score prominently at the top</and>
+    </criterion>
+    <criterion id="AC-5.11.2" title="Overall Score Display">
+      <given>the breakdown panel is open</given>
+      <when>I view the header section</when>
+      <then>I see the overall score prominently displayed (large font, color-coded)</then>
+      <and>I see the asset symbol and name</and>
+      <and>I see the data freshness timestamp (when score was calculated)</and>
+    </criterion>
+    <criterion id="AC-5.11.3" title="Criterion-by-Criterion Breakdown">
+      <given>the breakdown panel is open</given>
+      <when>I view the criteria list</when>
+      <then>I see each criterion with: name, condition, points awarded, pass/fail indicator, actual value</then>
+      <and>criteria are sorted by points impact (highest first)</and>
+    </criterion>
+    <criterion id="AC-5.11.4" title="Visual Bar Chart of Point Contributions">
+      <given>the breakdown panel is open</given>
+      <when>I view the visualization section</when>
+      <then>I see a horizontal bar chart showing point contributions</then>
+      <and>positive points show as green bars (right direction)</and>
+      <and>negative points show as red bars (left direction)</and>
+    </criterion>
+    <criterion id="AC-5.11.5" title="Skipped Criteria Display">
+      <given>an asset is missing fundamentals for some criteria</given>
+      <when>I view the breakdown</when>
+      <then>I see skipped criteria in a separate section with "Skipped" indicator</then>
+      <and>I see the reason (e.g., "Missing dividend_yield data")</and>
+      <and>skipped criteria are visually distinct (grayed out)</and>
+    </criterion>
+    <criterion id="AC-5.11.6" title="Edit Criteria Link">
+      <given>I am viewing the breakdown panel</given>
+      <when>I want to modify my scoring criteria</when>
+      <then>I see a link/button "Edit Criteria"</then>
+      <and>clicking navigates to the Criteria page with relevant market/type pre-selected</and>
+    </criterion>
+    <criterion id="AC-5.11.7" title="Calculation History Link">
+      <given>I am viewing the breakdown panel</given>
+      <when>I want to see calculation history</when>
+      <then>I see a link "View calculation history"</then>
+      <and>clicking opens the event audit trail for this asset (future feature placeholder)</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic Technical Specification: Scoring Engine</title>
+        <section>Story 5.11: Score Breakdown View</section>
+        <snippet>Breakdown shows overall score prominently. Each criterion shows: name, condition, points awarded, pass/fail. Visual bar chart of point contributions. Link to edit criteria from breakdown view. Event audit link.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic Technical Specification: Scoring Engine</title>
+        <section>APIs and Interfaces - Score Endpoints</section>
+        <snippet>GET /api/scores/:assetId/breakdown - Get score breakdown. Returns assetId, symbol, score, calculatedAt, criteriaVersionId, breakdown array with criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic Technical Specification: Scoring Engine</title>
+        <section>Data Models and Contracts - CriterionResult</section>
+        <snippet>CriterionResult interface: criterionId, criterionName, matched (boolean), pointsAwarded (number), actualValue (string), skippedReason (missing_fundamental, data_stale, etc.).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Project Structure - Custom Fintech Components</section>
+        <snippet>Custom fintech components in src/components/fintech/. Includes score-breakdown.tsx for ScoreBreakdown visualization component. Use shadcn/ui Sheet for slide-over panels.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>UX Architecture Implications</section>
+        <snippet>Design System: shadcn/ui (Radix + Tailwind). State Management: React Query for server state. Custom Components include ScoreBreakdown for criteria contributions and event audit link.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/5-10-view-asset-score.md</path>
+        <title>Story 5.10: View Asset Score</title>
+        <section>Technical Notes</section>
+        <snippet>ScoreBadge onClick handler prepared for breakdown: setBreakdownAssetId(assetId); setBreakdownOpen(true). Utility functions getScoreLevel(), getScoreFreshnessLevel(), formatRelativeTime() can be reused.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/components/fintech/score-badge.tsx</path>
+        <kind>component</kind>
+        <symbol>ScoreBadge</symbol>
+        <lines>198-284</lines>
+        <reason>Main component that will trigger the breakdown panel. onClick prop connects to parent state. Exports getScoreLevel(), getScoreFreshnessLevel(), formatRelativeTime() utilities to reuse in ScoreBreakdown.</reason>
+      </artifact>
+      <artifact>
+        <path>src/hooks/use-asset-score.ts</path>
+        <kind>hook</kind>
+        <symbol>useAssetScore, CriterionResult, AssetScoreData</symbol>
+        <lines>34-55</lines>
+        <reason>Defines CriterionResult interface and AssetScoreData already used. useAssetScore hook fetches score with breakdown - can be reused or extended for useScoreBreakdown hook.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/api/scores/[assetId]/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET /api/scores/[assetId]</symbol>
+        <lines>71-162</lines>
+        <reason>Existing score endpoint that already returns breakdown data. The breakdown endpoint can follow same pattern or be a sibling route at /api/scores/[assetId]/breakdown.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/calculations/scoring-engine.ts</path>
+        <kind>service</kind>
+        <symbol>evaluateCriterion, CriterionResult</symbol>
+        <lines>175-206</lines>
+        <reason>Core scoring logic that produces CriterionResult with criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason. This is the source data for breakdown display.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/portfolio/portfolio-table.tsx</path>
+        <kind>component</kind>
+        <symbol>PortfolioTableWithValues, AssetRowWithValues</symbol>
+        <lines>291-493</lines>
+        <reason>Integration point for ScoreBadge click. Currently renders ScoreBadge without breakdown state management. Needs to add state for breakdownOpen and breakdownAssetId, and pass onScoreClick to trigger breakdown panel.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>assetScores, CriterionResult</symbol>
+        <lines>398-442</lines>
+        <reason>Database schema for asset_scores table with breakdown JSONB column. CriterionResult interface defined here at lines 398-405. Score data source for breakdown API.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/services/score-service.ts</path>
+        <kind>service</kind>
+        <symbol>getAssetScore</symbol>
+        <reason>Service layer that queries asset scores. Already used by /api/scores/[assetId] route. Returns score with breakdown data.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/fintech/unscored-indicator.tsx</path>
+        <kind>component</kind>
+        <symbol>UnscoredIndicator</symbol>
+        <reason>Component for displaying unscored assets. May be referenced in breakdown when asset has no score.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/sheet.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Sheet, SheetContent, SheetHeader, SheetTitle</symbol>
+        <reason>shadcn/ui Sheet component for slide-over panels. Primary UI wrapper for ScoreBreakdown component.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="recharts" version="^3.5.1" purpose="Horizontal bar chart for point contributions visualization" />
+        <package name="lucide-react" version="^0.555.0" purpose="Icons for checkmark/X pass/fail indicators" />
+        <package name="@radix-ui/react-tooltip" version="^1.2.8" purpose="Tooltips for criterion details" />
+        <package name="decimal.js" version="^10.6.0" purpose="Score calculations and display precision" />
+        <package name="clsx" version="^2.1.1" purpose="Conditional class composition" />
+        <package name="tailwind-merge" version="^3.4.0" purpose="Tailwind class merging" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Component Location: Custom fintech components in src/components/fintech/</constraint>
+    <constraint source="architecture">Hook Location: Custom hooks in src/hooks/</constraint>
+    <constraint source="architecture">State Management: Use React Query for server state (fetch-based patterns in existing hooks)</constraint>
+    <constraint source="architecture">Styling: Tailwind CSS with shadcn/ui patterns</constraint>
+    <constraint source="architecture">Decimal Precision: All score calculations use decimal.js (ADR-002)</constraint>
+    <constraint source="architecture">User Isolation: All queries must include userId filter for multi-tenant security</constraint>
+    <constraint source="tech-spec">Score colors: green (80+), amber (50-79), red (&lt;50) - matching ScoreBadge</constraint>
+    <constraint source="dev-notes">Reuse getScoreLevel(), getScoreFreshnessLevel(), formatRelativeTime() from score-badge.tsx</constraint>
+    <constraint source="CLAUDE.md">Every code change MUST include appropriate test coverage</constraint>
+    <constraint source="CLAUDE.md">Tests must cover success cases, error cases, and edge cases</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/scores/:assetId/breakdown" kind="REST endpoint">
+      <signature>GET /api/scores/[assetId]/breakdown</signature>
+      <path>src/app/api/scores/[assetId]/breakdown/route.ts</path>
+      <request>Path param: assetId (UUID)</request>
+      <response>{
+  data: {
+    assetId: string,
+    symbol: string,
+    score: string,
+    calculatedAt: string (ISO),
+    criteriaVersionId: string,
+    breakdown: CriterionResult[],
+    dataFreshness: string (ISO)
+  }
+}</response>
+    </interface>
+    <interface name="CriterionResult" kind="TypeScript interface">
+      <signature>interface CriterionResult</signature>
+      <path>src/lib/db/schema.ts:398-405</path>
+      <definition>{
+  criterionId: string;
+  criterionName: string;
+  matched: boolean;
+  pointsAwarded: number;
+  actualValue?: string | null;
+  skippedReason?: string | null; // 'missing_fundamental', 'data_stale'
+}</definition>
+    </interface>
+    <interface name="ScoreBreakdownProps" kind="TypeScript interface">
+      <signature>interface ScoreBreakdownProps</signature>
+      <path>src/components/fintech/score-breakdown.tsx (to create)</path>
+      <definition>{
+  assetId: string;
+  symbol: string;
+  score: number;
+  breakdown: CriterionResult[];
+  calculatedAt: Date;
+  criteriaVersionId: string;
+  onEditCriteria?: () =&gt; void;
+  onClose: () =&gt; void;
+}</definition>
+    </interface>
+    <interface name="useScoreBreakdown" kind="React hook">
+      <signature>function useScoreBreakdown(assetId: string | null)</signature>
+      <path>src/hooks/use-score-breakdown.ts (to create)</path>
+      <returns>{
+  breakdown: ScoreBreakdownData | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () =&gt; Promise&lt;void&gt;;
+}</returns>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <paragraph>Testing uses Vitest for unit/integration tests with React Testing Library for components. Tests are located in tests/unit/ with matching directory structure. All new code requires corresponding tests covering success cases, error cases, and edge cases. Use vi.mock() for mocking external dependencies. Component tests should verify rendering, user interactions, and accessibility. API tests should verify response format, authentication, and error handling.</paragraph>
+    </standards>
+    <locations>
+      <location>tests/unit/components/ - Component unit tests</location>
+      <location>tests/unit/api/ - API route unit tests</location>
+      <location>tests/unit/hooks/ - Hook unit tests</location>
+    </locations>
+    <ideas>
+      <idea ac="5.11.1">Test that clicking ScoreBadge triggers onScoreClick callback with assetId</idea>
+      <idea ac="5.11.1">Test that Sheet opens when breakdownOpen state is true</idea>
+      <idea ac="5.11.2">Test score header displays correct score with color coding</idea>
+      <idea ac="5.11.2">Test freshness timestamp shows relative time correctly</idea>
+      <idea ac="5.11.3">Test criterion list renders all criteria with correct data</idea>
+      <idea ac="5.11.3">Test criteria sorted by absolute points impact (highest first)</idea>
+      <idea ac="5.11.3">Test pass indicator (checkmark) for matched criteria</idea>
+      <idea ac="5.11.3">Test fail indicator (X) for unmatched criteria</idea>
+      <idea ac="5.11.4">Test bar chart renders with correct colors (green/red)</idea>
+      <idea ac="5.11.5">Test skipped criteria section renders separately</idea>
+      <idea ac="5.11.5">Test skip reason displayed for missing_fundamental</idea>
+      <idea ac="5.11.6">Test "Edit Criteria" link navigates to /criteria page</idea>
+      <idea ac="5.11.7">Test "View calculation history" link rendered (placeholder)</idea>
+      <idea ac="API">Test GET /api/scores/[assetId]/breakdown returns 200 with valid data</idea>
+      <idea ac="API">Test GET returns 404 when no score exists for asset</idea>
+      <idea ac="API">Test GET returns 401 when not authenticated</idea>
+      <idea ac="API">Test response format matches tech-spec contract</idea>
+    </ideas>
+  </tests>
+</story-context>

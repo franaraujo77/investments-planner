@@ -1,0 +1,185 @@
+<story-context id="5-9-store-historical-scores" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>9</storyId>
+    <title>Store Historical Scores</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-9-store-historical-scores.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>store historical scores for all assets</iWant>
+    <soThat>users can analyze score trends over time and understand how asset scores have changed</soThat>
+    <tasks>
+      <task id="1" ac="5.9.1,5.9.5">Add Score History Table to Schema</task>
+      <task id="2" ac="5.9.2,5.9.3,5.9.4">Extend Score Service with History Methods</task>
+      <task id="3" ac="5.9.2,5.9.3">Create History API Endpoint</task>
+      <task id="4" ac="5.9.1,5.9.4">Integrate History Storage with Scoring Engine</task>
+      <task id="5" ac="5.9.2,5.9.3">Create Zod Schemas for History Operations</task>
+      <task id="6" ac="all">Create Unit Tests for History Service</task>
+      <task id="7" ac="5.9.2,5.9.3">Create Integration Tests for History API</task>
+      <task id="8">Run Verification</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-5.9.1" name="Score History Retention">
+      <given>scores are calculated</given>
+      <when>overnight processing completes</when>
+      <then>scores are stored with timestamp in score_history table</then>
+      <and>historical scores are preserved (never overwritten)</and>
+      <and>retention policy: 2 years of daily scores</and>
+    </criterion>
+    <criterion id="AC-5.9.2" name="Point-in-Time Score Query">
+      <given>historical scores exist for an asset</given>
+      <when>user queries score for asset X on date Y</when>
+      <then>the exact score from that date is returned</then>
+      <and>if no score exists for that date, null is returned (not nearest)</and>
+      <and>query scoped by user_id for multi-tenant isolation</and>
+    </criterion>
+    <criterion id="AC-5.9.3" name="Trend Query Support">
+      <given>historical scores exist for an asset</given>
+      <when>user queries score history for last 30/60/90 days</when>
+      <then>array of (date, score) pairs returned in chronological order</then>
+      <and>supports calculating trend: "Score increased 20% over 6 months"</and>
+      <and>performance target: less than 300ms for 90-day query</and>
+    </criterion>
+    <criterion id="AC-5.9.4" name="History Append-Only">
+      <given>a new score is calculated for an asset</given>
+      <when>the score is stored</when>
+      <then>it is appended to history (not updated)</then>
+      <and>previous entries remain unchanged</and>
+      <and>audit trail integrity is maintained</and>
+    </criterion>
+    <criterion id="AC-5.9.5" name="Database Indexing for Performance">
+      <given>score_history table has millions of rows</given>
+      <when>queries are executed</when>
+      <then>index on (userId, assetId, calculatedAt) ensures less than 300ms response</then>
+      <and>queries use index efficiently (no full table scans)</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Tech Spec" section="Score History Schema">
+        Defines scoreHistory table with columns: id, userId, assetId, symbol, score, criteriaVersionId, calculatedAt. Includes composite index on (userId, assetId, calculatedAt) for efficient trend queries.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Tech Spec" section="Score Endpoints">
+        GET /api/scores/:assetId/history endpoint specification with query params ?days=90 (default) or ?startDate=&amp;endDate=
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-5.md" title="Epic 5 Tech Spec" section="Performance">
+        History trend query target: less than 300ms. Uses index on (userId, assetId, calculatedAt).
+      </doc>
+      <doc path="docs/sprint-artifacts/5-8-score-calculation-engine.md" title="Story 5.8" section="Dev Agent Record">
+        Previous story created scoring-engine.ts, score-service.ts, and score-schemas.ts which this story extends.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="ADR-002">
+        Event-sourced calculations with decimal.js precision. All calculations must be deterministic.
+      </doc>
+      <doc path="docs/epics.md" title="Epics" section="Story 5.9">
+        FR35: System stores historical scores for trend analysis. Retention: 2 years of daily scores, then archived.
+      </doc>
+      <doc path="CLAUDE.md" title="Dev Standards" section="Test Requirements">
+        Every code change requires test coverage. Unit tests for scoring engine algorithm. Integration tests for API routes.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="assetScores" lines="419-442" reason="Existing asset_scores table to use as pattern. Story adds score_history table with similar structure but for historical data."/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="CriterionResult" lines="398-405" reason="Interface for score breakdown - reuse in history table"/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="criteriaVersions" lines="365-386" reason="Foreign key reference for criteriaVersionId in score_history"/>
+      <file path="src/lib/services/score-service.ts" kind="service" symbol="getAssetScore" lines="74-99" reason="Existing score query pattern - extend with getScoreHistory, getScoreAtDate methods"/>
+      <file path="src/lib/services/score-service.ts" kind="service" symbol="calculateAndPersistScores" lines="209-257" reason="Score persistence logic - add history storage after calculating"/>
+      <file path="src/lib/calculations/scoring-engine.ts" kind="engine" symbol="calculateScoresWithEvents" lines="309-400" reason="Main calculation function - integrate history storage after SCORES_COMPUTED event"/>
+      <file path="src/lib/validations/score-schemas.ts" kind="validation" symbol="criterionResultSchema" lines="21-31" reason="Existing schema - add historyQuerySchema, scoreHistoryEntrySchema, trendAnalysisSchema"/>
+      <file path="src/app/api/scores/[assetId]/route.ts" kind="route" symbol="GET" reason="Existing route pattern - add sibling history/route.ts for history endpoint"/>
+      <file path="tests/unit/api/scores-calculate.test.ts" kind="test" reason="Test patterns for score API - follow for history API tests"/>
+      <file path="tests/unit/calculations/scoring-engine.test.ts" kind="test" reason="Test patterns for scoring engine - follow for history integration tests"/>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="drizzle-orm" version="^0.44.7">ORM for database operations - use for score_history table</package>
+        <package name="decimal.js" version="^10.6.0">Financial precision - use for trend percentage calculations</package>
+        <package name="zod" version="^4.1.13">Schema validation - use for history query validation</package>
+        <package name="vitest" version="^4.0.14">Test framework - use for unit and integration tests</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture" type="precision">All score calculations and trend percentages MUST use decimal.js with precision: 20, rounding: ROUND_HALF_UP</constraint>
+    <constraint source="architecture" type="isolation">All queries MUST include user_id filter for multi-tenant isolation</constraint>
+    <constraint source="story" type="immutability">History entries are append-only - never update or delete historical scores</constraint>
+    <constraint source="tech-spec" type="performance">History trend queries MUST complete in less than 300ms for 90-day range</constraint>
+    <constraint source="tech-spec" type="indexing">Composite index on (userId, assetId, calculatedAt) is REQUIRED for performance</constraint>
+    <constraint source="story" type="retention">Retention policy: 2 years of daily scores (archival deferred to Epic 8)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/scores/:assetId/history" kind="REST endpoint">
+      <signature>GET /api/scores/{assetId}/history?days=90 | ?startDate=YYYY-MM-DD&amp;endDate=YYYY-MM-DD&amp;includeTrend=true</signature>
+      <response>{ data: { history: ScoreHistoryEntry[], trend?: TrendAnalysis } }</response>
+      <path>src/app/api/scores/[assetId]/history/route.ts</path>
+    </interface>
+    <interface name="ScoreHistoryEntry" kind="TypeScript interface">
+      <signature>{ score: string; calculatedAt: Date; criteriaVersionId: string; }</signature>
+      <path>src/lib/services/score-service.ts</path>
+    </interface>
+    <interface name="TrendAnalysis" kind="TypeScript interface">
+      <signature>{ startScore: string; endScore: string; changePercent: string; direction: 'up' | 'down' | 'stable'; dataPoints: number; }</signature>
+      <path>src/lib/services/score-service.ts</path>
+    </interface>
+    <interface name="ScoreHistoryQuery" kind="TypeScript interface">
+      <signature>{ userId: string; assetId: string; startDate?: Date; endDate?: Date; days?: 30 | 60 | 90; }</signature>
+      <path>src/lib/services/score-service.ts</path>
+    </interface>
+    <interface name="storeScoreHistory" kind="function">
+      <signature>(scores: AssetScoreResult[], userId: string) => Promise&lt;void&gt;</signature>
+      <path>src/lib/services/score-service.ts</path>
+    </interface>
+    <interface name="getScoreHistory" kind="function">
+      <signature>(query: ScoreHistoryQuery) => Promise&lt;ScoreHistoryEntry[]&gt;</signature>
+      <path>src/lib/services/score-service.ts</path>
+    </interface>
+    <interface name="getScoreAtDate" kind="function">
+      <signature>(userId: string, assetId: string, date: Date) => Promise&lt;ScoreHistoryEntry | null&gt;</signature>
+      <path>src/lib/services/score-service.ts</path>
+    </interface>
+    <interface name="calculateTrend" kind="function">
+      <signature>(history: ScoreHistoryEntry[]) => TrendAnalysis</signature>
+      <path>src/lib/services/score-service.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Vitest for unit and integration tests. Follow existing patterns in tests/unit/. Use mocks for database operations where needed. All tests must be in tests/unit/ directory structure. Use descriptive test names with 'should' prefix. Include edge cases: empty history, single entry, boundary dates. Focus on deterministic results - same inputs must produce same outputs.
+    </standards>
+    <locations>
+      <location>tests/unit/services/score-history.test.ts</location>
+      <location>tests/unit/api/scores-history.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="5.9.1">Test storeScoreHistory appends entries without overwriting existing ones</idea>
+      <idea ac="5.9.1">Test multiple scores for same asset on different dates are all preserved</idea>
+      <idea ac="5.9.2">Test getScoreAtDate returns exact date match</idea>
+      <idea ac="5.9.2">Test getScoreAtDate returns null when no entry for requested date</idea>
+      <idea ac="5.9.2">Test queries are scoped by userId (user isolation)</idea>
+      <idea ac="5.9.3">Test getScoreHistory returns chronological order (oldest first)</idea>
+      <idea ac="5.9.3">Test getScoreHistory with days param (30, 60, 90)</idea>
+      <idea ac="5.9.3">Test getScoreHistory with date range params</idea>
+      <idea ac="5.9.3">Test calculateTrend computes correct percentage change</idea>
+      <idea ac="5.9.3">Test calculateTrend handles direction (up, down, stable)</idea>
+      <idea ac="5.9.3">Test calculateTrend with zero starting score (edge case)</idea>
+      <idea ac="5.9.4">Test history entries are immutable - can't be updated</idea>
+      <idea ac="5.9.4">Test new scores don't affect existing history entries</idea>
+      <idea ac="5.9.5">Test API returns empty array (not 404) when no history</idea>
+      <idea ac="5.9.5">Test API validates request params with Zod</idea>
+      <idea ac="5.9.5">Test API returns 401 for unauthenticated requests</idea>
+    </ideas>
+  </tests>
+</story-context>

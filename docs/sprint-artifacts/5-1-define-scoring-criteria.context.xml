@@ -1,0 +1,240 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>1</storyId>
+    <title>Define Scoring Criteria</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-1-define-scoring-criteria.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>define scoring criteria for each market/asset type</iWant>
+    <soThat>assets are evaluated based on my investment philosophy</soThat>
+    <tasks>
+      <task id="1">Create Database Schema for Criteria Versioning (AC: 5.1.1, 5.1.6)</task>
+      <task id="2">Create Zod Validation Schemas (AC: 5.1.2, 5.1.5)</task>
+      <task id="3">Implement CriteriaService (AC: 5.1.1, 5.1.6)</task>
+      <task id="4">Create API Routes (AC: 5.1.1)</task>
+      <task id="5">Create React Query Hooks (AC: 5.1.1, 5.1.4)</task>
+      <task id="6">Create CriteriaBlock Component (AC: 5.1.4)</task>
+      <task id="7">Create PointsBadge Component (AC: 5.1.5)</task>
+      <task id="8">Create MetricSelector Component (AC: 5.1.2)</task>
+      <task id="9">Create OperatorSelector Component (AC: 5.1.2)</task>
+      <task id="10">Create CriteriaForm Component (AC: 5.1.2)</task>
+      <task id="11">Create CriteriaList Component (AC: 5.1.3)</task>
+      <task id="12">Create Criteria Page (AC: 5.1.3)</task>
+      <task id="13">Create Unit Tests (AC: All)</task>
+      <task id="14">Create Integration Tests (AC: All)</task>
+      <task id="15">Create E2E Tests (AC: All)</task>
+      <task id="16">Run Verification</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="5.1.1" name="Create New Criterion">
+      Given I am on the Criteria page, when I click "Add Criterion" and define name, metric, operator, value, points, then the criterion is saved and appears in my criteria list, and a new criteria version is created (immutable versioning).
+    </criterion>
+    <criterion id="5.1.2" name="Criterion Form Fields">
+      Given I am creating or editing a criterion, when I view the criterion form, then I see fields for: Name, Target Market/Sector, Metric dropdown, Operator, Value(s) for comparison, Points awarded (+/-100 range), Required Fundamentals.
+    </criterion>
+    <criterion id="5.1.3" name="Criteria Organization">
+      Given I have multiple criteria defined, when I view the Criteria page, then criteria are organized by market/asset type tabs, and each tab shows criteria count and last modified date.
+    </criterion>
+    <criterion id="5.1.4" name="CriteriaBlock Component Interaction">
+      Given I am viewing my criteria list, when I interact with a CriteriaBlock, then I see a drag handle for reordering, I can inline edit any field, I see a delete option, and changes auto-save with visual confirmation.
+    </criterion>
+    <criterion id="5.1.5" name="Points Validation">
+      Given I am setting points for a criterion, when I enter a value, then validation ensures points are integers from -100 to +100, positive points display with green indicator, and negative points display with red indicator.
+    </criterion>
+    <criterion id="5.1.6" name="Criteria Versioning">
+      Given I modify any criterion, when the change is saved, then a new criteria_version record is created, the previous version remains unchanged (immutable), and scores reference the criteria_version_id used in calculation.
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Data Architecture, Implementation Patterns</section>
+        <snippet>Defines event-sourced calculations with 4 events (CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED), decimal.js for financial precision, and criteria versioning as immutable for audit trail.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-5.md</path>
+        <title>Epic 5 Technical Specification</title>
+        <section>Data Models, APIs, Acceptance Criteria</section>
+        <snippet>Defines criteria_versions table schema with JSONB criteria array, CriterionRule interface structure, API endpoints for criteria CRUD operations, and detailed acceptance criteria.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Development Standards</title>
+        <section>Test Requirements for All Code Changes</section>
+        <snippet>Every code change requires test coverage: unit tests for services and validation, integration tests for APIs, E2E tests for critical user flows. Test baseline: 946 tests.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>src/lib/db/schema.ts</path>
+        <kind>database-schema</kind>
+        <symbol>assetClasses, assetSubclasses, portfolioAssets</symbol>
+        <lines>245-297</lines>
+        <reason>Reference pattern for pgTable definition with uuid, varchar, jsonb, numeric types, indexes, and relations. Use same structure for criteria_versions table.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/validations/asset-class-schemas.ts</path>
+        <kind>validation</kind>
+        <symbol>assetClassSchema, subclassSchema, ASSET_CLASS_CONSTRAINTS</symbol>
+        <reason>Reference pattern for Zod validation schemas with constants, messages, and refinements. Follow same structure for criteria-schemas.ts.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/services/asset-class-service.ts</path>
+        <kind>service</kind>
+        <symbol>AssetClassService, AssetClassError, updateClassTargetRange</symbol>
+        <reason>Reference pattern for service layer with custom error classes, async functions, multi-tenant queries scoped by userId, and transaction handling.</reason>
+      </artifact>
+      <artifact>
+        <path>src/hooks/use-asset-classes.ts</path>
+        <kind>hook</kind>
+        <symbol>useAssetClasses, useCreateAssetClass, useUpdateAssetClass</symbol>
+        <reason>Reference pattern for React hooks using useState/useCallback/useEffect (NOT React Query despite story mentions). Follow same pattern for use-criteria.ts.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/strategy/asset-count-input.tsx</path>
+        <kind>component</kind>
+        <symbol>AssetCountInput</symbol>
+        <reason>Reference pattern for auto-save inline editing with loading states, error handling, and visual feedback (green border on save). Adapt for CriteriaBlock.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/api/asset-classes/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET, POST</symbol>
+        <reason>Reference pattern for API route handlers with auth middleware, Zod validation, error handling. Follow same pattern for /api/criteria/route.ts.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/api/asset-classes/[id]/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET, PATCH, DELETE</symbol>
+        <reason>Reference pattern for dynamic route with ID parameter, ownership verification, and CRUD operations.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <dependency name="drizzle-orm" version="^0.44.7">Database ORM for schema and queries</dependency>
+      <dependency name="zod" version="^4.1.13">Schema validation for API inputs</dependency>
+      <dependency name="react-hook-form" version="^7.67.0">Form state management</dependency>
+      <dependency name="@hookform/resolvers" version="^5.2.2">Zod resolver for react-hook-form</dependency>
+      <dependency name="decimal.js" version="^10.6.0">Financial precision for points calculations</dependency>
+      <dependency name="sonner" version="^2.0.7">Toast notifications for save feedback</dependency>
+      <dependency name="lucide-react" version="^0.555.0">Icons for drag handle, delete, indicators</dependency>
+      <dependency name="@radix-ui/react-tabs" version="^1.1.13">Tabs for asset type organization</dependency>
+      <dependency name="@radix-ui/react-select" version="^2.2.6">Dropdowns for metric/operator selectors</dependency>
+      <dependency name="@radix-ui/react-dialog" version="^1.1.15">Modal for criteria form</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture.md#ADR-002">All score calculations MUST use decimal.js for financial precision</constraint>
+    <constraint source="architecture.md#Event-Sourcing">Criteria are immutable; changes create new versions for audit trail</constraint>
+    <constraint source="architecture.md#Security">All queries must include userId filter for multi-tenant isolation</constraint>
+    <constraint source="architecture.md#Implementation-Patterns">Use Zod schemas for all API input validation</constraint>
+    <constraint source="tech-spec-epic-5.md#Data-Models">Points must be integers from -100 to +100</constraint>
+    <constraint source="tech-spec-epic-5.md#Data-Models">criteria_versions stores CriterionRule[] in JSONB column</constraint>
+    <constraint source="CLAUDE.md#Test-Requirements">Every code change requires corresponding test coverage</constraint>
+    <constraint source="existing-patterns">Use useState/useCallback/useEffect pattern for hooks (NOT React Query)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>CriterionRule</name>
+      <kind>TypeScript interface</kind>
+      <signature><![CDATA[
+interface CriterionRule {
+  id: string;
+  name: string;
+  metric: string; // 'dividend_yield', 'pe_ratio', 'pb_ratio', etc.
+  operator: 'gt' | 'lt' | 'gte' | 'lte' | 'between' | 'equals' | 'exists';
+  value: string; // Decimal string
+  value2?: string; // For 'between' operator
+  points: number; // -100 to +100
+  requiredFundamentals: string[]; // Data points needed
+  sortOrder: number;
+}
+      ]]></signature>
+      <path>src/lib/db/schema.ts (to be added)</path>
+    </interface>
+    <interface>
+      <name>CriteriaService</name>
+      <kind>Service interface</kind>
+      <signature><![CDATA[
+interface CriteriaService {
+  createCriteriaSet(userId: string, input: CreateCriteriaSetInput): Promise<CriteriaVersion>;
+  addCriterion(userId: string, criteriaVersionId: string, criterion: CriterionRule): Promise<CriteriaVersion>;
+  updateCriterion(userId: string, criteriaVersionId: string, criterionId: string, updates: Partial<CriterionRule>): Promise<CriteriaVersion>;
+  deleteCriterion(userId: string, criteriaVersionId: string, criterionId: string): Promise<CriteriaVersion>;
+  getCriteriaByAssetType(userId: string, assetType: string): Promise<CriteriaVersion[]>;
+  getCriteriaVersion(userId: string, versionId: string): Promise<CriteriaVersion>;
+  reorderCriteria(userId: string, criteriaVersionId: string, criterionIds: string[]): Promise<CriteriaVersion>;
+}
+      ]]></signature>
+      <path>src/lib/services/criteria-service.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>GET /api/criteria</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/criteria?assetType={string} -> { data: CriteriaVersion[] }</signature>
+      <path>src/app/api/criteria/route.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>POST /api/criteria</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/criteria { assetType, targetMarket, name, criteria: CriterionRule[] } -> { data: CriteriaVersion }</signature>
+      <path>src/app/api/criteria/route.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>PATCH /api/criteria/[id]</name>
+      <kind>REST endpoint</kind>
+      <signature>PATCH /api/criteria/[id] { ...updates } -> { data: CriteriaVersion } (creates new version)</signature>
+      <path>src/app/api/criteria/[id]/route.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>PATCH /api/criteria/[id]/reorder</name>
+      <kind>REST endpoint</kind>
+      <signature>PATCH /api/criteria/[id]/reorder { criterionIds: string[] } -> { data: CriteriaVersion }</signature>
+      <path>src/app/api/criteria/[id]/reorder/route.ts (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit and integration tests, Playwright for E2E. Test files follow pattern: tests/unit/services/*.test.ts, tests/unit/validations/*.test.ts, tests/unit/api/*.test.ts, tests/e2e/*.spec.ts. All tests must pass before story completion. Test baseline is 946 tests - must maintain or increase. Follow existing patterns in tests/unit/services/asset-class-service.test.ts for service tests.
+    </standards>
+    <locations>
+      <location>tests/unit/services/criteria-service.test.ts</location>
+      <location>tests/unit/validations/criteria.test.ts</location>
+      <location>tests/unit/api/criteria.test.ts</location>
+      <location>tests/e2e/criteria.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="5.1.1">Test createCriteriaSet creates version 1, returns complete CriteriaVersion object</idea>
+      <idea ac="5.1.1">Test addCriterion increments version number, preserves existing criteria</idea>
+      <idea ac="5.1.2">Test criterionRuleSchema accepts valid metrics: dividend_yield, pe_ratio, pb_ratio, market_cap, revenue, earnings, surplus_years</idea>
+      <idea ac="5.1.2">Test criterionRuleSchema accepts valid operators: gt, lt, gte, lte, between, equals, exists</idea>
+      <idea ac="5.1.2">Test between operator requires value2, other operators reject value2</idea>
+      <idea ac="5.1.3">Test getCriteriaByAssetType returns only criteria matching assetType filter</idea>
+      <idea ac="5.1.4">Test updateCriterion creates new version, old version unchanged (immutability)</idea>
+      <idea ac="5.1.5">Test points validation rejects -101, 101, 50.5 (non-integer), accepts -100, 0, 100</idea>
+      <idea ac="5.1.6">Test deleteCriterion creates new version without deleted criterion</idea>
+      <idea ac="5.1.6">Test criteria version references remain valid after new versions created</idea>
+      <idea ac="multi-tenant">Test user cannot access other users' criteria (returns 404 not 403)</idea>
+      <idea ac="api">Test POST /api/criteria returns 400 for invalid input with Zod error details</idea>
+      <idea ac="api">Test DELETE /api/criteria/[id] soft deletes (sets isActive=false)</idea>
+      <idea ac="e2e">E2E: Navigate to Criteria page, create criterion, verify appears in list</idea>
+      <idea ac="e2e">E2E: Edit criterion inline, verify auto-save visual feedback</idea>
+      <idea ac="e2e">E2E: Delete criterion with confirmation dialog</idea>
+    </ideas>
+  </tests>
+</story-context>

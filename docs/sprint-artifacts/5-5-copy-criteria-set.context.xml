@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context: 5.5 Copy Criteria Set
+  Generated: 2025-12-09
+  Epic: Epic 5 - Scoring Engine
+  Status: ready-for-dev
+-->
+<story-context story-id="5-5-copy-criteria-set" epic="5">
+
+  <!-- =========================================================================
+       SECTION 1: STORY SUMMARY
+       ========================================================================= -->
+  <story-summary>
+    <title>Copy Criteria Set</title>
+    <statement>
+      As a user, I want to copy an existing criteria set to create a new variation
+      so that I can efficiently create similar scoring configurations for different
+      markets without starting from scratch.
+    </statement>
+    <previous-story id="5-4" status="done">Criteria Library View</previous-story>
+    <acceptance-criteria count="4">
+      <ac id="5.5.1">Copy Action Available on Criteria Sets - three-dot menu with "Copy to..." option</ac>
+      <ac id="5.5.2">Target Market Selection - modal with name input, target market dropdown, source details</ac>
+      <ac id="5.5.3">Copied Criteria Naming - automatic "(Copy)", "(Copy 2)", etc. suffix handling</ac>
+      <ac id="5.5.4">Copy Confirmation - success message, new UUIDs assigned, sortOrder preserved</ac>
+    </acceptance-criteria>
+  </story-summary>
+
+  <!-- =========================================================================
+       SECTION 2: RELEVANT DOCUMENTATION
+       ========================================================================= -->
+  <documentation>
+    <doc-reference path="docs/sprint-artifacts/tech-spec-epic-5.md" relevance="high">
+      <excerpt topic="copy-api">
+        POST /api/criteria/:id/copy
+        Request: { name?: string, targetMarket?: string }
+        Response: { data: { criteriaVersion: CriteriaVersion, copiedCount: number } }
+      </excerpt>
+    </doc-reference>
+
+    <doc-reference path="docs/architecture.md" relevance="high">
+      <excerpt topic="patterns">
+        - Multi-tenant isolation: All queries scoped by userId
+        - Immutable versioning: Every change creates new version
+        - Validation: All inputs validated with Zod schemas (server-side)
+      </excerpt>
+    </doc-reference>
+
+    <doc-reference path="CLAUDE.md" relevance="high">
+      <excerpt topic="testing">
+        Every code change MUST include appropriate test coverage:
+        - Bug Fix: Unit test reproducing bug + verification
+        - New Function/Method: Unit tests for all code paths
+        - API Endpoint: Unit + Integration tests for success/error cases
+      </excerpt>
+    </doc-reference>
+  </documentation>
+
+  <!-- =========================================================================
+       SECTION 3: EXISTING CODE ARTIFACTS
+       ========================================================================= -->
+  <code-artifacts>
+
+    <!-- Database Schema -->
+    <artifact type="schema" path="src/lib/db/schema.ts" lines="300-386">
+      <description>CriteriaVersion and CriterionRule types</description>
+      <interface name="CriterionRule">
+        id: string
+        name: string
+        metric: CriterionMetric
+        operator: CriterionOperator
+        value: string
+        value2?: string | null | undefined
+        points: number (-100 to +100)
+        requiredFundamentals: string[]
+        sortOrder: number
+      </interface>
+      <interface name="CriteriaVersion">
+        id: uuid
+        userId: uuid
+        assetType: varchar(50)
+        targetMarket: varchar(50)
+        name: varchar(100)
+        criteria: jsonb CriterionRule[]
+        version: integer
+        isActive: boolean
+        createdAt: timestamp
+        updatedAt: timestamp
+      </interface>
+    </artifact>
+
+    <!-- Criteria Service - EXTEND -->
+    <artifact type="service" path="src/lib/services/criteria-service.ts" lines="1-627" action="extend">
+      <description>Service layer for criteria operations - add copyCriteriaSet method</description>
+      <existing-functions>
+        <function name="createCriteriaSet" signature="(userId: string, input: CreateCriteriaSetInput) => Promise&lt;CriteriaVersion&gt;">
+          Creates new criteria set with generated UUIDs. Use as pattern for copy.
+        </function>
+        <function name="getCriteriaById" signature="(userId: string, criteriaId: string) => Promise&lt;CriteriaVersion | null&gt;">
+          Fetches single criteria set by ID with userId ownership check.
+        </function>
+        <function name="updateCriteriaSet" signature="(userId: string, criteriaId: string, input: UpdateCriteriaSetInput) => Promise&lt;CriteriaVersion&gt;">
+          Updates criteria set, creates new version (immutable versioning).
+        </function>
+        <function name="getCriteriaSetCount" signature="(userId: string) => Promise&lt;number&gt;">
+          Returns count of active criteria sets for limit checking.
+        </function>
+        <function name="generateUUID" signature="() => string">
+          Uses crypto.randomUUID() - reuse for copied criteria IDs.
+        </function>
+      </existing-functions>
+      <errors>
+        <error class="CriteriaSetLimitError">Thrown when MAX_CRITERIA_SETS_PER_USER exceeded</error>
+        <error class="CriteriaNotFoundError">Thrown when criteria ID not found or not owned</error>
+      </errors>
+      <pattern>
+        Copy should:
+        1. Verify source ownership via getCriteriaById
+        2. Check limit via getCriteriaSetCount
+        3. Generate new name with (Copy) suffix logic
+        4. Clone criteria rules with new UUIDs (crypto.randomUUID)
+        5. Preserve sortOrder from source
+        6. Insert new criteria_version record
+      </pattern>
+    </artifact>
+
+    <!-- Criteria Hooks - EXTEND -->
+    <artifact type="hook" path="src/hooks/use-criteria.ts" lines="1-821" action="extend">
+      <description>React hooks for criteria operations - add useCopyCriteria hook</description>
+      <hook-pattern>
+        Each hook follows pattern:
+        - useState for loading/error state
+        - useCallback for operation function
+        - useRouter for refresh after mutation
+        - toast() from sonner for user feedback
+        - Returns { operation, isLoading, error }
+      </hook-pattern>
+      <existing-hooks>
+        <hook name="useCriteria">Fetch all criteria sets</hook>
+        <hook name="useCriteriaSet">Fetch single criteria set</hook>
+        <hook name="useCreateCriteriaSet">Create new criteria set</hook>
+        <hook name="useUpdateCriteriaSet">Update existing criteria set</hook>
+        <hook name="useDeleteCriteriaSet">Soft delete criteria set</hook>
+        <hook name="useAddCriterion">Add criterion to set</hook>
+        <hook name="useUpdateCriterion">Update single criterion</hook>
+        <hook name="useDeleteCriterion">Delete criterion from set</hook>
+        <hook name="useReorderCriteria">Reorder criteria within set</hook>
+      </existing-hooks>
+    </artifact>
+
+    <!-- Validation Schemas - EXTEND -->
+    <artifact type="validation" path="src/lib/validations/criteria-schemas.ts" lines="1-467" action="extend">
+      <description>Zod schemas for criteria validation - add CopyCriteriaSchema</description>
+      <existing-schemas>
+        <schema name="createCriteriaSetSchema">Full criteria set creation</schema>
+        <schema name="updateCriteriaSetSchema">Partial criteria set update</schema>
+        <schema name="criterionRuleSchema">Single criterion validation</schema>
+      </existing-schemas>
+      <constants>
+        MAX_CRITERIA_SETS_PER_USER = 50
+        CRITERIA_SET_NAME_MAX_LENGTH = 100
+        TARGET_MARKET_MAX_LENGTH = 50
+      </constants>
+      <add-schema name="copyCriteriaSchema">
+        {
+          name: z.string().max(100).optional(),
+          targetMarket: z.string().max(50).optional()
+        }
+      </add-schema>
+    </artifact>
+
+    <!-- Criteria List Component - EXTEND -->
+    <artifact type="component" path="src/components/criteria/criteria-list.tsx" lines="1-407" action="extend">
+      <description>Main criteria library component - add copy action to set header</description>
+      <structure>
+        - Tabs for asset types with badge counts
+        - CriteriaSearch with debounce
+        - SortableContext with @dnd-kit for reordering
+        - Each set displays: header (name, market, version), criteria blocks
+      </structure>
+      <add-feature>
+        Add DropdownMenu to each criteria set header with "Copy to..." option.
+        Wire up CopyCriteriaDialog trigger.
+      </add-feature>
+    </artifact>
+
+    <!-- API Routes -->
+    <artifact type="api" path="src/app/api/criteria/route.ts" lines="1-186">
+      <description>GET /api/criteria and POST /api/criteria endpoints</description>
+      <pattern>
+        - withAuth middleware for authentication
+        - Zod validation of request body
+        - Service function call
+        - Typed JSON responses
+        - Error handling with specific codes
+      </pattern>
+    </artifact>
+
+    <artifact type="api" path="src/app/api/criteria/[id]/route.ts" lines="1-212">
+      <description>GET/PATCH/DELETE /api/criteria/:id endpoints</description>
+      <pattern>
+        - RouteParams interface for params Promise
+        - await (context as RouteParams).params for ID extraction
+        - CriteriaNotFoundError handling returns 404
+      </pattern>
+    </artifact>
+
+  </code-artifacts>
+
+  <!-- =========================================================================
+       SECTION 4: FILES TO CREATE
+       ========================================================================= -->
+  <files-to-create>
+
+    <file path="src/app/api/criteria/[id]/copy/route.ts" type="api">
+      <purpose>POST endpoint for copying criteria set</purpose>
+      <template>
+        import { NextResponse } from "next/server";
+        import { withAuth } from "@/lib/auth/middleware";
+        import { copyCriteriaSet } from "@/lib/services/criteria-service";
+        import { copyCriteriaSchema } from "@/lib/validations/criteria-schemas";
+
+        export const POST = withAuth(async (request, session, context) => {
+          const { id } = await context.params;
+          const body = await request.json();
+          const validation = copyCriteriaSchema.safeParse(body);
+          // ... implementation
+        });
+      </template>
+    </file>
+
+    <file path="src/components/criteria/copy-criteria-dialog.tsx" type="component">
+      <purpose>Dialog for copy operation with name input and market select</purpose>
+      <ui-components>
+        - Dialog, DialogContent, DialogHeader, DialogTitle (from @/components/ui/dialog)
+        - Input (from @/components/ui/input)
+        - Select, SelectContent, SelectItem, SelectTrigger, SelectValue (from @/components/ui/select)
+        - Button (from @/components/ui/button)
+      </ui-components>
+      <props>
+        sourceSet: { id, name, assetType, targetMarket, criteriaCount }
+        availableMarkets: string[]
+        onCopy: (options: CopyOptions) => Promise&lt;void&gt;
+      </props>
+    </file>
+
+    <file path="src/hooks/use-copy-criteria.ts" type="hook">
+      <purpose>React hook for copy operation with loading/error state</purpose>
+      <returns>
+        copyCriteria: (sourceId: string, options: CopyOptions) => Promise&lt;CriteriaVersion | null&gt;
+        isCopying: boolean
+        error: string | null
+      </returns>
+    </file>
+
+    <file path="src/lib/constants/markets.ts" type="constant">
+      <purpose>Predefined markets list and display name mapping</purpose>
+      <content>
+        PREDEFINED_MARKETS = ['BR_BANKS', 'BR_REITS', 'BR_UTILITIES', 'US_TECH', ...]
+        MARKET_DISPLAY_NAMES = { 'BR_BANKS': 'Brazilian Banks', ... }
+        getAvailableMarkets(userMarkets: string[]): string[]
+      </content>
+    </file>
+
+    <file path="tests/unit/services/criteria-copy.test.ts" type="test">
+      <purpose>Unit tests for copyCriteriaSet service function</purpose>
+      <test-cases>
+        - Copy within same market
+        - Copy to different market
+        - (Copy) suffix generation
+        - (Copy 2), (Copy 3) increment logic
+        - Criteria rules get new UUIDs
+        - sortOrder preservation
+        - User isolation (can't copy others' criteria)
+        - Limit check (MAX_CRITERIA_SETS_PER_USER)
+      </test-cases>
+    </file>
+
+    <file path="tests/unit/api/criteria-copy.test.ts" type="test">
+      <purpose>Integration tests for POST /api/criteria/:id/copy</purpose>
+      <test-cases>
+        - 201 success with valid request
+        - 400 validation error
+        - 401 unauthenticated
+        - 404 non-existent criteria
+        - 403 criteria not owned by user
+        - 409 criteria set limit exceeded
+      </test-cases>
+    </file>
+
+  </files-to-create>
+
+  <!-- =========================================================================
+       SECTION 5: DEPENDENCIES
+       ========================================================================= -->
+  <dependencies>
+    <dependency type="npm" name="@radix-ui/react-dialog" version="^1.1.15" usage="Copy dialog modal" />
+    <dependency type="npm" name="@radix-ui/react-select" version="^2.2.6" usage="Target market dropdown" />
+    <dependency type="npm" name="@radix-ui/react-dropdown-menu" version="^2.1.16" usage="Three-dot menu for copy action" />
+    <dependency type="npm" name="sonner" version="^2.0.7" usage="Toast notifications" />
+    <dependency type="npm" name="zod" version="^4.1.13" usage="Request validation" />
+    <dependency type="npm" name="drizzle-orm" version="^0.44.7" usage="Database operations" />
+    <dependency type="npm" name="vitest" version="^4.0.14" usage="Unit testing" />
+    <dependency type="npm" name="lucide-react" version="^0.555.0" usage="Icons (Copy, MoreVertical)" />
+  </dependencies>
+
+  <!-- =========================================================================
+       SECTION 6: TESTING STANDARDS
+       ========================================================================= -->
+  <testing-standards>
+    <framework>Vitest for unit tests, Playwright for E2E</framework>
+    <location>tests/unit/ for unit tests, tests/e2e/ for E2E</location>
+    <commands>
+      <command>pnpm test</command>
+      <command>pnpm test:watch</command>
+      <command>pnpm test:coverage</command>
+    </commands>
+
+    <patterns>
+      <pattern name="service-tests">
+        - Mock database with vi.mock
+        - Test success and error paths
+        - Verify function arguments
+        - Test edge cases (empty arrays, boundary values)
+      </pattern>
+      <pattern name="api-tests">
+        - Mock service functions
+        - Test HTTP status codes
+        - Test response body structure
+        - Test validation errors
+      </pattern>
+      <pattern name="hook-tests">
+        - Use renderHook from @testing-library/react
+        - Mock fetch calls
+        - Test loading states
+        - Test error handling
+      </pattern>
+    </patterns>
+
+    <example path="tests/unit/validations/criteria.test.ts">
+      Reference for Zod schema testing patterns, uses describe/it blocks,
+      tests .safeParse() success/failure cases, checks error messages.
+    </example>
+
+    <coverage-requirements>
+      - Service copy logic: all code paths
+      - API route: success, validation, auth, not found, forbidden
+      - Name suffix logic: (Copy), (Copy 2), (Copy 3)
+      - UUID generation: verify new IDs assigned
+    </coverage-requirements>
+  </testing-standards>
+
+  <!-- =========================================================================
+       SECTION 7: IMPLEMENTATION CONSTRAINTS
+       ========================================================================= -->
+  <constraints>
+    <constraint type="security">
+      Multi-tenant isolation: All operations MUST verify userId ownership.
+      getCriteriaById already does this check - use it for source verification.
+    </constraint>
+
+    <constraint type="architecture">
+      Immutable versioning: Copy creates new criteria_version record.
+      Original criteria set remains unchanged.
+    </constraint>
+
+    <constraint type="validation">
+      All inputs validated with Zod schemas on server side.
+      Client-side validation is convenience only.
+    </constraint>
+
+    <constraint type="naming">
+      Follow existing file naming conventions:
+      - Components: kebab-case.tsx
+      - Hooks: use-*.ts
+      - Services: *-service.ts
+      - Tests: *.test.ts
+    </constraint>
+
+    <constraint type="ui">
+      Use shadcn/ui components for consistency.
+      Toast notifications via sonner for user feedback.
+    </constraint>
+  </constraints>
+
+  <!-- =========================================================================
+       SECTION 8: LEARNINGS FROM PREVIOUS STORY
+       ========================================================================= -->
+  <previous-story-learnings source="5-4-criteria-library-view">
+    <learning type="pattern">
+      Use hooks pattern for state management (useCriteriaFilter).
+      Extend CriteriaList component rather than recreate.
+    </learning>
+    <learning type="testing">
+      Same test structure pattern in tests/unit/.
+      21 unit tests for filter hook - thorough edge case coverage.
+    </learning>
+    <learning type="files-created">
+      src/hooks/use-criteria-filter.ts - Pure filtering hook
+      src/components/criteria/criteria-search.tsx - Search with debounce
+      tests/unit/hooks/use-criteria-filter.test.ts
+    </learning>
+    <learning type="advisory">
+      Consider consolidating duplicate helper functions in future refactoring.
+      Add component tests for new dialog component.
+    </learning>
+  </previous-story-learnings>
+
+</story-context>
