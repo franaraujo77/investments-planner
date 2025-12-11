@@ -1,0 +1,360 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>5</storyId>
+    <title>Currency Conversion Logic</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-5-currency-conversion-logic.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to convert asset values to the user's base currency accurately</iWant>
+    <soThat>portfolio totals, allocations, and recommendations are calculated correctly across multi-currency holdings</soThat>
+    <tasks>
+      <task id="1" title="Create CurrencyConverter Service" ac="6.5.1, 6.5.2, 6.5.3">
+        <file>src/lib/calculations/currency-converter.ts</file>
+        <subtasks>
+          <subtask>Create CurrencyConverter class using Decimal.js</subtask>
+          <subtask>Implement convert(value, from, to, options?) method</subtask>
+          <subtask>Implement convertBatch(conversions, to, options?) for bulk conversions</subtask>
+          <subtask>Use ExchangeRatesRepository to get stored rates</subtask>
+          <subtask>Apply conversion formula: value_base = value_native × rate</subtask>
+          <subtask>Ensure intermediate calculations maintain full precision</subtask>
+          <subtask>Apply ROUND_HALF_UP rounding (4 decimal places) only at final output</subtask>
+          <subtask>Handle same-currency conversion (no-op, return same value)</subtask>
+          <subtask>Handle missing rate scenario (use most recent available)</subtask>
+          <subtask>Return CurrencyConversionResult with full metadata</subtask>
+        </subtasks>
+      </task>
+      <task id="2" title="Integrate Rate Staleness Detection" ac="6.5.5">
+        <file>src/lib/calculations/currency-converter.ts</file>
+        <subtasks>
+          <subtask>Add logic to detect stale rates (older than 24 hours)</subtask>
+          <subtask>Set isStaleRate flag in conversion result when rate is stale</subtask>
+          <subtask>Log warning when using stale rate</subtask>
+          <subtask>If no rate available at all, throw descriptive error</subtask>
+          <subtask>Use stored rates only (never call external API during conversion)</subtask>
+        </subtasks>
+      </task>
+      <task id="3" title="Add Audit Trail Logging" ac="6.5.4">
+        <files>
+          <file>src/lib/calculations/currency-converter.ts</file>
+          <file>src/lib/events/types.ts</file>
+        </files>
+        <subtasks>
+          <subtask>Add CURRENCY_CONVERTED event type to event types</subtask>
+          <subtask>Emit conversion event after each successful conversion</subtask>
+          <subtask>Include: sourceValue, sourceCurrency, targetCurrency, rate, rateDate, resultValue, isStaleRate</subtask>
+          <subtask>Support optional correlationId for linking to parent calculation</subtask>
+          <subtask>Use fire-and-forget pattern for event emission (don't slow down conversion)</subtask>
+        </subtasks>
+      </task>
+      <task id="4" title="Create Zod Validation Schemas" ac="6.5.1">
+        <file>src/lib/validations/currency-schemas.ts</file>
+        <subtasks>
+          <subtask>Create CurrencyConversionRequestSchema for input validation</subtask>
+          <subtask>Create CurrencyConversionResultSchema for output typing</subtask>
+          <subtask>Validate currency codes (3 uppercase chars, from supported list)</subtask>
+          <subtask>Validate value is valid decimal string (positive)</subtask>
+          <subtask>Export schemas for use in service and tests</subtask>
+        </subtasks>
+      </task>
+      <task id="5" title="Create API Route (Optional)" ac="All">
+        <file>src/app/api/data/convert/route.ts</file>
+        <subtasks>
+          <subtask>Create GET handler for /api/data/convert</subtask>
+          <subtask>Accept query params: value, from, to, date (optional)</subtask>
+          <subtask>Validate request with Zod schema</subtask>
+          <subtask>Call CurrencyConverter.convert()</subtask>
+          <subtask>Return standardized response format</subtask>
+          <subtask>Include rate metadata in response</subtask>
+        </subtasks>
+      </task>
+      <task id="6" title="Add Factory Function to Providers Index">
+        <file>src/lib/providers/index.ts</file>
+        <subtasks>
+          <subtask>Add getCurrencyConverter() factory function</subtask>
+          <subtask>Inject ExchangeRatesRepository dependency</subtask>
+          <subtask>Inject EventStore for audit logging</subtask>
+          <subtask>Export for use throughout application</subtask>
+        </subtasks>
+      </task>
+      <task id="7" title="Write Unit Tests" ac="All">
+        <file>tests/unit/calculations/currency-converter.test.ts</file>
+        <subtasks>
+          <subtask>Test decimal.js precision (0.1 + 0.2 scenario)</subtask>
+          <subtask>Test conversion formula correctness with known values</subtask>
+          <subtask>Test rounding (ROUND_HALF_UP at 4 decimal places)</subtask>
+          <subtask>Test same-currency conversion (no-op)</subtask>
+          <subtask>Test stale rate detection (>24h old)</subtask>
+          <subtask>Test missing rate handling</subtask>
+          <subtask>Test batch conversion</subtask>
+          <subtask>Test event emission for audit trail</subtask>
+          <subtask>Test various currency pairs (USD/BRL, EUR/JPY, etc.)</subtask>
+          <subtask>Mock ExchangeRatesRepository</subtask>
+        </subtasks>
+      </task>
+      <task id="8" title="Write Integration Tests" ac="All">
+        <file>tests/unit/api/currency-convert.test.ts</file>
+        <subtasks>
+          <subtask>Test GET /api/data/convert endpoint (if implemented)</subtask>
+          <subtask>Test with valid conversion parameters</subtask>
+          <subtask>Test with invalid currency codes</subtask>
+          <subtask>Test with missing rate in database</subtask>
+          <subtask>Test response format correctness</subtask>
+          <subtask>Test error responses</subtask>
+        </subtasks>
+      </task>
+      <task id="9" title="Run Verification">
+        <subtasks>
+          <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+          <subtask>ESLint passes with no new errors (pnpm lint)</subtask>
+          <subtask>All unit tests pass (pnpm test)</subtask>
+          <subtask>Build succeeds (pnpm build)</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.5.1" title="All Conversions Use decimal.js (Never Floating Point)">
+      <given>any currency conversion operation is performed</given>
+      <when>the calculation executes</when>
+      <then>all arithmetic uses decimal.js library (NEVER JavaScript floating point)</then>
+      <and>precision is maintained throughout the calculation chain</and>
+      <and>no floating-point approximation errors occur (e.g., 0.1 + 0.2 must equal 0.3)</and>
+    </criterion>
+    <criterion id="AC-6.5.2" title="Conversion Formula Correctly Applied">
+      <given>a value in a native currency needs conversion</given>
+      <when>the CurrencyConverter service is called</when>
+      <then>the formula value_base = value_native × rate is applied</then>
+      <and>the rate used is the stored exchange rate for base_currency/native_currency pair</and>
+      <and>conversion works correctly for any supported currency pair</and>
+    </criterion>
+    <criterion id="AC-6.5.3" title="Rounding Applied Correctly">
+      <given>a conversion calculation produces a result</given>
+      <when>the final value is returned</when>
+      <then>rounding uses 4 decimal places with ROUND_HALF_UP mode</then>
+      <and>intermediate calculations maintain full precision (no premature rounding)</and>
+      <and>rounding is applied only at the final output step</and>
+    </criterion>
+    <criterion id="AC-6.5.4" title="Conversion Logged for Audit Trail">
+      <given>a currency conversion is performed</given>
+      <when>the conversion completes</when>
+      <then>an event is logged with: source value, source currency, target currency, rate used, result value</then>
+      <and>the log entry includes timestamp and correlation_id (if part of a calculation pipeline)</and>
+      <and>audit trail enables verification of historical conversions</and>
+    </criterion>
+    <criterion id="AC-6.5.5" title="Rate Used Is Always Stored Rate (Not Live)">
+      <given>a conversion is requested</given>
+      <when>the rate is retrieved</when>
+      <then>the system uses the stored exchange rate from the database (not a live API call)</then>
+      <and>if no stored rate exists for the requested date, the most recent available rate is used</and>
+      <and>a warning is logged if using a rate older than 24 hours</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>Story 6.5: Currency Conversion Logic</section>
+        <snippet>AC-6.5.1 through AC-6.5.5 define requirements for decimal.js precision, conversion formula, rounding, audit trail logging, and stored rate usage. CurrencyConverter service interface with convert() and convertBatch() methods specified.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-002: Event-Sourced Calculations / Decimal Calculation Pattern</section>
+        <snippet>decimal.js configured with precision: 20, rounding: ROUND_HALF_UP. Event-sourced pattern with 4 event types. PostgreSQL numeric types for currency storage. Provider abstraction pattern (ADR-005) for external APIs.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/6-4-fetch-exchange-rates.md</path>
+        <title>Story 6.4: Fetch Exchange Rates</title>
+        <section>Dev Agent Record / Technical Notes</section>
+        <snippet>ExchangeRatesRepository available with getRate(base, target, date?) and getRates(). Rates stored as strings for Decimal.js precision. T-1 logic applied. Supported currencies: USD, EUR, GBP, BRL, CAD, AUD, JPY, CHF.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/lib/calculations/decimal-config.ts</path>
+        <kind>configuration</kind>
+        <symbol>Decimal</symbol>
+        <lines>1-26</lines>
+        <reason>decimal.js global configuration with precision: 20 and ROUND_HALF_UP. MUST import this configured Decimal for all currency conversions.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/repositories/exchange-rates-repository.ts</path>
+        <kind>repository</kind>
+        <symbol>ExchangeRatesRepository</symbol>
+        <lines>1-318</lines>
+        <reason>Provides getRate(base, target, date?) and getRates() methods to retrieve stored exchange rates. Returns ExchangeRate records with rate, source, fetchedAt, and rateDate fields.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/events/types.ts</path>
+        <kind>types</kind>
+        <symbol>CalculationEvent, ExchangeRateSnapshot</symbol>
+        <lines>1-189</lines>
+        <reason>Defines event sourcing types including ExchangeRateSnapshot. Need to add CURRENCY_CONVERTED event type for audit trail per AC-6.5.4.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/events/event-store.ts</path>
+        <kind>service</kind>
+        <symbol>EventStore, eventStore</symbol>
+        <lines>1-207</lines>
+        <reason>Event store for appending calculation events. Use append() method for fire-and-forget event logging. Singleton exported as eventStore.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/providers/index.ts</path>
+        <kind>module</kind>
+        <symbol>getExchangeRateService, ExchangeRateService</symbol>
+        <lines>371-419</lines>
+        <reason>Factory pattern for services. Add getCurrencyConverter() following this pattern. Exports ExchangeRatesRepository and related types.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/validations/exchange-rates-schemas.ts</path>
+        <kind>validation</kind>
+        <symbol>SUPPORTED_CURRENCIES, ExchangeRatesRequestSchema</symbol>
+        <lines>full file</lines>
+        <reason>Reference for creating CurrencyConversionRequestSchema. Contains SUPPORTED_CURRENCIES constant and Zod validation patterns used in Story 6.4.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <lines>N/A</lines>
+        <reason>Structured logger. Use logger.warn() for stale rate warnings, logger.info() for conversion completion. NEVER use console.error.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/providers/types.ts</path>
+        <kind>types</kind>
+        <symbol>ProviderError, ExchangeRateResult</symbol>
+        <lines>N/A</lines>
+        <reason>Contains ExchangeRateResult interface with base, rates (Record), source, fetchedAt, rateDate. Use ProviderError for consistent error handling.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Financial precision calculations - REQUIRED for all currency arithmetic</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Schema validation for currency conversion request/response</purpose>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.44.7</version>
+        <purpose>Database queries for exchange rates repository</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="critical">NEVER use JavaScript native Number for currency calculations - always use Decimal from decimal-config.ts</constraint>
+    <constraint type="critical">Use stored exchange rates from database only - NEVER make live API calls during conversion</constraint>
+    <constraint type="critical">Apply ROUND_HALF_UP rounding only at final output, maintain full precision during intermediate calculations</constraint>
+    <constraint type="architecture">Follow ADR-002 event-sourced pattern for audit trail - emit CURRENCY_CONVERTED events</constraint>
+    <constraint type="architecture">Use structured logger from @/lib/telemetry/logger - NEVER console.error</constraint>
+    <constraint type="pattern">Follow factory function pattern from src/lib/providers/index.ts for getCurrencyConverter()</constraint>
+    <constraint type="pattern">Follow Zod v4 compatibility: z.record() requires 2 arguments: z.record(z.string(), z.unknown())</constraint>
+    <constraint type="pattern">Handle exactOptionalPropertyTypes correctly for TypeScript strict mode</constraint>
+    <constraint type="testing">All new code MUST have corresponding unit tests per CLAUDE.md test requirements</constraint>
+    <constraint type="testing">Use vi.hoisted() pattern for mock hoisting as established in previous stories</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>CurrencyConversionResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface CurrencyConversionResult {
+  value: string;              // Converted value as decimal string
+  fromCurrency: string;       // Source currency code
+  toCurrency: string;         // Target currency code
+  rate: string;               // Rate used for conversion
+  rateDate: Date;             // Date of the rate used
+  rateSource: string;         // Provider that supplied the rate
+  isStaleRate: boolean;       // True if rate is older than 24h
+}</signature>
+      <path>src/lib/calculations/currency-converter.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>CurrencyConverter</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface CurrencyConverter {
+  convert(
+    value: string,
+    fromCurrency: string,
+    toCurrency: string,
+    options?: { rateDate?: Date }
+  ): Promise&lt;CurrencyConversionResult&gt;;
+
+  convertBatch(
+    conversions: Array&lt;{ value: string; fromCurrency: string }&gt;,
+    toCurrency: string,
+    options?: { rateDate?: Date }
+  ): Promise&lt;CurrencyConversionResult[]&gt;;
+}</signature>
+      <path>src/lib/calculations/currency-converter.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>ExchangeRatesRepository.getRate</name>
+      <kind>Repository method</kind>
+      <signature>async getRate(base: string, target: string, date?: Date): Promise&lt;ExchangeRate | null&gt;</signature>
+      <path>src/lib/repositories/exchange-rates-repository.ts:152-184</path>
+    </interface>
+    <interface>
+      <name>GET /api/data/convert</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/data/convert?value=1000&amp;from=BRL&amp;to=USD
+Response: {
+  "data": {
+    "value": "199.50",
+    "fromCurrency": "BRL",
+    "toCurrency": "USD",
+    "rate": "0.1995",
+    "rateDate": "2025-12-09",
+    "rateSource": "exchangerate-api"
+  }
+}</signature>
+      <path>src/app/api/data/convert/route.ts (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest with vi.hoisted() pattern for mock hoisting. All new code requires unit tests covering success cases, error cases, and edge cases. Use mock repositories and event stores. Tests organized in tests/unit/ mirroring src/ structure. Follow CLAUDE.md test requirements: every code change MUST include appropriate test coverage.
+    </standards>
+    <locations>
+      <location>tests/unit/calculations/currency-converter.test.ts</location>
+      <location>tests/unit/api/currency-convert.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-6.5.1">Test that 0.1 + 0.2 equals exactly 0.3 when using Decimal.js (JavaScript native would give 0.30000000000000004)</idea>
+      <idea ac="AC-6.5.1">Test that large currency values maintain precision (e.g., 999999999999.9999)</idea>
+      <idea ac="AC-6.5.2">Test conversion 1000 BRL to USD with rate 5.0 equals 200 USD</idea>
+      <idea ac="AC-6.5.2">Test conversion formula works with very small rates (JPY to USD ~0.0067)</idea>
+      <idea ac="AC-6.5.2">Test conversion formula works with rate close to 1 (EUR to USD ~0.92)</idea>
+      <idea ac="AC-6.5.3">Test rounding: 100.12345 rounds to 100.1235 (ROUND_HALF_UP)</idea>
+      <idea ac="AC-6.5.3">Test rounding: 100.12344 rounds to 100.1234</idea>
+      <idea ac="AC-6.5.3">Test intermediate precision maintained during chained calculations</idea>
+      <idea ac="AC-6.5.4">Test CURRENCY_CONVERTED event is emitted with all required fields</idea>
+      <idea ac="AC-6.5.4">Test correlationId is included when provided</idea>
+      <idea ac="AC-6.5.4">Test event emission doesn't block conversion (fire-and-forget)</idea>
+      <idea ac="AC-6.5.5">Test that stored rate is used, not live API</idea>
+      <idea ac="AC-6.5.5">Test fallback to most recent rate when requested date not found</idea>
+      <idea ac="AC-6.5.5">Test isStaleRate flag is true when rate is older than 24 hours</idea>
+      <idea ac="AC-6.5.5">Test warning logged when using stale rate</idea>
+      <idea ac="AC-6.5.5">Test error thrown when no rate available at all</idea>
+      <idea ac="general">Test same-currency conversion returns original value unchanged</idea>
+      <idea ac="general">Test batch conversion with multiple currencies</idea>
+      <idea ac="general">Test invalid currency code rejection</idea>
+      <idea ac="general">Test negative value rejection</idea>
+    </ideas>
+  </tests>
+</story-context>

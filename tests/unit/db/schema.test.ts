@@ -143,12 +143,14 @@ describe("Schema Type Safety", () => {
 });
 
 describe("Event Types", () => {
-  it("should define 4 calculation event types (AC: 4)", () => {
-    expect(CALCULATION_EVENT_TYPES).toHaveLength(4);
+  it("should define 6 calculation event types (AC: 4 + CURRENCY_CONVERTED + DATA_REFRESHED)", () => {
+    expect(CALCULATION_EVENT_TYPES).toHaveLength(6);
     expect(CALCULATION_EVENT_TYPES).toContain("CALC_STARTED");
     expect(CALCULATION_EVENT_TYPES).toContain("INPUTS_CAPTURED");
     expect(CALCULATION_EVENT_TYPES).toContain("SCORES_COMPUTED");
     expect(CALCULATION_EVENT_TYPES).toContain("CALC_COMPLETED");
+    expect(CALCULATION_EVENT_TYPES).toContain("CURRENCY_CONVERTED");
+    expect(CALCULATION_EVENT_TYPES).toContain("DATA_REFRESHED");
   });
 
   it("should create valid CALC_STARTED event", () => {

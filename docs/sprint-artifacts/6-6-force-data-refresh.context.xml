@@ -1,0 +1,450 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>6.6</storyId>
+    <title>Force Data Refresh</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-6-force-data-refresh.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to force an immediate data refresh</iWant>
+    <soThat>I can get the latest market data when needed</soThat>
+    <tasks>
+      <task id="1" title="Create Rate Limit Service">
+        <files>src/lib/rate-limit/refresh-limiter.ts</files>
+        <subtasks>
+          <item>Create RefreshRateLimiter class</item>
+          <item>Implement checkLimit(userId) method</item>
+          <item>Implement recordRefresh(userId) method</item>
+          <item>Use Vercel KV for storage with 1-hour TTL</item>
+          <item>Return remaining refreshes and reset time</item>
+          <item>Handle edge cases (first request, expired window)</item>
+        </subtasks>
+        <acs>AC-6.6.4, AC-6.6.5</acs>
+      </task>
+      <task id="2" title="Create Data Refresh Service">
+        <files>src/lib/services/data-refresh-service.ts</files>
+        <subtasks>
+          <item>Create DataRefreshService class</item>
+          <item>Implement refresh(userId, type, symbols?) method</item>
+          <item>Integrate with existing provider services (prices, rates, fundamentals)</item>
+          <item>Invalidate relevant caches before fetching</item>
+          <item>Use provider fallback chain for resilience</item>
+          <item>Return refresh result with timestamp</item>
+          <item>Emit audit trail event for refresh operation</item>
+        </subtasks>
+        <acs>AC-6.6.1, AC-6.6.2, AC-6.6.3</acs>
+      </task>
+      <task id="3" title="Create Zod Validation Schemas">
+        <files>src/lib/validations/refresh-schemas.ts</files>
+        <subtasks>
+          <item>Create RefreshRequestSchema for input validation</item>
+          <item>Create RefreshResponseSchema for output typing</item>
+          <item>Validate type enum: "prices" | "rates" | "fundamentals" | "all"</item>
+          <item>Validate symbols array (optional, string array)</item>
+          <item>Create RateLimitErrorSchema for 429 responses</item>
+        </subtasks>
+        <acs>All</acs>
+      </task>
+      <task id="4" title="Create API Route">
+        <files>src/app/api/data/refresh/route.ts</files>
+        <subtasks>
+          <item>Create POST handler for /api/data/refresh</item>
+          <item>Add auth middleware (withAuth)</item>
+          <item>Check rate limit before processing</item>
+          <item>Validate request with Zod schema</item>
+          <item>Call DataRefreshService.refresh()</item>
+          <item>Return standardized response format</item>
+          <item>Return 429 with countdown if rate limited</item>
+        </subtasks>
+        <acs>All</acs>
+      </task>
+      <task id="5" title="Create React Hook for Refresh">
+        <files>src/hooks/use-data-refresh.ts</files>
+        <subtasks>
+          <item>Create useDataRefresh hook</item>
+          <item>Implement refresh function with loading state</item>
+          <item>Handle success/error states</item>
+          <item>Show toast notifications (success/error)</item>
+          <item>Track rate limit status</item>
+          <item>Integrate with React Query for cache invalidation</item>
+        </subtasks>
+        <acs>AC-6.6.1, AC-6.6.2, AC-6.6.3, AC-6.6.5</acs>
+      </task>
+      <task id="6" title="Create RefreshButton Component">
+        <files>src/components/data/refresh-button.tsx</files>
+        <subtasks>
+          <item>Create RefreshButton component using shadcn/ui Button</item>
+          <item>Show loading spinner during refresh (Loader2 icon)</item>
+          <item>Disable button during refresh and when rate limited</item>
+          <item>Show countdown when rate limited</item>
+          <item>Accept type and symbols props for targeted refresh</item>
+          <item>Accessible with aria labels</item>
+        </subtasks>
+        <acs>AC-6.6.1, AC-6.6.2, AC-6.6.5</acs>
+      </task>
+      <task id="7" title="Integrate RefreshButton into Dashboard">
+        <files>src/app/(dashboard)/page.tsx</files>
+        <subtasks>
+          <item>Add RefreshButton to dashboard header area</item>
+          <item>Configure for "all" refresh type</item>
+          <item>Style consistently with dashboard layout</item>
+          <item>Position in accessible location</item>
+        </subtasks>
+        <acs>AC-6.6.1</acs>
+      </task>
+      <task id="8" title="Integrate RefreshButton into Portfolio">
+        <files>src/app/(dashboard)/portfolio/page.tsx</files>
+        <subtasks>
+          <item>Add RefreshButton to portfolio page</item>
+          <item>Configure for portfolio-specific refresh</item>
+          <item>Pass user's portfolio symbols</item>
+          <item>Position consistently with dashboard</item>
+        </subtasks>
+        <acs>AC-6.6.1</acs>
+      </task>
+      <task id="9" title="Write Unit Tests">
+        <files>tests/unit/rate-limit/refresh-limiter.test.ts, tests/unit/services/data-refresh.test.ts</files>
+        <subtasks>
+          <item>Test rate limit checking (under/at/over limit)</item>
+          <item>Test rate limit recording</item>
+          <item>Test rate limit reset after 1 hour</item>
+          <item>Test countdown calculation</item>
+          <item>Test refresh service with mocked providers</item>
+          <item>Test cache invalidation</item>
+          <item>Test various refresh types (prices, rates, fundamentals, all)</item>
+          <item>Test refresh with/without specific symbols</item>
+        </subtasks>
+        <acs>All</acs>
+      </task>
+      <task id="10" title="Write API Integration Tests">
+        <files>tests/unit/api/data-refresh.test.ts</files>
+        <subtasks>
+          <item>Test POST /api/data/refresh endpoint</item>
+          <item>Test authentication requirement</item>
+          <item>Test successful refresh response</item>
+          <item>Test rate limit enforcement (429 response)</item>
+          <item>Test rate limit countdown in response</item>
+          <item>Test invalid request validation</item>
+          <item>Test various refresh types</item>
+        </subtasks>
+        <acs>All</acs>
+      </task>
+      <task id="11" title="Run Verification">
+        <subtasks>
+          <item>TypeScript compilation successful (npx tsc --noEmit)</item>
+          <item>ESLint passes with no new errors (pnpm lint)</item>
+          <item>All unit tests pass (pnpm test)</item>
+          <item>Build succeeds (pnpm build)</item>
+        </subtasks>
+        <acs>All</acs>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-6.6.1" title="Refresh Button Available on Dashboard and Portfolio">
+      <given>I am viewing the dashboard or portfolio page</given>
+      <when>the page loads</when>
+      <then>a "Refresh Data" button is visible</then>
+      <and>the button is accessible and clearly labeled</and>
+      <and>the button appears in a consistent location across both pages</and>
+    </ac>
+    <ac id="AC-6.6.2" title="Loading Spinner Shown During Refresh">
+      <given>I click the "Refresh Data" button</given>
+      <when>the refresh operation is in progress</when>
+      <then>a loading spinner is displayed</then>
+      <and>the refresh button is disabled during the operation</and>
+      <and>the user is informed that data is being refreshed</and>
+    </ac>
+    <ac id="AC-6.6.3" title="Success Toast with Timestamp">
+      <given>I have initiated a data refresh</given>
+      <when>the refresh completes successfully</when>
+      <then>a success toast notification is displayed: "Data refreshed as of [timestamp]"</then>
+      <and>the timestamp shows the actual refresh time</and>
+      <and>any displayed data is updated with the new values</and>
+    </ac>
+    <ac id="AC-6.6.4" title="Rate Limit of 5 Refreshes Per Hour Per User">
+      <given>I am a user with refresh capability</given>
+      <when>I attempt to refresh data</when>
+      <then>the system tracks my refresh count per hour</then>
+      <and>the limit is 5 refreshes per hour per user</and>
+      <and>the rate limit is enforced at the API level</and>
+    </ac>
+    <ac id="AC-6.6.5" title="Rate Limit Exceeded Shows Countdown">
+      <given>I have exhausted my 5 refreshes for the current hour</given>
+      <when>I attempt another refresh</when>
+      <then>I see an error message: "Refresh limit exceeded. Try again in [X] minutes."</then>
+      <and>the message shows a countdown to when the next refresh is available</and>
+      <and>the refresh button is disabled until the rate limit resets</and>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification: Data Pipeline</title>
+        <section>Story 6.6: Force Data Refresh</section>
+        <snippet>Force refresh data (rate limited: 5/hour/user). POST /api/data/refresh with type (prices|rates|fundamentals|all) and optional symbols array. Returns refreshedAt, nextRefreshAvailable, and remaining count. 429 response when rate limited with countdown.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-005: Provider Abstraction Pattern</section>
+        <snippet>Interface-based design for external APIs with primary, fallback, and cached degradation chain. PriceService, ExchangeRateService, FundamentalsService with retry logic and circuit breaker patterns.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Caching Strategy</section>
+        <snippet>Vercel KV for caching with TTLs: Prices 24h, Exchange rates 24h, Recommendations 24h. Cache invalidation on overnight job completion or user-initiated refresh.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>Force Refresh Flow</section>
+        <snippet>1. User clicks "Refresh Data" → 2. Check rate limit (5/hour) → 3. Invalidate relevant cache keys → 4. Fetch fresh data using provider chain → 5. Store with new timestamp → 6. Return success + next available time</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>NFR - Security - Rate Limiting</section>
+        <snippet>Rate limit: max 5 refreshes per hour per user. Token bucket algorithm. Include remaining count and reset time in response. 429 status code when limit exceeded.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/providers/types.ts</path>
+        <kind>types</kind>
+        <symbol>PriceProvider, ExchangeRateProvider, FundamentalsProvider, ProviderError</symbol>
+        <lines>1-360</lines>
+        <reason>Provider interfaces and types for data fetching. ProviderError for error handling.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/index.ts</path>
+        <kind>factory</kind>
+        <symbol>getPriceService, getExchangeRateService, getFundamentalsService, getCurrencyConverter</symbol>
+        <lines>297-531</lines>
+        <reason>Factory functions to create configured service instances with proper provider chain.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/price-service.ts</path>
+        <kind>service</kind>
+        <symbol>PriceService</symbol>
+        <reason>Service for fetching prices with caching, fallback chain, and retry logic.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/exchange-rate-service.ts</path>
+        <kind>service</kind>
+        <symbol>ExchangeRateService</symbol>
+        <reason>Service for fetching exchange rates with caching and fallback chain.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/fundamentals-service.ts</path>
+        <kind>service</kind>
+        <symbol>FundamentalsService</symbol>
+        <reason>Service for fetching asset fundamentals with caching and fallback chain.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/index.ts</path>
+        <kind>module</kind>
+        <symbol>CacheService, cacheService, invalidateUserCache, isCacheEnabled</symbol>
+        <lines>1-99</lines>
+        <reason>Vercel KV cache service with invalidation utilities for refresh operations.</reason>
+      </file>
+      <file>
+        <path>src/lib/events/types.ts</path>
+        <kind>types</kind>
+        <symbol>CalculationEvent, CurrencyConvertedEvent, CALCULATION_EVENT_TYPES</symbol>
+        <lines>1-224</lines>
+        <reason>Event types for audit trail. May need new DATA_REFRESHED event type for refresh operations.</reason>
+      </file>
+      <file>
+        <path>src/app/api/data/prices/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET handler</symbol>
+        <reason>Existing prices API endpoint - pattern reference for refresh endpoint.</reason>
+      </file>
+      <file>
+        <path>src/app/api/data/exchange-rates/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET handler</symbol>
+        <reason>Existing exchange rates API endpoint - pattern reference for refresh endpoint.</reason>
+      </file>
+      <file>
+        <path>src/app/api/data/fundamentals/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET handler</symbol>
+        <reason>Existing fundamentals API endpoint - pattern reference for refresh endpoint.</reason>
+      </file>
+      <file>
+        <path>src/hooks/use-copy-criteria.ts</path>
+        <kind>hook</kind>
+        <symbol>useCopyCriteria</symbol>
+        <reason>Pattern reference for React hook with toast notifications and loading states using sonner.</reason>
+      </file>
+      <file>
+        <path>src/components/ui/sonner.tsx</path>
+        <kind>component</kind>
+        <symbol>Toaster</symbol>
+        <reason>Toast notification component using sonner library for success/error messages.</reason>
+      </file>
+      <file>
+        <path>src/app/(dashboard)/page.tsx</path>
+        <kind>page</kind>
+        <symbol>DashboardPage</symbol>
+        <reason>Dashboard page where RefreshButton will be integrated.</reason>
+      </file>
+      <file>
+        <path>src/app/(dashboard)/portfolio/page.tsx</path>
+        <kind>page</kind>
+        <symbol>PortfolioPage</symbol>
+        <reason>Portfolio page where RefreshButton will be integrated.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package>@vercel/kv</package>
+        <version>^3.0.0</version>
+        <purpose>Rate limit storage with TTL and cache invalidation</purpose>
+      </node>
+      <node>
+        <package>sonner</package>
+        <version>^2.0.7</version>
+        <purpose>Toast notifications for refresh success/error states</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Request/response validation schemas</purpose>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.555.0</version>
+        <purpose>Loader2 icon for loading spinner, RefreshCw for refresh button</purpose>
+      </node>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Financial precision for any converted values</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      <name>Provider Pattern (ADR-005)</name>
+      <description>All data fetching must go through provider abstraction with primary → fallback → cache chain</description>
+      <source>docs/architecture.md#ADR-005</source>
+    </constraint>
+    <constraint type="architecture">
+      <name>Rate Limiting at API Level</name>
+      <description>Rate limiting enforced at API level, not client-side only. Token bucket algorithm with 5 req/hour</description>
+      <source>docs/sprint-artifacts/tech-spec-epic-6.md#NFR-Security</source>
+    </constraint>
+    <constraint type="architecture">
+      <name>Cache Invalidation Before Fetch</name>
+      <description>Must invalidate relevant cache keys before fetching fresh data during refresh</description>
+      <source>docs/sprint-artifacts/tech-spec-epic-6.md#Workflows</source>
+    </constraint>
+    <constraint type="pattern">
+      <name>Structured Logging</name>
+      <description>Use logger from @/lib/telemetry/logger, never console.error in production code</description>
+      <source>CLAUDE.md#PR-Review-Checklist</source>
+    </constraint>
+    <constraint type="pattern">
+      <name>Standardized API Responses</name>
+      <description>Use response utilities from @/lib/api/responses.ts and error codes from @/lib/api/error-codes.ts</description>
+      <source>CLAUDE.md#PR-Review-Checklist</source>
+    </constraint>
+    <constraint type="testing">
+      <name>Test Coverage Required</name>
+      <description>Every code change MUST include appropriate test coverage - unit tests for services, integration tests for API endpoints</description>
+      <source>CLAUDE.md#Test-Requirements</source>
+    </constraint>
+    <constraint type="ui">
+      <name>shadcn/ui Components</name>
+      <description>Use shadcn/ui Button component with loading state. Use Loader2 icon for spinner.</description>
+      <source>docs/architecture.md#Technology-Decisions</source>
+    </constraint>
+    <constraint type="ui">
+      <name>Accessibility</name>
+      <description>Include aria-label for screen readers on interactive elements</description>
+      <source>docs/sprint-artifacts/6-6-force-data-refresh.md#UI-Component-Guidelines</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>PriceProvider</name>
+      <kind>interface</kind>
+      <signature>interface PriceProvider { readonly name: string; fetchPrices(symbols: string[]): Promise&lt;PriceResult[]&gt;; healthCheck(): Promise&lt;boolean&gt;; }</signature>
+      <path>src/lib/providers/types.ts:128-147</path>
+    </interface>
+    <interface>
+      <name>ExchangeRateProvider</name>
+      <kind>interface</kind>
+      <signature>interface ExchangeRateProvider { readonly name: string; fetchRates(base: string, targets: string[]): Promise&lt;ExchangeRateResult&gt;; healthCheck(): Promise&lt;boolean&gt;; }</signature>
+      <path>src/lib/providers/types.ts:154-174</path>
+    </interface>
+    <interface>
+      <name>FundamentalsProvider</name>
+      <kind>interface</kind>
+      <signature>interface FundamentalsProvider { readonly name: string; fetchFundamentals(symbols: string[]): Promise&lt;FundamentalsResult[]&gt;; healthCheck(): Promise&lt;boolean&gt;; }</signature>
+      <path>src/lib/providers/types.ts:181-200</path>
+    </interface>
+    <interface>
+      <name>POST /api/data/refresh</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/data/refresh { type: "prices"|"rates"|"fundamentals"|"all", symbols?: string[] } → { data: { refreshed: boolean, refreshedAt: string, nextRefreshAvailable: string, remaining: number } } | 429 { error: string, code: "RATE_LIMITED", details: { remaining: 0, resetAt: string } }</signature>
+      <path>src/app/api/data/refresh/route.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>RefreshRateLimiter</name>
+      <kind>class interface</kind>
+      <signature>interface RefreshRateLimiter { checkLimit(userId: string): Promise&lt;{ allowed: boolean; remaining: number; resetAt: Date }&gt;; recordRefresh(userId: string): Promise&lt;void&gt;; }</signature>
+      <path>src/lib/rate-limit/refresh-limiter.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>CacheService</name>
+      <kind>service</kind>
+      <signature>cacheService.get&lt;T&gt;(key: string): Promise&lt;T | null&gt;; cacheService.set&lt;T&gt;(key: string, value: T, options?: { ttl?: number }): Promise&lt;void&gt;; cacheService.del(key: string): Promise&lt;void&gt;;</signature>
+      <path>src/lib/cache/service.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit and integration tests. Follow existing test patterns in tests/unit/services/ and tests/unit/api/. Mock external dependencies (providers, cache, database). Test both success and error paths. Each AC should have corresponding test cases. Use vi.mock() for module mocking. Follow CLAUDE.md test requirements - every code change MUST have test coverage.
+    </standards>
+    <locations>
+      <location>tests/unit/rate-limit/ - Rate limit service tests</location>
+      <location>tests/unit/services/ - Data refresh service tests</location>
+      <location>tests/unit/api/ - API endpoint integration tests</location>
+      <location>tests/unit/hooks/ - React hook tests (optional)</location>
+      <location>tests/unit/components/ - Component tests (optional)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-6.6.4">Test rate limit under limit (1-4 requests): should allow and return remaining count</idea>
+      <idea ac="AC-6.6.4">Test rate limit at limit (5 requests): should allow 5th request</idea>
+      <idea ac="AC-6.6.4">Test rate limit over limit (6th request): should return 429 with countdown</idea>
+      <idea ac="AC-6.6.5">Test rate limit reset after 1 hour: should allow refresh after reset</idea>
+      <idea ac="AC-6.6.5">Test countdown calculation: resetAt should be accurate to nearest minute</idea>
+      <idea ac="AC-6.6.1">Test refresh endpoint returns 200 with valid auth and request</idea>
+      <idea ac="AC-6.6.1">Test refresh endpoint returns 401 without auth</idea>
+      <idea ac="AC-6.6.2">Test refresh service calls providers with skipCache=true</idea>
+      <idea ac="AC-6.6.3">Test response includes refreshedAt timestamp</idea>
+      <idea ac="AC-6.6.3">Test response includes nextRefreshAvailable time</idea>
+      <idea ac="All">Test refresh with type="prices" only refreshes prices</idea>
+      <idea ac="All">Test refresh with type="all" refreshes all data types</idea>
+      <idea ac="All">Test refresh with specific symbols array</idea>
+      <idea ac="All">Test validation rejects invalid type values</idea>
+      <idea ac="All">Test cache invalidation happens before fetch</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -17,6 +17,7 @@ import { COOKIE_NAMES } from "@/lib/auth/constants";
 import { getUserPortfolios, canCreatePortfolio } from "@/lib/services/portfolio-service";
 import { getUserProfile } from "@/lib/services/user-service";
 import { PortfolioPageClient } from "./portfolio-page-client";
+import { RefreshButton } from "@/components/data/refresh-button";
 
 export const metadata = {
   title: "Portfolio | Investments Planner",
@@ -62,6 +63,8 @@ export default async function PortfolioPage() {
           <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Portfolio</h1>
           <p className="text-muted-foreground">Manage your investment portfolios.</p>
         </div>
+        {/* Story 6.6: AC-6.6.1 - Refresh Button Available on Portfolio */}
+        <RefreshButton type="all" variant="outline" />
       </div>
 
       <PortfolioPageClient

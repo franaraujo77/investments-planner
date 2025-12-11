@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -491,6 +492,139 @@ export const scoreHistory = pgTable(
 );
 
 // =============================================================================
+// ASSET FUNDAMENTALS TABLE (Epic 6)
+// =============================================================================
+
+/**
+ * Asset fundamentals table - external fundamental data for assets
+ *
+ * Story 6.2: Fetch Asset Fundamentals
+ * AC-6.2.1: Fundamentals Include Required Metrics (P/E, P/B, dividend yield, market cap, revenue, earnings)
+ * AC-6.2.2: Data Cached with 7-Day TTL
+ * AC-6.2.5: Source Attribution Recorded
+ *
+ * Key design decisions:
+ * - Uses numeric types for all financial metrics (no float/double)
+ * - Unique constraint on (symbol, data_date) to prevent duplicate daily records
+ * - Index on symbol for efficient lookups
+ * - Source attribution with fetchedAt timestamp for data freshness tracking
+ * - NOT user-scoped: Fundamentals are shared across all users for efficiency
+ */
+export const assetFundamentals = pgTable(
+  "asset_fundamentals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: varchar("symbol", { length: 20 }).notNull(),
+    peRatio: numeric("pe_ratio", { precision: 10, scale: 2 }), // e.g., 15.25
+    pbRatio: numeric("pb_ratio", { precision: 10, scale: 2 }), // e.g., 1.85
+    dividendYield: numeric("dividend_yield", { precision: 8, scale: 4 }), // e.g., 5.2500%
+    marketCap: numeric("market_cap", { precision: 19, scale: 0 }), // e.g., 450000000000
+    revenue: numeric("revenue", { precision: 19, scale: 2 }), // e.g., 500000000000.00
+    earnings: numeric("earnings", { precision: 19, scale: 2 }), // e.g., 100000000000.00
+    sector: varchar("sector", { length: 100 }), // e.g., "Energy"
+    industry: varchar("industry", { length: 100 }), // e.g., "Oil & Gas"
+    source: varchar("source", { length: 50 }).notNull(), // e.g., "gemini-api"
+    fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+    dataDate: date("data_date").notNull(), // The date the fundamentals represent
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    unique("asset_fundamentals_symbol_date_uniq").on(table.symbol, table.dataDate),
+    index("asset_fundamentals_symbol_idx").on(table.symbol),
+  ]
+);
+
+// =============================================================================
+// ASSET PRICES TABLE (Epic 6)
+// =============================================================================
+
+/**
+ * Asset prices table - external daily price data for assets
+ *
+ * Story 6.3: Fetch Daily Prices
+ * AC-6.3.1: Prices Include OHLCV Data (open, high, low, close, volume)
+ * AC-6.3.4: Missing Prices Show Last Known Price with Stale Flag
+ *
+ * Key design decisions:
+ * - Uses numeric(19,4) for OHLCV price values (standard fintech precision)
+ * - Uses numeric(19,0) for volume (whole numbers)
+ * - Unique constraint on (symbol, price_date) to prevent duplicate daily records
+ * - Index on symbol for efficient lookups
+ * - Index on fetched_at for freshness queries
+ * - Source attribution with fetchedAt timestamp for data freshness tracking
+ * - isStale flag for marking stale cached data
+ * - NOT user-scoped: Prices are shared across all users for efficiency
+ */
+export const assetPrices = pgTable(
+  "asset_prices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: varchar("symbol", { length: 20 }).notNull(),
+    open: numeric("open", { precision: 19, scale: 4 }), // Opening price (optional)
+    high: numeric("high", { precision: 19, scale: 4 }), // High price (optional)
+    low: numeric("low", { precision: 19, scale: 4 }), // Low price (optional)
+    close: numeric("close", { precision: 19, scale: 4 }).notNull(), // Closing price (required)
+    volume: numeric("volume", { precision: 19, scale: 0 }), // Trading volume (optional)
+    currency: varchar("currency", { length: 3 }).notNull(), // e.g., "BRL", "USD"
+    source: varchar("source", { length: 50 }).notNull(), // e.g., "gemini-api", "yahoo-finance"
+    fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+    priceDate: date("price_date").notNull(), // The date the prices represent
+    isStale: boolean("is_stale").default(false), // AC-6.3.4: Stale flag
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    unique("asset_prices_symbol_date_uniq").on(table.symbol, table.priceDate),
+    index("asset_prices_symbol_idx").on(table.symbol),
+    index("asset_prices_fetched_at_idx").on(table.fetchedAt),
+  ]
+);
+
+// =============================================================================
+// EXCHANGE RATES TABLE (Epic 6)
+// =============================================================================
+
+/**
+ * Exchange rates table - external currency exchange rate data
+ *
+ * Story 6.4: Fetch Exchange Rates
+ * AC-6.4.1: Rates Fetched for All Currencies in User Portfolios
+ * AC-6.4.2: Rates Are Previous Trading Day Close (T-1)
+ * AC-6.4.4: Rate Source and Timestamp Stored with Rate
+ * AC-6.4.5: Supported Currencies (USD, EUR, GBP, BRL, CAD, AUD, JPY, CHF)
+ *
+ * Key design decisions:
+ * - Uses numeric(19,8) for exchange rate precision (supports 8 decimal places)
+ * - Unique constraint on (base_currency, target_currency, rate_date) to prevent duplicates
+ * - Index on (base_currency, target_currency) for efficient lookups
+ * - Source attribution with fetchedAt timestamp for data freshness tracking
+ * - NOT user-scoped: Exchange rates are shared across all users for efficiency
+ */
+export const exchangeRates = pgTable(
+  "exchange_rates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    baseCurrency: varchar("base_currency", { length: 3 }).notNull(), // e.g., "USD"
+    targetCurrency: varchar("target_currency", { length: 3 }).notNull(), // e.g., "BRL"
+    rate: numeric("rate", { precision: 19, scale: 8 }).notNull(), // e.g., "5.01234567"
+    source: varchar("source", { length: 50 }).notNull(), // e.g., "exchangerate-api", "open-exchange-rates"
+    fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+    rateDate: date("rate_date").notNull(), // The date the rates represent (T-1)
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    unique("exchange_rates_currencies_date_uniq").on(
+      table.baseCurrency,
+      table.targetCurrency,
+      table.rateDate
+    ),
+    index("exchange_rates_currencies_idx").on(table.baseCurrency, table.targetCurrency),
+  ]
+);
+
+// =============================================================================
 // INVESTMENTS TABLE
 // =============================================================================
 
@@ -697,3 +831,12 @@ export type NewAssetScore = typeof assetScores.$inferInsert;
 
 export type ScoreHistory = typeof scoreHistory.$inferSelect;
 export type NewScoreHistory = typeof scoreHistory.$inferInsert;
+
+export type AssetFundamental = typeof assetFundamentals.$inferSelect;
+export type NewAssetFundamental = typeof assetFundamentals.$inferInsert;
+
+export type AssetPrice = typeof assetPrices.$inferSelect;
+export type NewAssetPrice = typeof assetPrices.$inferInsert;
+
+export type ExchangeRate = typeof exchangeRates.$inferSelect;
+export type NewExchangeRate = typeof exchangeRates.$inferInsert;

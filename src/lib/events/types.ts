@@ -144,6 +144,70 @@ export interface CalcCompletedEvent {
 }
 
 /**
+ * Event: Currency converted
+ *
+ * Story 6.5: Currency Conversion Logic (AC-6.5.4)
+ *
+ * Emitted after each successful currency conversion for audit trail.
+ * Enables verification of historical conversions and dispute resolution.
+ */
+export interface CurrencyConvertedEvent {
+  type: "CURRENCY_CONVERTED";
+  correlationId: string;
+  /** Original value before conversion */
+  sourceValue: string;
+  /** Source currency code */
+  sourceCurrency: string;
+  /** Target currency code */
+  targetCurrency: string;
+  /** Exchange rate used for conversion */
+  rate: string;
+  /** Date the rate represents (YYYY-MM-DD) */
+  rateDate: string;
+  /** Converted value after conversion */
+  resultValue: string;
+  /** Whether the rate was older than 24 hours */
+  isStaleRate: boolean;
+  /** Timestamp of the conversion */
+  timestamp: Date;
+}
+
+/**
+ * Event: Data refreshed
+ *
+ * Story 6.6: Force Data Refresh
+ *
+ * Emitted after a user-initiated data refresh for audit trail.
+ * Enables tracking of refresh frequency and identifying patterns.
+ */
+export interface DataRefreshedEvent {
+  type: "DATA_REFRESHED";
+  correlationId: string;
+  /** User who triggered the refresh */
+  userId: string;
+  /** Type of data that was refreshed */
+  refreshType: "prices" | "rates" | "fundamentals" | "all";
+  /** Symbols that were refreshed (if specific symbols provided) */
+  symbols?: string[] | undefined;
+  /** When the refresh started */
+  startedAt: Date;
+  /** When the refresh completed */
+  completedAt: Date;
+  /** Duration in milliseconds */
+  durationMs: number;
+  /** Whether all data types were successfully refreshed */
+  success: boolean;
+  /** Error message if any component failed */
+  errorMessage?: string | undefined;
+  /** Providers that served the data */
+  providers: {
+    prices?: string | undefined;
+    rates?: string | undefined;
+    fundamentals?: string | undefined;
+  };
+}
+
+/**
  * Discriminated union of all calculation events
  *
  * Use this type when working with events from the calculation_events table
@@ -152,7 +216,9 @@ export type CalculationEvent =
   | CalcStartedEvent
   | InputsCapturedEvent
   | ScoresComputedEvent
-  | CalcCompletedEvent;
+  | CalcCompletedEvent
+  | CurrencyConvertedEvent
+  | DataRefreshedEvent;
 
 // =============================================================================
 // EVENT TYPE GUARDS
@@ -174,6 +240,14 @@ export function isCalcCompletedEvent(event: CalculationEvent): event is CalcComp
   return event.type === "CALC_COMPLETED";
 }
 
+export function isCurrencyConvertedEvent(event: CalculationEvent): event is CurrencyConvertedEvent {
+  return event.type === "CURRENCY_CONVERTED";
+}
+
+export function isDataRefreshedEvent(event: CalculationEvent): event is DataRefreshedEvent {
+  return event.type === "DATA_REFRESHED";
+}
+
 // =============================================================================
 // EVENT CONSTANTS
 // =============================================================================
@@ -183,6 +257,8 @@ export const CALCULATION_EVENT_TYPES = [
   "INPUTS_CAPTURED",
   "SCORES_COMPUTED",
   "CALC_COMPLETED",
+  "CURRENCY_CONVERTED",
+  "DATA_REFRESHED",
 ] as const;
 
 export type CalculationEventType = (typeof CALCULATION_EVENT_TYPES)[number];

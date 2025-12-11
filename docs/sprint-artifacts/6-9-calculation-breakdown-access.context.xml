@@ -1,0 +1,305 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>9</storyId>
+    <title>Calculation Breakdown Access</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-9-calculation-breakdown-access.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to view the complete calculation breakdown for any score</iWant>
+    <soThat>I can verify the math is correct and understand how my scores are determined</soThat>
+    <tasks>
+      <task id="1" title="Extend Calculation Breakdown Types">
+        <files>src/lib/types/calculation-breakdown.ts</files>
+        <items>
+          <item>Create CalculationBreakdown type with all input values</item>
+          <item>Create CriterionEvaluation type for criterion results</item>
+          <item>Create CriteriaVersionInfo type for version tracking</item>
+          <item>Create ExportableBreakdown type for JSON export</item>
+          <item>Export all types from module</item>
+        </items>
+        <ac>AC-6.9.1, AC-6.9.2, AC-6.9.3</ac>
+      </task>
+      <task id="2" title="Extend GET /api/scores/[assetId]/inputs Endpoint">
+        <files>src/app/api/scores/[assetId]/inputs/route.ts</files>
+        <items>
+          <item>Add criteriaVersion field to response (id, version, createdAt)</item>
+          <item>Add evaluations array with full criterion results</item>
+          <item>Include operator, threshold, actualValue for each criterion</item>
+          <item>Add correlationId to response for replay reference</item>
+          <item>Update Zod schema for response validation</item>
+        </items>
+        <ac>AC-6.9.1, AC-6.9.2, AC-6.9.3</ac>
+      </task>
+      <task id="3" title="Create JSON Export Utility">
+        <files>src/lib/utils/export-calculation.ts</files>
+        <items>
+          <item>Create exportCalculationAsJSON() function</item>
+          <item>Format breakdown data for human readability</item>
+          <item>Include all inputs, evaluations, criteria version, timestamp</item>
+          <item>Return JSON string suitable for download</item>
+          <item>Add type validation before export</item>
+        </items>
+        <ac>AC-6.9.4</ac>
+      </task>
+      <task id="4" title="Add Export Button to ScoreBreakdown Component">
+        <files>src/components/fintech/score-breakdown.tsx</files>
+        <items>
+          <item>Add "Export as JSON" button to breakdown view</item>
+          <item>Implement click handler that calls export utility</item>
+          <item>Trigger file download with formatted JSON</item>
+          <item>Name file: calculation-{symbol}-{date}.json</item>
+          <item>Add loading state during export</item>
+        </items>
+        <ac>AC-6.9.4</ac>
+      </task>
+      <task id="5" title="Implement Replay Function">
+        <files>src/lib/events/replay.ts</files>
+        <items>
+          <item>Create replayCalculation(correlationId) function</item>
+          <item>Load events by correlationId from event store</item>
+          <item>Extract inputs from INPUTS_CAPTURED event</item>
+          <item>Re-run scoring with original inputs</item>
+          <item>Verify result matches original (determinism check)</item>
+          <item>Throw error if non-deterministic</item>
+        </items>
+        <ac>AC-6.9.5</ac>
+      </task>
+      <task id="6" title="Create Replay API Endpoint">
+        <files>src/app/api/scores/[assetId]/replay/route.ts</files>
+        <items>
+          <item>Create POST handler for replay requests</item>
+          <item>Accept correlationId in request body</item>
+          <item>Call replayCalculation function</item>
+          <item>Return replay result with verification status</item>
+          <item>Auth required (withAuth middleware)</item>
+          <item>Validate correlationId format with Zod</item>
+        </items>
+        <ac>AC-6.9.5</ac>
+      </task>
+      <task id="7" title="Enhance ScoreBreakdown UI">
+        <files>src/components/fintech/score-breakdown.tsx</files>
+        <items>
+          <item>Add "Calculation Details" expandable section</item>
+          <item>Display criteria version info (id, version, timestamp)</item>
+          <item>Show criterion evaluations with pass/fail indicators</item>
+          <item>Display operator and threshold for each criterion</item>
+          <item>Use Accordion component for organization</item>
+          <item>Add correlationId reference for audit trail</item>
+        </items>
+        <ac>AC-6.9.1, AC-6.9.2, AC-6.9.3</ac>
+      </task>
+      <task id="8" title="Create useCalculationBreakdown Hook">
+        <files>src/hooks/use-calculation-breakdown.ts</files>
+        <items>
+          <item>Create hook to fetch full calculation breakdown</item>
+          <item>Call /api/scores/[assetId]/inputs endpoint</item>
+          <item>Handle loading, error, and data states</item>
+          <item>Cache with React Query</item>
+          <item>Export hook for component use</item>
+        </items>
+        <ac>AC-6.9.1, AC-6.9.2</ac>
+      </task>
+      <task id="9" title="Write Unit Tests">
+        <files>tests/unit/lib/utils/export-calculation.test.ts, tests/unit/events/replay.test.ts</files>
+        <items>
+          <item>Test exportCalculationAsJSON() formatting</item>
+          <item>Test JSON includes all required fields</item>
+          <item>Test replayCalculation() with mock events</item>
+          <item>Test determinism verification</item>
+          <item>Test error handling for missing events</item>
+          <item>Test non-deterministic detection</item>
+        </items>
+        <ac>All</ac>
+      </task>
+      <task id="10" title="Write API Integration Tests">
+        <files>tests/unit/api/scores-inputs-extended.test.ts, tests/unit/api/scores-replay.test.ts</files>
+        <items>
+          <item>Test extended /api/scores/[assetId]/inputs response</item>
+          <item>Test criteriaVersion in response</item>
+          <item>Test evaluations array format</item>
+          <item>Test POST /api/scores/[assetId]/replay endpoint</item>
+          <item>Test authentication requirement</item>
+          <item>Test replay verification response</item>
+        </items>
+        <ac>AC-6.9.1, AC-6.9.2, AC-6.9.3, AC-6.9.5</ac>
+      </task>
+      <task id="11" title="Run Verification">
+        <items>
+          <item>TypeScript compilation successful (npx tsc --noEmit)</item>
+          <item>ESLint passes with no new errors</item>
+          <item>All unit tests pass</item>
+          <item>Build verification complete</item>
+        </items>
+        <ac>All</ac>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="AC-6.9.1" name="View All Input Values Used">
+      <given>I am viewing a score breakdown</given>
+      <when>I access the calculation details</when>
+      <then>I see all input values used in the calculation: price value, currency, source, timestamp; exchange rate value, source, timestamp; fundamentals data (P/E, P/B, dividend yield, etc.) with source and timestamp. Each input shows its exact value at calculation time.</then>
+    </ac>
+    <ac id="AC-6.9.2" name="View Each Criterion Evaluation Result">
+      <given>I am viewing a score breakdown</given>
+      <when>I expand the criterion evaluations section</when>
+      <then>I see for each criterion: criterion name and description, operator and threshold values, whether the criterion passed or failed, points awarded (or 0 if failed). Criteria are organized by category/type.</then>
+    </ac>
+    <ac id="AC-6.9.3" name="View Criteria Version Used for Calculation">
+      <given>I am viewing a score breakdown</given>
+      <when>I look at the calculation metadata</when>
+      <then>I see the criteria version ID that was used, the criteria version timestamp, and I can distinguish between different criteria versions used over time.</then>
+    </ac>
+    <ac id="AC-6.9.4" name="Export Breakdown as JSON">
+      <given>I am viewing a score breakdown</given>
+      <when>I click "Export as JSON" button</when>
+      <then>A JSON file downloads containing: all input values with sources, all criterion evaluation results, criteria version information, calculation timestamp, final score value. The JSON is well-formatted and human-readable.</then>
+    </ac>
+    <ac id="AC-6.9.5" name="Replay Produces Identical Results (Deterministic)">
+      <given>A previous calculation exists in the event store</given>
+      <when>I request a replay of that calculation</when>
+      <then>The replay produces identical results to the original, the system uses the same inputs (prices, rates, criteria) from the original calculation, and determinism is verified through correlation_id matching in events.</then>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-6.md" title="Epic 6 Tech Spec" section="Story 6.9, Acceptance Criteria">
+        Defines API endpoint GET /api/scores/[assetId]/inputs. AC-6.9.1 through AC-6.9.5 specify input viewing, criterion evaluation display, criteria version tracking, JSON export, and replay determinism requirements.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Event-Sourced Calculations, ADR-002">
+        4 event types: CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED. Events stored in PostgreSQL calculation_events table. Replay capability through eventStore.replay(correlationId). decimal.js with precision: 20, ROUND_HALF_UP for deterministic calculations.
+      </doc>
+      <doc path="docs/sprint-artifacts/6-8-data-source-attribution.md" title="Story 6.8 Reference" section="Dev Agent Record">
+        Inputs endpoint created at src/app/api/scores/[assetId]/inputs/route.ts. CalculationInputsSection added to ScoreBreakdown. Source attribution types at src/lib/types/source-attribution.ts. Test patterns established in tests/unit/.
+      </doc>
+    </docs>
+    <code>
+      <file path="src/app/api/scores/[assetId]/inputs/route.ts" kind="api-route" reason="Existing endpoint to extend with criteriaVersion, evaluations array, correlationId">
+        <symbol>GET handler</symbol>
+        <lines>96-264</lines>
+        <note>Currently returns price, exchangeRate, fundamentals, criteriaVersion (string). Needs extension for AC-6.9.1, AC-6.9.2, AC-6.9.3.</note>
+      </file>
+      <file path="src/lib/events/types.ts" kind="types" reason="Event type definitions for calculation pipeline">
+        <symbol>CalculationEvent, InputsCapturedEvent, ScoresComputedEvent, CriterionScore, AssetScoreResult</symbol>
+        <note>INPUTS_CAPTURED event contains criteria, prices, rates. SCORES_COMPUTED contains breakdown with CriterionScore.</note>
+      </file>
+      <file path="src/lib/events/event-store.ts" kind="service" reason="Event persistence layer for replay functionality">
+        <symbol>EventStore, getByCorrelationId, append</symbol>
+        <note>getByCorrelationId returns StoredEvent[] with payload: CalculationEvent. Required for replay function.</note>
+      </file>
+      <file path="src/lib/events/replay.ts" kind="service" reason="Existing replay functionality to reference/enhance">
+        <symbol>replay, ReplayResult, ScoringFunction, compareResults</symbol>
+        <note>Already implements replay with determinism verification. AC-6.9.5 may leverage or extend this.</note>
+      </file>
+      <file path="src/components/fintech/score-breakdown.tsx" kind="component" reason="UI component to extend with export button and calculation details">
+        <symbol>ScoreBreakdown, CalculationInputsSection, CriterionResultRow</symbol>
+        <lines>472-637</lines>
+        <note>Already shows criterion breakdown. Needs export button (AC-6.9.4), enhanced metadata (AC-6.9.3).</note>
+      </file>
+      <file path="src/lib/types/source-attribution.ts" kind="types" reason="Types and utilities for source attribution">
+        <symbol>CalculationInputSources, SourceAttribution, getProviderDisplayName, formatSourceAttribution</symbol>
+        <note>Reuse these types for building CalculationBreakdown types.</note>
+      </file>
+      <file path="src/lib/calculations/scoring-engine.ts" kind="service" reason="Scoring engine used for replay">
+        <symbol>ScoringEngine, calculateScores</symbol>
+        <note>Emits CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED events. Required for replay function.</note>
+      </file>
+      <file path="src/lib/db/schema.ts" kind="schema" reason="Database schema reference">
+        <symbol>calculationEvents, criteriaVersions, assetScores</symbol>
+        <note>calculationEvents has correlationId column. criteriaVersions stores version metadata.</note>
+      </file>
+      <file path="src/lib/auth/middleware.ts" kind="middleware" reason="Auth wrapper for API routes">
+        <symbol>withAuth</symbol>
+        <note>Use for replay endpoint authentication.</note>
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package name="decimal.js" version="^10.6.0">Financial precision calculations</package>
+        <package name="zod" version="^4.1.13">Request/response validation</package>
+        <package name="react" version="19.2.0">React framework</package>
+        <package name="next" version="16.0.7">Next.js framework</package>
+        <package name="drizzle-orm" version="^0.44.7">Database ORM</package>
+        <package name="lucide-react" version="^0.555.0">Icons</package>
+        <package name="recharts" version="^3.5.1">Charts (used in ScoreBreakdown)</package>
+        <package name="vitest" version="^4.0.14">Testing framework</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture">Event store: PostgreSQL calculation_events table with correlationId index</constraint>
+    <constraint source="Architecture">Determinism: decimal.js with precision: 20, ROUND_HALF_UP</constraint>
+    <constraint source="Architecture">Type Location: Types in lib/types/ following project patterns</constraint>
+    <constraint source="Architecture">Component Location: Fintech components in components/fintech/</constraint>
+    <constraint source="Architecture">Accessibility: All interactive elements keyboard accessible</constraint>
+    <constraint source="Architecture">Styling: Use shadcn/ui components and Tailwind utility classes</constraint>
+    <constraint source="Architecture">Logging: Use structured logger from @/lib/telemetry/logger</constraint>
+    <constraint source="Architecture">API Responses: Use standardized successResponse() and errorResponse() from @/lib/api/responses</constraint>
+    <constraint source="CLAUDE.md">All code changes must include appropriate test coverage</constraint>
+    <constraint source="CLAUDE.md">No console.log/console.error in production code - use logger</constraint>
+    <constraint source="CLAUDE.md">All API endpoints require withAuth middleware</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/scores/[assetId]/inputs" kind="REST endpoint">
+      <signature>GET /api/scores/[assetId]/inputs -> { data: { assetId, symbol, calculatedAt, inputs: { price, exchangeRate, fundamentals, criteriaVersion } } }</signature>
+      <path>src/app/api/scores/[assetId]/inputs/route.ts</path>
+      <note>Extend to include evaluations[], criteriaVersion object (id, version, createdAt), correlationId</note>
+    </interface>
+    <interface name="POST /api/scores/[assetId]/replay" kind="REST endpoint (new)">
+      <signature>POST /api/scores/[assetId]/replay { correlationId } -> { data: { verified, originalScore, replayScore, matches, discrepancies? } }</signature>
+      <path>src/app/api/scores/[assetId]/replay/route.ts</path>
+      <note>New endpoint for replay functionality</note>
+    </interface>
+    <interface name="EventStore.getByCorrelationId" kind="function">
+      <signature>getByCorrelationId(correlationId: string): Promise&lt;StoredEvent[]&gt;</signature>
+      <path>src/lib/events/event-store.ts</path>
+    </interface>
+    <interface name="replay" kind="function">
+      <signature>replay(correlationId: string, scoringFn: ScoringFunction, store?: EventStore): Promise&lt;ReplayResult&gt;</signature>
+      <path>src/lib/events/replay.ts</path>
+      <note>Existing function - verify if sufficient for AC-6.9.5 or needs extension</note>
+    </interface>
+    <interface name="CalculationInputSources" kind="TypeScript type">
+      <signature>{ price?: {...}, exchangeRate?: {...}, fundamentals?: {...}, criteriaVersion: string }</signature>
+      <path>src/lib/types/source-attribution.ts</path>
+    </interface>
+    <interface name="CriterionResult" kind="TypeScript type">
+      <signature>{ criterionId, criterionName, matched, pointsAwarded, actualValue?, skippedReason? }</signature>
+      <path>src/hooks/use-asset-score.ts</path>
+      <note>Used in ScoreBreakdown component</note>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing uses Vitest for unit/integration tests and Playwright for E2E. Follow existing test patterns in tests/unit/. Unit tests mock database and external dependencies. All new functions require unit tests covering success cases, error cases, and edge cases. API tests should verify response structure, authentication, and error handling. Use vi.mock() for mocking modules. Tests should be in matching directory structure (e.g., src/lib/utils/ -> tests/unit/lib/utils/).
+    </standards>
+    <locations>
+      <location>tests/unit/ - Unit tests (Vitest)</location>
+      <location>tests/unit/api/ - API route tests</location>
+      <location>tests/unit/lib/ - Library function tests</location>
+      <location>tests/unit/events/ - Event store and replay tests</location>
+      <location>tests/unit/components/ - Component tests</location>
+      <location>tests/e2e/ - E2E tests (Playwright)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-6.9.1">Test inputs endpoint returns all input values with sources, timestamps, and correct formatting</idea>
+      <idea ac="AC-6.9.2">Test evaluations array includes operator, threshold, actualValue, passed/failed status for each criterion</idea>
+      <idea ac="AC-6.9.3">Test criteriaVersion object includes id, version number, and createdAt timestamp</idea>
+      <idea ac="AC-6.9.4">Test exportCalculationAsJSON produces well-formatted JSON with all required fields; test file download triggers correctly</idea>
+      <idea ac="AC-6.9.5">Test replay function returns matching results for deterministic calculations; test error thrown for non-deterministic results; test missing events handling</idea>
+      <idea ac="All">Test API authentication requirement for replay endpoint</idea>
+      <idea ac="All">Test Zod validation for correlationId format</idea>
+    </ideas>
+  </tests>
+</story-context>

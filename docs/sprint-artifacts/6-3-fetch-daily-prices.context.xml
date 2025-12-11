@@ -1,0 +1,377 @@
+<story-context id="6-3-fetch-daily-prices" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>6.3</storyId>
+    <title>Fetch Daily Prices</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-3-fetch-daily-prices.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to fetch daily asset prices from external APIs</iWant>
+    <soThat>portfolio values and scores are current and accurate</soThat>
+    <tasks>
+      <task id="1" title="Create Database Schema for Prices">
+        <description>Add asset_prices table to Drizzle schema with OHLCV columns</description>
+        <files>src/lib/db/schema.ts, migration file</files>
+        <ac>AC-6.3.1, AC-6.3.4</ac>
+      </task>
+      <task id="2" title="Implement GeminiPriceProvider">
+        <description>Create GeminiPriceProvider class implementing PriceProvider interface</description>
+        <files>src/lib/providers/implementations/gemini-price-provider.ts</files>
+        <ac>AC-6.3.1, AC-6.3.5</ac>
+      </task>
+      <task id="3" title="Implement YahooFinancePriceProvider">
+        <description>Create YahooFinancePriceProvider class as fallback provider</description>
+        <files>src/lib/providers/implementations/yahoo-price-provider.ts</files>
+        <ac>AC-6.3.3</ac>
+      </task>
+      <task id="4" title="Create Prices Repository">
+        <description>Create PricesRepository class for database operations</description>
+        <files>src/lib/repositories/prices-repository.ts</files>
+        <ac>AC-6.3.2, AC-6.3.4</ac>
+      </task>
+      <task id="5" title="Implement Prices Caching Layer">
+        <description>Create PricesCache class using Vercel KV with 24h TTL</description>
+        <files>src/lib/providers/prices-cache.ts</files>
+        <ac>AC-6.3.2</ac>
+      </task>
+      <task id="6" title="Enhance PriceService with Provider Chain">
+        <description>Update PriceService to use real providers with fallback chain</description>
+        <files>src/lib/providers/price-service.ts, src/lib/providers/index.ts</files>
+        <ac>AC-6.3.1, AC-6.3.3, AC-6.3.4, AC-6.3.5</ac>
+      </task>
+      <task id="7" title="Create API Route for Prices">
+        <description>Create GET /api/data/prices endpoint</description>
+        <files>src/app/api/data/prices/route.ts</files>
+        <ac>AC-6.3.1</ac>
+      </task>
+      <task id="8" title="Create Zod Validation Schemas">
+        <description>Create validation schemas for prices API</description>
+        <files>src/lib/validations/prices-schemas.ts</files>
+        <ac>AC-6.3.1</ac>
+      </task>
+      <task id="9" title="Write Unit Tests for Price Providers">
+        <description>Test GeminiPriceProvider and YahooFinancePriceProvider</description>
+        <files>tests/unit/providers/gemini-prices.test.ts, tests/unit/providers/yahoo-prices.test.ts</files>
+        <ac>AC-6.3.1, AC-6.3.3, AC-6.3.4, AC-6.3.5</ac>
+      </task>
+      <task id="10" title="Write Integration Tests for Prices Flow">
+        <description>Test API endpoint and service integration</description>
+        <files>tests/unit/api/prices.test.ts</files>
+        <ac>All</ac>
+      </task>
+      <task id="11" title="Run Verification">
+        <description>TypeScript, ESLint, tests, build verification</description>
+        <files>N/A</files>
+        <ac>N/A</ac>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.3.1" title="Prices Include OHLCV Data">
+      <given>the price fetch is executed</given>
+      <when>data is retrieved for an asset</when>
+      <then>result includes: open, high, low, close, volume; all price values stored as strings for decimal.js precision; currency recorded with each price (e.g., BRL, USD)</then>
+    </criterion>
+    <criterion id="AC-6.3.2" title="Prices Cached with 24-Hour TTL">
+      <given>prices are successfully fetched</given>
+      <when>the data is stored</when>
+      <then>results cached in Vercel KV with 24-hour TTL; cache key follows pattern: prices:${symbol}:${date}; subsequent requests within TTL return cached data</then>
+    </criterion>
+    <criterion id="AC-6.3.3" title="Yahoo Finance Fallback Used if Gemini Fails">
+      <given>the primary provider (Gemini) fails</given>
+      <when>fetching prices for symbols</when>
+      <then>fallback provider (Yahoo Finance) is automatically invoked; fallback results returned with source attribution; original provider error logged for debugging</then>
+    </criterion>
+    <criterion id="AC-6.3.4" title="Missing Prices Show Last Known Price with Stale Flag">
+      <given>both providers fail to fetch a price</given>
+      <when>cached data exists for the symbol</when>
+      <then>cached price returned with isStale: true; staleSince timestamp indicates when data became stale; if no cache exists, asset flagged as having no price data</then>
+    </criterion>
+    <criterion id="AC-6.3.5" title="Batch Requests Limited to 50 Symbols Per Call">
+      <given>more than 50 symbols need price fetching</given>
+      <when>the service processes the request</when>
+      <then>symbols batched into groups of 50 or fewer; batches processed sequentially to respect rate limits; partial failures in one batch don't affect other batches</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>Story 6.3: Fetch Daily Prices</section>
+        <snippet>AC-6.3.1: Prices include OHLCV data. AC-6.3.2: 24h TTL cache. AC-6.3.3: Yahoo Finance fallback. AC-6.3.4: Stale cache fallback. AC-6.3.5: Batch limit 50 symbols.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>Data Models and Contracts - Asset Prices Table</section>
+        <snippet>CREATE TABLE asset_prices with columns: id, symbol, open, high, low, close, volume, currency, source, fetched_at, price_date, is_stale. UNIQUE(symbol, price_date).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>APIs and Interfaces - GET /api/data/prices</section>
+        <snippet>GET /api/data/prices?symbols=PETR4,VALE3,ITUB4 returns prices array with symbol, close, currency, source, fetchedAt, priceDate, isStale fields.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>TypeScript Types - PriceResult</section>
+        <snippet>PriceResult interface: symbol, open?, high?, low?, close, volume?, currency, source, fetchedAt, priceDate, isStale?. PriceProvider interface: name, fetchPrices(), healthCheck().</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-005: Provider Abstraction Pattern</section>
+        <snippet>Interface-based design for external APIs. Fallback chain: Primary -> Fallback -> Cache (stale). Price providers: Primary Gemini API, Fallback Yahoo Finance. 24h cache TTL.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Implementation Patterns</section>
+        <snippet>Provider location: lib/providers/implementations/. decimal.js for financial data. Structured logger from @/lib/telemetry/logger. ProviderError from types.ts.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/6-2-fetch-asset-fundamentals.md</path>
+        <title>Story 6.2: Fetch Asset Fundamentals</title>
+        <section>Dev Agent Record</section>
+        <snippet>GeminiProvider pattern available. Cache pattern with 7-day TTL. Repository pattern with upsert. Factory function pattern. Error handling with ProviderError. 32 tests across provider and API files.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Project Standards</title>
+        <section>Test Requirements for All Code Changes</section>
+        <snippet>Every code change must include test coverage. Unit tests for all code paths. Integration tests for API endpoints. Use logger from @/lib/telemetry/logger, not console.error.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/providers/types.ts</path>
+        <kind>interface-definitions</kind>
+        <symbol>PriceResult, PriceProvider, ProviderError, PROVIDER_ERROR_CODES</symbol>
+        <lines>24-147, 209-265</lines>
+        <reason>Core interfaces for price providers. PriceResult defines OHLCV fields. PriceProvider interface defines fetchPrices() and healthCheck(). ProviderError for consistent error handling.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/price-service.ts</path>
+        <kind>service</kind>
+        <symbol>PriceService</symbol>
+        <lines>1-441</lines>
+        <reason>Existing PriceService orchestrates provider chain with Primary -> Fallback -> Cache pattern. Uses mock providers. Needs update to use real GeminiPriceProvider and YahooPriceProvider.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/index.ts</path>
+        <kind>factory</kind>
+        <symbol>getPriceService</symbol>
+        <lines>233-250</lines>
+        <reason>Factory function currently returns mock providers. Update to use GeminiPriceProvider (primary) and YahooPriceProvider (fallback) when API keys available.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/implementations/gemini-provider.ts</path>
+        <kind>provider</kind>
+        <symbol>GeminiFundamentalsProvider</symbol>
+        <lines>1-420</lines>
+        <reason>Reference implementation for Gemini API integration. Use similar patterns for GeminiPriceProvider: API auth, batch requests, error handling, response transformation.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/fundamentals-cache.ts</path>
+        <kind>cache</kind>
+        <symbol>FundamentalsCache</symbol>
+        <lines>1-261</lines>
+        <reason>Template for PricesCache implementation. Shows cache key pattern, TTL handling, get/set/getMultiple methods, Vercel KV integration.</reason>
+      </file>
+      <file>
+        <path>src/lib/repositories/fundamentals-repository.ts</path>
+        <kind>repository</kind>
+        <symbol>FundamentalsRepository</symbol>
+        <lines>1-304</lines>
+        <reason>Template for PricesRepository implementation. Shows upsert pattern, conflict resolution, type transformations between DB and domain types.</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>assetFundamentals</symbol>
+        <lines>513-536</lines>
+        <reason>Reference for asset_prices table structure. Similar pattern: symbol, numeric columns, source, fetchedAt, unique constraint on (symbol, date).</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/retry.ts</path>
+        <kind>utility</kind>
+        <symbol>withRetry</symbol>
+        <lines>all</lines>
+        <reason>Retry utility for provider calls. Use for API requests with exponential backoff.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/circuit-breaker.ts</path>
+        <kind>utility</kind>
+        <symbol>CircuitBreaker</symbol>
+        <lines>all</lines>
+        <reason>Circuit breaker for provider health management. Already integrated in PriceService.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/implementations/mock-provider.ts</path>
+        <kind>mock</kind>
+        <symbol>MockPriceProvider</symbol>
+        <lines>relevant</lines>
+        <reason>Test mock provider patterns. Shows PriceProvider interface implementation for testing.</reason>
+      </file>
+      <file>
+        <path>src/app/api/data/fundamentals/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET handler</symbol>
+        <lines>1-204</lines>
+        <reason>Reference for /api/data/prices route. Shows Zod validation, service integration, response format, error handling pattern.</reason>
+      </file>
+      <file>
+        <path>src/lib/validations/fundamentals-schemas.ts</path>
+        <kind>validation</kind>
+        <symbol>FundamentalsRequestSchema, FundamentalsResponseSchema</symbol>
+        <lines>1-165</lines>
+        <reason>Template for prices-schemas.ts. Shows Zod schema patterns for request/response validation.</reason>
+      </file>
+      <file>
+        <path>tests/unit/providers/gemini-fundamentals.test.ts</path>
+        <kind>test</kind>
+        <symbol>GeminiProvider tests</symbol>
+        <lines>1-407</lines>
+        <reason>Template for price provider tests. 18 tests covering success, errors, partial failures, healthCheck.</reason>
+      </file>
+      <file>
+        <path>tests/unit/api/fundamentals.test.ts</path>
+        <kind>test</kind>
+        <symbol>API endpoint tests</symbol>
+        <lines>1-453</lines>
+        <reason>Template for prices API tests. 14 tests covering endpoint scenarios, cache behavior, error handling.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/index.ts</path>
+        <kind>service</kind>
+        <symbol>cacheService</symbol>
+        <lines>all</lines>
+        <reason>Vercel KV cache service used by providers. Integration point for PricesCache.</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <lines>all</lines>
+        <reason>Structured logger for all logging. Use instead of console.log/error per CLAUDE.md.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@vercel/kv</package>
+        <version>^3.0.0</version>
+        <purpose>Redis cache for price data caching</purpose>
+      </node>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Financial precision for OHLCV price values</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Request/response validation schemas</purpose>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.44.7</version>
+        <purpose>Database ORM for asset_prices table</purpose>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <purpose>Unit testing framework</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Provider location: src/lib/providers/implementations/</constraint>
+    <constraint source="architecture">decimal.js for all financial data - OHLCV values stored as strings</constraint>
+    <constraint source="architecture">Use structured logger from @/lib/telemetry/logger - NEVER console.log/error</constraint>
+    <constraint source="architecture">Error handling with ProviderError and PROVIDER_ERROR_CODES</constraint>
+    <constraint source="tech-spec">Primary provider: Gemini API (100 req/min rate limit)</constraint>
+    <constraint source="tech-spec">Fallback provider: Yahoo Finance (2000/day rate limit)</constraint>
+    <constraint source="tech-spec">Cache TTL: 24 hours (86400 seconds)</constraint>
+    <constraint source="tech-spec">Cache key pattern: prices:${symbol}:${YYYY-MM-DD}</constraint>
+    <constraint source="tech-spec">Batch size limit: 50 symbols per request</constraint>
+    <constraint source="CLAUDE.md">All new code must have corresponding unit tests</constraint>
+    <constraint source="CLAUDE.md">No explicit any types - use proper TypeScript types</constraint>
+    <constraint source="CLAUDE.md">Use standardized API responses from @/lib/api/responses.ts</constraint>
+    <constraint source="story-6.2">Follow GeminiProvider patterns from fundamentals implementation</constraint>
+    <constraint source="story-6.2">Follow FundamentalsCache patterns for PricesCache</constraint>
+    <constraint source="story-6.2">Follow FundamentalsRepository patterns for PricesRepository</constraint>
+    <constraint source="story-6.2">Handle exactOptionalPropertyTypes correctly for optional fields (open, high, low, volume)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>PriceProvider</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface PriceProvider { readonly name: string; fetchPrices(symbols: string[]): Promise&lt;PriceResult[]&gt;; healthCheck(): Promise&lt;boolean&gt;; }</signature>
+      <path>src/lib/providers/types.ts</path>
+    </interface>
+    <interface>
+      <name>PriceResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface PriceResult { symbol: string; open?: string; high?: string; low?: string; close: string; volume?: string; currency: string; source: string; fetchedAt: Date; priceDate: Date; isStale?: boolean; }</signature>
+      <path>src/lib/providers/types.ts</path>
+    </interface>
+    <interface>
+      <name>GET /api/data/prices</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/data/prices?symbols=PETR4,VALE3 -> { data: { prices: PriceResult[] } } | { error, code }</signature>
+      <path>src/app/api/data/prices/route.ts (to create)</path>
+    </interface>
+    <interface>
+      <name>PriceService.getPrices</name>
+      <kind>Service method</kind>
+      <signature>getPrices(symbols: string[], options?: ProviderServiceOptions): Promise&lt;PriceServiceResult&gt;</signature>
+      <path>src/lib/providers/price-service.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for unit and integration tests. Follow existing test patterns from Story 6.2 (gemini-fundamentals.test.ts and fundamentals.test.ts). Mock external APIs using vi.fn() and vi.mock(). Tests should be in tests/unit/providers/ and tests/unit/api/. Use realistic Brazilian market symbols (PETR4, VALE3, ITUB4, BBDC4). Coverage requirements: success paths, error handling, partial failures, cache behavior, batch processing.
+    </standards>
+    <locations>
+      <location>tests/unit/providers/gemini-prices.test.ts</location>
+      <location>tests/unit/providers/yahoo-prices.test.ts</location>
+      <location>tests/unit/api/prices.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-6.3.1">Test successful price fetch returns all OHLCV fields as strings</idea>
+      <idea ac="AC-6.3.1">Test currency is recorded with each price result</idea>
+      <idea ac="AC-6.3.2">Test cache hit returns cached data without provider call</idea>
+      <idea ac="AC-6.3.2">Test cache key follows pattern prices:${symbol}:${date}</idea>
+      <idea ac="AC-6.3.2">Test cache TTL is 24 hours (86400 seconds)</idea>
+      <idea ac="AC-6.3.3">Test fallback provider invoked when primary fails</idea>
+      <idea ac="AC-6.3.3">Test fallback result includes source attribution</idea>
+      <idea ac="AC-6.3.3">Test primary provider error is logged</idea>
+      <idea ac="AC-6.3.4">Test stale cache returned when all providers fail</idea>
+      <idea ac="AC-6.3.4">Test isStale flag set to true on stale data</idea>
+      <idea ac="AC-6.3.4">Test staleSince timestamp is set correctly</idea>
+      <idea ac="AC-6.3.5">Test batch processing splits >50 symbols</idea>
+      <idea ac="AC-6.3.5">Test batches processed sequentially</idea>
+      <idea ac="AC-6.3.5">Test partial batch failure doesn't affect other batches</idea>
+      <idea ac="API">Test GET /api/data/prices returns standardized response</idea>
+      <idea ac="API">Test invalid symbols parameter returns validation error</idea>
+      <idea ac="API">Test provider error returns 502 status</idea>
+      <idea ac="error">Test rate limit error (429) handling</idea>
+      <idea ac="error">Test timeout error handling</idea>
+      <idea ac="error">Test invalid API response handling</idea>
+    </ideas>
+  </tests>
+</story-context>

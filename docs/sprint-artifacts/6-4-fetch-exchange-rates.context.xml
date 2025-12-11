@@ -1,0 +1,305 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>4</storyId>
+    <title>Fetch Exchange Rates</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-4-fetch-exchange-rates.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to fetch daily exchange rates from external APIs</iWant>
+    <soThat>multi-currency portfolios calculate correctly in the user's base currency</soThat>
+    <tasks>
+      <task id="1" title="Create Database Schema for Exchange Rates">
+        <ac>6.4.4</ac>
+        <files>src/lib/db/schema.ts, migration file</files>
+        <items>
+          <item>Add exchange_rates table to Drizzle schema</item>
+          <item>Define all columns with appropriate types (numeric(19,8) for rate precision)</item>
+          <item>Add unique constraint on (base_currency, target_currency, rate_date)</item>
+          <item>Add index on (base_currency, target_currency) for query performance</item>
+          <item>Generate and run migration</item>
+          <item>Verify schema in database</item>
+        </items>
+      </task>
+      <task id="2" title="Implement ExchangeRateAPIProvider">
+        <ac>6.4.1, 6.4.2, 6.4.4, 6.4.5</ac>
+        <files>src/lib/providers/implementations/exchangerate-api-provider.ts</files>
+        <items>
+          <item>Create ExchangeRateAPIProvider class implementing ExchangeRateProvider</item>
+          <item>Implement fetchRates(base, targets) method</item>
+          <item>Parse API response to ExchangeRateResult format</item>
+          <item>Handle API authentication via EXCHANGE_RATE_API_KEY</item>
+          <item>Implement healthCheck() method</item>
+          <item>Calculate previous trading day (T-1) for rate_date</item>
+          <item>Handle weekend logic (Friday rates for Sat/Sun fetches)</item>
+          <item>Return all numeric values as strings for decimal.js precision</item>
+          <item>Validate supported currencies (USD, EUR, GBP, BRL, CAD, AUD, JPY, CHF)</item>
+          <item>Add comprehensive error handling for API failures</item>
+        </items>
+      </task>
+      <task id="3" title="Implement OpenExchangeRatesProvider">
+        <ac>6.4.3</ac>
+        <files>src/lib/providers/implementations/open-exchange-rates-provider.ts</files>
+        <items>
+          <item>Create OpenExchangeRatesProvider class implementing ExchangeRateProvider</item>
+          <item>Implement fetchRates(base, targets) method</item>
+          <item>Parse Open Exchange Rates API response to ExchangeRateResult format</item>
+          <item>Handle API authentication via OPEN_EXCHANGE_RATES_APP_ID</item>
+          <item>Implement healthCheck() method</item>
+          <item>Map provider-specific fields to standard format</item>
+          <item>Add error handling for API failures</item>
+          <item>Support same currency list as primary provider</item>
+        </items>
+      </task>
+      <task id="4" title="Create Exchange Rates Repository">
+        <ac>6.4.4</ac>
+        <files>src/lib/repositories/exchange-rates-repository.ts</files>
+        <items>
+          <item>Create ExchangeRatesRepository class for database operations</item>
+          <item>Implement upsertRates(result: ExchangeRateResult) method</item>
+          <item>Implement getRate(base: string, target: string, date?: Date) method</item>
+          <item>Implement getRates(base: string, targets: string[], date?: Date) method</item>
+          <item>Handle conflict resolution on unique constraint (upsert)</item>
+          <item>Add unit tests for repository methods</item>
+        </items>
+      </task>
+      <task id="5" title="Implement Exchange Rates Caching Layer">
+        <ac>6.4.4</ac>
+        <files>src/lib/providers/exchange-rates-cache.ts</files>
+        <items>
+          <item>Create ExchangeRatesCache class using Vercel KV</item>
+          <item>Implement get(base: string, date?: string): Promise&lt;ExchangeRateResult | null&gt;</item>
+          <item>Implement set(result: ExchangeRateResult, ttl: number): Promise&lt;void&gt;</item>
+          <item>Configure 24-hour TTL (86400 seconds)</item>
+          <item>Use cache key pattern: rates:${base}:${YYYY-MM-DD}</item>
+          <item>Add unit tests for cache operations</item>
+        </items>
+      </task>
+      <task id="6" title="Enhance ExchangeRateService with Provider Chain">
+        <ac>6.4.1, 6.4.2, 6.4.3, 6.4.4, 6.4.5</ac>
+        <files>src/lib/providers/exchange-rate-service.ts, src/lib/providers/index.ts</files>
+        <items>
+          <item>Update ExchangeRateService to use ExchangeRateAPIProvider as primary</item>
+          <item>Add OpenExchangeRatesProvider as fallback</item>
+          <item>Integrate ExchangeRatesCache for caching layer</item>
+          <item>Integrate ExchangeRatesRepository for persistence</item>
+          <item>Implement fallback chain: primary -> fallback -> stale cache</item>
+          <item>Implement T-1 date calculation with weekend handling</item>
+          <item>Handle partial failures gracefully</item>
+          <item>Mark rates as stale when serving from cache after provider failures</item>
+          <item>Log provider failovers and errors</item>
+          <item>Add supported currency validation</item>
+        </items>
+      </task>
+      <task id="7" title="Create API Route for Exchange Rates">
+        <ac>6.4.1, 6.4.5</ac>
+        <files>src/app/api/data/exchange-rates/route.ts</files>
+        <items>
+          <item>Create GET handler for /api/data/exchange-rates</item>
+          <item>Accept query params: base (required), targets (comma-separated, optional)</item>
+          <item>If targets not provided, return all supported currencies</item>
+          <item>Validate request with Zod schema</item>
+          <item>Call ExchangeRateService.getRates()</item>
+          <item>Return standardized response format with data and freshness</item>
+          <item>Handle errors with appropriate HTTP status codes</item>
+          <item>Add request logging</item>
+        </items>
+      </task>
+      <task id="8" title="Create Zod Validation Schemas">
+        <ac>6.4.5</ac>
+        <files>src/lib/validations/exchange-rates-schemas.ts</files>
+        <items>
+          <item>Create ExchangeRatesRequestSchema for API request validation</item>
+          <item>Create ExchangeRatesResponseSchema for response typing</item>
+          <item>Create ExchangeRateResultSchema for result validation</item>
+          <item>Define SUPPORTED_CURRENCIES constant</item>
+          <item>Export schemas for use in API route and tests</item>
+        </items>
+      </task>
+      <task id="9" title="Write Unit Tests for Exchange Rate Providers">
+        <ac>6.4.1, 6.4.2, 6.4.3, 6.4.4, 6.4.5</ac>
+        <files>tests/unit/providers/exchangerate-api.test.ts, tests/unit/providers/open-exchange-rates.test.ts</files>
+        <items>
+          <item>Test successful rates fetch for all supported currencies</item>
+          <item>Test T-1 date calculation (weekday)</item>
+          <item>Test T-1 date calculation (weekend -> Friday)</item>
+          <item>Test API error handling (401, 429, 500)</item>
+          <item>Test unsupported currency rejection</item>
+          <item>Test healthCheck method</item>
+          <item>Test fallback from primary to secondary provider</item>
+          <item>Mock API responses</item>
+        </items>
+      </task>
+      <task id="10" title="Write Integration Tests for Exchange Rates Flow">
+        <ac>All</ac>
+        <files>tests/unit/api/exchange-rates.test.ts</files>
+        <items>
+          <item>Test GET /api/data/exchange-rates with valid base and targets</item>
+          <item>Test GET /api/data/exchange-rates with only base (all targets)</item>
+          <item>Test cache hit scenario (should not call provider)</item>
+          <item>Test cache miss scenario (should call provider and cache)</item>
+          <item>Test fallback chain (primary fails, fallback succeeds)</item>
+          <item>Test stale cache serving when all providers fail</item>
+          <item>Test error responses for invalid input</item>
+          <item>Test unsupported currency error response</item>
+        </items>
+      </task>
+      <task id="11" title="Run Verification">
+        <ac>DoD</ac>
+        <items>
+          <item>TypeScript compilation successful (npx tsc --noEmit)</item>
+          <item>ESLint passes with no new errors (pnpm lint)</item>
+          <item>All unit tests pass (pnpm test)</item>
+          <item>Build succeeds (pnpm build)</item>
+        </items>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.4.1" title="Rates Fetched for All Currencies in User Portfolios">
+      <given>the exchange rate fetch is executed</given>
+      <when>user portfolios contain assets in different currencies</when>
+      <then>
+        <condition>rates are fetched for all unique currencies across all user portfolios</condition>
+        <condition>rates are fetched relative to user's configured base currency</condition>
+        <condition>missing currencies are logged but don't fail the entire fetch</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-6.4.2" title="Rates Are Previous Trading Day Close (T-1)">
+      <given>rates are being fetched</given>
+      <when>determining which date's rates to use</when>
+      <then>
+        <condition>the system uses the previous trading day's closing rates</condition>
+        <condition>weekend fetches use Friday's rates (not Saturday/Sunday)</condition>
+        <condition>rate_date is stored with each rate record</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-6.4.3" title="Open Exchange Rates Fallback if Primary Fails">
+      <given>the primary provider (ExchangeRate-API) fails</given>
+      <when>fetching exchange rates</when>
+      <then>
+        <condition>the fallback provider (Open Exchange Rates) is automatically invoked</condition>
+        <condition>fallback results are returned with correct source attribution</condition>
+        <condition>original provider error is logged for debugging</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-6.4.4" title="Rate Source and Timestamp Stored with Rate">
+      <given>rates are successfully fetched</given>
+      <when>the data is stored</when>
+      <then>
+        <condition>each rate record includes: source provider name, fetched_at timestamp</condition>
+        <condition>this metadata enables data freshness display and audit trail</condition>
+      </then>
+    </criterion>
+    <criterion id="AC-6.4.5" title="Supported Currencies">
+      <given>the exchange rate service is configured</given>
+      <when>fetching rates</when>
+      <then>
+        <condition>the following currencies are supported: USD, EUR, GBP, BRL, CAD, AUD, JPY, CHF</condition>
+        <condition>unsupported currencies are rejected with clear error message</condition>
+        <condition>system can be extended to support additional currencies via configuration</condition>
+      </then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-6.md" title="Epic 6 Technical Specification" section="Story 6.4: Fetch Exchange Rates" snippet="AC-6.4.1-5 define exchange rate fetching requirements. Provider chain: ExchangeRate-API (primary, 1500/month) -> Open Exchange Rates (fallback, 1000/month). 24h cache TTL. T-1 rates."/>
+      <doc path="docs/architecture.md" title="Architecture Document" section="ADR-005: Provider Abstraction Pattern" snippet="Interface-based design for external APIs with primary -> fallback -> cache chain. Graceful degradation with stale flag on cache fallback."/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-6.md" title="Epic 6 Technical Specification" section="Data Models and Contracts" snippet="exchange_rates table schema with id, base_currency, target_currency, rate NUMERIC(19,8), source, fetched_at, rate_date. Unique constraint on (base_currency, target_currency, rate_date)."/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-6.md" title="Epic 6 Technical Specification" section="TypeScript Types" snippet="ExchangeRateProvider interface with name, fetchRates(base, targets), healthCheck(). ExchangeRateResult with base, rates Record, source, fetchedAt, rateDate."/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-6.md" title="Epic 6 Technical Specification" section="APIs and Interfaces" snippet="GET /api/data/exchange-rates?base=USD&amp;targets=BRL,EUR,GBP returns { data: { base, rates, source, fetchedAt, rateDate } }"/>
+      <doc path="docs/sprint-artifacts/6-3-fetch-daily-prices.md" title="Story 6.3 Fetch Daily Prices" section="Dev Agent Record" snippet="Reference patterns for provider implementation, cache layer, repository, API route, Zod schemas, and tests from prices implementation."/>
+    </docs>
+    <code>
+      <file path="src/lib/providers/types.ts" kind="types" symbol="ExchangeRateProvider, ExchangeRateResult, ProviderError, PROVIDER_ERROR_CODES" lines="54-174" reason="Defines ExchangeRateProvider interface and ExchangeRateResult type that providers must implement"/>
+      <file path="src/lib/providers/exchange-rate-service.ts" kind="service" symbol="ExchangeRateService" lines="1-461" reason="Orchestrates exchange rate fetching with fallback chain - needs enhancement for real providers"/>
+      <file path="src/lib/providers/index.ts" kind="module" symbol="getExchangeRateService" lines="336-355" reason="Factory function to update with real providers (currently uses mocks)"/>
+      <file path="src/lib/providers/implementations/gemini-price-provider.ts" kind="provider" symbol="GeminiPriceProvider" lines="1-418" reason="Template for implementing ExchangeRateAPIProvider - similar structure for API calls, error handling"/>
+      <file path="src/lib/providers/implementations/yahoo-price-provider.ts" kind="provider" symbol="YahooFinancePriceProvider" reason="Template for implementing OpenExchangeRatesProvider - fallback provider pattern"/>
+      <file path="src/lib/providers/prices-cache.ts" kind="cache" symbol="PricesCache" lines="1-271" reason="Template for ExchangeRatesCache - same caching patterns with Vercel KV"/>
+      <file path="src/lib/repositories/prices-repository.ts" kind="repository" symbol="PricesRepository" lines="1-324" reason="Template for ExchangeRatesRepository - upsert, getBySymbol patterns"/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="assetPrices" lines="559-582" reason="Template for exchange_rates table - similar structure with date, numeric types"/>
+      <file path="src/lib/validations/prices-schemas.ts" kind="validation" symbol="PricesRequestSchema, PricesResponseSchema" reason="Template for exchange-rates-schemas.ts - Zod validation patterns"/>
+      <file path="src/app/api/data/prices/route.ts" kind="route" symbol="GET" reason="Template for exchange-rates route - similar API pattern"/>
+      <file path="src/lib/providers/retry.ts" kind="utility" symbol="withRetry" reason="Retry logic to use in provider implementations"/>
+      <file path="src/lib/providers/circuit-breaker.ts" kind="utility" symbol="CircuitBreaker" reason="Circuit breaker to use for provider resilience"/>
+      <file path="src/lib/cache/index.ts" kind="service" symbol="cacheService" reason="Vercel KV cache service to use in ExchangeRatesCache"/>
+      <file path="src/lib/telemetry/logger.ts" kind="utility" symbol="logger" reason="Structured logger for provider logging"/>
+    </code>
+    <dependencies>
+      <node>
+        <package name="@vercel/kv" version="^3.0.0" purpose="Cache layer for exchange rates"/>
+        <package name="zod" version="^4.1.13" purpose="Request/response validation schemas"/>
+        <package name="decimal.js" version="^10.6.0" purpose="Financial precision for rate calculations"/>
+        <package name="drizzle-orm" version="^0.44.7" purpose="Database ORM for exchange_rates table"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture.md">Provider implementations must implement ExchangeRateProvider interface with name, fetchRates(), healthCheck()</constraint>
+    <constraint source="architecture.md">All exchange rate values stored as strings for decimal.js precision - never use float/double</constraint>
+    <constraint source="architecture.md">Use ProviderError from @/lib/providers/types.ts for consistent error handling</constraint>
+    <constraint source="tech-spec-epic-6.md">Rate limit awareness: ExchangeRate-API (1500/month), Open Exchange Rates (1000/month)</constraint>
+    <constraint source="tech-spec-epic-6.md">Cache TTL: 24 hours for exchange rates</constraint>
+    <constraint source="tech-spec-epic-6.md">Provider chain: primary -> fallback -> stale cache</constraint>
+    <constraint source="CLAUDE.md">Use structured logger from @/lib/telemetry/logger - never console.error in production code</constraint>
+    <constraint source="CLAUDE.md">All new code must have corresponding unit tests</constraint>
+    <constraint source="CLAUDE.md">Unused variables must be prefixed with underscore</constraint>
+    <constraint source="story">Supported currencies: USD, EUR, GBP, BRL, CAD, AUD, JPY, CHF</constraint>
+    <constraint source="story">T-1 date calculation: Use previous trading day's rates, Friday for weekend</constraint>
+    <constraint source="tech-spec-epic-6.md">Open Exchange Rates free tier only supports USD as base - may need conversion logic</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="ExchangeRateProvider" kind="interface" signature="{ name: string; fetchRates(base: string, targets: string[]): Promise&lt;ExchangeRateResult&gt;; healthCheck(): Promise&lt;boolean&gt;; }" path="src/lib/providers/types.ts"/>
+    <interface name="ExchangeRateResult" kind="type" signature="{ base: string; rates: Record&lt;string, string&gt;; source: string; fetchedAt: Date; rateDate: Date; isStale?: boolean; }" path="src/lib/providers/types.ts"/>
+    <interface name="ExchangeRateService.getRates" kind="method" signature="getRates(base: string, targets: string[], options?: ProviderServiceOptions): Promise&lt;ExchangeRateServiceResult&gt;" path="src/lib/providers/exchange-rate-service.ts"/>
+    <interface name="GET /api/data/exchange-rates" kind="REST endpoint" signature="GET /api/data/exchange-rates?base={string}&amp;targets={string}" path="src/app/api/data/exchange-rates/route.ts"/>
+    <interface name="CacheService.get" kind="method" signature="get&lt;T&gt;(key: string): Promise&lt;CacheResult&lt;T&gt; | null&gt;" path="src/lib/cache/index.ts"/>
+    <interface name="CacheService.set" kind="method" signature="set(key: string, data: unknown, ttlSeconds: number, source?: string): Promise&lt;void&gt;" path="src/lib/cache/index.ts"/>
+    <interface name="withRetry" kind="function" signature="withRetry&lt;T&gt;(fn: () => Promise&lt;T&gt;, options?: RetryOptions): Promise&lt;T&gt;" path="src/lib/providers/retry.ts"/>
+    <interface name="CircuitBreaker" kind="class" signature="{ recordSuccess(): void; recordFailure(): void; isOpen(): boolean; isHalfOpen(): boolean; getState(): CircuitBreakerState; }" path="src/lib/providers/circuit-breaker.ts"/>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest with vi.hoisted() pattern for mock hoisting. Unit tests in tests/unit/ with matching directory structure.
+      All mocks use vi.mock() with hoisted variables. API route tests mock services and validate request/response formats.
+      Provider tests mock fetch() and validate error handling for 401, 429, 500 status codes.
+      Per CLAUDE.md, all new code must have corresponding unit tests covering success cases, error cases, and edge cases.
+    </standards>
+    <locations>
+      <location>tests/unit/providers/exchangerate-api.test.ts</location>
+      <location>tests/unit/providers/open-exchange-rates.test.ts</location>
+      <location>tests/unit/api/exchange-rates.test.ts</location>
+      <location>tests/unit/repositories/exchange-rates-repository.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-6.4.1">Test fetchRates returns rates for all requested currencies</idea>
+      <idea ac="AC-6.4.1">Test partial failures don't fail entire fetch</idea>
+      <idea ac="AC-6.4.2">Test getPreviousTradingDay returns Friday for Saturday fetch</idea>
+      <idea ac="AC-6.4.2">Test getPreviousTradingDay returns Friday for Sunday fetch</idea>
+      <idea ac="AC-6.4.2">Test getPreviousTradingDay returns T-1 for weekday fetch</idea>
+      <idea ac="AC-6.4.3">Test fallback invoked when primary throws ProviderError</idea>
+      <idea ac="AC-6.4.3">Test fallback source attribution is correct</idea>
+      <idea ac="AC-6.4.3">Test original error is logged when fallback used</idea>
+      <idea ac="AC-6.4.4">Test stored rate has source and fetchedAt populated</idea>
+      <idea ac="AC-6.4.4">Test rateDate matches previous trading day</idea>
+      <idea ac="AC-6.4.5">Test all 8 supported currencies work</idea>
+      <idea ac="AC-6.4.5">Test unsupported currency returns validation error</idea>
+      <idea ac="AC-6.4.5">Test API 401 returns PROVIDER_FAILED error</idea>
+      <idea ac="AC-6.4.5">Test API 429 returns RATE_LIMITED error</idea>
+      <idea ac="cache">Test cache hit returns cached data without provider call</idea>
+      <idea ac="cache">Test cache miss calls provider and caches result</idea>
+      <idea ac="cache">Test stale cache served when all providers fail</idea>
+    </ideas>
+  </tests>
+</story-context>
