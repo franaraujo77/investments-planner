@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getCurrencyConverter } from "@/lib/providers";
 import {
   CurrencyConversionRequestSchema,
@@ -137,16 +138,6 @@ export const GET = withAuth<ApiResponse | CurrencyConversionError | AuthError>(
         data: conversionData,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      logger.error("Failed to convert currency", {
-        userId: session.userId,
-        value,
-        from,
-        to,
-        error: errorMessage,
-      });
-
       // Handle specific conversion errors
       if (error instanceof ConversionError) {
         const status = error.code === "RATE_NOT_FOUND" ? 404 : 400;
@@ -160,13 +151,8 @@ export const GET = withAuth<ApiResponse | CurrencyConversionError | AuthError>(
         );
       }
 
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to convert currency",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "convert currency", { userId: session.userId });
+      return databaseError(dbError, "currency conversion");
     }
   }
 );

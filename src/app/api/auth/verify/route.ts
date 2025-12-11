@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   findVerificationTokenRaw,
   markVerificationTokenUsed,
@@ -142,21 +142,11 @@ export async function POST(request: Request): Promise<NextResponse<VerifyRespons
         message: "Email verified successfully",
       });
     } catch (error) {
-      logger.error("Verification error", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-
+      const dbError = handleDbError(error, "email verification");
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
       span.recordException(error as Error);
       span.end();
-
-      return NextResponse.json(
-        {
-          error: "An error occurred during verification",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "email verification");
     }
   });
 }

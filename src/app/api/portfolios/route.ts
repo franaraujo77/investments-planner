@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getUserPortfolios,
   createPortfolio,
@@ -76,16 +76,8 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
       },
     });
   } catch (error) {
-    logger.error("Error fetching portfolios", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to fetch portfolios",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "list portfolios", { userId: session.userId });
+    return databaseError(dbError, "portfolios");
   }
 });
 
@@ -141,16 +133,8 @@ export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Error creating portfolio", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create portfolio",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "create portfolio", { userId: session.userId });
+      return databaseError(dbError, "portfolio");
     }
   }
 );

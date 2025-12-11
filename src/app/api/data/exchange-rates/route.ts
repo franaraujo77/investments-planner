@@ -21,6 +21,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getExchangeRateService } from "@/lib/providers";
 import { exchangeRatesRepository } from "@/lib/repositories/exchange-rates-repository";
 import {
@@ -176,13 +177,6 @@ export const GET = withAuth<ExchangeRatesResponse | ValidationError | AuthError>
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      logger.error("Failed to fetch exchange rates", {
-        userId: session.userId,
-        base,
-        targets: targets.join(","),
-        error: errorMessage,
-      });
-
       // Check if it's a provider error (has code property)
       if (error instanceof Error && "code" in error) {
         const providerError = error as Error & { code: string };
@@ -196,13 +190,8 @@ export const GET = withAuth<ExchangeRatesResponse | ValidationError | AuthError>
         );
       }
 
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch exchange rates",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "fetch exchange rates", { userId: session.userId });
+      return databaseError(dbError, "exchange rates");
     }
   }
 );

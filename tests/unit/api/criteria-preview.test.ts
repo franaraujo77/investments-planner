@@ -577,7 +577,8 @@ describe("POST /api/criteria/preview", () => {
 
   describe("Error Handling", () => {
     it("should return 500 on unexpected errors", async () => {
-      mockGetByIdError = new Error("Database connection failed");
+      // Use an error message that won't be categorized as a connection error
+      mockGetByIdError = new Error("Unexpected processing failure");
       mockSavedCriteria = null; // Force getCriteriaById to be called
 
       const { POST } = await import("@/app/api/criteria/preview/route");
@@ -590,7 +591,7 @@ describe("POST /api/criteria/preview", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.code).toBe("INTERNAL_ERROR");
+      expect(data.code).toBe("DATABASE_ERROR");
     });
 
     it("should log errors on failure", async () => {
@@ -606,9 +607,9 @@ describe("POST /api/criteria/preview", () => {
       await POST(request, {});
 
       expect(logger.error).toHaveBeenCalledWith(
-        "Failed to calculate preview",
+        "Database error: preview criteria",
         expect.objectContaining({
-          errorMessage: "Test error",
+          dbErrorMessage: "Test error",
           userId: mockUserId,
         })
       );

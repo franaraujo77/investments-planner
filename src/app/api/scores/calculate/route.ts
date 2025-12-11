@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { calculateAndPersistScores } from "@/lib/services/score-service";
 import { calculateScoresRequestSchema } from "@/lib/validations/score-schemas";
 import type { AssetWithFundamentals } from "@/lib/validations/score-schemas";
@@ -238,18 +239,9 @@ export const POST = withAuth<CalculateResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Score calculation failed", {
-        userId: session.userId,
-        error: errorMessage,
-      });
-
-      return NextResponse.json(
-        {
-          error: "Score calculation failed",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      // Handle database errors
+      const dbError = handleDbError(error, "calculate scores", { userId: session.userId });
+      return databaseError(dbError, "calculate scores");
     }
   }
 );

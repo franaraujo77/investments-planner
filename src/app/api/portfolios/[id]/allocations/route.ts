@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getAllocationBreakdown, formatAllocationPercent } from "@/lib/services/allocation-service";
 import { PortfolioNotFoundError } from "@/lib/services/portfolio-service";
 import type { AuthError } from "@/lib/auth/types";
@@ -110,15 +110,9 @@ export const GET = withAuth<AllocationResponse | ValidationError | AuthError>(
         );
       }
 
-      // Log unexpected errors
-      logger.error("Error fetching allocation breakdown", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-
-      return NextResponse.json<AuthError>(
-        { error: "Failed to fetch allocation breakdown", code: "INTERNAL_ERROR" },
-        { status: 500 }
-      );
+      // Log unexpected errors and handle database errors
+      const dbError = handleDbError(error, "get allocations", { userId: session.userId });
+      return databaseError(dbError, "allocations");
     }
   }
 );

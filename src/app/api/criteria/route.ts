@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getCriteriaSetsForUser,
   createCriteriaSet,
@@ -101,17 +101,8 @@ export const GET = withAuth<CriteriaListResponse | AuthError>(async (request, se
       },
     });
   } catch (error) {
-    logger.error("Failed to fetch criteria sets", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to fetch criteria sets",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "list criteria", { userId: session.userId });
+    return databaseError(dbError, "list criteria");
   }
 });
 
@@ -169,17 +160,8 @@ export const POST = withAuth<CriteriaResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to create criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "create criteria", { userId: session.userId });
+      return databaseError(dbError, "create criteria");
     }
   }
 );

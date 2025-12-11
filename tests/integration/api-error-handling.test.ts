@@ -10,9 +10,24 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
+import { DbErrorCode } from "@/lib/db/errors";
 
 // Mock session for authenticated requests
 let mockSession: { userId: string } | null = null;
+
+// Mock database errors with postgres.js error shape
+function createDbError(
+  code: string,
+  message: string,
+  cause?: string
+): Error & { code?: string; cause?: Error } {
+  const error = new Error(message) as Error & { code?: string; cause?: Error };
+  error.code = code;
+  if (cause) {
+    error.cause = new Error(cause);
+  }
+  return error;
+}
 
 // Mock the auth middleware
 vi.mock("@/lib/auth/middleware", () => ({
@@ -264,6 +279,263 @@ describe("API Error Handling", () => {
       };
 
       expect(invalidUuidError.code).toBe("VALIDATION_INVALID_UUID");
+    });
+  });
+
+  // ===========================================================================
+  // Database Error Scenario Tests
+  // ===========================================================================
+
+  describe("Database Error Scenarios", () => {
+    describe("Connection Errors (503)", () => {
+      it("should return 503 with DATABASE_CONNECTION_ERROR for connection failures", async () => {
+        // Mock service to throw connection error
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.CONNECTION_FAILURE, "Connection refused", "ECONNREFUSED")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
+        expect(body.error).toContain("Database connection error");
+      });
+
+      it("should return 503 for connection exception errors", async () => {
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.CONNECTION_EXCEPTION, "Connection exception")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
+      });
+
+      it("should return 503 for ECONNREFUSED errors without code", async () => {
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        const error = new Error("connect ECONNREFUSED 127.0.0.1:5432") as Error & { cause?: Error };
+        error.cause = new Error("ECONNREFUSED");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(error);
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
+      });
+    });
+
+    describe("Timeout Errors", () => {
+      it("should return 503 for query cancellation (57xxx codes categorized as connection)", async () => {
+        // Note: QUERY_CANCELED (57014) is categorized as "connection" in extractDbError
+        // because 57xxx codes are operator intervention codes
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.QUERY_CANCELED, "Query was canceled")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
+      });
+
+      it("should return 503 for ETIMEDOUT errors (connection category)", async () => {
+        // Note: ETIMEDOUT errors are categorized as "connection" and isConnectionError=true
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        const error = new Error("Connection timeout") as Error & { cause?: Error };
+        error.cause = new Error("ETIMEDOUT");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(error);
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
+      });
+    });
+
+    describe("Constraint Violations", () => {
+      // Routes now use databaseError() for ALL errors, which properly handles
+      // constraint violations with appropriate status codes
+
+      it("should return 409 RESOURCE_CONFLICT for unique violations", async () => {
+        const { createPortfolio } = await import("@/lib/services/portfolio-service");
+        vi.mocked(createPortfolio).mockRejectedValueOnce(
+          createDbError(
+            DbErrorCode.UNIQUE_VIOLATION,
+            "duplicate key value violates unique constraint"
+          )
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios", {
+          method: "POST",
+          body: JSON.stringify({ name: "Duplicate Portfolio" }),
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const response = await POST(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(409);
+        expect(body.code).toBe("CONFLICT_RESOURCE");
+      });
+
+      it("should return 400 CONSTRAINT_VIOLATION for foreign key violations", async () => {
+        const { createPortfolio } = await import("@/lib/services/portfolio-service");
+        vi.mocked(createPortfolio).mockRejectedValueOnce(
+          createDbError(DbErrorCode.FOREIGN_KEY_VIOLATION, "violates foreign key constraint")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios", {
+          method: "POST",
+          body: JSON.stringify({ name: "Invalid Portfolio" }),
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const response = await POST(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.code).toBe("DATABASE_CONSTRAINT_VIOLATION");
+      });
+    });
+
+    describe("Resource Exhaustion", () => {
+      it("should return 503 for too many connections (message contains 'connection')", async () => {
+        // TOO_MANY_CONNECTIONS (53300) - categorized as "connection" because
+        // the message "too many connections" contains "connection"
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.TOO_MANY_CONNECTIONS, "too many connections for role")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
+      });
+
+      it("should return 503 for out of memory errors (resource exhaustion)", async () => {
+        // OUT_OF_MEMORY (53200) is categorized as "resource" which returns 503
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.OUT_OF_MEMORY, "out of memory")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_ERROR");
+      });
+    });
+
+    describe("Authentication/Permission Errors", () => {
+      it("should return 500 DATABASE_ERROR for database authentication errors", async () => {
+        // Auth errors (28xxx) go through databaseError() which returns DATABASE_ERROR
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.INVALID_PASSWORD, "password authentication failed")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(500);
+        expect(body.code).toBe("DATABASE_ERROR");
+      });
+
+      it("should return 500 DATABASE_ERROR for insufficient privilege errors", async () => {
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.INSUFFICIENT_PRIVILEGE, "permission denied for table")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        expect(response.status).toBe(500);
+        expect(body.code).toBe("DATABASE_ERROR");
+      });
+    });
+
+    describe("Error Response Security", () => {
+      it("should not expose internal database details in error messages", async () => {
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(
+            DbErrorCode.CONNECTION_FAILURE,
+            "Failed query: SELECT * FROM users WHERE id = 'secret'"
+          )
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        // Should not expose query details
+        expect(body.error).not.toContain("SELECT");
+        expect(body.error).not.toContain("users");
+        expect(body.error).not.toContain("secret");
+      });
+
+      it("should not expose database host information", async () => {
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(
+            DbErrorCode.CONNECTION_FAILURE,
+            "connect to db.internal.example.com:5432 failed"
+          )
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        const response = await GET(request);
+        const body = await response.json();
+
+        // Should not expose internal hostnames
+        expect(body.error).not.toContain("db.internal.example.com");
+        expect(body.error).not.toContain("5432");
+      });
+    });
+
+    describe("Error Logging", () => {
+      it("should log database errors with full context", async () => {
+        const { logger } = await import("@/lib/telemetry/logger");
+        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+
+        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+          createDbError(DbErrorCode.CONNECTION_FAILURE, "Connection failed")
+        );
+
+        const request = new NextRequest("http://localhost/api/portfolios");
+        await GET(request);
+
+        // Verify logger was called with database error context
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining("Database error"),
+          expect.objectContaining({
+            dbErrorCode: DbErrorCode.CONNECTION_FAILURE,
+            isConnectionError: true,
+          })
+        );
+      });
     });
   });
 });

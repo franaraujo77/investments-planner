@@ -18,7 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getCriteriaById,
   updateCriteriaSet,
@@ -79,17 +79,8 @@ export const GET = withAuth<CriteriaResponse | ValidationError | AuthError>(
 
       return NextResponse.json<CriteriaResponse>({ data: criteriaSet });
     } catch (error) {
-      logger.error("Failed to fetch criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get criteria", { userId: session.userId });
+      return databaseError(dbError, "get criteria");
     }
   }
 );
@@ -150,17 +141,8 @@ export const PATCH = withAuth<CriteriaResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to update criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "update criteria", { userId: session.userId });
+      return databaseError(dbError, "update criteria");
     }
   }
 );
@@ -195,17 +177,8 @@ export const DELETE = withAuth<DeleteResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to delete criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to delete criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "delete criteria", { userId: session.userId });
+      return databaseError(dbError, "delete criteria");
     }
   }
 );

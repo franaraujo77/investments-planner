@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getClassesForUser,
   createClass,
@@ -77,17 +77,8 @@ export const GET = withAuth<AssetClassListResponse | AuthError>(async (_request,
       },
     });
   } catch (error) {
-    logger.error("Failed to fetch asset classes", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to fetch asset classes",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "list asset classes", { userId: session.userId });
+    return databaseError(dbError, "asset classes");
   }
 });
 
@@ -142,17 +133,8 @@ export const POST = withAuth<AssetClassResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to create asset class", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create asset class",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "create asset class", { userId: session.userId });
+      return databaseError(dbError, "asset class");
     }
   }
 );

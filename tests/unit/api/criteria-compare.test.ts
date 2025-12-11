@@ -384,7 +384,8 @@ describe("POST /api/criteria/compare", () => {
 
   describe("Error Handling", () => {
     it("should return 500 on unexpected errors", async () => {
-      mockCompareError = new Error("Database connection failed");
+      // Use an error message that won't be categorized as a connection error
+      mockCompareError = new Error("Unexpected processing failure");
 
       const { POST } = await import("@/app/api/criteria/compare/route");
       const request = createRequest({
@@ -396,7 +397,7 @@ describe("POST /api/criteria/compare", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.code).toBe("INTERNAL_ERROR");
+      expect(data.code).toBe("DATABASE_ERROR");
     });
 
     it("should log errors on failure", async () => {
@@ -412,9 +413,9 @@ describe("POST /api/criteria/compare", () => {
       await POST(request, {});
 
       expect(logger.error).toHaveBeenCalledWith(
-        "Failed to compare criteria sets",
+        "Database error: compare criteria",
         expect.objectContaining({
-          errorMessage: "Test error",
+          dbErrorMessage: "Test error",
           userId: mockUserId,
         })
       );

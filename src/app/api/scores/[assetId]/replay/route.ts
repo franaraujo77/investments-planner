@@ -20,7 +20,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
-import { errorResponse, type ErrorResponseBody } from "@/lib/api/responses";
+import {
+  errorResponse,
+  handleDbError,
+  databaseError,
+  type ErrorResponseBody,
+} from "@/lib/api/responses";
 import { VALIDATION_ERRORS, NOT_FOUND_ERRORS, INTERNAL_ERRORS } from "@/lib/api/error-codes";
 import { z } from "zod";
 import { verifyDeterminism } from "@/lib/events/replay";
@@ -185,12 +190,9 @@ export const POST = withAuth<ReplayResponse | ErrorResponseBody>(
         return errorResponse(errorMessage, INTERNAL_ERRORS.INTERNAL_ERROR);
       }
 
-      logger.error("Failed to replay calculation", {
-        userId: session.userId,
-        error: errorMessage,
-      });
-
-      return errorResponse("Failed to replay calculation", INTERNAL_ERRORS.INTERNAL_ERROR);
+      // Handle database errors
+      const dbError = handleDbError(error, "replay score calculation", { userId: session.userId });
+      return databaseError(dbError, "replay score calculation");
     }
   }
 );

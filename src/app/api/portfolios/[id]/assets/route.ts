@@ -18,7 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getPortfolioAssets,
   addAsset,
@@ -90,16 +90,8 @@ export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Error fetching assets", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch assets",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "list portfolio assets", { userId: session.userId });
+      return databaseError(dbError, "assets");
     }
   }
 );
@@ -177,16 +169,8 @@ export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Error creating asset", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create asset",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "add asset", { userId: session.userId });
+      return databaseError(dbError, "asset");
     }
   }
 );

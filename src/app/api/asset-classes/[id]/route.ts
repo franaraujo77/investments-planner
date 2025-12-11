@@ -22,7 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getAssetClassById,
   updateClass,
@@ -93,17 +93,8 @@ export const GET = withAuth<AssetClassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<AssetClassResponse>({ data: assetClass });
     } catch (error) {
-      logger.error("Failed to fetch asset class", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch asset class",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get asset class", { userId: session.userId });
+      return databaseError(dbError, "asset class");
     }
   }
 );
@@ -168,17 +159,8 @@ export const PATCH = withAuth<AssetClassResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to update asset class", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update asset class",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "update asset class", { userId: session.userId });
+      return databaseError(dbError, "asset class");
     }
   }
 );
@@ -252,16 +234,7 @@ export const DELETE = withAuth<
       );
     }
 
-    logger.error("Failed to delete asset class", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to delete asset class",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "delete asset class", { userId: session.userId });
+    return databaseError(dbError, "asset class");
   }
 });

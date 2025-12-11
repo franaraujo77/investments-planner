@@ -17,7 +17,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   recordInvestments,
   getInvestmentHistory,
@@ -114,16 +114,8 @@ export const GET = withAuth<InvestmentListResponse | AuthError>(
         },
       });
     } catch (error) {
-      logger.error("Error fetching investments", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch investments",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "list investments", { userId: session.userId });
+      return databaseError(dbError, "investments");
     }
   }
 );
@@ -218,16 +210,8 @@ export const POST = withAuth<InvestmentRecordResponse | ValidationError | AuthEr
         );
       }
 
-      logger.error("Error recording investments", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to record investments",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "record investment", { userId: session.userId });
+      return databaseError(dbError, "investments");
     }
   }
 );

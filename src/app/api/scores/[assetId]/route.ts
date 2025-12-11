@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getAssetScore } from "@/lib/services/score-service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -100,11 +100,6 @@ export const GET = withAuth<GetScoreResponse | ErrorResponse | AuthError>(
       const score = await getAssetScore(session.userId, assetId);
 
       if (!score) {
-        logger.info("No score found for asset", {
-          userId: session.userId,
-          assetId,
-        });
-
         return NextResponse.json(
           {
             error: "No score found for this asset",
@@ -113,13 +108,6 @@ export const GET = withAuth<GetScoreResponse | ErrorResponse | AuthError>(
           { status: 404 }
         );
       }
-
-      logger.debug("Score retrieved", {
-        userId: session.userId,
-        assetId,
-        score: score.score,
-        isFresh: score.isFresh,
-      });
 
       // Format response
       const response: GetScoreResponse = {
@@ -143,20 +131,8 @@ export const GET = withAuth<GetScoreResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
-      logger.error("Failed to get asset score", {
-        userId: session.userId,
-        error: errorMessage,
-      });
-
-      return NextResponse.json(
-        {
-          error: "Failed to retrieve score",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get asset score", { userId: session.userId });
+      return databaseError(dbError, "get asset score");
     }
   }
 );

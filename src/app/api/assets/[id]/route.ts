@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { updateAsset, removeAsset, AssetNotFoundError } from "@/lib/services/portfolio-service";
 import { updateAssetSchema } from "@/lib/validations/portfolio";
 import type { AuthError } from "@/lib/auth/types";
@@ -98,16 +98,8 @@ export const PATCH = withAuth<AssetResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Error updating asset", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update asset",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "update asset", { userId: session.userId });
+      return databaseError(dbError, "asset");
     }
   }
 );
@@ -154,16 +146,8 @@ export const DELETE = withAuth<DeleteSuccessResponse | ValidationError | AuthErr
         );
       }
 
-      logger.error("Error deleting asset", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to delete asset",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "delete asset", { userId: session.userId });
+      return databaseError(dbError, "asset");
     }
   }
 );

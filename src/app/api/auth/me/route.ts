@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getSafeUserById } from "@/lib/auth/service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -63,15 +63,7 @@ export const GET = withAuth<MeResponse>(async (_request, session) => {
       { status: 200 }
     );
   } catch (error) {
-    logger.error("Get user error", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
-    return NextResponse.json<AuthError>(
-      {
-        error: "An error occurred while fetching user data",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "fetch current user", { userId: session.userId });
+    return databaseError(dbError, "user data");
   }
 });

@@ -17,8 +17,9 @@ import { signVerificationToken } from "@/lib/auth/jwt";
 import { AUTH_MESSAGES } from "@/lib/auth/constants";
 import { registerSchema } from "@/lib/auth/validation";
 import { inngest } from "@/lib/inngest";
-import { logger } from "@/lib/telemetry/logger";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { handleDbError, databaseError } from "@/lib/api/responses";
+import { DbErrorCode } from "@/lib/db/errors";
 
 /**
  * Response type for registration
@@ -150,16 +151,16 @@ export async function POST(
         { status: 201 }
       );
     } catch (error) {
-      logger.error("Registration error", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      // Enhanced error logging with full database error context
+      // Note: email may not be defined if error occurred during validation
+      const dbError = handleDbError(error, "user registration");
 
-      span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
+      span.setStatus({ code: SpanStatusCode.ERROR, message: dbError.message });
       span.recordException(error as Error);
       span.end();
 
-      // Handle specific database errors
-      if (error instanceof Error && error.message.includes("unique constraint")) {
+      // Handle specific database errors with proper codes
+      if (dbError.code === DbErrorCode.UNIQUE_VIOLATION) {
         return NextResponse.json(
           {
             error: AUTH_MESSAGES.EMAIL_EXISTS,
@@ -169,13 +170,7 @@ export async function POST(
         );
       }
 
-      return NextResponse.json(
-        {
-          error: "An error occurred during registration",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "registration");
     }
   });
 }

@@ -357,7 +357,7 @@ describe("GET /api/data/fundamentals", () => {
       const body = await response.json();
 
       expect(response.status).toBe(500);
-      expect(body.code).toBe("INTERNAL_ERROR");
+      expect(body.code).toBe("DATABASE_ERROR");
     });
   });
 

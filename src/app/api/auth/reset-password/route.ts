@@ -12,6 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { logger, redactUserId } from "@/lib/telemetry/logger";
 import {
   findPasswordResetToken,
@@ -138,16 +139,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error("Password reset unexpected error", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
-
-    return NextResponse.json(
-      {
-        error: "An unexpected error occurred. Please try again.",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "password reset");
+    return databaseError(dbError, "password reset");
   }
 }

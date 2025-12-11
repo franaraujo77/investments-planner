@@ -22,7 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getSubclassById,
   updateSubclass,
@@ -93,17 +93,8 @@ export const GET = withAuth<SubclassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<SubclassResponse>({ data: subclass });
     } catch (error) {
-      logger.error("Failed to fetch subclass", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch subclass",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get subclass", { userId: session.userId });
+      return databaseError(dbError, "subclass");
     }
   }
 );
@@ -167,17 +158,8 @@ export const PATCH = withAuth<SubclassResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to update subclass", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update subclass",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "update subclass", { userId: session.userId });
+      return databaseError(dbError, "subclass");
     }
   }
 );
@@ -251,16 +233,7 @@ export const DELETE = withAuth<
       );
     }
 
-    logger.error("Failed to delete subclass", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to delete subclass",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "delete subclass", { userId: session.userId });
+    return databaseError(dbError, "subclass");
   }
 });

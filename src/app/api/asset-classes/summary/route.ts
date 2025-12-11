@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getAllocationSummary, type AllocationSummary } from "@/lib/services/asset-class-service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -32,16 +32,7 @@ export const GET = withAuth<AllocationSummary | AuthError>(async (_request, sess
 
     return NextResponse.json(summary);
   } catch (error) {
-    logger.error("Failed to get allocation summary", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to get allocation summary",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "get asset class summary", { userId: session.userId });
+    return databaseError(dbError, "allocation summary");
   }
 });

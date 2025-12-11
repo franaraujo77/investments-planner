@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   reorderCriteria,
   CriteriaNotFoundError,
@@ -109,17 +109,8 @@ export const PATCH = withAuth<CriteriaResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to reorder criteria", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to reorder criteria",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "reorder criteria", { userId: session.userId });
+      return databaseError(dbError, "reorder criteria");
     }
   }
 );

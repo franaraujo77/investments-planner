@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   findUserByEmail,
   storeVerificationToken,
@@ -21,7 +22,6 @@ import {
 import { signVerificationToken } from "@/lib/auth/jwt";
 import { checkEmailRateLimit, recordEmailResendAttempt } from "@/lib/auth/rate-limit";
 import { inngest } from "@/lib/inngest";
-import { logger } from "@/lib/telemetry/logger";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { z } from "zod/v4";
 
@@ -173,21 +173,11 @@ export async function POST(request: Request): Promise<NextResponse<ResendRespons
         message: RESEND_MESSAGE,
       });
     } catch (error) {
-      logger.error("Resend verification error", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-
+      const dbError = handleDbError(error, "resend verification");
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
       span.recordException(error as Error);
       span.end();
-
-      return NextResponse.json(
-        {
-          error: "An error occurred. Please try again later.",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "email verification");
     }
   });
 }

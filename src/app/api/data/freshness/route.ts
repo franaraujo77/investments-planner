@@ -44,7 +44,7 @@ import {
   type FreshnessSuccessResponse,
   type FreshnessDataType,
 } from "@/lib/validations/freshness-schemas";
-import { errorResponse } from "@/lib/api/responses";
+import { errorResponse, handleDbError, databaseError } from "@/lib/api/responses";
 import type { AuthError } from "@/lib/auth/types";
 import type { ErrorResponseBody } from "@/lib/api/responses";
 
@@ -194,7 +194,7 @@ async function getFreshnessData(
  * AC-6.7.3: Provides data for tooltip display
  */
 export const GET = withAuth<FreshnessSuccessResponse | ErrorResponseBody | AuthError>(
-  async (request: NextRequest, _session) => {
+  async (request: NextRequest, session) => {
     const searchParams = request.nextUrl.searchParams;
 
     // Parse query parameters
@@ -218,23 +218,12 @@ export const GET = withAuth<FreshnessSuccessResponse | ErrorResponseBody | AuthE
       // Get freshness data
       const freshnessMap = await getFreshnessData(type, symbols);
 
-      logger.info("Freshness query completed", {
-        type,
-        resultCount: Object.keys(freshnessMap).length,
-      });
-
       // Build and return response
       const response = buildFreshnessResponse(freshnessMap);
       return NextResponse.json<FreshnessSuccessResponse>(response, { status: 200 });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      logger.error("Freshness query failed", {
-        type,
-        error: errorMessage,
-      });
-
-      return errorResponse("Failed to retrieve freshness data", "INTERNAL_ERROR", 500);
+      const dbError = handleDbError(error, "check data freshness", { userId: session.userId });
+      return databaseError(dbError, "data freshness");
     }
   }
 );

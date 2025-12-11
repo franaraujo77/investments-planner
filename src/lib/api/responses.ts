@@ -25,9 +25,18 @@ import {
   type ErrorCode,
   VALIDATION_ERRORS,
   INTERNAL_ERRORS,
+  DATABASE_ERRORS,
+  CONFLICT_ERRORS,
   getHttpStatusForErrorCode,
 } from "./error-codes";
 import { logger } from "@/lib/telemetry/logger";
+import {
+  extractDbError,
+  toLogContext,
+  getUserFriendlyMessage,
+  DbErrorCode,
+  type DbErrorInfo,
+} from "@/lib/db/errors";
 
 // =============================================================================
 // RESPONSE TYPES
@@ -198,6 +207,65 @@ export function internalError(
   return errorResponse(message, INTERNAL_ERRORS.INTERNAL_ERROR, 500);
 }
 
+/**
+ * Creates a database error response with appropriate error code
+ *
+ * @param dbError - Extracted database error info
+ * @param context - Optional context for the error message
+ * @returns NextResponse with appropriate status code
+ */
+export function databaseError(
+  dbError: DbErrorInfo,
+  context?: string
+): NextResponse<ErrorResponseBody> {
+  // Map database error category to appropriate response
+  switch (dbError.category) {
+    case "connection":
+      return errorResponse(
+        "Database connection error. Please try again later.",
+        DATABASE_ERRORS.CONNECTION_ERROR,
+        503 // Service Unavailable
+      );
+
+    case "timeout":
+      return errorResponse(
+        "Database operation timed out. Please try again.",
+        DATABASE_ERRORS.DATABASE_ERROR,
+        504 // Gateway Timeout
+      );
+
+    case "constraint":
+      // For unique violations, return 409 Conflict
+      if (dbError.code === DbErrorCode.UNIQUE_VIOLATION) {
+        return errorResponse(
+          context ? `${context} already exists` : "Resource already exists",
+          CONFLICT_ERRORS.RESOURCE_CONFLICT,
+          409
+        );
+      }
+      return errorResponse("Data validation failed", DATABASE_ERRORS.CONSTRAINT_VIOLATION, 400);
+
+    case "authentication":
+      return errorResponse("Database authentication failed", DATABASE_ERRORS.DATABASE_ERROR, 500);
+
+    case "permission":
+      return errorResponse("Database permission denied", DATABASE_ERRORS.DATABASE_ERROR, 500);
+
+    case "not_found":
+      return errorResponse("Database schema error", DATABASE_ERRORS.DATABASE_ERROR, 500);
+
+    case "resource":
+      return errorResponse(
+        "Database resources exhausted. Please try again later.",
+        DATABASE_ERRORS.DATABASE_ERROR,
+        503
+      );
+
+    default:
+      return errorResponse(getUserFriendlyMessage(dbError), DATABASE_ERRORS.DATABASE_ERROR, 500);
+  }
+}
+
 // =============================================================================
 // SUCCESS RESPONSE FACTORIES
 // =============================================================================
@@ -262,7 +330,13 @@ export function noContentResponse(): NextResponse {
 /**
  * Wraps an async handler with standardized error handling
  *
+ * Automatically detects database errors and logs full context including:
+ * - PostgreSQL error codes
+ * - Constraint names
+ * - Underlying cause (connection errors, timeouts, etc.)
+ *
  * @param handler - Async function to wrap
+ * @param context - Optional context string for better error messages
  * @returns Wrapped handler that catches errors
  *
  * @example
@@ -270,24 +344,80 @@ export function noContentResponse(): NextResponse {
  * export const GET = withErrorHandling(async (request) => {
  *   const data = await fetchData();
  *   return successResponse(data);
- * });
+ * }, "fetch user data");
  * ```
  */
 export function withErrorHandling<T extends unknown[]>(
-  handler: (...args: T) => Promise<NextResponse>
+  handler: (...args: T) => Promise<NextResponse>,
+  context?: string
 ): (...args: T) => Promise<NextResponse> {
   return async (...args: T): Promise<NextResponse> => {
     try {
       return await handler(...args);
     } catch (error) {
-      // Log the error with structured logger for trace correlation
-      logger.error("API Error", {
-        errorMessage: error instanceof Error ? error.message : String(error),
+      // Extract database error details (works for all errors, not just DB)
+      const dbError = extractDbError(error);
+      const logCtx = toLogContext(dbError);
+
+      // Log with full context
+      logger.error(context ? `API Error: ${context}` : "API Error", {
+        ...logCtx,
         errorName: error instanceof Error ? error.name : "UnknownError",
+        errorStack:
+          process.env.NODE_ENV === "development" && error instanceof Error
+            ? error.stack
+            : undefined,
       });
+
+      // Return appropriate response based on error type
+      if (dbError.isConnectionError || dbError.isTimeout || dbError.code) {
+        return databaseError(dbError, context);
+      }
 
       // Return generic error (don't expose internal details)
       return internalError();
     }
   };
+}
+
+/**
+ * Enhanced error handler that provides detailed logging for database operations
+ *
+ * Use this when you need more control over error responses while still
+ * getting full database error logging.
+ *
+ * @param error - The caught error
+ * @param context - Description of the operation that failed
+ * @param additionalContext - Extra context to include in logs
+ * @returns Database error info for custom handling
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await db.insert(users).values(data);
+ * } catch (error) {
+ *   const dbError = handleDbError(error, "create user", { email: data.email });
+ *   if (dbError.code === DbErrorCode.UNIQUE_VIOLATION) {
+ *     return errorResponse("Email already exists", CONFLICT_ERRORS.EMAIL_EXISTS, 409);
+ *   }
+ *   return databaseError(dbError);
+ * }
+ * ```
+ */
+export function handleDbError(
+  error: unknown,
+  context: string,
+  additionalContext?: Record<string, unknown>
+): DbErrorInfo {
+  const dbError = extractDbError(error);
+  const logCtx = toLogContext(dbError);
+
+  logger.error(`Database error: ${context}`, {
+    ...logCtx,
+    ...additionalContext,
+    errorStack:
+      process.env.NODE_ENV === "development" && error instanceof Error ? error.stack : undefined,
+  });
+
+  return dbError;
 }

@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError, type ErrorResponseBody } from "@/lib/api/responses";
 import { deleteUserAccount, PURGE_DELAY_DAYS } from "@/lib/services/account-service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -55,61 +55,56 @@ interface DeleteAccountResponse {
  * @param session - User session from withAuth middleware
  * @returns JSON response with deletion status
  */
-export const DELETE = withAuth(async (request: NextRequest, session) => {
-  try {
-    // Parse and validate request body
-    const body = await request.json();
-    const validation = deleteAccountSchema.safeParse(body);
+export const DELETE = withAuth<DeleteAccountResponse | ErrorResponseBody>(
+  async (request: NextRequest, session) => {
+    try {
+      // Parse and validate request body
+      const body = await request.json();
+      const validation = deleteAccountSchema.safeParse(body);
 
-    if (!validation.success) {
-      return NextResponse.json<AuthError>(
-        {
-          error: 'You must type "DELETE" to confirm account deletion',
-          code: "INVALID_CONFIRMATION",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Perform account deletion
-    const result = await deleteUserAccount(session.userId);
-
-    // Return success response
-    // Client should clear cookies and redirect to homepage
-    return NextResponse.json<DeleteAccountResponse>(
-      {
-        success: true,
-        message: "Your account has been scheduled for deletion",
-        scheduledPurgeDate: result.scheduledPurgeDate.toISOString(),
-        gracePeriodDays: PURGE_DELAY_DAYS,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    logger.error("Account deletion error", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
-
-    // Handle specific error cases
-    if (error instanceof Error) {
-      if (error.message === "User not found") {
+      if (!validation.success) {
         return NextResponse.json<AuthError>(
-          { error: "User not found", code: "USER_NOT_FOUND" },
-          { status: 404 }
-        );
-      }
-      if (error.message === "User account is already deleted") {
-        return NextResponse.json<AuthError>(
-          { error: "Account is already deleted", code: "ALREADY_DELETED" },
+          {
+            error: 'You must type "DELETE" to confirm account deletion',
+            code: "INVALID_CONFIRMATION",
+          },
           { status: 400 }
         );
       }
-    }
 
-    // Generic error
-    return NextResponse.json<AuthError>(
-      { error: "Failed to delete account", code: "INTERNAL_ERROR" },
-      { status: 500 }
-    );
+      // Perform account deletion
+      const result = await deleteUserAccount(session.userId);
+
+      // Return success response
+      // Client should clear cookies and redirect to homepage
+      return NextResponse.json<DeleteAccountResponse>(
+        {
+          success: true,
+          message: "Your account has been scheduled for deletion",
+          scheduledPurgeDate: result.scheduledPurgeDate.toISOString(),
+          gracePeriodDays: PURGE_DELAY_DAYS,
+        },
+        { status: 200 }
+      );
+    } catch (error) {
+      // Handle specific error cases first
+      if (error instanceof Error) {
+        if (error.message === "User not found") {
+          return NextResponse.json<AuthError>(
+            { error: "User not found", code: "USER_NOT_FOUND" },
+            { status: 404 }
+          );
+        }
+        if (error.message === "User account is already deleted") {
+          return NextResponse.json<AuthError>(
+            { error: "Account is already deleted", code: "ALREADY_DELETED" },
+            { status: 400 }
+          );
+        }
+      }
+
+      const dbError = handleDbError(error, "delete user account", { userId: session.userId });
+      return databaseError(dbError, "user account");
+    }
   }
-});
+);

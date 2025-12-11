@@ -21,6 +21,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getPriceService } from "@/lib/providers";
 import { pricesRepository } from "@/lib/repositories/prices-repository";
 import { PricesRequestSchema } from "@/lib/validations/prices-schemas";
@@ -207,12 +208,6 @@ export const GET = withAuth<PricesResponse | ValidationError | AuthError>(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      logger.error("Failed to fetch prices", {
-        userId: session.userId,
-        symbols: symbols.join(","),
-        error: errorMessage,
-      });
-
       // Check if it's a provider error (has code property)
       if (error instanceof Error && "code" in error) {
         const providerError = error as Error & { code: string };
@@ -226,13 +221,8 @@ export const GET = withAuth<PricesResponse | ValidationError | AuthError>(
         );
       }
 
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch prices",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "fetch prices", { userId: session.userId });
+      return databaseError(dbError, "prices");
     }
   }
 );

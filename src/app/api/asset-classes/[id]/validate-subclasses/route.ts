@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   validateSubclassAllocationRanges,
   AssetClassNotFoundError,
@@ -73,17 +73,8 @@ export const GET = withAuth<ValidationResponse | ErrorResponse | AuthError>(
         );
       }
 
-      logger.error("Failed to validate subclass allocations", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to validate subclass allocations",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "validate subclasses", { userId: session.userId });
+      return databaseError(dbError, "subclass validation");
     }
   }
 );

@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   compareCriteriaSets,
   type ComparisonResult,
@@ -112,17 +112,8 @@ export const POST = withAuth<CompareResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to compare criteria sets", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to compare criteria sets",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "compare criteria", { userId: session.userId });
+      return databaseError(dbError, "compare criteria");
     }
   }
 );
