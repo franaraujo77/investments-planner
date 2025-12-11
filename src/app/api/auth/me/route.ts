@@ -9,6 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import { getSafeUserById } from "@/lib/auth/service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -62,7 +63,9 @@ export const GET = withAuth<MeResponse>(async (_request, session) => {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Get user error:", error);
+    logger.error("Get user error", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json<AuthError>(
       {
         error: "An error occurred while fetching user data",

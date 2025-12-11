@@ -32,8 +32,8 @@ const eslintConfig = defineConfig([
     },
   },
   // Production code - prevent console.* statements (use logger instead)
-  // Set to "warn" until existing technical debt is addressed (Epic 3 deferred item)
-  // TODO: Change to "error" after migrating remaining 40 console.* statements to logger
+  // Upgraded from "warn" to "error" in Epic 6 retrospective (2025-12-11)
+  // All production code must use logger from @/lib/telemetry/logger
   {
     files: ["src/**/*.ts", "src/**/*.tsx"],
     ignores: [
@@ -42,7 +42,7 @@ const eslintConfig = defineConfig([
       "src/lib/telemetry/setup.ts",
     ],
     rules: {
-      "no-console": "warn",
+      "no-console": "error",
     },
   },
   // Test files - allow explicit any for mocking and console for debugging

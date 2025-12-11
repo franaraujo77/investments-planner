@@ -136,8 +136,8 @@ export function AddAssetModal({
       reset();
       onSuccess?.();
       router.refresh();
-    } catch (error) {
-      console.error("Error adding asset:", error);
+    } catch (_error) {
+      // Error displayed to user via toast - no additional logging needed in client
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);

@@ -90,8 +90,8 @@ export function useUpdateAsset(): UpdateAssetResult {
         // Success - refresh the page to get updated data from server
         router.refresh();
         return true;
-      } catch (error) {
-        console.error("Error updating asset:", error);
+      } catch (_error) {
+        // Error displayed to user via toast - no additional logging needed in client
         const errorMessage = "Failed to update. Please try again.";
         toast.error(errorMessage);
         return errorMessage;

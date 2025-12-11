@@ -12,6 +12,8 @@
  * Epic 6 will replace this stub with real provider integration.
  */
 
+import { logger } from "@/lib/telemetry/logger";
+
 /**
  * Exchange rate data returned by the service
  */
@@ -97,7 +99,10 @@ function calculateRate(fromCurrency: string, toCurrency: string): string {
 
   // If either currency is not supported, return 1 (no conversion)
   if (!fromRate || !toRate) {
-    console.warn(`Unsupported currency pair: ${fromCurrency}/${toCurrency}. Returning rate of 1.`);
+    logger.warn("Unsupported currency pair - returning rate of 1", {
+      fromCurrency,
+      toCurrency,
+    });
     return "1.0000";
   }
 

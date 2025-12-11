@@ -52,7 +52,10 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
       name: "",
       disclaimerAcknowledged: false,
     },
-    mode: "onBlur", // Validate on blur per UX spec
+    // Use "all" mode to validate on both blur AND change events
+    // This ensures isValid updates correctly for checkboxes (which don't blur on click)
+    // while still showing errors primarily on blur for text fields
+    mode: "all",
   });
 
   const password = form.watch("password");

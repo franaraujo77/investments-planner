@@ -6,6 +6,7 @@
  */
 
 import { db } from "@/lib/db";
+import { logger, redactUserId } from "@/lib/telemetry/logger";
 import { users, type User } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { invalidateRecommendations } from "@/lib/cache/recommendations";
@@ -97,7 +98,10 @@ export async function updateUserProfile(userId: string, data: UpdateProfileData)
       await invalidateRecommendations(userId);
     } catch (cacheError) {
       // Log but don't fail the update if cache invalidation fails
-      console.error("Failed to invalidate recommendations cache:", cacheError);
+      logger.warn("Failed to invalidate recommendations cache", {
+        userId: redactUserId(userId),
+        errorMessage: cacheError instanceof Error ? cacheError.message : String(cacheError),
+      });
     }
   }
 
