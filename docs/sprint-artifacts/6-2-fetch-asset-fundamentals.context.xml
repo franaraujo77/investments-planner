@@ -1,0 +1,428 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>2</storyId>
+    <title>Fetch Asset Fundamentals</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-2-fetch-asset-fundamentals.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to fetch asset fundamental data from external APIs</iWant>
+    <soThat>criteria can evaluate assets accurately using P/E, P/B, dividend yield, and market cap data</soThat>
+    <tasks>
+      <task id="1" ac="6.2.1, 6.2.5">
+        <title>Create Database Schema for Fundamentals</title>
+        <files>src/lib/db/schema.ts, migration file</files>
+        <subtasks>
+          <subtask>Add asset_fundamentals table to Drizzle schema</subtask>
+          <subtask>Define all columns with appropriate types (numeric for financial data)</subtask>
+          <subtask>Add unique constraint on (symbol, data_date)</subtask>
+          <subtask>Add index on symbol column</subtask>
+          <subtask>Generate and run migration</subtask>
+          <subtask>Verify schema in database</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="6.2.1, 6.2.5">
+        <title>Implement GeminiProvider for Fundamentals</title>
+        <files>src/lib/providers/implementations/gemini-provider.ts</files>
+        <subtasks>
+          <subtask>Create GeminiFundamentalsProvider class implementing FundamentalsProvider</subtask>
+          <subtask>Implement fetchFundamentals(symbols) method</subtask>
+          <subtask>Parse Gemini API response to FundamentalsResult format</subtask>
+          <subtask>Handle API authentication via GEMINI_API_KEY</subtask>
+          <subtask>Implement healthCheck() method</subtask>
+          <subtask>Map API fields to interface fields (peRatio, pbRatio, etc.)</subtask>
+          <subtask>Return all numeric values as strings for decimal.js precision</subtask>
+          <subtask>Add comprehensive error handling for API failures</subtask>
+          <subtask>Log API calls for rate limit tracking</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="6.2.2, 6.2.5">
+        <title>Create Fundamentals Repository</title>
+        <files>src/lib/repositories/fundamentals-repository.ts</files>
+        <subtasks>
+          <subtask>Create FundamentalsRepository class for database operations</subtask>
+          <subtask>Implement upsertFundamentals(fundamentals: FundamentalsResult[]) method</subtask>
+          <subtask>Implement getFundamentalsBySymbol(symbol: string) method</subtask>
+          <subtask>Implement getFundamentalsBySymbols(symbols: string[]) method</subtask>
+          <subtask>Handle conflict resolution on unique constraint (upsert)</subtask>
+          <subtask>Add unit tests for repository methods</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="6.2.2">
+        <title>Implement Fundamentals Caching Layer</title>
+        <files>src/lib/providers/fundamentals-cache.ts</files>
+        <subtasks>
+          <subtask>Create FundamentalsCache class using Vercel KV</subtask>
+          <subtask>Implement get(symbol: string): Promise&lt;FundamentalsResult | null&gt;</subtask>
+          <subtask>Implement set(fundamentals: FundamentalsResult, ttl: number): Promise&lt;void&gt;</subtask>
+          <subtask>Implement getMultiple(symbols: string[]): Promise&lt;Map&lt;string, FundamentalsResult&gt;&gt;</subtask>
+          <subtask>Configure 7-day TTL (604800 seconds)</subtask>
+          <subtask>Use cache key pattern: fundamentals:${symbol}:${YYYY-MM-DD}</subtask>
+          <subtask>Add unit tests for cache operations</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="6.2.1, 6.2.3, 6.2.4">
+        <title>Enhance FundamentalsService with Real Provider</title>
+        <files>src/lib/providers/fundamentals-service.ts</files>
+        <subtasks>
+          <subtask>Update FundamentalsService to use GeminiProvider as primary</subtask>
+          <subtask>Integrate FundamentalsCache for caching layer</subtask>
+          <subtask>Integrate FundamentalsRepository for persistence</subtask>
+          <subtask>Add market filtering logic (only fetch user's configured markets)</subtask>
+          <subtask>Implement batch processing with FUNDAMENTALS_BATCH_SIZE limit</subtask>
+          <subtask>Handle partial failures gracefully (continue on individual asset failure)</subtask>
+          <subtask>Return aggregated result with success/failure counts</subtask>
+          <subtask>Log market filtering and batch processing details</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="6.2.1, 6.2.5">
+        <title>Create API Route for Fundamentals</title>
+        <files>src/app/api/data/fundamentals/route.ts</files>
+        <subtasks>
+          <subtask>Create GET handler for /api/data/fundamentals</subtask>
+          <subtask>Accept query param: symbols (comma-separated)</subtask>
+          <subtask>Validate request with Zod schema</subtask>
+          <subtask>Call FundamentalsService.getFundamentals()</subtask>
+          <subtask>Return standardized response format with data and freshness</subtask>
+          <subtask>Handle errors with appropriate HTTP status codes</subtask>
+          <subtask>Add request logging</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="6.2.1">
+        <title>Create Zod Validation Schemas</title>
+        <files>src/lib/validations/fundamentals-schemas.ts</files>
+        <subtasks>
+          <subtask>Create FundamentalsRequestSchema for API request validation</subtask>
+          <subtask>Create FundamentalsResponseSchema for response typing</subtask>
+          <subtask>Create FundamentalsResultSchema for individual result validation</subtask>
+          <subtask>Export schemas for use in API route and tests</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="6.2.1, 6.2.4">
+        <title>Write Unit Tests for GeminiProvider</title>
+        <files>tests/unit/providers/gemini-fundamentals.test.ts</files>
+        <subtasks>
+          <subtask>Test successful fundamentals fetch with all fields</subtask>
+          <subtask>Test handling of optional fields (sector, industry)</subtask>
+          <subtask>Test API error handling (401, 429, 500)</subtask>
+          <subtask>Test partial failures (some symbols fail)</subtask>
+          <subtask>Test healthCheck method</subtask>
+          <subtask>Mock Gemini API responses</subtask>
+        </subtasks>
+      </task>
+      <task id="9" ac="all">
+        <title>Write Integration Tests for Fundamentals Flow</title>
+        <files>tests/unit/api/fundamentals.test.ts</files>
+        <subtasks>
+          <subtask>Test GET /api/data/fundamentals with valid symbols</subtask>
+          <subtask>Test cache hit scenario (should not call provider)</subtask>
+          <subtask>Test cache miss scenario (should call provider and cache)</subtask>
+          <subtask>Test partial failure handling</subtask>
+          <subtask>Test market filtering logic</subtask>
+          <subtask>Test error responses for invalid input</subtask>
+        </subtasks>
+      </task>
+      <task id="10" ac="verification">
+        <title>Run Verification</title>
+        <subtasks>
+          <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+          <subtask>ESLint passes with no new errors (pnpm lint)</subtask>
+          <subtask>All unit tests pass (pnpm test)</subtask>
+          <subtask>Build succeeds (pnpm build)</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="6.2.1" title="Fundamentals Include Required Metrics">
+      <given>the fundamentals fetch is executed</given>
+      <when>data is retrieved for an asset</when>
+      <then>
+        <item>the result includes: P/E ratio, P/B ratio, dividend yield, market cap, revenue, earnings</item>
+        <item>optional fields (sector, industry) are included when available</item>
+        <item>all numeric values are stored as strings for decimal.js precision</item>
+      </then>
+    </ac>
+    <ac id="6.2.2" title="Data Cached with 7-Day TTL">
+      <given>fundamentals are successfully fetched</given>
+      <when>the data is stored</when>
+      <then>
+        <item>results are cached in Vercel KV with 7-day TTL</item>
+        <item>cache key follows pattern: fundamentals:${symbol}:${date}</item>
+        <item>subsequent requests within TTL return cached data</item>
+      </then>
+    </ac>
+    <ac id="6.2.3" title="Only User's Configured Markets Fetched">
+      <given>a user has configured markets/sectors</given>
+      <when>fundamentals fetch runs</when>
+      <then>
+        <item>only assets matching user's configured markets are fetched</item>
+        <item>unused markets are not queried (API efficiency)</item>
+        <item>market filtering is logged for debugging</item>
+      </then>
+    </ac>
+    <ac id="6.2.4" title="Partial Failures Don't Cascade">
+      <given>fundamentals fetch is executing for multiple assets</given>
+      <when>one asset's data fails to fetch</when>
+      <then>
+        <item>the failure is logged with asset symbol and error</item>
+        <item>other assets continue to fetch successfully</item>
+        <item>partial results are returned with failed assets flagged</item>
+        <item>final result indicates which assets succeeded/failed</item>
+      </then>
+    </ac>
+    <ac id="6.2.5" title="Source Attribution Recorded">
+      <given>fundamentals are fetched successfully</given>
+      <when>data is stored</when>
+      <then>
+        <item>the source provider name is recorded (e.g., "gemini-api")</item>
+        <item>fetchedAt timestamp is stored</item>
+        <item>dataDate (the date the fundamentals represent) is stored</item>
+        <item>source information is available for display in UI</item>
+      </then>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>Story 6.2: Fetch Asset Fundamentals</section>
+        <snippet>Defines FundamentalsResult interface, asset_fundamentals table schema, API endpoint design, and caching strategy for fundamentals data.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-005: Provider Abstraction Pattern</section>
+        <snippet>Provider chain: Gemini API (primary) → Alpha Vantage (fallback). Interface-based design with retry logic, circuit breaker, and graceful degradation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/6-1-provider-abstraction-layer.md</path>
+        <title>Story 6.1: Provider Abstraction Layer</title>
+        <section>Dev Agent Record / Completion Notes</section>
+        <snippet>Provides FundamentalsProvider interface, FundamentalsService skeleton, retry logic (withRetry), circuit breaker, and mock providers for testing.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Project Standards</title>
+        <section>Test Requirements for All Code Changes</section>
+        <snippet>Every code change MUST include appropriate test coverage: unit tests for new functions, integration tests for API endpoints, error handling tests.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/providers/types.ts</path>
+        <kind>types</kind>
+        <symbol>FundamentalsProvider, FundamentalsResult, ProviderError, PROVIDER_ERROR_CODES</symbol>
+        <lines>74-101, 181-200, 209-265</lines>
+        <reason>Defines the FundamentalsProvider interface and FundamentalsResult type that GeminiProvider must implement. Contains error types for provider failures.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/fundamentals-service.ts</path>
+        <kind>service</kind>
+        <symbol>FundamentalsService</symbol>
+        <lines>110-448</lines>
+        <reason>Existing service skeleton that orchestrates provider fallback chain. Story 6.2 must enhance this to use real GeminiProvider and integrate repository/cache.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/index.ts</path>
+        <kind>module</kind>
+        <symbol>getFundamentalsService</symbol>
+        <lines>296-315</lines>
+        <reason>Factory function that must be updated to use GeminiProvider instead of mock provider.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/retry.ts</path>
+        <kind>utility</kind>
+        <symbol>withRetry</symbol>
+        <reason>Retry utility with exponential backoff - use for Gemini API calls.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/circuit-breaker.ts</path>
+        <kind>utility</kind>
+        <symbol>CircuitBreaker</symbol>
+        <reason>Circuit breaker for provider health management - already integrated in FundamentalsService.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/implementations/mock-provider.ts</path>
+        <kind>implementation</kind>
+        <symbol>MockFundamentalsProvider</symbol>
+        <reason>Reference for implementing GeminiProvider - shows expected interface structure and test patterns.</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>criteriaVersions, assetScores</symbol>
+        <lines>373-450</lines>
+        <reason>Shows existing schema patterns with numeric types for financial data. asset_fundamentals table should follow similar conventions.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/index.ts</path>
+        <kind>service</kind>
+        <symbol>cacheService, CacheService</symbol>
+        <reason>Vercel KV cache interface used by FundamentalsService - provides get/set methods with TTL.</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <reason>Structured logging - all provider operations must use logger instead of console.log.</reason>
+      </file>
+      <file>
+        <path>src/lib/validations/score-schemas.ts</path>
+        <kind>validation</kind>
+        <symbol>ScoreBreakdownResponseSchema</symbol>
+        <reason>Reference for Zod schema patterns used in this project.</reason>
+      </file>
+      <file>
+        <path>tests/unit/providers/fundamentals-service.test.ts</path>
+        <kind>test</kind>
+        <symbol>FundamentalsService tests</symbol>
+        <reason>Existing test patterns for provider services - 17 tests covering success, fallback, circuit breaker scenarios.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="decimal.js" version="^10.6.0">Financial precision calculations</package>
+        <package name="@vercel/kv" version="^3.0.0">Data caching layer</package>
+        <package name="zod" version="^4.1.13">Request/response validation</package>
+        <package name="drizzle-orm" version="^0.44.7">Database ORM</package>
+        <package name="vitest" version="^4.0.14">Unit testing framework</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture" type="pattern">
+      Provider Location: Provider code goes in src/lib/providers/implementations/
+    </constraint>
+    <constraint source="architecture" type="precision">
+      decimal.js for Financial Data: All price/rate values stored as strings to preserve precision. Use numeric(19,4) for database columns.
+    </constraint>
+    <constraint source="CLAUDE.md" type="standard">
+      No console.log/console.error: Use structured logger from @/lib/telemetry/logger
+    </constraint>
+    <constraint source="CLAUDE.md" type="standard">
+      Use standardized API responses: Import from @/lib/api/responses.ts. Use error codes from @/lib/api/error-codes.ts
+    </constraint>
+    <constraint source="tech-spec" type="caching">
+      Cache TTL: Fundamentals cached for 7 days (604800 seconds). Cache key pattern: fundamentals:${symbol}:${date}
+    </constraint>
+    <constraint source="tech-spec" type="rate-limit">
+      Gemini API Rate Limit: 100 requests/minute. Batch requests to 50 symbols max.
+    </constraint>
+    <constraint source="story-6.1" type="error-handling">
+      Use ProviderError with PROVIDER_ERROR_CODES for consistent error handling across provider implementations.
+    </constraint>
+    <constraint source="typescript" type="strict-mode">
+      TypeScript exactOptionalPropertyTypes enabled - handle optional fields correctly (undefined vs missing).
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>FundamentalsProvider</name>
+      <kind>TypeScript interface</kind>
+      <signature>
+interface FundamentalsProvider {
+  readonly name: string;
+  fetchFundamentals(symbols: string[]): Promise&lt;FundamentalsResult[]&gt;;
+  healthCheck(): Promise&lt;boolean&gt;;
+}
+      </signature>
+      <path>src/lib/providers/types.ts:181-200</path>
+    </interface>
+    <interface>
+      <name>FundamentalsResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>
+interface FundamentalsResult {
+  symbol: string;
+  peRatio?: string;
+  pbRatio?: string;
+  dividendYield?: string;
+  marketCap?: string;
+  revenue?: string;
+  earnings?: string;
+  sector?: string;
+  industry?: string;
+  source: string;
+  fetchedAt: Date;
+  dataDate: Date;
+  isStale?: boolean;
+}
+      </signature>
+      <path>src/lib/providers/types.ts:74-101</path>
+    </interface>
+    <interface>
+      <name>GET /api/data/fundamentals</name>
+      <kind>REST endpoint</kind>
+      <signature>
+GET /api/data/fundamentals?symbols=PETR4,VALE3
+Response 200: { data: { fundamentals: FundamentalsResult[] } }
+Response 400: { error: string, code: "VALIDATION_ERROR" }
+Response 502: { error: string, code: "ALL_PROVIDERS_FAILED" }
+      </signature>
+      <path>src/app/api/data/fundamentals/route.ts</path>
+    </interface>
+    <interface>
+      <name>asset_fundamentals table</name>
+      <kind>Database schema</kind>
+      <signature>
+CREATE TABLE asset_fundamentals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  symbol VARCHAR(20) NOT NULL,
+  pe_ratio NUMERIC(10,2),
+  pb_ratio NUMERIC(10,2),
+  dividend_yield NUMERIC(8,4),
+  market_cap NUMERIC(19,0),
+  revenue NUMERIC(19,2),
+  earnings NUMERIC(19,2),
+  sector VARCHAR(100),
+  industry VARCHAR(100),
+  source VARCHAR(50) NOT NULL,
+  fetched_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  data_date DATE NOT NULL,
+  UNIQUE(symbol, data_date)
+);
+CREATE INDEX idx_fundamentals_symbol ON asset_fundamentals(symbol);
+      </signature>
+      <path>src/lib/db/schema.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Tests follow CLAUDE.md requirements: every code change MUST include appropriate test coverage. Use Vitest for unit/integration tests. Tests go in tests/unit/ with matching directory structure (e.g., src/lib/providers/ → tests/unit/providers/). Mock external dependencies. Cover success cases, error cases, and edge cases. Use MockFundamentalsProvider patterns from Story 6.1.
+    </standards>
+    <locations>
+      <location>tests/unit/providers/gemini-fundamentals.test.ts</location>
+      <location>tests/unit/api/fundamentals.test.ts</location>
+      <location>tests/unit/repositories/fundamentals-repository.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="6.2.1">Test fetchFundamentals returns all required metrics (peRatio, pbRatio, dividendYield, marketCap)</idea>
+      <idea ac="6.2.1">Test optional fields (sector, industry) are included when available from API</idea>
+      <idea ac="6.2.1">Test all numeric values returned as strings for decimal.js precision</idea>
+      <idea ac="6.2.2">Test cache stores with 7-day TTL</idea>
+      <idea ac="6.2.2">Test cache key follows pattern fundamentals:${symbol}:${date}</idea>
+      <idea ac="6.2.2">Test cache hit returns cached data without calling provider</idea>
+      <idea ac="6.2.3">Test market filtering only fetches configured markets</idea>
+      <idea ac="6.2.3">Test market filtering is logged</idea>
+      <idea ac="6.2.4">Test partial failure for single symbol doesn't fail entire batch</idea>
+      <idea ac="6.2.4">Test result includes which symbols succeeded/failed</idea>
+      <idea ac="6.2.5">Test source provider name is recorded</idea>
+      <idea ac="6.2.5">Test fetchedAt and dataDate timestamps are stored</idea>
+      <idea ac="all">Test API endpoint returns correct response format</idea>
+      <idea ac="all">Test API endpoint validates input symbols</idea>
+      <idea ac="all">Test error handling for provider failures (401, 429, 500)</idea>
+    </ideas>
+  </tests>
+</story-context>

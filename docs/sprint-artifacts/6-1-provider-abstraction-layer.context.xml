@@ -1,0 +1,377 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>1</storyId>
+    <title>Provider Abstraction Layer</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-1-provider-abstraction-layer.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>an abstraction layer for external data providers</iWant>
+    <soThat>providers can be swapped without code changes</soThat>
+    <tasks>
+      <task id="1" title="Create Provider Type Definitions" ac="6.1.1, 6.1.2">
+        <files>src/lib/providers/types.ts</files>
+        <items>
+          <item>Create PriceResult interface with all fields per tech-spec</item>
+          <item>Create ExchangeRateResult interface</item>
+          <item>Create FundamentalsResult interface</item>
+          <item>Create FreshnessInfo interface</item>
+          <item>Create PriceProvider interface with name, fetchPrices, healthCheck</item>
+          <item>Create ExchangeRateProvider interface with name, fetchRates, healthCheck</item>
+          <item>Create FundamentalsProvider interface with name, fetchFundamentals, healthCheck</item>
+          <item>Create ProviderError custom error class</item>
+          <item>Export all types</item>
+        </items>
+      </task>
+      <task id="2" title="Implement Retry Utility" ac="6.1.4">
+        <files>src/lib/providers/retry.ts</files>
+        <items>
+          <item>Create withRetry higher-order function for retry logic</item>
+          <item>Implement exponential backoff with configurable delays (1s, 2s, 4s)</item>
+          <item>Add timeout handling per request</item>
+          <item>Log each retry attempt with attempt number</item>
+          <item>Log final failure with all attempt details</item>
+          <item>Export retry configuration type and defaults</item>
+          <item>Add unit tests for retry logic</item>
+        </items>
+      </task>
+      <task id="3" title="Implement Circuit Breaker" ac="6.1.5">
+        <files>src/lib/providers/circuit-breaker.ts</files>
+        <items>
+          <item>Create CircuitBreakerState interface</item>
+          <item>Create CircuitBreaker class with state management</item>
+          <item>Implement failure tracking (increment on failure)</item>
+          <item>Implement circuit open logic (5 consecutive failures)</item>
+          <item>Implement reset timeout (5 minutes)</item>
+          <item>Implement half-open state for single test request</item>
+          <item>Log state transitions (closed → open, open → half-open, half-open → closed/open)</item>
+          <item>Add unit tests for circuit breaker</item>
+        </items>
+      </task>
+      <task id="4" title="Create Mock Providers for Testing" ac="6.1.1, 6.1.2, 6.1.3">
+        <files>src/lib/providers/implementations/mock-provider.ts</files>
+        <items>
+          <item>Create MockPriceProvider implementing PriceProvider</item>
+          <item>Create MockExchangeRateProvider implementing ExchangeRateProvider</item>
+          <item>Create MockFundamentalsProvider implementing FundamentalsProvider</item>
+          <item>Add configurable success/failure modes for testing</item>
+          <item>Add configurable delays for timeout testing</item>
+          <item>Export for use in tests</item>
+        </items>
+      </task>
+      <task id="5" title="Implement PriceService with Fallback Chain" ac="6.1.3, 6.1.4, 6.1.5">
+        <files>src/lib/providers/price-service.ts</files>
+        <items>
+          <item>Create PriceService class with constructor accepting primary, fallback, cache</item>
+          <item>Implement getPrices method with fallback chain</item>
+          <item>Integrate retry logic for each provider attempt</item>
+          <item>Integrate circuit breaker for provider health</item>
+          <item>Cache successful results with TTL (24h for prices)</item>
+          <item>Return stale cached data with isStale flag when all providers fail</item>
+          <item>Throw ProviderError when no cached data available</item>
+          <item>Log provider selection and fallback events</item>
+          <item>Add unit tests for PriceService</item>
+        </items>
+      </task>
+      <task id="6" title="Implement ExchangeRateService with Fallback Chain" ac="6.1.3, 6.1.4, 6.1.5">
+        <files>src/lib/providers/exchange-rate-service.ts</files>
+        <items>
+          <item>Create ExchangeRateService class with constructor accepting primary, fallback, cache</item>
+          <item>Implement getRates method with fallback chain</item>
+          <item>Integrate retry logic for each provider attempt</item>
+          <item>Integrate circuit breaker for provider health</item>
+          <item>Cache successful results with TTL (24h for rates)</item>
+          <item>Return stale cached data when all providers fail</item>
+          <item>Throw ProviderError when no cached data available</item>
+          <item>Log provider selection and fallback events</item>
+          <item>Add unit tests for ExchangeRateService</item>
+        </items>
+      </task>
+      <task id="7" title="Implement FundamentalsService with Fallback Chain" ac="6.1.3, 6.1.4, 6.1.5">
+        <files>src/lib/providers/fundamentals-service.ts</files>
+        <items>
+          <item>Create FundamentalsService class with constructor accepting primary, fallback, cache</item>
+          <item>Implement getFundamentals method with fallback chain</item>
+          <item>Integrate retry logic for each provider attempt</item>
+          <item>Integrate circuit breaker for provider health</item>
+          <item>Cache successful results with TTL (7 days for fundamentals)</item>
+          <item>Return stale cached data when all providers fail</item>
+          <item>Throw ProviderError when no cached data available</item>
+          <item>Log provider selection and fallback events</item>
+          <item>Add unit tests for FundamentalsService</item>
+        </items>
+      </task>
+      <task id="8" title="Create Provider Factory and Index" ac="6.1.3">
+        <files>src/lib/providers/index.ts</files>
+        <items>
+          <item>Create factory functions for service instantiation</item>
+          <item>Create getPriceService() factory returning configured PriceService</item>
+          <item>Create getExchangeRateService() factory returning configured service</item>
+          <item>Create getFundamentalsService() factory returning configured service</item>
+          <item>Export all provider types</item>
+          <item>Export all services</item>
+          <item>Document provider configuration via environment variables</item>
+        </items>
+      </task>
+      <task id="9" title="Create Integration Tests for Provider Services" ac="All">
+        <files>tests/unit/providers/price-service.test.ts, tests/unit/providers/exchange-rate-service.test.ts, tests/unit/providers/fundamentals-service.test.ts</files>
+        <items>
+          <item>Test primary provider success path</item>
+          <item>Test fallback to secondary provider on primary failure</item>
+          <item>Test return of stale cache when all providers fail</item>
+          <item>Test retry logic (3 attempts, exponential backoff)</item>
+          <item>Test circuit breaker opens after 5 failures</item>
+          <item>Test circuit breaker reset after timeout</item>
+          <item>Test provider swapping without code changes</item>
+        </items>
+      </task>
+      <task id="10" title="Run Verification">
+        <items>
+          <item>TypeScript compilation successful (npx tsc --noEmit)</item>
+          <item>ESLint passes with no new errors (pnpm lint)</item>
+          <item>All unit tests pass (pnpm test)</item>
+          <item>Build succeeds (pnpm build)</item>
+        </items>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.1.1" title="PriceProvider Interface Exists">
+      <given>the provider abstraction is implemented</given>
+      <when>I need to fetch asset prices</when>
+      <then>I can use the PriceProvider interface with fetchPrices(symbols) and healthCheck() methods</then>
+      <and>the interface is technology-agnostic and can be implemented by any provider</and>
+    </criterion>
+    <criterion id="AC-6.1.2" title="ExchangeRateProvider Interface Exists">
+      <given>the provider abstraction is implemented</given>
+      <when>I need to fetch exchange rates</when>
+      <then>I can use the ExchangeRateProvider interface with fetchRates(base, targets) and healthCheck() methods</then>
+      <and>the interface returns consistent data structure regardless of underlying provider</and>
+    </criterion>
+    <criterion id="AC-6.1.3" title="Provider Implementations Are Swappable">
+      <given>provider implementations exist</given>
+      <when>I need to switch from one provider to another</when>
+      <then>I can swap providers without changing business logic</then>
+      <and>the PriceService/ExchangeRateService orchestrators handle provider selection</and>
+    </criterion>
+    <criterion id="AC-6.1.4" title="Retry Logic Applied">
+      <given>a provider request is made</given>
+      <when>the request fails</when>
+      <then>retry logic applies 3 attempts with exponential backoff (1s, 2s, 4s)</then>
+      <and>each retry attempt is logged with attempt number</and>
+      <and>final failure is logged with all attempt details</and>
+    </criterion>
+    <criterion id="AC-6.1.5" title="Circuit Breaker Disables Failing Provider">
+      <given>a provider is being used</given>
+      <when>it fails 5 consecutive times</when>
+      <then>the circuit breaker disables that provider for 5 minutes</then>
+      <and>requests automatically route to fallback provider</and>
+      <and>circuit breaker state is logged</and>
+      <and>after 5 minutes, provider is re-enabled for a single test request</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification: Data Pipeline</title>
+        <section>Detailed Design - Services and Modules</section>
+        <snippet>Defines PriceProvider, ExchangeRateProvider, FundamentalsProvider interfaces with fetchPrices(), fetchRates(), fetchFundamentals(), and healthCheck() methods. Specifies PriceService, ExchangeRateService, FundamentalsService orchestration pattern.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification: Data Pipeline</title>
+        <section>TypeScript Types</section>
+        <snippet>Complete interface definitions for PriceResult (symbol, open, high, low, close, volume, currency, source, fetchedAt, priceDate, isStale), ExchangeRateResult (base, rates, source, fetchedAt, rateDate), FundamentalsResult, FreshnessInfo.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification: Data Pipeline</title>
+        <section>Non-Functional Requirements - Reliability</section>
+        <snippet>Retry logic: 3 attempts with exponential backoff (1s, 2s, 4s). Timeout: 10s per request. Circuit breaker: disable failing provider after 5 consecutive failures for 5 minutes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>ADR-005: Provider Abstraction Pattern</section>
+        <snippet>Interface-based design for external APIs with fallback chain: Primary → Fallback → Cache (stale flag). Provider implementations: Asset Prices (Gemini → Yahoo), Exchange Rates (ExchangeRate-API → Open Exchange), Fundamentals (Gemini → Alpha Vantage).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Project Structure</section>
+        <snippet>Provider files at lib/providers/: types.ts (interfaces), price-service.ts, exchange-rate-service.ts, implementations/ folder for concrete providers, index.ts (factory functions).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Error Handling - Custom Error Classes</section>
+        <snippet>AppError base class with message, code, statusCode, details. ProviderError extends AppError with provider name for 502 status code. All errors return consistent format: { error, code, details? }.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/lib/cache/service.ts</path>
+        <kind>service</kind>
+        <symbol>CacheService</symbol>
+        <reason>Provider services will use CacheService for caching price, rate, and fundamentals data with configurable TTL. Use cacheService singleton instance.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/cache/service.ts</path>
+        <kind>interface</kind>
+        <symbol>getOrSet</symbol>
+        <lines>101-115</lines>
+        <reason>Pattern for cache-through with factory function - use for provider fallback to cached data.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <reason>Use structured logger for retry attempts, circuit breaker state transitions, and provider fallback events. Import { logger } from "@/lib/telemetry/logger".</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/api/error-codes.ts</path>
+        <kind>constants</kind>
+        <symbol>EXTERNAL_ERRORS</symbol>
+        <lines>149-158</lines>
+        <reason>Use EXTERNAL_ERRORS.PRICE_SERVICE_ERROR and EXTERNAL_ERRORS.EXCHANGE_RATE_ERROR for provider failures. Maps to HTTP 502.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/services/score-service.ts</path>
+        <kind>service</kind>
+        <symbol>ScoreService</symbol>
+        <reason>Reference pattern for service layer with event emission, database persistence, and error handling. Follow similar patterns for provider services.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/calculations/decimal-config.ts</path>
+        <kind>config</kind>
+        <symbol>Decimal</symbol>
+        <reason>All price/rate values must use decimal.js for financial precision. Import configured Decimal from this file.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>PostgreSQL schema</symbol>
+        <reason>Reference for data types - all currency values use numeric(19,4), quantities use numeric(19,8). Provider results should use string representation for precision.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Financial precision calculations for all price/rate values</purpose>
+      </node>
+      <node>
+        <package>@vercel/kv</package>
+        <version>^3.0.0</version>
+        <purpose>Data caching via CacheService</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Request/response validation for API inputs</purpose>
+      </node>
+      <node>
+        <package>@opentelemetry/api</package>
+        <version>^1.9.0</version>
+        <purpose>Trace correlation for structured logging</purpose>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <purpose>Unit testing framework</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture">All price/rate values must be stored as strings to preserve decimal.js precision - never use JavaScript Number for financial data.</constraint>
+    <constraint source="Architecture">Provider code must be placed in src/lib/providers/ directory structure.</constraint>
+    <constraint source="Architecture">Use structured logger from @/lib/telemetry/logger - never console.log/console.error.</constraint>
+    <constraint source="Architecture">All error responses must follow standardized format: { error: string, code: string, details?: object }.</constraint>
+    <constraint source="Architecture">Use custom error classes extending AppError from @/lib/errors for provider failures.</constraint>
+    <constraint source="Tech-Spec">Retry config: 3 attempts, exponential backoff (1s, 2s, 4s), 10s timeout per request.</constraint>
+    <constraint source="Tech-Spec">Circuit breaker config: failureThreshold=5, resetTimeout=5 minutes (300000ms).</constraint>
+    <constraint source="Tech-Spec">Cache TTL: prices 24h, exchange rates 24h, fundamentals 7 days.</constraint>
+    <constraint source="CLAUDE.md">All new code must have corresponding unit tests - no exceptions.</constraint>
+    <constraint source="CLAUDE.md">No console.log/console.error in production code - use logger from @/lib/telemetry/logger.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>PriceProvider</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface PriceProvider { name: string; fetchPrices(symbols: string[]): Promise&lt;PriceResult[]&gt;; healthCheck(): Promise&lt;boolean&gt;; }</signature>
+      <path>src/lib/providers/types.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>ExchangeRateProvider</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface ExchangeRateProvider { name: string; fetchRates(base: string, targets: string[]): Promise&lt;ExchangeRateResult&gt;; healthCheck(): Promise&lt;boolean&gt;; }</signature>
+      <path>src/lib/providers/types.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>FundamentalsProvider</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface FundamentalsProvider { name: string; fetchFundamentals(symbols: string[]): Promise&lt;FundamentalsResult[]&gt;; healthCheck(): Promise&lt;boolean&gt;; }</signature>
+      <path>src/lib/providers/types.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>CacheService.get</name>
+      <kind>method</kind>
+      <signature>async get&lt;T&gt;(key: string): Promise&lt;{ data: T; metadata: CacheMetadata } | null&gt;</signature>
+      <path>src/lib/cache/service.ts</path>
+    </interface>
+    <interface>
+      <name>CacheService.set</name>
+      <kind>method</kind>
+      <signature>async set&lt;T&gt;(key: string, value: T, ttlSeconds?: number, source?: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/cache/service.ts</path>
+    </interface>
+    <interface>
+      <name>logger</name>
+      <kind>object</kind>
+      <signature>{ debug, info, warn, error: (message: string, context?: LogContext) =&gt; void }</signature>
+      <path>src/lib/telemetry/logger.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Vitest for all unit tests. Tests should be located in tests/unit/providers/ mirroring the src/lib/providers/ structure. Mock external dependencies (CacheService, actual HTTP calls). Use vi.fn() for mocking, vi.useFakeTimers() for testing timeouts and delays. Follow existing test patterns from tests/unit/services/ and tests/unit/calculations/. All tests must pass before marking story as complete. Coverage should include success paths, error paths, retry scenarios, and circuit breaker state transitions.
+    </standards>
+    <locations>
+      <location>tests/unit/providers/types.test.ts</location>
+      <location>tests/unit/providers/retry.test.ts</location>
+      <location>tests/unit/providers/circuit-breaker.test.ts</location>
+      <location>tests/unit/providers/price-service.test.ts</location>
+      <location>tests/unit/providers/exchange-rate-service.test.ts</location>
+      <location>tests/unit/providers/fundamentals-service.test.ts</location>
+      <location>tests/unit/providers/mock-provider.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="6.1.1">Unit: Verify PriceProvider interface contract - fetchPrices returns PriceResult[], healthCheck returns boolean</idea>
+      <idea ac="6.1.2">Unit: Verify ExchangeRateProvider interface contract - fetchRates returns ExchangeRateResult with rates Record</idea>
+      <idea ac="6.1.3">Integration: Create two mock implementations, swap them in PriceService, verify same behavior</idea>
+      <idea ac="6.1.3">Unit: Factory functions return properly configured services with injected providers</idea>
+      <idea ac="6.1.4">Unit: withRetry retries exactly 3 times on failure with exponential delays</idea>
+      <idea ac="6.1.4">Unit: Verify retry logs include attempt number (1/3, 2/3, 3/3)</idea>
+      <idea ac="6.1.4">Unit: Final failure log includes all attempt details</idea>
+      <idea ac="6.1.4">Unit: Timeout aborts request after configured duration</idea>
+      <idea ac="6.1.5">Unit: Circuit breaker opens after exactly 5 consecutive failures</idea>
+      <idea ac="6.1.5">Unit: Open circuit returns immediately without calling provider</idea>
+      <idea ac="6.1.5">Unit: Circuit transitions to half-open after 5 minute timeout</idea>
+      <idea ac="6.1.5">Unit: Half-open state allows single test request</idea>
+      <idea ac="6.1.5">Unit: Successful test request closes circuit</idea>
+      <idea ac="6.1.5">Unit: Failed test request reopens circuit</idea>
+      <idea ac="All">Integration: PriceService tries primary, falls back on failure, returns stale cache as last resort</idea>
+    </ideas>
+  </tests>
+</story-context>

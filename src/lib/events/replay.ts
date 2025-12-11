@@ -19,6 +19,7 @@ import {
   type InputsCapturedEvent,
 } from "./types";
 import { Decimal } from "@/lib/calculations/decimal-config";
+import { scoringEngine } from "@/lib/calculations/scoring-engine";
 
 /**
  * Result of a calculation replay
@@ -168,7 +169,7 @@ export async function replay(
  * @param replayed - Results from replay execution
  * @returns Match status and any discrepancies
  */
-function compareResults(
+export function compareResults(
   original: AssetScoreResult[],
   replayed: AssetScoreResult[]
 ): {
@@ -262,5 +263,86 @@ export async function replayBatch(
     successful: results.filter((r) => r.success).length,
     matching: results.filter((r) => r.matches).length,
     results,
+  };
+}
+
+/**
+ * Replays a calculation using the default scoring engine
+ *
+ * Story 6.9: Calculation Breakdown Access
+ * AC-6.9.5: Replay Produces Identical Results (Deterministic)
+ *
+ * Convenience function that uses the default scoring engine for replay.
+ * Verifies that replaying with the same inputs produces identical results.
+ *
+ * @param correlationId - Correlation ID of the calculation to replay
+ * @param store - Event store instance (optional, uses default)
+ * @returns Replay result with verification status
+ * @throws Error if replay is non-deterministic
+ *
+ * @example
+ * ```typescript
+ * const result = await replayCalculation(correlationId);
+ *
+ * if (!result.matches) {
+ *   throw new Error('Non-deterministic calculation detected!');
+ * }
+ * ```
+ */
+export async function replayCalculation(
+  correlationId: string,
+  store: EventStore = defaultEventStore
+): Promise<ReplayResult> {
+  // Use the default scoring engine for replay
+  const scoringFn: ScoringFunction = (inputs) => {
+    return scoringEngine.calculateFromInputs(inputs);
+  };
+
+  const result = await replay(correlationId, scoringFn, store);
+
+  // AC-6.9.5: Throw error if non-deterministic
+  if (result.success && !result.matches) {
+    const discrepancyDetails = result.discrepancies
+      ?.map((d) => `Asset ${d.assetId}: ${d.originalScore} vs ${d.replayScore}`)
+      .join(", ");
+
+    const error = new Error(
+      `Non-deterministic calculation detected for correlation ${correlationId}. Discrepancies: ${discrepancyDetails}`
+    );
+    error.name = "NonDeterministicError";
+    throw error;
+  }
+
+  return result;
+}
+
+/**
+ * Verifies a calculation is deterministic without throwing
+ *
+ * AC-6.9.5: Replay Produces Identical Results (Deterministic)
+ *
+ * Returns a boolean indicating whether the calculation is deterministic.
+ * Does not throw on non-deterministic results.
+ *
+ * @param correlationId - Correlation ID of the calculation to verify
+ * @param store - Event store instance (optional, uses default)
+ * @returns Object with verified status and result details
+ */
+export async function verifyDeterminism(
+  correlationId: string,
+  store: EventStore = defaultEventStore
+): Promise<{
+  verified: boolean;
+  result: ReplayResult;
+}> {
+  const scoringFn: ScoringFunction = (inputs) => {
+    return scoringEngine.calculateFromInputs(inputs);
+  };
+
+  const result = await replay(correlationId, scoringFn, store);
+
+  return {
+    verified: result.success && result.matches,
+    result,
   };
 }

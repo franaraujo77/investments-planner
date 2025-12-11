@@ -1,5 +1,5 @@
 # Sprint Status - investments-planner
-# Generated: 2025-12-05
+# Generated: 2025-12-10
 # Project: investments-planner
 
 # STATUS DEFINITIONS:
@@ -26,7 +26,7 @@
 # - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
 
-generated: 2025-12-05
+generated: 2025-12-10
 project: investments-planner
 project_key: investments-planner
 tracking_system: file-system
@@ -113,23 +113,23 @@ development_status:
   5-9-store-historical-scores: done
   5-10-view-asset-score: done
   5-11-score-breakdown-view: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: completed
 
   # =============================================================================
   # EPIC 6: DATA PIPELINE
   # Goal: Integrate external data providers and ensure data freshness visibility
   # Stories: 9 | FRs: FR31-FR33, FR38-FR39, FR41-FR42, FR60-FR62
   # =============================================================================
-  epic-6: backlog
-  6-1-provider-abstraction-layer: backlog
-  6-2-fetch-asset-fundamentals: backlog
-  6-3-fetch-daily-prices: backlog
-  6-4-fetch-exchange-rates: backlog
-  6-5-currency-conversion-logic: backlog
-  6-6-force-data-refresh: backlog
-  6-7-data-freshness-display: backlog
-  6-8-data-source-attribution: backlog
-  6-9-calculation-breakdown-access: backlog
+  epic-6: contexted
+  6-1-provider-abstraction-layer: done
+  6-2-fetch-asset-fundamentals: done
+  6-3-fetch-daily-prices: done
+  6-4-fetch-exchange-rates: done
+  6-5-currency-conversion-logic: done
+  6-6-force-data-refresh: done
+  6-7-data-freshness-display: done
+  6-8-data-source-attribution: done
+  6-9-calculation-breakdown-access: done
   epic-6-retrospective: optional
 
   # =============================================================================

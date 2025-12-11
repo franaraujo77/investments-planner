@@ -17,7 +17,7 @@
  * AC-5.11.7: Calculation History Link
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -28,6 +28,8 @@ import {
   Edit,
   History,
   TrendingUp,
+  Download,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -52,6 +54,14 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getScoreLevel, type ScoreLevel } from "@/components/fintech/score-badge";
 import type { CriterionResult } from "@/hooks/use-asset-score";
+import { SourceAttributionLabel } from "@/components/data/source-attribution-label";
+import type { CalculationInputSources } from "@/lib/types/source-attribution";
+import type { CalculationBreakdown, CriterionOperator } from "@/lib/types/calculation-breakdown";
+import {
+  exportCalculationAsJSON,
+  generateExportFilename,
+  triggerDownload,
+} from "@/lib/utils/export-calculation";
 
 // =============================================================================
 // TYPES
@@ -78,6 +88,10 @@ export interface ScoreBreakdownProps {
   criteriaVersionId: string;
   /** Target market (for edit link navigation) */
   targetMarket?: string | undefined;
+  /** Input sources used in calculation (AC-6.8.3) */
+  inputSources?: CalculationInputSources | undefined;
+  /** Correlation ID for replay reference (AC-6.9.5) */
+  correlationId?: string | undefined;
 }
 
 // =============================================================================
@@ -364,6 +378,96 @@ function SkippedCriteriaSection({ skippedCriteria }: SkippedCriteriaSectionProps
   );
 }
 
+/**
+ * CalculationInputsSection - displays data sources used in calculation
+ *
+ * Story 6.8: Data Source Attribution
+ * AC-6.8.3: Source Available in Score Breakdown
+ */
+interface CalculationInputsSectionProps {
+  inputSources: CalculationInputSources;
+}
+
+function CalculationInputsSection({ inputSources }: CalculationInputsSectionProps) {
+  return (
+    <div className="space-y-2" data-testid="calculation-inputs-section">
+      <h3 className="text-sm font-medium">Calculation Inputs</h3>
+      <div className="space-y-1.5 text-sm">
+        {/* Price source */}
+        {inputSources.price && (
+          <div
+            className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
+            data-testid="input-source-price"
+          >
+            <SourceAttributionLabel
+              dataType="price"
+              source={inputSources.price.source}
+              showIcon
+              size="sm"
+            />
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {inputSources.price.value} {inputSources.price.currency}
+            </span>
+          </div>
+        )}
+
+        {/* Exchange rate source */}
+        {inputSources.exchangeRate && (
+          <div
+            className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
+            data-testid="input-source-rate"
+          >
+            <SourceAttributionLabel
+              dataType="rate"
+              source={inputSources.exchangeRate.source}
+              showIcon
+              size="sm"
+            />
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {inputSources.exchangeRate.from}/{inputSources.exchangeRate.to}:{" "}
+              {inputSources.exchangeRate.rate}
+            </span>
+          </div>
+        )}
+
+        {/* Fundamentals source */}
+        {inputSources.fundamentals && (
+          <div
+            className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
+            data-testid="input-source-fundamentals"
+          >
+            <SourceAttributionLabel
+              dataType="fundamentals"
+              source={inputSources.fundamentals.source}
+              showIcon
+              size="sm"
+            />
+            <span className="text-xs text-muted-foreground">
+              {
+                Object.keys(inputSources.fundamentals.metrics).filter(
+                  (k) => inputSources.fundamentals!.metrics[k] !== null
+                ).length
+              }{" "}
+              metrics
+            </span>
+          </div>
+        )}
+
+        {/* Criteria version */}
+        <div
+          className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
+          data-testid="input-source-criteria"
+        >
+          <span className="text-xs text-muted-foreground">Criteria Version</span>
+          <span className="text-xs font-mono text-muted-foreground">
+            {inputSources.criteriaVersion.slice(0, 8)}...
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
@@ -390,11 +494,109 @@ export function ScoreBreakdown({
   calculatedAt,
   criteriaVersionId,
   targetMarket,
+  inputSources,
+  correlationId,
 }: ScoreBreakdownProps) {
+  const [isExporting, setIsExporting] = useState(false);
+
   const displayScore = useMemo(() => normalizeScore(score), [score]);
   const scoreLevel = useMemo(() => getScoreLevel(displayScore), [displayScore]);
   const scoreColors = useMemo(() => getScoreColorClasses(scoreLevel), [scoreLevel]);
   const relativeTime = useMemo(() => formatRelativeTime(calculatedAt), [calculatedAt]);
+
+  /**
+   * Handle export button click
+   *
+   * AC-6.9.4: Export Breakdown as JSON
+   * - Creates well-formatted JSON with all inputs, evaluations, and metadata
+   * - Triggers file download with format: calculation-{symbol}-{date}.json
+   */
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+
+    try {
+      // Build CalculationBreakdown from props
+      const calculationBreakdown: CalculationBreakdown = {
+        assetId,
+        symbol,
+        calculatedAt,
+        correlationId: correlationId ?? crypto.randomUUID(), // Fallback if not available
+        inputs: {
+          price: inputSources?.price
+            ? {
+                value: inputSources.price.value,
+                currency: inputSources.price.currency,
+                source: inputSources.price.source,
+                fetchedAt: new Date(inputSources.price.fetchedAt),
+              }
+            : null,
+          exchangeRate: inputSources?.exchangeRate
+            ? {
+                from: inputSources.exchangeRate.from,
+                to: inputSources.exchangeRate.to,
+                rate: inputSources.exchangeRate.rate,
+                source: inputSources.exchangeRate.source,
+                fetchedAt: new Date(inputSources.exchangeRate.fetchedAt),
+              }
+            : null,
+          fundamentals: inputSources?.fundamentals
+            ? {
+                source: inputSources.fundamentals.source,
+                fetchedAt: new Date(inputSources.fundamentals.fetchedAt),
+                metrics: {
+                  peRatio: inputSources.fundamentals.metrics.peRatio ?? null,
+                  pbRatio: inputSources.fundamentals.metrics.pbRatio ?? null,
+                  dividendYield: inputSources.fundamentals.metrics.dividendYield ?? null,
+                  marketCap: inputSources.fundamentals.metrics.marketCap ?? null,
+                  revenue: inputSources.fundamentals.metrics.revenue ?? null,
+                  earnings: inputSources.fundamentals.metrics.earnings ?? null,
+                  ...inputSources.fundamentals.metrics,
+                },
+              }
+            : null,
+        },
+        criteriaVersion: {
+          id: criteriaVersionId,
+          version: "1", // Version info not available in current props
+          createdAt: calculatedAt, // Using calculatedAt as fallback
+          ...(inputSources?.criteriaVersion ? { name: inputSources.criteriaVersion } : {}),
+        },
+        evaluations: breakdown.map((b) => ({
+          criterionId: b.criterionId,
+          name: b.criterionName,
+          operator: "gte" as CriterionOperator, // Default, actual operator not in current breakdown
+          threshold: "0", // Threshold not available in current breakdown
+          actualValue: b.actualValue,
+          passed: b.matched,
+          pointsAwarded: b.pointsAwarded,
+          maxPoints: b.pointsAwarded > 0 ? b.pointsAwarded : 10, // Estimate if not available
+          skippedReason: b.skippedReason,
+        })),
+        finalScore: String(score),
+        maxPossibleScore: String(
+          breakdown.reduce((sum, b) => sum + (b.pointsAwarded > 0 ? b.pointsAwarded : 10), 0)
+        ),
+        scorePercentage: String(displayScore),
+      };
+
+      // Generate JSON and trigger download
+      const json = exportCalculationAsJSON(calculationBreakdown);
+      const filename = generateExportFilename(symbol, calculatedAt);
+      triggerDownload(json, filename);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [
+    assetId,
+    symbol,
+    calculatedAt,
+    correlationId,
+    inputSources,
+    criteriaVersionId,
+    breakdown,
+    score,
+    displayScore,
+  ]);
 
   // Separate matched/unmatched and skipped criteria
   const { evaluatedCriteria, skippedCriteria } = useMemo(() => {
@@ -495,10 +697,34 @@ export function ScoreBreakdown({
           </>
         )}
 
+        {/* AC-6.8.3: Calculation Inputs Section with Source Attribution */}
+        {inputSources && (
+          <>
+            <Separator className="my-4" />
+            <CalculationInputsSection inputSources={inputSources} />
+          </>
+        )}
+
         <Separator className="my-4" />
 
-        {/* AC-5.11.6 & AC-5.11.7: Navigation Links */}
+        {/* AC-5.11.6, AC-5.11.7, AC-6.9.4: Navigation Links and Export */}
         <div className="space-y-2">
+          {/* AC-6.9.4: Export as JSON Button */}
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={handleExport}
+            disabled={isExporting}
+            data-testid="export-json-button"
+          >
+            {isExporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {isExporting ? "Exporting..." : "Export as JSON"}
+          </Button>
+
           {/* AC-5.11.6: Edit Criteria Link */}
           <Button
             variant="outline"
@@ -545,6 +771,7 @@ export {
   CriterionResultRow,
   PointsContributionChart,
   SkippedCriteriaSection,
+  CalculationInputsSection,
   formatRelativeTime,
   getScoreColorClasses,
 };

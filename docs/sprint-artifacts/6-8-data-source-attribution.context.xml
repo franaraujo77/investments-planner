@@ -1,0 +1,309 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>8</storyId>
+    <title>Data Source Attribution</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-8-data-source-attribution.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see which API provided each data point</iWant>
+    <soThat>I can trust the data source and understand data provenance</soThat>
+    <tasks>
+      <task id="1" title="Create Source Attribution Type and Utilities">
+        <files>src/lib/types/source-attribution.ts</files>
+        <items>
+          <item>Create SourceAttribution type with dataType, source, timestamp fields</item>
+          <item>Create formatSourceAttribution() utility function</item>
+          <item>Create PROVIDER_DISPLAY_NAMES constant mapping technical to display names</item>
+          <item>Create getProviderDisplayName(source: string) helper</item>
+          <item>Export all types and utilities</item>
+        </items>
+        <ac>6.8.1, 6.8.2</ac>
+      </task>
+      <task id="2" title="Create SourceAttributionLabel Component">
+        <files>src/components/data/source-attribution-label.tsx</files>
+        <items>
+          <item>Create SourceAttributionLabel component</item>
+          <item>Accept props: dataType, source, timestamp?, showIcon?, className?</item>
+          <item>Format source using "Data from Provider" pattern</item>
+          <item>Use appropriate icon (Database, Globe, etc.) when showIcon=true</item>
+          <item>Style with muted text color per UX spec</item>
+          <item>Support dark mode styling</item>
+        </items>
+        <ac>6.8.1, 6.8.2</ac>
+      </task>
+      <task id="3" title="Verify DataFreshnessBadge Source Format">
+        <files>src/components/data/data-freshness-badge.tsx</files>
+        <items>
+          <item>Verify tooltip shows source in correct format</item>
+          <item>Update to use formatSourceAttribution() utility</item>
+          <item>Ensure provider display names are used (not technical names)</item>
+          <item>Test tooltip accessibility</item>
+        </items>
+        <ac>6.8.2, 6.8.3</ac>
+      </task>
+      <task id="4" title="Integrate Source into Score Breakdown View">
+        <files>src/components/fintech/score-breakdown.tsx</files>
+        <items>
+          <item>Add "Data Sources" section to score breakdown</item>
+          <item>Show source attribution for each input type: Price, Exchange rate, Fundamentals, Criteria version</item>
+          <item>Use SourceAttributionLabel components</item>
+          <item>Format section header as "Calculation Inputs"</item>
+        </items>
+        <ac>6.8.3</ac>
+      </task>
+      <task id="5" title="Create GET /api/scores/[assetId]/inputs Endpoint">
+        <files>src/app/api/scores/[assetId]/inputs/route.ts</files>
+        <items>
+          <item>Create GET handler for calculation inputs</item>
+          <item>Return all input values used (prices, rates, fundamentals)</item>
+          <item>Include source attribution for each input</item>
+          <item>Include criteria version used</item>
+          <item>Auth required (withAuth middleware)</item>
+          <item>Validate assetId parameter with Zod</item>
+        </items>
+        <ac>6.8.3</ac>
+      </task>
+      <task id="6" title="Verify Source Field Population in Database">
+        <files>Database verification / existing repositories</files>
+        <items>
+          <item>Verify asset_prices table has source populated for all records</item>
+          <item>Verify exchange_rates table has source populated</item>
+          <item>Verify asset_fundamentals table has source populated</item>
+          <item>Verify score records include input sources in breakdown JSON</item>
+          <item>Add validation to prevent null/empty source in repositories</item>
+        </items>
+        <ac>6.8.4</ac>
+      </task>
+      <task id="7" title="Update Score Calculation to Track Input Sources">
+        <files>src/lib/calculations/scoring-engine.ts</files>
+        <items>
+          <item>Ensure score breakdown includes source attribution for each input</item>
+          <item>Store input sources in INPUTS_CAPTURED event</item>
+          <item>Include sources in score breakdown JSON stored in database</item>
+        </items>
+        <ac>6.8.3, 6.8.4</ac>
+      </task>
+      <task id="8" title="Write Unit Tests">
+        <files>tests/unit/lib/types/source-attribution.test.ts, tests/unit/components/source-attribution.test.ts</files>
+        <items>
+          <item>Test formatSourceAttribution() with various data types</item>
+          <item>Test getProviderDisplayName() mapping</item>
+          <item>Test unknown provider fallback handling</item>
+          <item>Test SourceAttributionLabel helper functions</item>
+          <item>Test with missing/null source values</item>
+        </items>
+        <ac>All</ac>
+      </task>
+      <task id="9" title="Write API Integration Tests">
+        <files>tests/unit/api/scores-inputs.test.ts</files>
+        <items>
+          <item>Test GET /api/scores/[assetId]/inputs endpoint</item>
+          <item>Test authentication requirement</item>
+          <item>Test response includes all source attributions</item>
+          <item>Test with valid/invalid assetId</item>
+          <item>Test error responses</item>
+        </items>
+        <ac>6.8.3</ac>
+      </task>
+      <task id="10" title="Run Verification">
+        <items>
+          <item>TypeScript compilation successful (npx tsc --noEmit)</item>
+          <item>ESLint passes with no new errors</item>
+          <item>All unit tests pass</item>
+          <item>Build verification complete</item>
+        </items>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.8.1" title="Provider Name Displayed for Each Data Point">
+      <given>I am viewing data details (prices, fundamentals, exchange rates)</given>
+      <when>I view the data source information</when>
+      <then>I see the provider name for each data point</then>
+      <and>the provider name is human-readable (not technical API names)</and>
+    </criterion>
+    <criterion id="AC-6.8.2" title="Source Format String Display">
+      <given>I am viewing data with source attribution</given>
+      <when>the source displays</when>
+      <then>the format follows the pattern: "Price from Gemini API", "Rate from ExchangeRate-API"</then>
+      <and>the format is consistent across all data types</and>
+    </criterion>
+    <criterion id="AC-6.8.3" title="Source Available in Asset Detail Panel and Score Breakdown">
+      <given>I am viewing asset details or score breakdown</given>
+      <when>I look for data source information</when>
+      <then>I see source attribution in: Asset detail panel (for prices, fundamentals), Score breakdown view (for all inputs used in calculation)</then>
+      <and>sources are clearly labeled and easily identifiable</and>
+    </criterion>
+    <criterion id="AC-6.8.4" title="Source Stored with All Data Records">
+      <given>data is fetched from any provider</given>
+      <when>the data is stored in the database</when>
+      <then>the source field is populated for all records</then>
+      <and>the source is never null or empty for fetched data</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>Story 6.8: Data Source Attribution</section>
+        <snippet>AC-6.8.1: Provider name displayed for each data point. AC-6.8.2: Format: "Price from Gemini API", "Rate from ExchangeRate-API". AC-6.8.3: Available in: asset detail panel and score breakdown. AC-6.8.4: Source stored with all data records.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-005: Provider Abstraction Pattern</section>
+        <snippet>All external APIs accessed through interface abstraction. Provider names tracked with source field. Supports DataFreshnessBadge for displaying data provenance.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/6-7-data-freshness-display.md</path>
+        <title>Story 6.7: Data Freshness Display</title>
+        <section>Implementation Details</section>
+        <snippet>DataFreshnessBadge already displays source in tooltip. FreshnessInfo type includes source field. Tooltip shows exact timestamp + source.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/components/data/data-freshness-badge.tsx</path>
+        <kind>component</kind>
+        <symbol>DataFreshnessBadge</symbol>
+        <lines>1-268</lines>
+        <reason>Shows source in tooltip - integration point for source attribution display. Already displays "Source: {freshnessInfo.source}" in TooltipContent.</reason>
+      </file>
+      <file>
+        <path>src/lib/types/freshness.ts</path>
+        <kind>types</kind>
+        <symbol>FreshnessInfo, FreshnessStatus</symbol>
+        <lines>1-201</lines>
+        <reason>Re-exports FreshnessInfo from providers/types. Pattern for creating source-attribution.ts types.</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/types.ts</path>
+        <kind>types</kind>
+        <symbol>PriceResult, ExchangeRateResult, FundamentalsResult, FreshnessInfo</symbol>
+        <lines>1-360</lines>
+        <reason>All provider result types include source field. FreshnessInfo interface definition. Provider display names pattern needed.</reason>
+      </file>
+      <file>
+        <path>src/components/fintech/score-breakdown.tsx</path>
+        <kind>component</kind>
+        <symbol>ScoreBreakdown, PointsContributionChart</symbol>
+        <lines>1-551</lines>
+        <reason>Integration point for showing data sources in score breakdown. Needs new "Calculation Inputs" section with source attribution.</reason>
+      </file>
+      <file>
+        <path>src/lib/calculations/scoring-engine.ts</path>
+        <kind>service</kind>
+        <symbol>calculateScoresWithEvents, InputsCapturedEvent</symbol>
+        <lines>309-401</lines>
+        <reason>Emits INPUTS_CAPTURED event with prices, rates. Need to include source attribution in event payload and score breakdown.</reason>
+      </file>
+      <file>
+        <path>src/components/data/index.ts</path>
+        <kind>barrel</kind>
+        <symbol>exports</symbol>
+        <reason>Barrel export file for data components. Need to add SourceAttributionLabel export.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.555.0</version>
+        <purpose>Icons for source attribution (Database, Globe, etc.)</purpose>
+      </node>
+      <node>
+        <package>@radix-ui/react-tooltip</package>
+        <version>^1.2.8</version>
+        <purpose>Tooltip for source details on hover</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>API input validation for assetId parameter</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="pattern">Types MUST go in lib/types/ following freshness.ts pattern</constraint>
+    <constraint type="pattern">Components MUST go in components/data/ following data-freshness-badge.tsx pattern</constraint>
+    <constraint type="pattern">API routes MUST use withAuth middleware for authentication</constraint>
+    <constraint type="pattern">All API responses MUST use standardized responses from @/lib/api/responses.ts</constraint>
+    <constraint type="pattern">Use structured logger from @/lib/telemetry/logger - NO console.error</constraint>
+    <constraint type="styling">Use shadcn/ui components and Tailwind utility classes</constraint>
+    <constraint type="accessibility">All text must be readable, contrast requirements met</constraint>
+    <constraint type="testing">Every code change MUST include appropriate test coverage</constraint>
+    <constraint type="layer">UI components are client components ("use client")</constraint>
+    <constraint type="layer">API routes are server-side only</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>FreshnessInfo</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface FreshnessInfo { source: string; fetchedAt: Date; isStale: boolean; staleSince?: Date; }</signature>
+      <path>src/lib/providers/types.ts</path>
+    </interface>
+    <interface>
+      <name>PriceResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface PriceResult { symbol: string; close: string; currency: string; source: string; fetchedAt: Date; priceDate: Date; isStale?: boolean; ... }</signature>
+      <path>src/lib/providers/types.ts</path>
+    </interface>
+    <interface>
+      <name>ExchangeRateResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface ExchangeRateResult { base: string; rates: Record&lt;string, string&gt;; source: string; fetchedAt: Date; rateDate: Date; isStale?: boolean; }</signature>
+      <path>src/lib/providers/types.ts</path>
+    </interface>
+    <interface>
+      <name>FundamentalsResult</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface FundamentalsResult { symbol: string; peRatio?: string; pbRatio?: string; dividendYield?: string; marketCap?: string; source: string; fetchedAt: Date; dataDate: Date; ... }</signature>
+      <path>src/lib/providers/types.ts</path>
+    </interface>
+    <interface>
+      <name>DataFreshnessBadgeProps</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface DataFreshnessBadgeProps { freshnessInfo: FreshnessInfo; onRefresh?: () =&gt; void; showSource?: boolean; size?: "sm" | "default"; refreshable?: boolean; ... }</signature>
+      <path>src/components/data/data-freshness-badge.tsx</path>
+    </interface>
+    <interface>
+      <name>GET /api/scores/[assetId]/inputs</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/scores/{assetId}/inputs - Returns { data: { assetId, symbol, calculatedAt, inputs: { price: {..., source}, exchangeRate: {..., source}, fundamentals: {..., source}, criteriaVersion } } }</signature>
+      <path>src/app/api/scores/[assetId]/inputs/route.ts (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest framework with React Testing Library for components. Unit tests cover all utility functions and component rendering. API tests verify authentication, input validation, and response formats. Coverage requirements: all new code paths must have tests. Tests use mocks for external dependencies.
+    </standards>
+    <locations>
+      <location>tests/unit/lib/types/source-attribution.test.ts</location>
+      <location>tests/unit/components/source-attribution.test.ts</location>
+      <location>tests/unit/api/scores-inputs.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="6.8.1, 6.8.2">Test formatSourceAttribution() returns correct format: "Price from Gemini API", "Rate from ExchangeRate-API"</idea>
+      <idea ac="6.8.1">Test getProviderDisplayName() maps technical names: "gemini" -> "Gemini API", "yahoo" -> "Yahoo Finance"</idea>
+      <idea ac="6.8.1">Test unknown provider returns technical name as fallback</idea>
+      <idea ac="6.8.2">Test SourceAttributionLabel renders formatted string correctly</idea>
+      <idea ac="6.8.2">Test SourceAttributionLabel shows icon when showIcon=true</idea>
+      <idea ac="6.8.3">Test GET /api/scores/[assetId]/inputs returns all source attributions</idea>
+      <idea ac="6.8.3">Test endpoint requires authentication</idea>
+      <idea ac="6.8.3">Test endpoint validates assetId parameter</idea>
+      <idea ac="6.8.4">Test source field is never null/empty in provider results</idea>
+      <idea ac="All">Test null/undefined source handling gracefully</idea>
+    </ideas>
+  </tests>
+</story-context>

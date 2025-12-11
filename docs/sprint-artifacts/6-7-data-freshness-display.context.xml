@@ -1,0 +1,394 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>7</storyId>
+    <title>Data Freshness Display</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-7-data-freshness-display.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see when data was last updated</iWant>
+    <soThat>I know if I'm looking at stale data</soThat>
+    <tasks>
+      <task id="1" title="Create FreshnessInfo Type and Utilities" acs="6.7.1, 6.7.2">
+        <file>src/lib/types/freshness.ts</file>
+        <subtasks>
+          <subtask>Create FreshnessInfo type (source, fetchedAt, isStale, staleSince?)</subtask>
+          <subtask>Create FreshnessStatus type: 'fresh' | 'stale' | 'very-stale'</subtask>
+          <subtask>Create getFreshnessStatus(fetchedAt: Date) utility function</subtask>
+          <subtask>Create formatRelativeTime(date: Date) helper</subtask>
+          <subtask>Create formatExactTime(date: Date) helper</subtask>
+          <subtask>Export all types and utilities</subtask>
+        </subtasks>
+      </task>
+      <task id="2" title="Create DataFreshnessBadge Component" acs="6.7.1, 6.7.2, 6.7.3">
+        <file>src/components/data/data-freshness-badge.tsx</file>
+        <subtasks>
+          <subtask>Create DataFreshnessBadge component using shadcn/ui Badge</subtask>
+          <subtask>Accept props: freshnessInfo, onRefresh?, showSource?, size?</subtask>
+          <subtask>Display relative time (e.g., "2h ago", "3 days ago")</subtask>
+          <subtask>Apply correct color class based on freshness status</subtask>
+          <subtask>Use appropriate icon: Clock for fresh, AlertCircle for stale, AlertTriangle for very stale</subtask>
+          <subtask>Add Tooltip component for hover state (exact time + source)</subtask>
+          <subtask>Support keyboard navigation for accessibility</subtask>
+          <subtask>Include aria-label describing freshness state</subtask>
+        </subtasks>
+      </task>
+      <task id="3" title="Add Click-to-Refresh Functionality" acs="6.7.4">
+        <file>src/components/data/data-freshness-badge.tsx</file>
+        <subtasks>
+          <subtask>Add onClick handler to trigger refresh</subtask>
+          <subtask>Integrate with useDataRefresh hook</subtask>
+          <subtask>Show loading state (spinner) during refresh</subtask>
+          <subtask>Handle rate limit state (show countdown)</subtask>
+          <subtask>Make click behavior optional via prop (refreshable?: boolean)</subtask>
+          <subtask>Update aria-label when clickable</subtask>
+        </subtasks>
+      </task>
+      <task id="4" title="Create Freshness API Endpoint" acs="6.7.1, 6.7.3">
+        <file>src/app/api/data/freshness/route.ts</file>
+        <subtasks>
+          <subtask>Create GET handler for /api/data/freshness</subtask>
+          <subtask>Accept query params: type (prices|rates|fundamentals), symbols (optional)</subtask>
+          <subtask>Return FreshnessInfo for each requested data point</subtask>
+          <subtask>Auth required (withAuth middleware)</subtask>
+          <subtask>Validate input with Zod schema</subtask>
+        </subtasks>
+      </task>
+      <task id="5" title="Create useFreshness Hook" acs="6.7.1, 6.7.5">
+        <file>src/hooks/use-freshness.ts</file>
+        <subtasks>
+          <subtask>Create useFreshness hook for fetching freshness data</subtask>
+          <subtask>Accept type and symbols parameters</subtask>
+          <subtask>Use React Query for caching and updates</subtask>
+          <subtask>Return freshnessInfo map, loading state, error state</subtask>
+          <subtask>Auto-refetch after successful data refresh</subtask>
+        </subtasks>
+      </task>
+      <task id="6" title="Integrate Badge into Portfolio Page" acs="6.7.5">
+        <file>src/app/(dashboard)/portfolio/page.tsx</file>
+        <subtasks>
+          <subtask>Add DataFreshnessBadge to asset price column</subtask>
+          <subtask>Fetch freshness data for displayed assets</subtask>
+          <subtask>Position badge appropriately (next to price value)</subtask>
+          <subtask>Handle loading state gracefully</subtask>
+        </subtasks>
+      </task>
+      <task id="7" title="Integrate Badge into Dashboard" acs="6.7.5">
+        <file>src/app/(dashboard)/page.tsx</file>
+        <subtasks>
+          <subtask>Add DataFreshnessBadge to recommendation cards</subtask>
+          <subtask>Show freshness for underlying data (prices, scores)</subtask>
+          <subtask>Position in card footer or header</subtask>
+          <subtask>Handle loading state gracefully</subtask>
+        </subtasks>
+      </task>
+      <task id="8" title="Integrate Badge into Score Breakdown" acs="6.7.5">
+        <file>src/components/scores/score-breakdown.tsx</file>
+        <subtasks>
+          <subtask>Add DataFreshnessBadge next to score value</subtask>
+          <subtask>Show freshness of score calculation inputs</subtask>
+          <subtask>Include source attribution in tooltip</subtask>
+          <subtask>Handle loading state gracefully</subtask>
+        </subtasks>
+      </task>
+      <task id="9" title="Write Unit Tests" acs="All">
+        <files>
+          <file>tests/unit/components/data-freshness-badge.test.tsx</file>
+          <file>tests/unit/hooks/use-freshness.test.ts</file>
+        </files>
+        <subtasks>
+          <subtask>Test freshness status calculation (fresh, stale, very-stale)</subtask>
+          <subtask>Test relative time formatting</subtask>
+          <subtask>Test exact time formatting</subtask>
+          <subtask>Test badge color rendering based on status</subtask>
+          <subtask>Test tooltip content (source + timestamp)</subtask>
+          <subtask>Test click-to-refresh functionality</subtask>
+          <subtask>Test rate limit handling</subtask>
+          <subtask>Test loading state</subtask>
+          <subtask>Test hook data fetching</subtask>
+        </subtasks>
+      </task>
+      <task id="10" title="Write API Integration Tests" acs="All">
+        <file>tests/unit/api/data-freshness.test.ts</file>
+        <subtasks>
+          <subtask>Test GET /api/data/freshness endpoint</subtask>
+          <subtask>Test authentication requirement</subtask>
+          <subtask>Test with various type parameters</subtask>
+          <subtask>Test with symbol filtering</subtask>
+          <subtask>Test response format validation</subtask>
+          <subtask>Test error handling</subtask>
+        </subtasks>
+      </task>
+      <task id="11" title="Run Verification" acs="All">
+        <subtasks>
+          <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+          <subtask>ESLint passes with no new errors (pnpm lint)</subtask>
+          <subtask>All unit tests pass (pnpm test)</subtask>
+          <subtask>Build succeeds (pnpm build)</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-6.7.1" title="DataFreshnessBadge Shows Timestamp and Freshness Indicator">
+      <given>I am viewing any data point (price, exchange rate, score)</given>
+      <when>the DataFreshnessBadge displays</when>
+      <then>
+        <item>I see both a timestamp and a freshness indicator</item>
+        <item>the timestamp shows when the data was last fetched</item>
+        <item>the freshness indicator is visually clear (icon + color)</item>
+      </then>
+    </criterion>
+    <criterion id="AC-6.7.2" title="Colors Based on Data Age">
+      <given>the DataFreshnessBadge is displaying</given>
+      <when>I view the freshness indicator</when>
+      <then>
+        <item>Green: Data is less than 24 hours old</item>
+        <item>Amber: Data is 1-3 days old</item>
+        <item>Red: Data is more than 3 days old</item>
+        <item>the colors are accessible and visually distinct</item>
+      </then>
+    </criterion>
+    <criterion id="AC-6.7.3" title="Hover Shows Exact Timestamp and Source">
+      <given>I am viewing a DataFreshnessBadge</given>
+      <when>I hover over the badge</when>
+      <then>
+        <item>I see a tooltip with exact timestamp (e.g., "Dec 10, 2025, 3:00 AM")</item>
+        <item>I see data source (e.g., "Gemini API")</item>
+        <item>the tooltip is accessible to keyboard users</item>
+      </then>
+    </criterion>
+    <criterion id="AC-6.7.4" title="Click Triggers Refresh (Within Rate Limit)">
+      <given>I am viewing a DataFreshnessBadge</given>
+      <when>I click the badge</when>
+      <then>
+        <item>a data refresh is triggered (if within rate limit)</item>
+        <item>the badge shows loading state during refresh</item>
+        <item>if rate limited, I see the countdown message</item>
+      </then>
+    </criterion>
+    <criterion id="AC-6.7.5" title="Badge Appears on Prices, Exchange Rates, and Scores">
+      <given>I am viewing data in the application</given>
+      <when>the data includes prices, exchange rates, or scores</when>
+      <then>
+        <item>each data type displays a DataFreshnessBadge</item>
+        <item>the badge is positioned consistently near the data</item>
+        <item>the badge is visible without obstructing the primary data</item>
+      </then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc id="tech-spec-epic-6">
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification - Data Pipeline</title>
+        <section>Story 6.7: Data Freshness Display</section>
+        <snippet>AC-6.7.1 through AC-6.7.5 define DataFreshnessBadge behavior: timestamp display, color coding (green/amber/red based on age), hover tooltip with source, click-to-refresh, and placement on prices/rates/scores.</snippet>
+      </doc>
+      <doc id="architecture">
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Custom Components - DataFreshnessBadge</section>
+        <snippet>DataFreshnessBadge is a custom fintech component listed in components/fintech/ that displays timestamp and source for all data points, supporting the Trust Through Verifiability principle.</snippet>
+      </doc>
+      <doc id="architecture-freshness">
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Data Freshness Visibility</section>
+        <snippet>User priority: "I don't know if data is fresh" → Architecture response: DataFreshnessBadge on all displayed data. Part of the Empathy-Driven Architecture Priorities.</snippet>
+      </doc>
+      <doc id="previous-story">
+        <path>docs/sprint-artifacts/6-6-force-data-refresh.md</path>
+        <title>Story 6.6 - Force Data Refresh (Complete)</title>
+        <section>Dev Agent Record</section>
+        <snippet>Provides RefreshButton, useDataRefresh hook, rate limiting via RefreshRateLimiter. Patterns for TypeScript exactOptionalPropertyTypes, LogContext constraints (arrays must be serialized), event type registration.</snippet>
+      </doc>
+      <doc id="tech-spec-freshness-api">
+        <path>docs/sprint-artifacts/tech-spec-epic-6.md</path>
+        <title>Epic 6 Technical Specification</title>
+        <section>GET /api/data/freshness</section>
+        <snippet>Endpoint returns FreshnessInfo map by symbol with source, fetchedAt, isStale fields. Query params: type (prices|rates|fundamentals), symbols (optional).</snippet>
+      </doc>
+    </docs>
+    <code>
+      <item>
+        <path>src/lib/providers/types.ts</path>
+        <kind>types</kind>
+        <symbol>FreshnessInfo</symbol>
+        <lines>108-117</lines>
+        <reason>Existing FreshnessInfo interface with source, fetchedAt, isStale, staleSince fields - reuse for story</reason>
+      </item>
+      <item>
+        <path>src/lib/providers/types.ts</path>
+        <kind>types</kind>
+        <symbol>PriceResult, ExchangeRateResult, FundamentalsResult</symbol>
+        <lines>24-101</lines>
+        <reason>Result types include source, fetchedAt, isStale fields needed for freshness display</reason>
+      </item>
+      <item>
+        <path>src/hooks/use-data-refresh.ts</path>
+        <kind>hook</kind>
+        <symbol>useDataRefresh</symbol>
+        <lines>143-280</lines>
+        <reason>Existing hook for triggering data refresh with rate limit tracking - integrate with DataFreshnessBadge click</reason>
+      </item>
+      <item>
+        <path>src/components/data/refresh-button.tsx</path>
+        <kind>component</kind>
+        <symbol>RefreshButton</symbol>
+        <lines>76-176</lines>
+        <reason>Reference implementation showing loading state, rate limit countdown, accessibility patterns</reason>
+      </item>
+      <item>
+        <path>src/lib/events/types.ts</path>
+        <kind>types</kind>
+        <symbol>CalculationEvent, DataRefreshedEvent</symbol>
+        <lines>183-221</lines>
+        <reason>Event types for audit trail - may need new event type for freshness queries</reason>
+      </item>
+      <item>
+        <path>src/components/fintech/score-breakdown.tsx</path>
+        <kind>component</kind>
+        <symbol>ScoreBreakdown</symbol>
+        <lines>382-538</lines>
+        <reason>Target component for integrating DataFreshnessBadge (Task 8). Has formatRelativeTime utility that could be reused.</reason>
+      </item>
+      <item>
+        <path>src/components/fintech/score-badge.tsx</path>
+        <kind>component</kind>
+        <symbol>ScoreBadge, getScoreLevel</symbol>
+        <reason>Reference for badge component patterns and color coding</reason>
+      </item>
+      <item>
+        <path>src/app/(dashboard)/page.tsx</path>
+        <kind>page</kind>
+        <symbol>DashboardPage</symbol>
+        <reason>Target page for integrating DataFreshnessBadge (Task 7)</reason>
+      </item>
+      <item>
+        <path>src/app/(dashboard)/portfolio/page.tsx</path>
+        <kind>page</kind>
+        <symbol>PortfolioPage</symbol>
+        <reason>Target page for integrating DataFreshnessBadge (Task 6)</reason>
+      </item>
+      <item>
+        <path>src/lib/rate-limit/refresh-limiter.ts</path>
+        <kind>service</kind>
+        <symbol>RefreshRateLimiter</symbol>
+        <reason>Rate limiting service to check before triggering refresh from badge click</reason>
+      </item>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="react" version="19.2.0">UI framework</package>
+        <package name="next" version="16.0.7">Framework with App Router</package>
+        <package name="lucide-react" version="^0.555.0">Icons: Clock, AlertCircle, AlertTriangle</package>
+        <package name="@radix-ui/react-tooltip" version="^1.2.8">Accessible tooltip component</package>
+        <package name="sonner" version="^2.0.7">Toast notifications</package>
+        <package name="zod" version="^4.1.13">Schema validation</package>
+        <package name="vitest" version="^4.0.14" dev="true">Unit testing framework</package>
+        <package name="@playwright/test" version="^1.57.0" dev="true">E2E testing</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Use shadcn/ui Badge component as base for DataFreshnessBadge</constraint>
+    <constraint source="architecture">Component Location: Custom fintech components in components/data/ or components/fintech/</constraint>
+    <constraint source="architecture">All interactive elements must be keyboard navigable (accessibility)</constraint>
+    <constraint source="architecture">Use Tailwind utility classes for styling with dark mode support</constraint>
+    <constraint source="architecture">Use structured logger from @/lib/telemetry/logger (never console.error)</constraint>
+    <constraint source="story-6.6">TypeScript exactOptionalPropertyTypes: handle optional props correctly</constraint>
+    <constraint source="story-6.6">LogContext constraints: arrays/objects must be serialized to JSON strings</constraint>
+    <constraint source="tech-spec">Rate Limiting: Integrate with existing 5/hour/user rate limit for refresh clicks</constraint>
+    <constraint source="tech-spec">Color Specifications: green (&lt;24h), amber (1-3 days), red (&gt;3 days)</constraint>
+    <constraint source="CLAUDE.md">All code changes MUST include appropriate test coverage</constraint>
+    <constraint source="CLAUDE.md">Use standardized API responses from @/lib/api/responses.ts</constraint>
+    <constraint source="CLAUDE.md">Use standardized error codes from @/lib/api/error-codes.ts</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="FreshnessInfo" kind="TypeScript interface" path="src/lib/providers/types.ts">
+      <signature><![CDATA[interface FreshnessInfo {
+  source: string;
+  fetchedAt: Date;
+  isStale: boolean;
+  staleSince?: Date;
+}]]></signature>
+    </interface>
+    <interface name="GET /api/data/freshness" kind="REST endpoint" path="src/app/api/data/freshness/route.ts">
+      <signature><![CDATA[GET /api/data/freshness?type=(prices|rates|fundamentals)&symbols=SYMBOL1,SYMBOL2
+Response 200: { data: { [symbol]: FreshnessInfo } }
+Response 401: { error: "Unauthorized", code: "UNAUTHORIZED" }]]></signature>
+    </interface>
+    <interface name="useDataRefresh" kind="React hook" path="src/hooks/use-data-refresh.ts">
+      <signature><![CDATA[function useDataRefresh(options?: {
+  type?: RefreshType;
+  symbols?: string[];
+}): {
+  refresh: () => Promise<RefreshResponse | null>;
+  isRefreshing: boolean;
+  lastRefreshedAt: Date | null;
+  rateLimitStatus: RateLimitStatus;
+  error: string | null;
+}]]></signature>
+    </interface>
+    <interface name="DataFreshnessBadgeProps" kind="Component props" path="src/components/data/data-freshness-badge.tsx">
+      <signature><![CDATA[interface DataFreshnessBadgeProps {
+  freshnessInfo: FreshnessInfo;
+  onRefresh?: () => void;
+  showSource?: boolean;
+  size?: 'sm' | 'default';
+  refreshable?: boolean;
+  className?: string;
+}]]></signature>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing uses Vitest for unit/integration tests and Playwright for E2E. Follow established patterns:
+      - Unit tests in tests/unit/ matching src/ structure
+      - Use vi.mock() for external dependencies
+      - Test all acceptance criteria explicitly with descriptive test names
+      - Component tests use @testing-library/react patterns
+      - API tests mock auth middleware and validate request/response schemas
+      - Coverage target: All code paths including error cases
+    </standards>
+    <locations>
+      <location>tests/unit/components/data-freshness-badge.test.tsx</location>
+      <location>tests/unit/hooks/use-freshness.test.ts</location>
+      <location>tests/unit/api/data-freshness.test.ts</location>
+      <location>tests/unit/lib/types/freshness.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="6.7.1">Test badge renders with timestamp and icon for fresh/stale/very-stale states</idea>
+      <idea ac="6.7.1">Test formatRelativeTime outputs correct strings: "2h ago", "3 days ago", etc.</idea>
+      <idea ac="6.7.1">Test formatExactTime outputs full datetime: "Dec 10, 2025, 3:00 AM"</idea>
+      <idea ac="6.7.2">Test getFreshnessStatus returns 'fresh' for &lt;24h, 'stale' for 1-3 days, 'very-stale' for &gt;3 days</idea>
+      <idea ac="6.7.2">Test badge applies correct CSS classes: green/amber/red variants</idea>
+      <idea ac="6.7.2">Test boundary conditions: exactly 24h, exactly 72h</idea>
+      <idea ac="6.7.3">Test tooltip displays source and exact timestamp on hover</idea>
+      <idea ac="6.7.3">Test tooltip accessible via keyboard focus</idea>
+      <idea ac="6.7.4">Test click triggers onRefresh callback when refreshable=true</idea>
+      <idea ac="6.7.4">Test click does nothing when refreshable=false</idea>
+      <idea ac="6.7.4">Test loading state spinner shown during refresh</idea>
+      <idea ac="6.7.4">Test rate limit countdown displayed when limited</idea>
+      <idea ac="6.7.5">Test badge renders in PortfolioPage for asset prices</idea>
+      <idea ac="6.7.5">Test badge renders in Dashboard for recommendation data</idea>
+      <idea ac="6.7.5">Test badge renders in ScoreBreakdown for score data</idea>
+      <idea ac="API">Test GET /api/data/freshness requires authentication</idea>
+      <idea ac="API">Test freshness endpoint returns correct structure for each type</idea>
+      <idea ac="API">Test freshness endpoint validates query parameters</idea>
+      <idea ac="hook">Test useFreshness hook fetches and caches freshness data</idea>
+      <idea ac="hook">Test hook refetches after successful data refresh</idea>
+    </ideas>
+  </tests>
+</story-context>

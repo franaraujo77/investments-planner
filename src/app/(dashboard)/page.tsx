@@ -1,15 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefreshButton } from "@/components/data/refresh-button";
 
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      {/* Welcome message */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Welcome back</h1>
-        <p className="text-muted-foreground">
-          Here are your investment recommendations for this month.
-        </p>
+      {/* Welcome message with Refresh Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Welcome back</h1>
+          <p className="text-muted-foreground">
+            Here are your investment recommendations for this month.
+          </p>
+        </div>
+        {/* Story 6.6: AC-6.6.1 - Refresh Button Available on Dashboard */}
+        <RefreshButton type="all" variant="outline" />
       </div>
 
       {/* Placeholder metrics row */}
