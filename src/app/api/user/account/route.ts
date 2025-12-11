@@ -90,7 +90,7 @@ export const DELETE = withAuth<DeleteAccountResponse | ErrorResponseBody>(
       const dbError = handleDbError(error, "delete user account");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "USER_ACCOUNT");
+        return databaseError(dbError, "user account");
       }
 
       // Handle specific error cases

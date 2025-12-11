@@ -141,7 +141,7 @@ export const GET = withAuth<ApiResponse | CurrencyConversionError | AuthError>(
       const dbError = handleDbError(error, "convert currency");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "CONVERSION");
+        return databaseError(dbError, "currency conversion");
       }
 
       // Handle specific conversion errors

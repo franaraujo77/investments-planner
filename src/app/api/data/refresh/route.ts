@@ -198,7 +198,7 @@ export const POST = withAuth<
     const dbError = handleDbError(error, "refresh data");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "REFRESH");
+      return databaseError(dbError, "data refresh");
     }
 
     return NextResponse.json<RefreshError>(

@@ -93,7 +93,7 @@ export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
       const dbError = handleDbError(error, "list portfolio assets");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "ASSETS");
+        return databaseError(dbError, "assets");
       }
 
       return NextResponse.json<AuthError>(
@@ -183,7 +183,7 @@ export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
       const dbError = handleDbError(error, "add asset");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "ASSET");
+        return databaseError(dbError, "asset");
       }
 
       return NextResponse.json<AuthError>(

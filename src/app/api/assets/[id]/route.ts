@@ -101,7 +101,7 @@ export const PATCH = withAuth<AssetResponse | ValidationError | AuthError>(
       const dbError = handleDbError(error, "update asset");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "ASSET_UPDATE");
+        return databaseError(dbError, "asset");
       }
 
       return NextResponse.json<AuthError>(
@@ -160,7 +160,7 @@ export const DELETE = withAuth<DeleteSuccessResponse | ValidationError | AuthErr
       const dbError = handleDbError(error, "delete asset");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "ASSET_DELETE");
+        return databaseError(dbError, "asset");
       }
 
       return NextResponse.json<AuthError>(

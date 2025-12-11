@@ -66,7 +66,7 @@ export const GET = withAuth<MeResponse>(async (_request, session) => {
     const dbError = handleDbError(error, "fetch current user");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "FETCH_USER");
+      return databaseError(dbError, "user data");
     }
 
     return NextResponse.json<AuthError>(

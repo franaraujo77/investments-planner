@@ -114,7 +114,7 @@ export const GET = withAuth<AllocationResponse | ValidationError | AuthError>(
       const dbError = handleDbError(error, "get allocations");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "ALLOCATIONS");
+        return databaseError(dbError, "allocations");
       }
 
       return NextResponse.json<AuthError>(

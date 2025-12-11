@@ -176,7 +176,7 @@ export const GET = withAuth<FundamentalsResponse | ValidationError | AuthError>(
       const dbError = handleDbError(error, "fetch fundamentals");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "FUNDAMENTALS");
+        return databaseError(dbError, "fundamentals");
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);

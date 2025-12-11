@@ -225,7 +225,7 @@ export const GET = withAuth<FreshnessSuccessResponse | ErrorResponseBody | AuthE
       const dbError = handleDbError(error, "check data freshness");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "FRESHNESS");
+        return databaseError(dbError, "data freshness");
       }
 
       return errorResponse("Failed to retrieve freshness data", "INTERNAL_ERROR", 500);

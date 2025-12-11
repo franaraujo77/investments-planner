@@ -79,7 +79,7 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
     const dbError = handleDbError(error, "list portfolios");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "PORTFOLIOS");
+      return databaseError(dbError, "portfolios");
     }
 
     return NextResponse.json<AuthError>(
@@ -147,7 +147,7 @@ export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
       const dbError = handleDbError(error, "create portfolio");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "PORTFOLIO");
+        return databaseError(dbError, "portfolio");
       }
 
       return NextResponse.json<AuthError>(

@@ -86,7 +86,7 @@ export const GET = withAuth<ProfileResponse>(async (_request, session) => {
     const dbError = handleDbError(error, "fetch user profile");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "USER_PROFILE");
+      return databaseError(dbError, "user profile");
     }
 
     return NextResponse.json<AuthError>(
@@ -177,7 +177,7 @@ export const PATCH = withAuth<ProfileResponse>(async (request, session) => {
     const dbError = handleDbError(error, "update user profile");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "USER_PROFILE");
+      return databaseError(dbError, "user profile");
     }
 
     return NextResponse.json<AuthError>(

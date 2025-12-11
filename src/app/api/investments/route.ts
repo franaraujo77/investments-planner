@@ -117,7 +117,7 @@ export const GET = withAuth<InvestmentListResponse | AuthError>(
       const dbError = handleDbError(error, "list investments");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "INVESTMENTS_LIST");
+        return databaseError(dbError, "investments list");
       }
 
       return NextResponse.json<AuthError>(
@@ -224,7 +224,7 @@ export const POST = withAuth<InvestmentRecordResponse | ValidationError | AuthEr
       const dbError = handleDbError(error, "record investment");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "INVESTMENTS_RECORD");
+        return databaseError(dbError, "investment record");
       }
 
       return NextResponse.json<AuthError>(

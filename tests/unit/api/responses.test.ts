@@ -36,9 +36,13 @@ import {
   createdResponse,
   noContentResponse,
   withErrorHandling,
+  handleDbError,
+  databaseError,
   type ErrorResponseBody,
   type SuccessResponseBody,
 } from "@/lib/api/responses";
+
+import { DbErrorCode } from "@/lib/db/errors";
 
 import {
   VALIDATION_ERRORS,
@@ -433,6 +437,283 @@ describe("API Response Utilities", () => {
     it("should return 500 for internal errors", () => {
       expect(getHttpStatusForErrorCode(INTERNAL_ERRORS.INTERNAL_ERROR)).toBe(500);
       expect(getHttpStatusForErrorCode(INTERNAL_ERRORS.UNEXPECTED_ERROR)).toBe(500);
+    });
+  });
+
+  // ===========================================================================
+  // handleDbError Tests
+  // ===========================================================================
+
+  describe("handleDbError", () => {
+    it("should detect connection errors and set isConnectionError flag", () => {
+      const error = new Error("Connection refused") as Error & { code?: string };
+      error.code = DbErrorCode.CONNECTION_FAILURE;
+
+      const dbError = handleDbError(error, "test operation");
+
+      expect(dbError.isConnectionError).toBe(true);
+      expect(dbError.category).toBe("connection");
+      expect(logger.error).toHaveBeenCalledWith(
+        "Database error: test operation",
+        expect.objectContaining({
+          dbErrorCode: DbErrorCode.CONNECTION_FAILURE,
+          isConnectionError: true,
+        })
+      );
+    });
+
+    it("should detect timeout errors and set isTimeout flag", () => {
+      const error = new Error("Query timeout") as Error & { code?: string };
+      error.code = DbErrorCode.QUERY_CANCELED;
+
+      const dbError = handleDbError(error, "query operation");
+
+      expect(dbError.isTimeout).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith(
+        "Database error: query operation",
+        expect.objectContaining({
+          dbErrorCode: DbErrorCode.QUERY_CANCELED,
+          isTimeout: true,
+        })
+      );
+    });
+
+    it("should detect unique constraint violations", () => {
+      const error = new Error("Unique violation") as Error & {
+        code?: string;
+        constraint?: string;
+      };
+      error.code = DbErrorCode.UNIQUE_VIOLATION;
+      error.constraint = "users_email_unique";
+
+      const dbError = handleDbError(error, "create user");
+
+      expect(dbError.isConstraintViolation).toBe(true);
+      expect(dbError.category).toBe("constraint");
+      expect(dbError.constraint).toBe("users_email_unique");
+      expect(logger.error).toHaveBeenCalledWith(
+        "Database error: create user",
+        expect.objectContaining({
+          dbErrorCode: DbErrorCode.UNIQUE_VIOLATION,
+          dbErrorConstraint: "users_email_unique",
+          isConstraintViolation: true,
+        })
+      );
+    });
+
+    it("should detect foreign key violations", () => {
+      const error = new Error("FK violation") as Error & { code?: string };
+      error.code = DbErrorCode.FOREIGN_KEY_VIOLATION;
+
+      const dbError = handleDbError(error, "create record");
+
+      expect(dbError.isConstraintViolation).toBe(true);
+      expect(dbError.code).toBe(DbErrorCode.FOREIGN_KEY_VIOLATION);
+    });
+
+    it("should extract cause from nested errors", () => {
+      const causeError = new Error("connect ECONNREFUSED 127.0.0.1:5432");
+      const error = new Error("Database query failed") as Error & { cause?: Error };
+      error.cause = causeError;
+
+      const dbError = handleDbError(error, "fetch data");
+
+      expect(dbError.cause).toContain("ECONNREFUSED");
+      expect(dbError.isConnectionError).toBe(true);
+    });
+
+    it("should include additional context in logs", () => {
+      const error = new Error("Test error");
+
+      handleDbError(error, "operation name", { userId: "user-123", portfolioId: "port-456" });
+
+      expect(logger.error).toHaveBeenCalledWith(
+        "Database error: operation name",
+        expect.objectContaining({
+          userId: "user-123",
+          portfolioId: "port-456",
+        })
+      );
+    });
+
+    it("should handle non-Error objects", () => {
+      const dbError = handleDbError("string error", "string operation");
+
+      expect(dbError.message).toBe("string error");
+      expect(dbError.category).toBe("unknown");
+      expect(dbError.isConnectionError).toBe(false);
+    });
+
+    it("should detect authentication errors", () => {
+      const error = new Error("Invalid password") as Error & { code?: string };
+      error.code = DbErrorCode.INVALID_PASSWORD;
+
+      const dbError = handleDbError(error, "authenticate");
+
+      expect(dbError.category).toBe("authentication");
+    });
+
+    it("should detect resource exhaustion errors", () => {
+      const error = new Error("Too many connections") as Error & { code?: string };
+      error.code = DbErrorCode.TOO_MANY_CONNECTIONS;
+
+      const dbError = handleDbError(error, "connect");
+
+      // 53xxx codes with "connection" in message are categorized as connection
+      expect(dbError.isConnectionError).toBe(true);
+    });
+  });
+
+  // ===========================================================================
+  // databaseError Tests
+  // ===========================================================================
+
+  describe("databaseError", () => {
+    it("should return 503 for connection errors", async () => {
+      const dbError = {
+        message: "Connection refused",
+        category: "connection" as const,
+        isConnectionError: true,
+        isConstraintViolation: false,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError);
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(503);
+      expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
+      expect(body.error).toContain("Database connection error");
+    });
+
+    it("should return 504 for timeout errors", async () => {
+      const dbError = {
+        message: "Query timed out",
+        category: "timeout" as const,
+        isConnectionError: false,
+        isConstraintViolation: false,
+        isTimeout: true,
+      };
+
+      const response = databaseError(dbError);
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(504);
+      expect(body.error).toContain("timed out");
+    });
+
+    it("should return 409 for unique constraint violations", async () => {
+      const dbError = {
+        message: "Duplicate key",
+        code: DbErrorCode.UNIQUE_VIOLATION,
+        category: "constraint" as const,
+        isConnectionError: false,
+        isConstraintViolation: true,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError, "email");
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(409);
+      expect(body.code).toBe("CONFLICT_RESOURCE");
+      expect(body.error).toContain("email already exists");
+    });
+
+    it("should return 400 for other constraint violations", async () => {
+      const dbError = {
+        message: "Check constraint failed",
+        code: DbErrorCode.CHECK_VIOLATION,
+        category: "constraint" as const,
+        isConnectionError: false,
+        isConstraintViolation: true,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError);
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(400);
+      expect(body.error).toContain("Data validation failed");
+    });
+
+    it("should return 500 for authentication errors", async () => {
+      const dbError = {
+        message: "Auth failed",
+        category: "authentication" as const,
+        isConnectionError: false,
+        isConstraintViolation: false,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError);
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(500);
+      expect(body.error).toContain("Database authentication failed");
+    });
+
+    it("should return 500 for permission errors", async () => {
+      const dbError = {
+        message: "Permission denied",
+        category: "permission" as const,
+        isConnectionError: false,
+        isConstraintViolation: false,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError);
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(500);
+      expect(body.error).toContain("Database permission denied");
+    });
+
+    it("should return 503 for resource exhaustion errors", async () => {
+      const dbError = {
+        message: "Too many connections",
+        category: "resource" as const,
+        isConnectionError: false,
+        isConstraintViolation: false,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError);
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(503);
+      expect(body.error).toContain("Database resources exhausted");
+    });
+
+    it("should return 500 for unknown errors", async () => {
+      const dbError = {
+        message: "Unknown error",
+        category: "unknown" as const,
+        isConnectionError: false,
+        isConstraintViolation: false,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError);
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(response.status).toBe(500);
+    });
+
+    it("should use context in unique violation message", async () => {
+      const dbError = {
+        message: "Duplicate key",
+        code: DbErrorCode.UNIQUE_VIOLATION,
+        category: "constraint" as const,
+        isConnectionError: false,
+        isConstraintViolation: true,
+        isTimeout: false,
+      };
+
+      const response = databaseError(dbError, "portfolio name");
+      const body = (await response.json()) as ErrorResponseBody;
+
+      expect(body.error).toBe("portfolio name already exists");
     });
   });
 });

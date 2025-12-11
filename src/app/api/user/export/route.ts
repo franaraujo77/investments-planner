@@ -55,7 +55,7 @@ export const GET = withAuth(async (_request, session) => {
     const dbError = handleDbError(error, "export user data");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "USER_EXPORT");
+      return databaseError(dbError, "user data export");
     }
 
     return NextResponse.json<AuthError>(

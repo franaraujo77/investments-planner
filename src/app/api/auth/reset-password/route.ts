@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     const dbError = handleDbError(error, "password reset");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "RESET_PASSWORD");
+      return databaseError(dbError, "password reset");
     }
 
     logger.error("Password reset unexpected error", {

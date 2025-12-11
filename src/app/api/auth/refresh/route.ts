@@ -170,7 +170,7 @@ export async function POST(
     const dbError = handleDbError(error, "token refresh");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "REFRESH");
+      return databaseError(dbError, "token refresh");
     }
 
     return NextResponse.json(

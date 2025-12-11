@@ -33,8 +33,8 @@ import { logger } from "@/lib/telemetry/logger";
 import {
   extractDbError,
   toLogContext,
-  isUniqueViolation,
   getUserFriendlyMessage,
+  DbErrorCode,
   type DbErrorInfo,
 } from "@/lib/db/errors";
 
@@ -236,7 +236,7 @@ export function databaseError(
 
     case "constraint":
       // For unique violations, return 409 Conflict
-      if (isUniqueViolation({ code: dbError.code })) {
+      if (dbError.code === DbErrorCode.UNIQUE_VIOLATION) {
         return errorResponse(
           context ? `${context} already exists` : "Resource already exists",
           CONFLICT_ERRORS.RESOURCE_CONFLICT,

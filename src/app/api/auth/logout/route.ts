@@ -64,7 +64,7 @@ export const POST = withAuth<LogoutResponse>(async (request, _session) => {
     const dbError = handleDbError(error, "user logout");
 
     if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "LOGOUT");
+      return databaseError(dbError, "logout");
     }
 
     return NextResponse.json<AuthError>(

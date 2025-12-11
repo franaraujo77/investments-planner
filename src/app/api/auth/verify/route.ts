@@ -148,7 +148,7 @@ export async function POST(request: Request): Promise<NextResponse<VerifyRespons
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
         span.recordException(error as Error);
         span.end();
-        return databaseError(dbError, "VERIFY");
+        return databaseError(dbError, "email verification");
       }
 
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });

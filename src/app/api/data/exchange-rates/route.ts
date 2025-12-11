@@ -178,7 +178,7 @@ export const GET = withAuth<ExchangeRatesResponse | ValidationError | AuthError>
       const dbError = handleDbError(error, "fetch exchange rates");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "EXCHANGE_RATES");
+        return databaseError(dbError, "exchange rates");
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);

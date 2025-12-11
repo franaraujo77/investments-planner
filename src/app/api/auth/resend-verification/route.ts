@@ -180,7 +180,7 @@ export async function POST(request: Request): Promise<NextResponse<ResendRespons
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
         span.recordException(error as Error);
         span.end();
-        return databaseError(dbError, "RESEND_VERIFICATION");
+        return databaseError(dbError, "email verification");
       }
 
       logger.error("Resend verification error", {

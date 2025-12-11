@@ -94,7 +94,7 @@ export const GET = withAuth<PortfolioValuesResponse | ValidationError | AuthErro
       const dbError = handleDbError(error, "get portfolio values");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "PORTFOLIO_VALUES");
+        return databaseError(dbError, "portfolio values");
       }
 
       return NextResponse.json<AuthError>(

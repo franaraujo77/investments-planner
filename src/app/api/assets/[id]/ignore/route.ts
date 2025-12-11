@@ -74,7 +74,7 @@ export const PATCH = withAuth<AssetResponse | ErrorResponse | AuthError>(
       const dbError = handleDbError(error, "toggle asset ignore");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "ASSET_IGNORE");
+        return databaseError(dbError, "asset");
       }
 
       return NextResponse.json<AuthError>(

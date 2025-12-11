@@ -209,7 +209,7 @@ export const GET = withAuth<PricesResponse | ValidationError | AuthError>(
       const dbError = handleDbError(error, "fetch prices");
 
       if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "PRICES");
+        return databaseError(dbError, "prices");
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
