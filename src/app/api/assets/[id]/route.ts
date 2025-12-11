@@ -17,6 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import { updateAsset, removeAsset, AssetNotFoundError } from "@/lib/services/portfolio-service";
 import { updateAssetSchema } from "@/lib/validations/portfolio";
 import type { AuthError } from "@/lib/auth/types";
@@ -97,7 +98,9 @@ export const PATCH = withAuth<AssetResponse | ValidationError | AuthError>(
         );
       }
 
-      console.error("Error updating asset:", error);
+      logger.error("Error updating asset", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to update asset",
@@ -151,7 +154,9 @@ export const DELETE = withAuth<DeleteSuccessResponse | ValidationError | AuthErr
         );
       }
 
-      console.error("Error deleting asset:", error);
+      logger.error("Error deleting asset", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to delete asset",

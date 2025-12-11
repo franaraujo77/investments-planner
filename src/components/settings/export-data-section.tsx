@@ -57,7 +57,7 @@ export function ExportDataSection() {
 
       toast.success("Export downloaded successfully");
     } catch (error) {
-      console.error("Export error:", error);
+      // Error displayed to user via toast - no additional logging needed in client
       toast.error(error instanceof Error ? error.message : "Failed to export data");
     } finally {
       setIsExporting(false);

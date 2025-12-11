@@ -92,8 +92,8 @@ export function useToggleIgnore(): ToggleIgnoreResult {
         // Refresh the page to get updated data
         router.refresh();
         return true;
-      } catch (error) {
-        console.error("Error toggling asset ignored status:", error);
+      } catch (_error) {
+        // Error displayed to user via toast - no additional logging needed in client
         toast.error("Failed to update asset. Please try again.");
         return "Failed to update asset";
       } finally {

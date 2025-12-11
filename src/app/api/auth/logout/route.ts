@@ -8,6 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/telemetry/logger";
 import { getRefreshToken, clearAuthCookies } from "@/lib/auth/cookies";
 import { verifyRefreshToken } from "@/lib/auth/jwt";
 import { findRefreshTokenById, deleteRefreshToken } from "@/lib/auth/service";
@@ -30,7 +31,7 @@ interface LogoutResponse {
  * - 200: { success: true } + cookies cleared
  * - 401: Not authenticated
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export const POST = withAuth<LogoutResponse>(async (request, _session) => {
   try {
     // Get refresh token from cookie
@@ -60,7 +61,9 @@ export const POST = withAuth<LogoutResponse>(async (request, _session) => {
 
     return response;
   } catch (error) {
-    console.error("Logout error:", error);
+    logger.error("Logout error", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json<AuthError>(
       {
         error: "An error occurred during logout",

@@ -294,14 +294,13 @@ describe("User Service", () => {
 
         vi.mocked(invalidateRecommendations).mockRejectedValueOnce(new Error("Cache error"));
 
-        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
+        // Note: The service now uses logger.warn instead of console.error
+        // The important behavior is that the update completes despite cache failure
         const result = await updateUserProfile("user-123", { baseCurrency: "EUR" });
 
         expect(result.baseCurrency).toBe("EUR");
-        expect(consoleSpy).toHaveBeenCalled();
-
-        consoleSpy.mockRestore();
+        // Verify cache invalidation was attempted (and failed)
+        expect(invalidateRecommendations).toHaveBeenCalledWith("user-123");
       });
     });
 

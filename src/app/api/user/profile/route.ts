@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import { getSafeUserById } from "@/lib/auth/service";
 import { updateUserProfile } from "@/lib/services/user-service";
 import type { AuthError } from "@/lib/auth/types";
@@ -82,7 +83,9 @@ export const GET = withAuth<ProfileResponse>(async (_request, session) => {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Get profile error:", error);
+    logger.error("Get profile error", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json<AuthError>(
       {
         error: "An error occurred while fetching profile",
@@ -168,7 +171,9 @@ export const PATCH = withAuth<ProfileResponse>(async (request, session) => {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Update profile error:", error);
+    logger.error("Update profile error", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json<AuthError>(
       {
         error: "An error occurred while updating profile",

@@ -18,6 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import {
   getPortfolioAssets,
   addAsset,
@@ -89,7 +90,9 @@ export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
         );
       }
 
-      console.error("Error fetching assets:", error);
+      logger.error("Error fetching assets", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch assets",
@@ -174,7 +177,9 @@ export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
         );
       }
 
-      console.error("Error creating asset:", error);
+      logger.error("Error creating asset", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to create asset",

@@ -207,8 +207,8 @@ export function InvestmentConfirmationModal({
         // AC-3.8.4: Portfolio data refresh
         onSuccess?.();
         router.refresh();
-      } catch (error) {
-        console.error("Error recording investment:", error);
+      } catch (_error) {
+        // Error displayed to user via toast - no additional logging needed in client
         toast.error("Something went wrong. Please try again.");
       } finally {
         setIsSubmitting(false);

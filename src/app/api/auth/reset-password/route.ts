@@ -12,6 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { logger, redactUserId } from "@/lib/telemetry/logger";
 import {
   findPasswordResetToken,
   findPasswordResetTokenRaw,
@@ -133,11 +134,13 @@ export async function POST(request: Request) {
     // Mark the reset token as used (single-use)
     await markPasswordResetTokenUsed(validToken.id);
 
-    console.log(`[Password Reset] Password successfully reset for user: ${validToken.userId}`);
+    logger.info("Password successfully reset", { userId: redactUserId(validToken.userId) });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[Password Reset] Unexpected error:", error);
+    logger.error("Password reset unexpected error", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
 
     return NextResponse.json(
       {

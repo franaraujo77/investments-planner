@@ -82,8 +82,8 @@ export function useDeleteAsset(): DeleteAssetResult {
         toast.success("Asset removed successfully");
         router.refresh();
         return true;
-      } catch (error) {
-        console.error("Error deleting asset:", error);
+      } catch (_error) {
+        // Error displayed to user via toast - no additional logging needed in client
         toast.error("Failed to remove asset. Please try again.");
         return "Failed to remove asset";
       } finally {

@@ -17,6 +17,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import {
   recordInvestments,
   getInvestmentHistory,
@@ -113,7 +114,9 @@ export const GET = withAuth<InvestmentListResponse | AuthError>(
         },
       });
     } catch (error) {
-      console.error("Error fetching investments:", error);
+      logger.error("Error fetching investments", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch investments",
@@ -215,7 +218,9 @@ export const POST = withAuth<InvestmentRecordResponse | ValidationError | AuthEr
         );
       }
 
-      console.error("Error recording investments:", error);
+      logger.error("Error recording investments", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       return NextResponse.json<AuthError>(
         {
           error: "Failed to record investments",

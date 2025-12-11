@@ -13,6 +13,7 @@
  */
 
 import { EventStore, eventStore as defaultEventStore } from "./event-store";
+import { logger } from "@/lib/telemetry/logger";
 import type {
   CalcStartedEvent,
   InputsCapturedEvent,
@@ -97,7 +98,10 @@ export class CalculationPipeline {
 
     // Fire and await in background - start is synchronous for correlationId return
     this.eventStore.append(userId, event).catch((error) => {
-      console.error(`Failed to store CALC_STARTED event for ${correlationId}:`, error);
+      logger.error("Failed to store CALC_STARTED event", {
+        correlationId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
     });
 
     return correlationId;

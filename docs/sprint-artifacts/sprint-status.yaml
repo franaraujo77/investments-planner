@@ -26,7 +26,7 @@
 # - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
 
-generated: 2025-12-10
+generated: 2025-12-11
 project: investments-planner
 project_key: investments-planner
 tracking_system: file-system
@@ -130,7 +130,7 @@ development_status:
   6-7-data-freshness-display: done
   6-8-data-source-attribution: done
   6-9-calculation-breakdown-access: done
-  epic-6-retrospective: optional
+  epic-6-retrospective: completed
 
   # =============================================================================
   # EPIC 7: RECOMMENDATIONS

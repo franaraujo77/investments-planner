@@ -76,7 +76,7 @@ export function DeleteAccountDialog() {
         window.location.href = "/";
       }, 1500);
     } catch (error) {
-      console.error("Delete account error:", error);
+      // Error displayed to user via toast - no additional logging needed in client
       toast.error(error instanceof Error ? error.message : "Failed to delete account");
     } finally {
       setIsDeleting(false);

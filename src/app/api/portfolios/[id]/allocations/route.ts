@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import { getAllocationBreakdown, formatAllocationPercent } from "@/lib/services/allocation-service";
 import { PortfolioNotFoundError } from "@/lib/services/portfolio-service";
 import type { AuthError } from "@/lib/auth/types";
@@ -110,7 +111,9 @@ export const GET = withAuth<AllocationResponse | ValidationError | AuthError>(
       }
 
       // Log unexpected errors
-      console.error("Error fetching allocation breakdown:", error);
+      logger.error("Error fetching allocation breakdown", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
 
       return NextResponse.json<AuthError>(
         { error: "Failed to fetch allocation breakdown", code: "INTERNAL_ERROR" },

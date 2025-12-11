@@ -10,6 +10,7 @@
  */
 
 import { db } from "@/lib/db";
+import { logger, redactUserId } from "@/lib/telemetry/logger";
 import {
   users,
   refreshTokens,
@@ -97,7 +98,9 @@ export async function deleteUserAccount(userId: string): Promise<AccountDeletion
   try {
     await invalidateUserCache(userId);
   } catch (cacheError) {
-    console.error("Failed to invalidate user cache during deletion:", cacheError);
+    logger.warn("Failed to invalidate user cache during deletion", {
+      errorMessage: cacheError instanceof Error ? cacheError.message : String(cacheError),
+    });
     // Continue - cache will expire naturally
   }
 
@@ -115,7 +118,9 @@ export async function deleteUserAccount(userId: string): Promise<AccountDeletion
   } catch (inngestError) {
     // Log but don't fail - soft delete is the critical operation
     // The data is marked as deleted and inaccessible even without hard delete
-    console.error("Failed to schedule hard delete via Inngest:", inngestError);
+    logger.warn("Failed to schedule hard delete via Inngest", {
+      errorMessage: inngestError instanceof Error ? inngestError.message : String(inngestError),
+    });
   }
 
   return {
@@ -155,7 +160,7 @@ export async function hardDeleteUserData(userId: string): Promise<void> {
 
   if (!user) {
     // User already hard-deleted or doesn't exist
-    console.log(`User ${userId} not found - may already be deleted`);
+    logger.info("User not found - may already be deleted", { userId: redactUserId(userId) });
     return;
   }
 
@@ -189,5 +194,5 @@ export async function hardDeleteUserData(userId: string): Promise<void> {
     // Ignore cache errors during hard delete
   }
 
-  console.log(`User ${userId} permanently deleted`);
+  logger.info("User permanently deleted", { userId: redactUserId(userId) });
 }

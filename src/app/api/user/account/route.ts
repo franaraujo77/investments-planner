@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { withAuth } from "@/lib/auth/middleware";
+import { logger } from "@/lib/telemetry/logger";
 import { deleteUserAccount, PURGE_DELAY_DAYS } from "@/lib/services/account-service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -85,7 +86,9 @@ export const DELETE = withAuth(async (request: NextRequest, session) => {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Account deletion error:", error);
+    logger.error("Account deletion error", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
 
     // Handle specific error cases
     if (error instanceof Error) {

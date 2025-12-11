@@ -60,8 +60,7 @@ export function LogoutButton({
       });
 
       if (!response.ok) {
-        // Log error but still proceed to login
-        console.error("Logout API error:", response.status);
+        // Error noted but still proceed to login - user gets signed out regardless
       }
 
       // Show success toast
@@ -69,9 +68,9 @@ export function LogoutButton({
 
       // Redirect to login page
       router.push("/login");
-    } catch (error) {
+    } catch (_error) {
       // Network error - still redirect to login
-      console.error("Logout error:", error);
+      // Error displayed to user via toast - no additional logging needed in client
       toast.error("Logout encountered an error, but you have been signed out");
       router.push("/login");
     } finally {
