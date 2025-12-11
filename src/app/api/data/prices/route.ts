@@ -21,6 +21,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getPriceService } from "@/lib/providers";
 import { pricesRepository } from "@/lib/repositories/prices-repository";
 import { PricesRequestSchema } from "@/lib/validations/prices-schemas";
@@ -205,13 +206,13 @@ export const GET = withAuth<PricesResponse | ValidationError | AuthError>(
         },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const dbError = handleDbError(error, "fetch prices");
 
-      logger.error("Failed to fetch prices", {
-        userId: session.userId,
-        symbols: symbols.join(","),
-        error: errorMessage,
-      });
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "PRICES");
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       // Check if it's a provider error (has code property)
       if (error instanceof Error && "code" in error) {

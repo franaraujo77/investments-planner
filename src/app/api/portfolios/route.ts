@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getUserPortfolios,
   createPortfolio,
@@ -76,9 +76,12 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
       },
     });
   } catch (error) {
-    logger.error("Error fetching portfolios", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
+    const dbError = handleDbError(error, "list portfolios");
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "PORTFOLIOS");
+    }
+
     return NextResponse.json<AuthError>(
       {
         error: "Failed to fetch portfolios",
@@ -141,9 +144,12 @@ export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Error creating portfolio", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
+      const dbError = handleDbError(error, "create portfolio");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "PORTFOLIO");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to create portfolio",

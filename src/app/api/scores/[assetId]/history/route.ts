@@ -22,7 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getScoreHistory, calculateTrend, type TrendAnalysis } from "@/lib/services/score-service";
 import type { AuthError } from "@/lib/auth/types";
 import { historyQuerySchema } from "@/lib/validations/score-schemas";
@@ -143,13 +143,6 @@ export const GET = withAuth<GetHistoryResponse | ErrorResponse | AuthError>(
       // Get history from service
       const history = await getScoreHistory(serviceQuery);
 
-      logger.debug("Score history retrieved", {
-        userId: session.userId,
-        assetId,
-        entryCount: history.length,
-        days: queryParams.days,
-      });
-
       // Build response
       const response: GetHistoryResponse = {
         data: {
@@ -172,12 +165,11 @@ export const GET = withAuth<GetHistoryResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const dbError = handleDbError(error, "get score history");
 
-      logger.error("Failed to get score history", {
-        userId: session.userId,
-        error: errorMessage,
-      });
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "get score history");
+      }
 
       return NextResponse.json(
         {

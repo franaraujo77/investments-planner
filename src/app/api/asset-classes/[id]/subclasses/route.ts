@@ -18,7 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getSubclassesForClass,
   createSubclass,
@@ -96,10 +96,12 @@ export const GET = withAuth<SubclassListResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to fetch subclasses", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "list subclasses");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "subclasses");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch subclasses",
@@ -175,10 +177,12 @@ export const POST = withAuth<SubclassResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to create subclass", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "create subclass");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "subclass");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to create subclass",

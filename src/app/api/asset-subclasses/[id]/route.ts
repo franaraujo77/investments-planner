@@ -22,7 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getSubclassById,
   updateSubclass,
@@ -93,10 +93,12 @@ export const GET = withAuth<SubclassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<SubclassResponse>({ data: subclass });
     } catch (error) {
-      logger.error("Failed to fetch subclass", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "get subclass");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "subclass");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch subclass",
@@ -167,10 +169,12 @@ export const PATCH = withAuth<SubclassResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to update subclass", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "update subclass");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "subclass");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to update subclass",
@@ -251,10 +255,12 @@ export const DELETE = withAuth<
       );
     }
 
-    logger.error("Failed to delete subclass", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
+    const dbError = handleDbError(error, "delete subclass");
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "subclass");
+    }
+
     return NextResponse.json<AuthError>(
       {
         error: "Failed to delete subclass",

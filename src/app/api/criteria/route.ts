@@ -17,7 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getCriteriaSetsForUser,
   createCriteriaSet,
@@ -101,10 +101,12 @@ export const GET = withAuth<CriteriaListResponse | AuthError>(async (request, se
       },
     });
   } catch (error) {
-    logger.error("Failed to fetch criteria sets", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
+    const dbError = handleDbError(error, "list criteria", { userId: session.userId });
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "list criteria");
+    }
+
     return NextResponse.json<AuthError>(
       {
         error: "Failed to fetch criteria sets",
@@ -169,10 +171,12 @@ export const POST = withAuth<CriteriaResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to create criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "create criteria", { userId: session.userId });
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "create criteria");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to create criteria set",

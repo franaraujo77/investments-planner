@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   findUserByEmail,
   storeVerificationToken,
@@ -173,6 +174,15 @@ export async function POST(request: Request): Promise<NextResponse<ResendRespons
         message: RESEND_MESSAGE,
       });
     } catch (error) {
+      const dbError = handleDbError(error, "resend verification");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
+        span.recordException(error as Error);
+        span.end();
+        return databaseError(dbError, "RESEND_VERIFICATION");
+      }
+
       logger.error("Resend verification error", {
         error: error instanceof Error ? error.message : "Unknown error",
       });

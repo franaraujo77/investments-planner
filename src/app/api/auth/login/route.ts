@@ -25,7 +25,7 @@ import {
   getClientIp,
 } from "@/lib/auth/rate-limit";
 import { AUTH_MESSAGES, AUTH_CONSTANTS } from "@/lib/auth/constants";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import type { AuthResponse, AuthError } from "@/lib/auth/types";
 import crypto from "crypto";
 
@@ -183,9 +183,13 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
 
     return response;
   } catch (error) {
-    logger.error("Login error", {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    const dbError = handleDbError(error, "user login");
+
+    // Connection/timeout errors get specific responses
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "login");
+    }
+
     return NextResponse.json(
       {
         error: "An error occurred during login",

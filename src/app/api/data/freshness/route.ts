@@ -44,7 +44,7 @@ import {
   type FreshnessSuccessResponse,
   type FreshnessDataType,
 } from "@/lib/validations/freshness-schemas";
-import { errorResponse } from "@/lib/api/responses";
+import { errorResponse, handleDbError, databaseError } from "@/lib/api/responses";
 import type { AuthError } from "@/lib/auth/types";
 import type { ErrorResponseBody } from "@/lib/api/responses";
 
@@ -218,21 +218,15 @@ export const GET = withAuth<FreshnessSuccessResponse | ErrorResponseBody | AuthE
       // Get freshness data
       const freshnessMap = await getFreshnessData(type, symbols);
 
-      logger.info("Freshness query completed", {
-        type,
-        resultCount: Object.keys(freshnessMap).length,
-      });
-
       // Build and return response
       const response = buildFreshnessResponse(freshnessMap);
       return NextResponse.json<FreshnessSuccessResponse>(response, { status: 200 });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const dbError = handleDbError(error, "check data freshness");
 
-      logger.error("Freshness query failed", {
-        type,
-        error: errorMessage,
-      });
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "FRESHNESS");
+      }
 
       return errorResponse("Failed to retrieve freshness data", "INTERNAL_ERROR", 500);
     }

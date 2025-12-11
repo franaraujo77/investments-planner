@@ -22,7 +22,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getAssetClassById,
   updateClass,
@@ -93,10 +93,12 @@ export const GET = withAuth<AssetClassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<AssetClassResponse>({ data: assetClass });
     } catch (error) {
-      logger.error("Failed to fetch asset class", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "get asset class");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "asset class");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch asset class",
@@ -168,10 +170,12 @@ export const PATCH = withAuth<AssetClassResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to update asset class", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "update asset class");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "asset class");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to update asset class",
@@ -252,10 +256,12 @@ export const DELETE = withAuth<
       );
     }
 
-    logger.error("Failed to delete asset class", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
+    const dbError = handleDbError(error, "delete asset class");
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "asset class");
+    }
+
     return NextResponse.json<AuthError>(
       {
         error: "Failed to delete asset class",

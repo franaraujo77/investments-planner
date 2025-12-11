@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getAssetScore } from "@/lib/services/score-service";
 import { db } from "@/lib/db";
 import { criteriaVersions } from "@/lib/db/schema";
@@ -107,11 +107,6 @@ export const GET = withAuth<GetBreakdownResponse | ErrorResponse | AuthError>(
       const score = await getAssetScore(session.userId, assetId);
 
       if (!score) {
-        logger.info("No score found for asset breakdown", {
-          userId: session.userId,
-          assetId,
-        });
-
         return NextResponse.json(
           {
             error: "No score found for this asset",
@@ -141,14 +136,6 @@ export const GET = withAuth<GetBreakdownResponse | ErrorResponse | AuthError>(
         }
       }
 
-      logger.debug("Score breakdown retrieved", {
-        userId: session.userId,
-        assetId,
-        score: score.score,
-        criteriaCount: score.breakdown.length,
-        targetMarket,
-      });
-
       // Format response
       const response: GetBreakdownResponse = {
         data: {
@@ -173,12 +160,11 @@ export const GET = withAuth<GetBreakdownResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const dbError = handleDbError(error, "get score breakdown");
 
-      logger.error("Failed to get score breakdown", {
-        userId: session.userId,
-        error: errorMessage,
-      });
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "get score breakdown");
+      }
 
       return NextResponse.json(
         {

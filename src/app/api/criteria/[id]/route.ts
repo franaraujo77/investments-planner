@@ -18,7 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getCriteriaById,
   updateCriteriaSet,
@@ -79,10 +79,12 @@ export const GET = withAuth<CriteriaResponse | ValidationError | AuthError>(
 
       return NextResponse.json<CriteriaResponse>({ data: criteriaSet });
     } catch (error) {
-      logger.error("Failed to fetch criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "get criteria", { userId: session.userId });
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "get criteria");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch criteria set",
@@ -150,10 +152,12 @@ export const PATCH = withAuth<CriteriaResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to update criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "update criteria", { userId: session.userId });
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "update criteria");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to update criteria set",
@@ -195,10 +199,12 @@ export const DELETE = withAuth<DeleteResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to delete criteria set", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "delete criteria", { userId: session.userId });
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "delete criteria");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to delete criteria set",

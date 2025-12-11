@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getFundamentalsService } from "@/lib/providers";
 import { fundamentalsRepository } from "@/lib/repositories/fundamentals-repository";
 import { fundamentalsRequestSchema } from "@/lib/validations/fundamentals-schemas";
@@ -172,13 +173,13 @@ export const GET = withAuth<FundamentalsResponse | ValidationError | AuthError>(
         },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const dbError = handleDbError(error, "fetch fundamentals");
 
-      logger.error("Failed to fetch fundamentals", {
-        userId: session.userId,
-        symbols: symbols.join(","),
-        error: errorMessage,
-      });
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "FUNDAMENTALS");
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       // Check if it's a provider error
       if (error instanceof Error && "code" in error) {

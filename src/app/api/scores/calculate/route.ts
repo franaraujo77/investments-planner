@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { calculateAndPersistScores } from "@/lib/services/score-service";
 import { calculateScoresRequestSchema } from "@/lib/validations/score-schemas";
 import type { AssetWithFundamentals } from "@/lib/validations/score-schemas";
@@ -212,6 +213,13 @@ export const POST = withAuth<CalculateResponse | ValidationError | AuthError>(
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      // Handle database errors
+      const dbError = handleDbError(error, "calculate scores");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "calculate scores");
+      }
 
       // Handle specific errors
       if (errorMessage === "NO_CRITERIA") {

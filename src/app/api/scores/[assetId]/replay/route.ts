@@ -20,7 +20,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
-import { errorResponse, type ErrorResponseBody } from "@/lib/api/responses";
+import {
+  errorResponse,
+  handleDbError,
+  databaseError,
+  type ErrorResponseBody,
+} from "@/lib/api/responses";
 import { VALIDATION_ERRORS, NOT_FOUND_ERRORS, INTERNAL_ERRORS } from "@/lib/api/error-codes";
 import { z } from "zod";
 import { verifyDeterminism } from "@/lib/events/replay";
@@ -174,6 +179,13 @@ export const POST = withAuth<ReplayResponse | ErrorResponseBody>(
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      // Handle database errors
+      const dbError = handleDbError(error, "replay score calculation");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "replay score calculation");
+      }
 
       // Check for non-deterministic error (thrown by replayCalculation)
       if (error instanceof Error && error.name === "NonDeterministicError") {

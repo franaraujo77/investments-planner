@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { calculatePreview, type PreviewResult } from "@/lib/calculations/quick-calc";
 import { getCriteriaById, CriteriaNotFoundError } from "@/lib/services/criteria-service";
 import { previewCriteriaSchema } from "@/lib/validations/criteria-schemas";
@@ -108,10 +108,12 @@ export const POST = withAuth<PreviewResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Failed to calculate preview", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "preview criteria", { userId: session.userId });
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "preview criteria");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to calculate preview",

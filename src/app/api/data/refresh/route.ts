@@ -50,7 +50,7 @@ import {
   type RefreshSuccessResponse,
   type RateLimitErrorResponse,
 } from "@/lib/validations/refresh-schemas";
-import { validationError } from "@/lib/api/responses";
+import { validationError, handleDbError, databaseError } from "@/lib/api/responses";
 import type { AuthError } from "@/lib/auth/types";
 
 // =============================================================================
@@ -195,13 +195,11 @@ export const POST = withAuth<
 
     return NextResponse.json<RefreshSuccessResponse>(response, { status: 200 });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const dbError = handleDbError(error, "refresh data");
 
-    logger.error("Unexpected error during data refresh", {
-      userId,
-      type,
-      error: errorMessage,
-    });
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "REFRESH");
+    }
 
     return NextResponse.json<RefreshError>(
       {

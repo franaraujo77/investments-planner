@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { generateUserExport } from "@/lib/services/export-service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -52,9 +52,12 @@ export const GET = withAuth(async (_request, session) => {
       },
     });
   } catch (error) {
-    logger.error("Export error", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
+    const dbError = handleDbError(error, "export user data");
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "USER_EXPORT");
+    }
+
     return NextResponse.json<AuthError>(
       {
         error: "Failed to generate export",

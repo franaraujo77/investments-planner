@@ -35,7 +35,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getAssetCountStatus, type AssetCountStatus } from "@/lib/services/asset-class-service";
 import type { AuthError } from "@/lib/auth/types";
 
@@ -71,10 +71,12 @@ export const GET = withAuth<AssetCountStatusResponse | ErrorResponse | AuthError
 
       return NextResponse.json<AssetCountStatusResponse>({ data: assetCountStatus });
     } catch (error) {
-      logger.error("Failed to fetch asset count status", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId: session.userId,
-      });
+      const dbError = handleDbError(error, "get asset counts");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "asset count status");
+      }
+
       return NextResponse.json<ErrorResponse>(
         {
           error: "Failed to fetch asset count status",

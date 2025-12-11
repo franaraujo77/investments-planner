@@ -14,7 +14,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { toggleAssetIgnored, AssetNotFoundError } from "@/lib/services/portfolio-service";
 import type { AuthError } from "@/lib/auth/types";
 import type { PortfolioAsset } from "@/lib/db/schema";
@@ -71,9 +71,12 @@ export const PATCH = withAuth<AssetResponse | ErrorResponse | AuthError>(
         );
       }
 
-      logger.error("Error toggling asset ignored status", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
+      const dbError = handleDbError(error, "toggle asset ignore");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "ASSET_IGNORE");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to toggle asset ignored status",

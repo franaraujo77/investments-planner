@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getRefreshToken, setAuthCookies } from "@/lib/auth/cookies";
 import { verifyRefreshToken, signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import {
@@ -167,9 +167,12 @@ export async function POST(
 
     return response;
   } catch (error) {
-    logger.error("Token refresh error", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
+    const dbError = handleDbError(error, "token refresh");
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "REFRESH");
+    }
+
     return NextResponse.json(
       {
         error: "An error occurred during token refresh",

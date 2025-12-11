@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getCurrencyConverter } from "@/lib/providers";
 import {
   CurrencyConversionRequestSchema,
@@ -137,15 +138,11 @@ export const GET = withAuth<ApiResponse | CurrencyConversionError | AuthError>(
         data: conversionData,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const dbError = handleDbError(error, "convert currency");
 
-      logger.error("Failed to convert currency", {
-        userId: session.userId,
-        value,
-        from,
-        to,
-        error: errorMessage,
-      });
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "CONVERSION");
+      }
 
       // Handle specific conversion errors
       if (error instanceof ConversionError) {

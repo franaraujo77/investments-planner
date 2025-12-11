@@ -341,7 +341,8 @@ describe("API Response Utilities", () => {
     });
 
     it("should catch and log errors", async () => {
-      const testError = new Error("Database connection failed");
+      // Use an error message that won't be categorized as a connection error
+      const testError = new Error("Unexpected processing failure");
       const handler = vi.fn().mockRejectedValue(testError);
       const wrappedHandler = withErrorHandling(handler);
 
@@ -350,10 +351,13 @@ describe("API Response Utilities", () => {
 
       expect(response.status).toBe(500);
       expect(body.code).toBe("INTERNAL_ERROR");
-      expect(logger.error).toHaveBeenCalledWith("API Error", {
-        errorMessage: "Database connection failed",
-        errorName: "Error",
-      });
+      expect(logger.error).toHaveBeenCalledWith(
+        "API Error",
+        expect.objectContaining({
+          dbErrorMessage: "Unexpected processing failure",
+          errorName: "Error",
+        })
+      );
     });
 
     it("should handle non-Error thrown values", async () => {
@@ -363,10 +367,13 @@ describe("API Response Utilities", () => {
       const response = await wrappedHandler();
 
       expect(response.status).toBe(500);
-      expect(logger.error).toHaveBeenCalledWith("API Error", {
-        errorMessage: "string error",
-        errorName: "UnknownError",
-      });
+      expect(logger.error).toHaveBeenCalledWith(
+        "API Error",
+        expect.objectContaining({
+          dbErrorMessage: "string error",
+          errorName: "UnknownError",
+        })
+      );
     });
 
     it("should pass arguments to the wrapped handler", async () => {

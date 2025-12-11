@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getRefreshToken, clearAuthCookies } from "@/lib/auth/cookies";
 import { verifyRefreshToken } from "@/lib/auth/jwt";
 import { findRefreshTokenById, deleteRefreshToken } from "@/lib/auth/service";
@@ -61,9 +61,12 @@ export const POST = withAuth<LogoutResponse>(async (request, _session) => {
 
     return response;
   } catch (error) {
-    logger.error("Logout error", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
+    const dbError = handleDbError(error, "user logout");
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "LOGOUT");
+    }
+
     return NextResponse.json<AuthError>(
       {
         error: "An error occurred during logout",

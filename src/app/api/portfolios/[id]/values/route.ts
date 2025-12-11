@@ -20,7 +20,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   getPortfolioWithValues,
   PortfolioNotFoundError,
@@ -91,9 +91,12 @@ export const GET = withAuth<PortfolioValuesResponse | ValidationError | AuthErro
         );
       }
 
-      logger.error("Error fetching portfolio values", {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
+      const dbError = handleDbError(error, "get portfolio values");
+
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "PORTFOLIO_VALUES");
+      }
+
       return NextResponse.json<AuthError>(
         {
           error: "Failed to fetch portfolio values",

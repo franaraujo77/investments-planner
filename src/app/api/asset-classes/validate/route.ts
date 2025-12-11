@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
   validateAllocationRanges,
   type AllocationValidationResult,
@@ -39,10 +39,12 @@ export const GET = withAuth<AllocationValidationResult | AuthError>(async (_requ
 
     return NextResponse.json(validationResult);
   } catch (error) {
-    logger.error("Failed to validate allocation ranges", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      userId: session.userId,
-    });
+    const dbError = handleDbError(error, "validate asset class");
+
+    if (dbError.isConnectionError || dbError.isTimeout) {
+      return databaseError(dbError, "allocation validation");
+    }
+
     return NextResponse.json<AuthError>(
       {
         error: "Failed to validate allocation ranges",

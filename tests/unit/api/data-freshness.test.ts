@@ -488,8 +488,9 @@ describe("GET /api/data/freshness", () => {
 
   describe("Error Handling", () => {
     it("should handle repository errors gracefully", async () => {
+      // Use an error message that won't be categorized as a connection error
       vi.mocked(pricesRepository.getPricesBySymbols).mockRejectedValue(
-        new Error("Database connection failed")
+        new Error("Unexpected repository failure")
       );
 
       const request = createRequest({ type: "prices", symbols: "PETR4" });

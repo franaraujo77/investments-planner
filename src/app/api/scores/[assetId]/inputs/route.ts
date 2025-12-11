@@ -20,7 +20,7 @@
 
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
-import { logger } from "@/lib/telemetry/logger";
+import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getAssetScore } from "@/lib/services/score-service";
 import { db } from "@/lib/db";
 import {
@@ -177,11 +177,6 @@ export const GET = withAuth<GetInputsResponse | ErrorResponse | AuthError>(
       const score = await getAssetScore(session.userId, assetId);
 
       if (!score) {
-        logger.info("No score found for asset inputs", {
-          userId: session.userId,
-          assetId,
-        });
-
         return NextResponse.json(
           {
             error: "No score found for this asset",
@@ -336,16 +331,6 @@ export const GET = withAuth<GetInputsResponse | ErrorResponse | AuthError>(
       const scoreValue = parseFloat(score.score);
       const percentage = maxPossible > 0 ? ((scoreValue / maxPossible) * 100).toFixed(2) : "0.00";
 
-      logger.debug("Score inputs retrieved", {
-        userId: session.userId,
-        assetId,
-        hasPrice: !!latestPrice,
-        hasFundamentals: !!latestFundamentals,
-        hasRate: !!latestRate,
-        correlationId,
-        evaluationCount: evaluations.length,
-      });
-
       // Build response with source attribution
       // AC-6.8.1: Use getProviderDisplayName for human-readable names
       // AC-6.9.1, AC-6.9.2, AC-6.9.3: Extended response
@@ -401,12 +386,11 @@ export const GET = withAuth<GetInputsResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const dbError = handleDbError(error, "get score inputs");
 
-      logger.error("Failed to get score inputs", {
-        userId: session.userId,
-        error: errorMessage,
-      });
+      if (dbError.isConnectionError || dbError.isTimeout) {
+        return databaseError(dbError, "get score inputs");
+      }
 
       return NextResponse.json(
         {
