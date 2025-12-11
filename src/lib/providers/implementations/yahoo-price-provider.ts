@@ -14,6 +14,7 @@
  */
 
 import { logger } from "@/lib/telemetry/logger";
+import { getEnvInt, getEnvString } from "@/lib/utils/env";
 import type { PriceProvider, PriceResult } from "../types";
 import { ProviderError, PROVIDER_ERROR_CODES } from "../types";
 
@@ -97,11 +98,11 @@ export class YahooFinancePriceProvider implements PriceProvider {
   private readonly batchSize: number;
 
   constructor(config: YahooPriceProviderConfig = {}) {
-    this.baseUrl = config.baseUrl ?? process.env.YAHOO_FINANCE_API_URL ?? DEFAULT_BASE_URL;
+    this.baseUrl = config.baseUrl ?? getEnvString("YAHOO_FINANCE_API_URL", DEFAULT_BASE_URL);
     this.apiKey = config.apiKey ?? process.env.YAHOO_FINANCE_API_KEY;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.batchSize = Math.min(
-      config.batchSize ?? (parseInt(process.env.PRICES_BATCH_SIZE ?? "", 10) || DEFAULT_BATCH_SIZE),
+      config.batchSize ?? getEnvInt("PRICES_BATCH_SIZE", DEFAULT_BATCH_SIZE),
       DEFAULT_BATCH_SIZE
     );
 

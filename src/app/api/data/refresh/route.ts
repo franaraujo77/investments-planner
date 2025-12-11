@@ -41,7 +41,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { logger } from "@/lib/telemetry/logger";
-import { refreshRateLimiter, MAX_REFRESHES_PER_HOUR } from "@/lib/rate-limit";
+import { refreshRateLimiter } from "@/lib/rate-limit";
 import { dataRefreshService } from "@/lib/services/data-refresh-service";
 import {
   safeParseRefreshRequest,
@@ -188,10 +188,7 @@ export const POST = withAuth<
     const response = buildRefreshSuccessResponse({
       refreshedAt: refreshResult.refreshedAt,
       resetAt: updatedRateLimit.resetAt,
-      remaining: Math.max(
-        0,
-        MAX_REFRESHES_PER_HOUR - 1 - (MAX_REFRESHES_PER_HOUR - updatedRateLimit.remaining)
-      ),
+      remaining: Math.max(0, updatedRateLimit.remaining - 1),
       refreshedTypes: refreshResult.refreshedTypes,
       providers: refreshResult.providers,
     });

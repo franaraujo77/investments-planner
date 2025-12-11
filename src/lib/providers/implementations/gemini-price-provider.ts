@@ -15,6 +15,7 @@
  */
 
 import { logger } from "@/lib/telemetry/logger";
+import { getEnvInt, getEnvString } from "@/lib/utils/env";
 import type { PriceProvider, PriceResult } from "../types";
 import { ProviderError, PROVIDER_ERROR_CODES } from "../types";
 
@@ -100,12 +101,12 @@ export class GeminiPriceProvider implements PriceProvider {
   private readonly batchSize: number;
 
   constructor(config: GeminiPriceProviderConfig = {}) {
-    this.baseUrl = config.baseUrl ?? process.env.GEMINI_API_URL ?? DEFAULT_BASE_URL;
+    this.baseUrl = config.baseUrl ?? getEnvString("GEMINI_API_URL", DEFAULT_BASE_URL);
     this.apiKey = config.apiKey ?? process.env.GEMINI_API_KEY;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     // AC-6.3.5: Maximum 50 symbols per request
     this.batchSize = Math.min(
-      config.batchSize ?? (parseInt(process.env.PRICES_BATCH_SIZE ?? "", 10) || DEFAULT_BATCH_SIZE),
+      config.batchSize ?? getEnvInt("PRICES_BATCH_SIZE", DEFAULT_BATCH_SIZE),
       DEFAULT_BATCH_SIZE
     );
 

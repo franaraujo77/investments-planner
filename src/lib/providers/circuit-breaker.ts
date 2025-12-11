@@ -8,7 +8,7 @@
  * - Opens after 5 consecutive failures
  * - Resets after 5 minutes
  * - Half-open state allows single test request
- * - All state transitions are logged
+ * - All state transitions are logged with metrics for observability
  *
  * @module @/lib/providers/circuit-breaker
  */
@@ -325,11 +325,53 @@ export class CircuitBreaker {
 
   /**
    * Transition to a new state
+   *
+   * Emits telemetry metrics for observability dashboards
    */
   private transitionTo(newState: CircuitState): void {
     const oldState = this.state;
     this.state = newState;
+
+    // Emit metrics for observability
+    this.emitStateTransitionMetric(oldState, newState);
+
     this.onStateChange?.(oldState, newState);
+  }
+
+  /**
+   * Emit telemetry metrics for circuit breaker state transitions
+   *
+   * These metrics can be collected by observability tools (Datadog, Prometheus, etc.)
+   * for monitoring provider health across the system.
+   */
+  private emitStateTransitionMetric(fromState: CircuitState, toState: CircuitState): void {
+    // Log as a structured metric that can be parsed by log aggregators
+    logger.info("Circuit breaker state transition", {
+      metric: "circuit_breaker.state_change",
+      provider: this.providerName,
+      fromState,
+      toState,
+      consecutiveFailures: this.failures,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Emit specific metrics based on the transition type
+    if (toState === "open") {
+      logger.warn("Circuit breaker OPENED - provider disabled", {
+        metric: "circuit_breaker.opened",
+        provider: this.providerName,
+        consecutiveFailures: this.failures,
+        failureThreshold: this.config.failureThreshold,
+        resetTimeoutMs: this.config.resetTimeoutMs,
+        nextAttemptAt: this.getNextAttemptTime()?.toISOString(),
+      });
+    } else if (toState === "closed" && fromState !== "closed") {
+      logger.info("Circuit breaker CLOSED - provider recovered", {
+        metric: "circuit_breaker.closed",
+        provider: this.providerName,
+        previousState: fromState,
+      });
+    }
   }
 
   /**

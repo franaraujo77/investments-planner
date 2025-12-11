@@ -15,6 +15,7 @@
  */
 
 import { logger } from "@/lib/telemetry/logger";
+import { getEnvInt, getEnvString } from "@/lib/utils/env";
 import type { FundamentalsProvider, FundamentalsResult } from "../types";
 import { ProviderError, PROVIDER_ERROR_CODES } from "../types";
 
@@ -102,12 +103,10 @@ export class GeminiFundamentalsProvider implements FundamentalsProvider {
   private readonly batchSize: number;
 
   constructor(config: GeminiProviderConfig = {}) {
-    this.baseUrl = config.baseUrl ?? process.env.GEMINI_API_URL ?? DEFAULT_BASE_URL;
+    this.baseUrl = config.baseUrl ?? getEnvString("GEMINI_API_URL", DEFAULT_BASE_URL);
     this.apiKey = config.apiKey ?? process.env.GEMINI_API_KEY;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.batchSize =
-      config.batchSize ??
-      (parseInt(process.env.FUNDAMENTALS_BATCH_SIZE ?? "", 10) || DEFAULT_BATCH_SIZE);
+    this.batchSize = config.batchSize ?? getEnvInt("FUNDAMENTALS_BATCH_SIZE", DEFAULT_BATCH_SIZE);
 
     if (!this.apiKey) {
       logger.warn("GeminiFundamentalsProvider initialized without API key", {

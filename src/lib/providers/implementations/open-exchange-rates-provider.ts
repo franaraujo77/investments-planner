@@ -17,6 +17,7 @@
  */
 
 import { logger } from "@/lib/telemetry/logger";
+import { getEnvString } from "@/lib/utils/env";
 import type { ExchangeRateProvider, ExchangeRateResult } from "../types";
 import { ProviderError, PROVIDER_ERROR_CODES } from "../types";
 import {
@@ -95,7 +96,7 @@ export class OpenExchangeRatesProvider implements ExchangeRateProvider {
   private readonly timeoutMs: number;
 
   constructor(config: OpenExchangeRatesProviderConfig = {}) {
-    this.baseUrl = config.baseUrl ?? process.env.OPEN_EXCHANGE_RATES_URL ?? DEFAULT_BASE_URL;
+    this.baseUrl = config.baseUrl ?? getEnvString("OPEN_EXCHANGE_RATES_URL", DEFAULT_BASE_URL);
     this.appId = config.appId ?? process.env.OPEN_EXCHANGE_RATES_APP_ID;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 

@@ -17,6 +17,7 @@
  */
 
 import { logger } from "@/lib/telemetry/logger";
+import { getEnvString } from "@/lib/utils/env";
 import type { ExchangeRateProvider, ExchangeRateResult } from "../types";
 import { ProviderError, PROVIDER_ERROR_CODES } from "../types";
 
@@ -146,7 +147,7 @@ export class ExchangeRateAPIProvider implements ExchangeRateProvider {
   private readonly timeoutMs: number;
 
   constructor(config: ExchangeRateAPIProviderConfig = {}) {
-    this.baseUrl = config.baseUrl ?? process.env.EXCHANGE_RATE_API_URL ?? DEFAULT_BASE_URL;
+    this.baseUrl = config.baseUrl ?? getEnvString("EXCHANGE_RATE_API_URL", DEFAULT_BASE_URL);
     this.apiKey = config.apiKey ?? process.env.EXCHANGE_RATE_API_KEY;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
