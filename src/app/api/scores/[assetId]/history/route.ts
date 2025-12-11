@@ -165,19 +165,8 @@ export const GET = withAuth<GetHistoryResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const dbError = handleDbError(error, "get score history");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "get score history");
-      }
-
-      return NextResponse.json(
-        {
-          error: "Failed to retrieve score history",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get score history", { userId: session.userId });
+      return databaseError(dbError, "get score history");
     }
   }
 );

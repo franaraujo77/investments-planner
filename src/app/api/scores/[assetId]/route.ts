@@ -131,19 +131,8 @@ export const GET = withAuth<GetScoreResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const dbError = handleDbError(error, "get asset score");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "get asset score");
-      }
-
-      return NextResponse.json(
-        {
-          error: "Failed to retrieve score",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get asset score", { userId: session.userId });
+      return databaseError(dbError, "get asset score");
     }
   }
 );

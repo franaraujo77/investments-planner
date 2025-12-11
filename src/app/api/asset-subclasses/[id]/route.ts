@@ -93,19 +93,8 @@ export const GET = withAuth<SubclassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<SubclassResponse>({ data: subclass });
     } catch (error) {
-      const dbError = handleDbError(error, "get subclass");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "subclass");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch subclass",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get subclass", { userId: session.userId });
+      return databaseError(dbError, "subclass");
     }
   }
 );
@@ -169,19 +158,8 @@ export const PATCH = withAuth<SubclassResponse | ValidationError | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "update subclass");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "subclass");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update subclass",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "update subclass", { userId: session.userId });
+      return databaseError(dbError, "subclass");
     }
   }
 );
@@ -255,18 +233,7 @@ export const DELETE = withAuth<
       );
     }
 
-    const dbError = handleDbError(error, "delete subclass");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "subclass");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to delete subclass",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "delete subclass", { userId: session.userId });
+    return databaseError(dbError, "subclass");
   }
 });

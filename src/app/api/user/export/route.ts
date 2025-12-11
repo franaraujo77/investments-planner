@@ -15,7 +15,6 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { handleDbError, databaseError } from "@/lib/api/responses";
 import { generateUserExport } from "@/lib/services/export-service";
-import type { AuthError } from "@/lib/auth/types";
 
 /**
  * GET /api/user/export
@@ -52,18 +51,7 @@ export const GET = withAuth(async (_request, session) => {
       },
     });
   } catch (error) {
-    const dbError = handleDbError(error, "export user data");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "user data export");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to generate export",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "export user data", { userId: session.userId });
+    return databaseError(dbError, "user data export");
   }
 });

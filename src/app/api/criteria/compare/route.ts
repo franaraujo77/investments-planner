@@ -113,18 +113,7 @@ export const POST = withAuth<CompareResponse | ValidationError | AuthError>(
       }
 
       const dbError = handleDbError(error, "compare criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "compare criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to compare criteria sets",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "compare criteria");
     }
   }
 );

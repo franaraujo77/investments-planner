@@ -184,18 +184,6 @@ export async function POST(request: Request): Promise<NextResponse<AuthResponse 
     return response;
   } catch (error) {
     const dbError = handleDbError(error, "user login");
-
-    // Connection/timeout errors get specific responses
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "login");
-    }
-
-    return NextResponse.json(
-      {
-        error: "An error occurred during login",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    return databaseError(dbError, "login");
   }
 }

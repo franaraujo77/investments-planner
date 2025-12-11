@@ -363,7 +363,7 @@ describe("POST /api/scores/calculate", () => {
       expect(response.status).toBe(500);
 
       const body = await response.json();
-      expect(body.code).toBe("INTERNAL_ERROR");
+      expect(body.code).toBe("DATABASE_ERROR");
     });
   });
 });

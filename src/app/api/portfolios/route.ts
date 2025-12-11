@@ -76,19 +76,8 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
       },
     });
   } catch (error) {
-    const dbError = handleDbError(error, "list portfolios");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "portfolios");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to fetch portfolios",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "list portfolios", { userId: session.userId });
+    return databaseError(dbError, "portfolios");
   }
 });
 
@@ -144,19 +133,8 @@ export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "create portfolio");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "portfolio");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create portfolio",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "create portfolio", { userId: session.userId });
+      return databaseError(dbError, "portfolio");
     }
   }
 );

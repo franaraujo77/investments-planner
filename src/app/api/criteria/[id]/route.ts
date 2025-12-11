@@ -80,18 +80,7 @@ export const GET = withAuth<CriteriaResponse | ValidationError | AuthError>(
       return NextResponse.json<CriteriaResponse>({ data: criteriaSet });
     } catch (error) {
       const dbError = handleDbError(error, "get criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "get criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "get criteria");
     }
   }
 );
@@ -153,18 +142,7 @@ export const PATCH = withAuth<CriteriaResponse | ValidationError | AuthError>(
       }
 
       const dbError = handleDbError(error, "update criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "update criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "update criteria");
     }
   }
 );
@@ -200,18 +178,7 @@ export const DELETE = withAuth<DeleteResponse | ValidationError | AuthError>(
       }
 
       const dbError = handleDbError(error, "delete criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "delete criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to delete criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "delete criteria");
     }
   }
 );

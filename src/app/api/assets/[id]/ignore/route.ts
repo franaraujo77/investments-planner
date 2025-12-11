@@ -71,19 +71,8 @@ export const PATCH = withAuth<AssetResponse | ErrorResponse | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "toggle asset ignore");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to toggle asset ignored status",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "toggle asset ignore", { userId: session.userId });
+      return databaseError(dbError, "asset");
     }
   }
 );

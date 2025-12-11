@@ -168,17 +168,6 @@ export async function POST(
     return response;
   } catch (error) {
     const dbError = handleDbError(error, "token refresh");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "token refresh");
-    }
-
-    return NextResponse.json(
-      {
-        error: "An error occurred during token refresh",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    return databaseError(dbError, "token refresh");
   }
 }

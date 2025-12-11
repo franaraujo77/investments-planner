@@ -500,7 +500,7 @@ describe("GET /api/data/freshness", () => {
 
       const body = await response.json();
       expect(body.error).toBeDefined();
-      expect(body.code).toBe("INTERNAL_ERROR");
+      expect(body.code).toBe("DATABASE_ERROR");
     });
   });
 });

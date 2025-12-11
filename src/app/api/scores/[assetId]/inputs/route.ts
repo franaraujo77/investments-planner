@@ -386,19 +386,8 @@ export const GET = withAuth<GetInputsResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const dbError = handleDbError(error, "get score inputs");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "get score inputs");
-      }
-
-      return NextResponse.json(
-        {
-          error: "Failed to retrieve calculation inputs",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get score inputs", { userId: session.userId });
+      return databaseError(dbError, "get score inputs");
     }
   }
 );

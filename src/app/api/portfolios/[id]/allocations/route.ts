@@ -111,16 +111,8 @@ export const GET = withAuth<AllocationResponse | ValidationError | AuthError>(
       }
 
       // Log unexpected errors and handle database errors
-      const dbError = handleDbError(error, "get allocations");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "allocations");
-      }
-
-      return NextResponse.json<AuthError>(
-        { error: "Failed to fetch allocation breakdown", code: "INTERNAL_ERROR" },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get allocations", { userId: session.userId });
+      return databaseError(dbError, "allocations");
     }
   }
 );

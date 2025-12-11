@@ -13,7 +13,6 @@ import { getRefreshToken, clearAuthCookies } from "@/lib/auth/cookies";
 import { verifyRefreshToken } from "@/lib/auth/jwt";
 import { findRefreshTokenById, deleteRefreshToken } from "@/lib/auth/service";
 import { withAuth } from "@/lib/auth/middleware";
-import type { AuthError } from "@/lib/auth/types";
 
 interface LogoutResponse {
   success: boolean;
@@ -62,17 +61,6 @@ export const POST = withAuth<LogoutResponse>(async (request, _session) => {
     return response;
   } catch (error) {
     const dbError = handleDbError(error, "user logout");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "logout");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "An error occurred during logout",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    return databaseError(dbError, "logout");
   }
 });

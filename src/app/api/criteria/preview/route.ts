@@ -109,18 +109,7 @@ export const POST = withAuth<PreviewResponse | ValidationError | AuthError>(
       }
 
       const dbError = handleDbError(error, "preview criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "preview criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to calculate preview",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "preview criteria");
     }
   }
 );

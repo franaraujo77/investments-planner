@@ -98,19 +98,8 @@ export const PATCH = withAuth<AssetResponse | ValidationError | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "update asset");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update asset",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "update asset", { userId: session.userId });
+      return databaseError(dbError, "asset");
     }
   }
 );
@@ -157,19 +146,8 @@ export const DELETE = withAuth<DeleteSuccessResponse | ValidationError | AuthErr
         );
       }
 
-      const dbError = handleDbError(error, "delete asset");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to delete asset",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "delete asset", { userId: session.userId });
+      return databaseError(dbError, "asset");
     }
   }
 );

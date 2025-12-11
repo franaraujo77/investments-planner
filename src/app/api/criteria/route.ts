@@ -102,18 +102,7 @@ export const GET = withAuth<CriteriaListResponse | AuthError>(async (request, se
     });
   } catch (error) {
     const dbError = handleDbError(error, "list criteria", { userId: session.userId });
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "list criteria");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to fetch criteria sets",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    return databaseError(dbError, "list criteria");
   }
 });
 
@@ -172,18 +161,7 @@ export const POST = withAuth<CriteriaResponse | ValidationError | AuthError>(
       }
 
       const dbError = handleDbError(error, "create criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "create criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "create criteria");
     }
   }
 );

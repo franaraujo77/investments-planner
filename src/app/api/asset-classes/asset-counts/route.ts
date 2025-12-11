@@ -71,19 +71,8 @@ export const GET = withAuth<AssetCountStatusResponse | ErrorResponse | AuthError
 
       return NextResponse.json<AssetCountStatusResponse>({ data: assetCountStatus });
     } catch (error) {
-      const dbError = handleDbError(error, "get asset counts");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset count status");
-      }
-
-      return NextResponse.json<ErrorResponse>(
-        {
-          error: "Failed to fetch asset count status",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get asset counts", { userId: session.userId });
+      return databaseError(dbError, "asset count status");
     }
   }
 );

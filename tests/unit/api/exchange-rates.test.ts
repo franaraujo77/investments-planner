@@ -427,7 +427,7 @@ describe("GET /api/data/exchange-rates", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.code).toBe("INTERNAL_ERROR");
+      expect(data.code).toBe("DATABASE_ERROR");
     });
   });
 

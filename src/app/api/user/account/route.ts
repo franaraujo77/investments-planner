@@ -87,13 +87,7 @@ export const DELETE = withAuth<DeleteAccountResponse | ErrorResponseBody>(
         { status: 200 }
       );
     } catch (error) {
-      const dbError = handleDbError(error, "delete user account");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "user account");
-      }
-
-      // Handle specific error cases
+      // Handle specific error cases first
       if (error instanceof Error) {
         if (error.message === "User not found") {
           return NextResponse.json<AuthError>(
@@ -109,11 +103,8 @@ export const DELETE = withAuth<DeleteAccountResponse | ErrorResponseBody>(
         }
       }
 
-      // Generic error
-      return NextResponse.json<AuthError>(
-        { error: "Failed to delete account", code: "INTERNAL_ERROR" },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "delete user account", { userId: session.userId });
+      return databaseError(dbError, "user account");
     }
   }
 );

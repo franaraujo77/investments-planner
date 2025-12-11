@@ -93,19 +93,8 @@ export const GET = withAuth<AssetClassResponse | ValidationError | AuthError>(
 
       return NextResponse.json<AssetClassResponse>({ data: assetClass });
     } catch (error) {
-      const dbError = handleDbError(error, "get asset class");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset class");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch asset class",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get asset class", { userId: session.userId });
+      return databaseError(dbError, "asset class");
     }
   }
 );
@@ -170,19 +159,8 @@ export const PATCH = withAuth<AssetClassResponse | ValidationError | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "update asset class");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset class");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to update asset class",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "update asset class", { userId: session.userId });
+      return databaseError(dbError, "asset class");
     }
   }
 );
@@ -256,18 +234,7 @@ export const DELETE = withAuth<
       );
     }
 
-    const dbError = handleDbError(error, "delete asset class");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "asset class");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to delete asset class",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "delete asset class", { userId: session.userId });
+    return databaseError(dbError, "asset class");
   }
 });

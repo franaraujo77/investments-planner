@@ -110,18 +110,7 @@ export const PATCH = withAuth<CriteriaResponse | ValidationError | AuthError>(
       }
 
       const dbError = handleDbError(error, "reorder criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "reorder criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to reorder criteria",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "reorder criteria");
     }
   }
 );

@@ -114,19 +114,8 @@ export const GET = withAuth<InvestmentListResponse | AuthError>(
         },
       });
     } catch (error) {
-      const dbError = handleDbError(error, "list investments");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "investments list");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch investments",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "list investments", { userId: session.userId });
+      return databaseError(dbError, "investments");
     }
   }
 );
@@ -221,19 +210,8 @@ export const POST = withAuth<InvestmentRecordResponse | ValidationError | AuthEr
         );
       }
 
-      const dbError = handleDbError(error, "record investment");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "investment record");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to record investments",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "record investment", { userId: session.userId });
+      return databaseError(dbError, "investments");
     }
   }
 );

@@ -17,7 +17,6 @@ import { signVerificationToken } from "@/lib/auth/jwt";
 import { AUTH_MESSAGES } from "@/lib/auth/constants";
 import { registerSchema } from "@/lib/auth/validation";
 import { inngest } from "@/lib/inngest";
-import { logger } from "@/lib/telemetry/logger";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { handleDbError, databaseError } from "@/lib/api/responses";
 import { DbErrorCode } from "@/lib/db/errors";
@@ -171,18 +170,7 @@ export async function POST(
         );
       }
 
-      // Connection/timeout errors get specific responses
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "registration");
-      }
-
-      return NextResponse.json(
-        {
-          error: "An error occurred during registration",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "registration");
     }
   });
 }

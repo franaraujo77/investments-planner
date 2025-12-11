@@ -63,18 +63,7 @@ export const GET = withAuth<MeResponse>(async (_request, session) => {
       { status: 200 }
     );
   } catch (error) {
-    const dbError = handleDbError(error, "fetch current user");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "user data");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "An error occurred while fetching user data",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "fetch current user", { userId: session.userId });
+    return databaseError(dbError, "user data");
   }
 });

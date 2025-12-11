@@ -112,18 +112,7 @@ export const POST = withAuth<CopyResponse | ValidationError | AuthError>(
       }
 
       const dbError = handleDbError(error, "copy criteria", { userId: session.userId });
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "copy criteria");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to copy criteria set",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "copy criteria");
     }
   }
 );

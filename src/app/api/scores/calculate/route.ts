@@ -214,13 +214,6 @@ export const POST = withAuth<CalculateResponse | ValidationError | AuthError>(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-      // Handle database errors
-      const dbError = handleDbError(error, "calculate scores");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "calculate scores");
-      }
-
       // Handle specific errors
       if (errorMessage === "NO_CRITERIA") {
         logger.warn("No criteria found for score calculation", {
@@ -246,18 +239,9 @@ export const POST = withAuth<CalculateResponse | ValidationError | AuthError>(
         );
       }
 
-      logger.error("Score calculation failed", {
-        userId: session.userId,
-        error: errorMessage,
-      });
-
-      return NextResponse.json(
-        {
-          error: "Score calculation failed",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      // Handle database errors
+      const dbError = handleDbError(error, "calculate scores", { userId: session.userId });
+      return databaseError(dbError, "calculate scores");
     }
   }
 );

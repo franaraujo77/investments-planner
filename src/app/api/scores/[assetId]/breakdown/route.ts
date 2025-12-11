@@ -160,19 +160,8 @@ export const GET = withAuth<GetBreakdownResponse | ErrorResponse | AuthError>(
 
       return NextResponse.json(response, { status: 200 });
     } catch (error) {
-      const dbError = handleDbError(error, "get score breakdown");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "get score breakdown");
-      }
-
-      return NextResponse.json(
-        {
-          error: "Failed to retrieve breakdown",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get score breakdown", { userId: session.userId });
+      return databaseError(dbError, "get score breakdown");
     }
   }
 );

@@ -138,12 +138,6 @@ export const GET = withAuth<ApiResponse | CurrencyConversionError | AuthError>(
         data: conversionData,
       });
     } catch (error) {
-      const dbError = handleDbError(error, "convert currency");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "currency conversion");
-      }
-
       // Handle specific conversion errors
       if (error instanceof ConversionError) {
         const status = error.code === "RATE_NOT_FOUND" ? 404 : 400;
@@ -157,13 +151,8 @@ export const GET = withAuth<ApiResponse | CurrencyConversionError | AuthError>(
         );
       }
 
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to convert currency",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "convert currency", { userId: session.userId });
+      return databaseError(dbError, "currency conversion");
     }
   }
 );

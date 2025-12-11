@@ -77,19 +77,8 @@ export const GET = withAuth<AssetClassListResponse | AuthError>(async (_request,
       },
     });
   } catch (error) {
-    const dbError = handleDbError(error, "list asset classes");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "asset classes");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to fetch asset classes",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "list asset classes", { userId: session.userId });
+    return databaseError(dbError, "asset classes");
   }
 });
 
@@ -144,19 +133,8 @@ export const POST = withAuth<AssetClassResponse | ValidationError | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "create asset class");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset class");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create asset class",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "create asset class", { userId: session.userId });
+      return databaseError(dbError, "asset class");
     }
   }
 );

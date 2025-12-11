@@ -180,13 +180,6 @@ export const POST = withAuth<ReplayResponse | ErrorResponseBody>(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-      // Handle database errors
-      const dbError = handleDbError(error, "replay score calculation");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "replay score calculation");
-      }
-
       // Check for non-deterministic error (thrown by replayCalculation)
       if (error instanceof Error && error.name === "NonDeterministicError") {
         logger.error("Non-deterministic calculation detected", {
@@ -197,12 +190,9 @@ export const POST = withAuth<ReplayResponse | ErrorResponseBody>(
         return errorResponse(errorMessage, INTERNAL_ERRORS.INTERNAL_ERROR);
       }
 
-      logger.error("Failed to replay calculation", {
-        userId: session.userId,
-        error: errorMessage,
-      });
-
-      return errorResponse("Failed to replay calculation", INTERNAL_ERRORS.INTERNAL_ERROR);
+      // Handle database errors
+      const dbError = handleDbError(error, "replay score calculation", { userId: session.userId });
+      return databaseError(dbError, "replay score calculation");
     }
   }
 );

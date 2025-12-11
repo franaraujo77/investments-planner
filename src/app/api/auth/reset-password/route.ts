@@ -140,21 +140,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     const dbError = handleDbError(error, "password reset");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "password reset");
-    }
-
-    logger.error("Password reset unexpected error", {
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
-
-    return NextResponse.json(
-      {
-        error: "An unexpected error occurred. Please try again.",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    return databaseError(dbError, "password reset");
   }
 }

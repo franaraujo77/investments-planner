@@ -39,18 +39,7 @@ export const GET = withAuth<AllocationValidationResult | AuthError>(async (_requ
 
     return NextResponse.json(validationResult);
   } catch (error) {
-    const dbError = handleDbError(error, "validate asset class");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "allocation validation");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to validate allocation ranges",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "validate asset class", { userId: session.userId });
+    return databaseError(dbError, "allocation validation");
   }
 });

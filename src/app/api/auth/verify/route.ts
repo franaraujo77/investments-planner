@@ -143,25 +143,10 @@ export async function POST(request: Request): Promise<NextResponse<VerifyRespons
       });
     } catch (error) {
       const dbError = handleDbError(error, "email verification");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
-        span.recordException(error as Error);
-        span.end();
-        return databaseError(dbError, "email verification");
-      }
-
       span.setStatus({ code: SpanStatusCode.ERROR, message: String(error) });
       span.recordException(error as Error);
       span.end();
-
-      return NextResponse.json(
-        {
-          error: "An error occurred during verification",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      return databaseError(dbError, "email verification");
     }
   });
 }

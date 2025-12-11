@@ -195,18 +195,7 @@ export const POST = withAuth<
 
     return NextResponse.json<RefreshSuccessResponse>(response, { status: 200 });
   } catch (error) {
-    const dbError = handleDbError(error, "refresh data");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "data refresh");
-    }
-
-    return NextResponse.json<RefreshError>(
-      {
-        error: "An unexpected error occurred during refresh",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "refresh data", { userId: session.userId });
+    return databaseError(dbError, "data refresh");
   }
 });

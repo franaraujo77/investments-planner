@@ -206,12 +206,6 @@ export const GET = withAuth<PricesResponse | ValidationError | AuthError>(
         },
       });
     } catch (error) {
-      const dbError = handleDbError(error, "fetch prices");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "prices");
-      }
-
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       // Check if it's a provider error (has code property)
@@ -227,13 +221,8 @@ export const GET = withAuth<PricesResponse | ValidationError | AuthError>(
         );
       }
 
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch prices",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "fetch prices", { userId: session.userId });
+      return databaseError(dbError, "prices");
     }
   }
 );

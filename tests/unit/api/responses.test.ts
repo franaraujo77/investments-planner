@@ -12,7 +12,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { NextResponse } from "next/server";
 
 // Mock the logger to prevent console output and verify calls
 vi.mock("@/lib/telemetry/logger", () => ({
@@ -695,7 +694,6 @@ describe("API Response Utilities", () => {
       };
 
       const response = databaseError(dbError);
-      const body = (await response.json()) as ErrorResponseBody;
 
       expect(response.status).toBe(500);
     });

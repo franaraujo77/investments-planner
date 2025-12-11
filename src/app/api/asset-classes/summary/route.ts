@@ -32,18 +32,7 @@ export const GET = withAuth<AllocationSummary | AuthError>(async (_request, sess
 
     return NextResponse.json(summary);
   } catch (error) {
-    const dbError = handleDbError(error, "get asset class summary");
-
-    if (dbError.isConnectionError || dbError.isTimeout) {
-      return databaseError(dbError, "allocation summary");
-    }
-
-    return NextResponse.json<AuthError>(
-      {
-        error: "Failed to get allocation summary",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 }
-    );
+    const dbError = handleDbError(error, "get asset class summary", { userId: session.userId });
+    return databaseError(dbError, "allocation summary");
   }
 });

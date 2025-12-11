@@ -194,7 +194,7 @@ async function getFreshnessData(
  * AC-6.7.3: Provides data for tooltip display
  */
 export const GET = withAuth<FreshnessSuccessResponse | ErrorResponseBody | AuthError>(
-  async (request: NextRequest, _session) => {
+  async (request: NextRequest, session) => {
     const searchParams = request.nextUrl.searchParams;
 
     // Parse query parameters
@@ -222,13 +222,8 @@ export const GET = withAuth<FreshnessSuccessResponse | ErrorResponseBody | AuthE
       const response = buildFreshnessResponse(freshnessMap);
       return NextResponse.json<FreshnessSuccessResponse>(response, { status: 200 });
     } catch (error) {
-      const dbError = handleDbError(error, "check data freshness");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "data freshness");
-      }
-
-      return errorResponse("Failed to retrieve freshness data", "INTERNAL_ERROR", 500);
+      const dbError = handleDbError(error, "check data freshness", { userId: session.userId });
+      return databaseError(dbError, "data freshness");
     }
   }
 );

@@ -175,12 +175,6 @@ export const GET = withAuth<ExchangeRatesResponse | ValidationError | AuthError>
         },
       });
     } catch (error) {
-      const dbError = handleDbError(error, "fetch exchange rates");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "exchange rates");
-      }
-
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       // Check if it's a provider error (has code property)
@@ -196,13 +190,8 @@ export const GET = withAuth<ExchangeRatesResponse | ValidationError | AuthError>
         );
       }
 
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch exchange rates",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "fetch exchange rates", { userId: session.userId });
+      return databaseError(dbError, "exchange rates");
     }
   }
 );

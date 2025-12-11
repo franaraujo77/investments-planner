@@ -90,19 +90,8 @@ export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "list portfolio assets");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "assets");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch assets",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "list portfolio assets", { userId: session.userId });
+      return databaseError(dbError, "assets");
     }
   }
 );
@@ -180,19 +169,8 @@ export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "add asset");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "asset");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to create asset",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "add asset", { userId: session.userId });
+      return databaseError(dbError, "asset");
     }
   }
 );

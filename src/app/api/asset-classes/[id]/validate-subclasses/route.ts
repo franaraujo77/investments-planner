@@ -73,19 +73,8 @@ export const GET = withAuth<ValidationResponse | ErrorResponse | AuthError>(
         );
       }
 
-      const dbError = handleDbError(error, "validate subclasses");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "subclass validation");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to validate subclass allocations",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "validate subclasses", { userId: session.userId });
+      return databaseError(dbError, "subclass validation");
     }
   }
 );

@@ -173,12 +173,6 @@ export const GET = withAuth<FundamentalsResponse | ValidationError | AuthError>(
         },
       });
     } catch (error) {
-      const dbError = handleDbError(error, "fetch fundamentals");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "fundamentals");
-      }
-
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       // Check if it's a provider error
@@ -193,13 +187,8 @@ export const GET = withAuth<FundamentalsResponse | ValidationError | AuthError>(
         );
       }
 
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch fundamentals",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "fetch fundamentals", { userId: session.userId });
+      return databaseError(dbError, "fundamentals");
     }
   }
 );

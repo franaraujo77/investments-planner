@@ -76,7 +76,7 @@ vi.mock("@/lib/telemetry/logger", () => ({
 
 // Import route handlers after mocks
 import { GET, POST } from "@/app/api/portfolios/route";
-import { getPortfolioById, createPortfolio } from "@/lib/services/portfolio-service";
+import { getPortfolioById } from "@/lib/services/portfolio-service";
 
 describe("API Error Handling", () => {
   const mockUserId = "user-123";
@@ -367,13 +367,10 @@ describe("API Error Handling", () => {
     });
 
     describe("Constraint Violations", () => {
-      // Note: Current route implementation only handles connection/timeout errors
-      // Constraint violations fall through to generic INTERNAL_ERROR
-      // This tests actual behavior, not ideal behavior
+      // Routes now use databaseError() for ALL errors, which properly handles
+      // constraint violations with appropriate status codes
 
-      it("should return 500 INTERNAL_ERROR for unique violations (not handled by route)", async () => {
-        // The portfolios route only checks isConnectionError || isTimeout
-        // Unique violations don't match, so they fall to generic 500
+      it("should return 409 RESOURCE_CONFLICT for unique violations", async () => {
         const { createPortfolio } = await import("@/lib/services/portfolio-service");
         vi.mocked(createPortfolio).mockRejectedValueOnce(
           createDbError(
@@ -391,11 +388,11 @@ describe("API Error Handling", () => {
         const response = await POST(request);
         const body = await response.json();
 
-        expect(response.status).toBe(500);
-        expect(body.code).toBe("INTERNAL_ERROR");
+        expect(response.status).toBe(409);
+        expect(body.code).toBe("CONFLICT_RESOURCE");
       });
 
-      it("should return 500 INTERNAL_ERROR for foreign key violations (not handled by route)", async () => {
+      it("should return 400 CONSTRAINT_VIOLATION for foreign key violations", async () => {
         const { createPortfolio } = await import("@/lib/services/portfolio-service");
         vi.mocked(createPortfolio).mockRejectedValueOnce(
           createDbError(DbErrorCode.FOREIGN_KEY_VIOLATION, "violates foreign key constraint")
@@ -410,8 +407,8 @@ describe("API Error Handling", () => {
         const response = await POST(request);
         const body = await response.json();
 
-        expect(response.status).toBe(500);
-        expect(body.code).toBe("INTERNAL_ERROR");
+        expect(response.status).toBe(400);
+        expect(body.code).toBe("DATABASE_CONSTRAINT_VIOLATION");
       });
     });
 
@@ -432,7 +429,8 @@ describe("API Error Handling", () => {
         expect(body.code).toBe("DATABASE_CONNECTION_ERROR");
       });
 
-      it("should return 500 for out of memory errors (not connection/timeout)", async () => {
+      it("should return 503 for out of memory errors (resource exhaustion)", async () => {
+        // OUT_OF_MEMORY (53200) is categorized as "resource" which returns 503
         const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
         vi.mocked(getUserPortfolios).mockRejectedValueOnce(
           createDbError(DbErrorCode.OUT_OF_MEMORY, "out of memory")
@@ -442,14 +440,14 @@ describe("API Error Handling", () => {
         const response = await GET(request);
         const body = await response.json();
 
-        expect(response.status).toBe(500);
-        expect(body.code).toBe("INTERNAL_ERROR");
+        expect(response.status).toBe(503);
+        expect(body.code).toBe("DATABASE_ERROR");
       });
     });
 
     describe("Authentication/Permission Errors", () => {
-      it("should return 500 INTERNAL_ERROR for database authentication errors", async () => {
-        // Auth errors (28xxx) don't match connection/timeout check
+      it("should return 500 DATABASE_ERROR for database authentication errors", async () => {
+        // Auth errors (28xxx) go through databaseError() which returns DATABASE_ERROR
         const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
         vi.mocked(getUserPortfolios).mockRejectedValueOnce(
           createDbError(DbErrorCode.INVALID_PASSWORD, "password authentication failed")
@@ -460,10 +458,10 @@ describe("API Error Handling", () => {
         const body = await response.json();
 
         expect(response.status).toBe(500);
-        expect(body.code).toBe("INTERNAL_ERROR");
+        expect(body.code).toBe("DATABASE_ERROR");
       });
 
-      it("should return 500 INTERNAL_ERROR for insufficient privilege errors", async () => {
+      it("should return 500 DATABASE_ERROR for insufficient privilege errors", async () => {
         const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
         vi.mocked(getUserPortfolios).mockRejectedValueOnce(
           createDbError(DbErrorCode.INSUFFICIENT_PRIVILEGE, "permission denied for table")
@@ -474,7 +472,7 @@ describe("API Error Handling", () => {
         const body = await response.json();
 
         expect(response.status).toBe(500);
-        expect(body.code).toBe("INTERNAL_ERROR");
+        expect(body.code).toBe("DATABASE_ERROR");
       });
     });
 

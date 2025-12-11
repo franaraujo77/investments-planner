@@ -343,7 +343,7 @@ describe("GET /api/scores/[assetId]/history", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.code).toBe("INTERNAL_ERROR");
+      expect(data.code).toBe("DATABASE_ERROR");
     });
   });
 });

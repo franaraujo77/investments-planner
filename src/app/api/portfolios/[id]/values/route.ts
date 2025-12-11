@@ -91,19 +91,8 @@ export const GET = withAuth<PortfolioValuesResponse | ValidationError | AuthErro
         );
       }
 
-      const dbError = handleDbError(error, "get portfolio values");
-
-      if (dbError.isConnectionError || dbError.isTimeout) {
-        return databaseError(dbError, "portfolio values");
-      }
-
-      return NextResponse.json<AuthError>(
-        {
-          error: "Failed to fetch portfolio values",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      const dbError = handleDbError(error, "get portfolio values", { userId: session.userId });
+      return databaseError(dbError, "portfolio values");
     }
   }
 );
