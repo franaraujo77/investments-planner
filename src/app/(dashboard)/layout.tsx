@@ -19,6 +19,8 @@ import { UserProvider } from "@/contexts/user-context";
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
+    // UserProvider must wrap VerificationGate so it can populate user data
+    // VerificationGate fetches user from /api/auth/me and stores it in context
     <UserProvider>
       <VerificationGate>
         <SidebarProvider

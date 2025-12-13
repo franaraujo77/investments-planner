@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { User } from "@/contexts/user-context";
+import { getDisplayName, getUserInitials } from "@/lib/utils/user";
 
 describe("User type", () => {
   it("should define required user properties", () => {
@@ -63,23 +64,7 @@ describe("User type", () => {
 });
 
 describe("User data display helpers", () => {
-  // Helper functions that could be extracted from app-sidebar.tsx
-
-  function getDisplayName(user: { name: string | null; email: string }): string {
-    if (user.name) {
-      return user.name;
-    }
-    return user.email.split("@")[0] ?? "User";
-  }
-
-  function getUserInitials(user: { name: string | null; email: string }): string {
-    const displayName = getDisplayName(user);
-    const parts = displayName.split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
-    }
-    return displayName.slice(0, 2).toUpperCase();
-  }
+  // Tests for shared utility functions from @/lib/utils/user
 
   describe("getDisplayName", () => {
     it("returns name when available", () => {

@@ -219,23 +219,17 @@ test.describe("Login Form Submission", () => {
     await page.getByLabel("Email").fill("test@example.com");
     await getPasswordInput(page).fill("TestPass123!");
 
-    // Listen for navigation attempt to verify router.push("/") was called
-    // Note: Middleware may redirect back to /login due to mock token validation,
-    // but we verify the login form correctly initiates navigation to "/"
+    // Verify login redirects to dashboard ("/")
+    // Note: Mock token may cause middleware to redirect back to /login
     const navigationPromise = page.waitForURL(
-      (url) => {
-        // Accept either "/" (if middleware passes) or "/login?redirect=%2F" (middleware redirect)
-        // Both prove the login form correctly called router.push("/")
-        return url.pathname === "/" || url.searchParams.get("redirect") === "/";
-      },
+      (url) => url.pathname === "/" || url.searchParams.get("redirect") === "/",
       { timeout: 10000 }
     );
 
     await page.getByRole("button", { name: "Login" }).click();
     await navigationPromise;
 
-    // Verify navigation was attempted to dashboard
-    // The redirect query param proves router.push("/") was called
+    // Confirm navigation was attempted to dashboard
     const currentUrl = new URL(page.url());
     const navigatedToDashboard =
       currentUrl.pathname === "/" || currentUrl.searchParams.get("redirect") === "/";

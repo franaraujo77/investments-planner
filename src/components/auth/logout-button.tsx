@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { useUserOptional } from "@/contexts/user-context";
 
 export interface LogoutButtonProps {
   /** Variant for different placement styles */
@@ -46,6 +47,7 @@ export function LogoutButton({
 }: LogoutButtonProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
+  const userContext = useUserOptional();
 
   async function handleLogout() {
     // Prevent double-clicks
@@ -63,6 +65,9 @@ export function LogoutButton({
         // Error noted but still proceed to login - user gets signed out regardless
       }
 
+      // Clear user data from context
+      userContext?.clearUser();
+
       // Show success toast
       toast.success("You have been logged out");
 
@@ -70,6 +75,8 @@ export function LogoutButton({
       router.push("/login");
     } catch (_error) {
       // Network error - still redirect to login
+      // Clear user data from context regardless of error
+      userContext?.clearUser();
       // Error displayed to user via toast - no additional logging needed in client
       toast.error("Logout encountered an error, but you have been signed out");
       router.push("/login");
