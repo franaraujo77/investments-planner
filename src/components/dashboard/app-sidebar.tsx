@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUser } from "@/contexts/user-context";
+import { useUserOptional } from "@/contexts/user-context";
 import { getDisplayName, getUserInitials } from "@/lib/utils/user";
 
 interface NavItem {
@@ -56,7 +56,10 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user, isLoading } = useUser();
+  // Use useUserOptional for defensive coding - prevents crash if rendered outside UserProvider
+  const userContext = useUserOptional();
+  const user = userContext?.user ?? null;
+  const isLoading = userContext?.isLoading ?? false;
 
   return (
     <Sidebar collapsible="icon" aria-label="Main navigation">

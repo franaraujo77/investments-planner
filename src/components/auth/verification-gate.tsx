@@ -53,7 +53,9 @@ export function VerificationGate({ children }: VerificationGateProps) {
   );
 
   useEffect(() => {
-    // Skip verification check for allowed paths
+    // Skip verification check for allowed paths (e.g., /verify, /verify-pending)
+    // These paths don't require user data, so we immediately set loading to false
+    // and skip the API call. User data will remain null on these paths.
     if (isAllowedPath) {
       setIsLoading(false);
       return;
@@ -88,12 +90,13 @@ export function VerificationGate({ children }: VerificationGateProps) {
           setUser(userData);
         }
 
-        setIsLoading(false);
-
         if (data.user?.emailVerified) {
           setAuthState("verified");
+          setIsLoading(false);
         } else {
           setAuthState("unverified");
+          // Set loading false after state change to prevent brief flash
+          setIsLoading(false);
           // Redirect to verify-pending with email
           const email = data.user?.email;
           const verifyUrl = email
