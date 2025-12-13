@@ -137,7 +137,7 @@ export function LoginForm() {
       // Success (AC-2.3.1)
       const userName = result.user?.name || result.user?.email?.split("@")[0] || "User";
       toast.success(`Welcome back, ${userName}!`);
-      router.push("/dashboard");
+      router.push("/");
     } catch {
       setApiError("An unexpected error occurred. Please try again.");
     } finally {

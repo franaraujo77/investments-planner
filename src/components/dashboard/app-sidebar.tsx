@@ -5,6 +5,7 @@
  *
  * Main navigation sidebar for the dashboard.
  *
+ * Story 2.3: User Login - Display user name and email in footer
  * Story 2.4: User Logout - Added LogoutButton to footer
  */
 
@@ -34,6 +35,8 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useUser } from "@/contexts/user-context";
 
 interface NavItem {
   label: string;
@@ -50,8 +53,33 @@ const navItems: NavItem[] = [
   { label: "Settings", path: "/settings", icon: Settings },
 ];
 
+/**
+ * Get display name for user
+ * Falls back to email username if name is not set
+ */
+function getDisplayName(user: { name: string | null; email: string }): string {
+  if (user.name) {
+    return user.name;
+  }
+  // Extract username from email (before @)
+  return user.email.split("@")[0] ?? "User";
+}
+
+/**
+ * Get user initials for avatar
+ */
+function getUserInitials(user: { name: string | null; email: string }): string {
+  const displayName = getDisplayName(user);
+  const parts = displayName.split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+  }
+  return displayName.slice(0, 2).toUpperCase();
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user, isLoading } = useUser();
 
   return (
     <Sidebar collapsible="icon" aria-label="Main navigation">
@@ -90,10 +118,39 @@ export function AppSidebar() {
       <SidebarFooter className="border-t">
         <div className="flex items-center justify-between gap-2 p-2">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-muted" aria-label="User avatar" />
+            {/* User Avatar */}
+            {isLoading ? (
+              <Skeleton className="h-8 w-8 rounded-full" />
+            ) : (
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
+                aria-label="User avatar"
+              >
+                {user ? getUserInitials(user) : "?"}
+              </div>
+            )}
+            {/* User Info */}
             <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-medium">User</span>
-              <span className="text-xs text-muted-foreground">user@example.com</span>
+              {isLoading ? (
+                <>
+                  <Skeleton className="h-4 w-20 mb-1" />
+                  <Skeleton className="h-3 w-28" />
+                </>
+              ) : user ? (
+                <>
+                  <span className="text-sm font-medium truncate max-w-[140px]">
+                    {getDisplayName(user)}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+                    {user.email}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm font-medium">Not logged in</span>
+                  <span className="text-xs text-muted-foreground">-</span>
+                </>
+              )}
             </div>
           </div>
           <SidebarMenu>
