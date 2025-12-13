@@ -3,14 +3,14 @@
  *
  * Story 2.3: User Login - User data context for dashboard components
  *
- * Tests for User type and related utilities.
+ * Tests for User type contract.
  * Note: React component testing requires @testing-library/react which is not installed.
- * These tests verify the type contracts and utility functions.
+ *
+ * For user display utility tests, see: tests/unit/lib/utils/user.test.ts
  */
 
 import { describe, it, expect } from "vitest";
 import type { User } from "@/contexts/user-context";
-import { getDisplayName, getUserInitials } from "@/lib/utils/user";
 
 describe("User type", () => {
   it("should define required user properties", () => {
@@ -59,57 +59,6 @@ describe("User type", () => {
       };
 
       expect(user.baseCurrency).toBe(currency);
-    });
-  });
-});
-
-describe("User data display helpers", () => {
-  // Tests for shared utility functions from @/lib/utils/user
-
-  describe("getDisplayName", () => {
-    it("returns name when available", () => {
-      expect(getDisplayName({ name: "John Doe", email: "john@example.com" })).toBe("John Doe");
-    });
-
-    it("returns email username when name is null", () => {
-      expect(getDisplayName({ name: null, email: "john.doe@example.com" })).toBe("john.doe");
-    });
-
-    it("handles simple email usernames", () => {
-      expect(getDisplayName({ name: null, email: "admin@test.org" })).toBe("admin");
-    });
-
-    it("returns 'User' for malformed email", () => {
-      // Edge case: email without @
-      const result = getDisplayName({ name: null, email: "noemail" });
-      expect(result).toBe("noemail");
-    });
-  });
-
-  describe("getUserInitials", () => {
-    it("returns two-letter initials for full names", () => {
-      expect(getUserInitials({ name: "John Doe", email: "john@example.com" })).toBe("JD");
-      expect(getUserInitials({ name: "Jane Smith", email: "jane@example.com" })).toBe("JS");
-    });
-
-    it("returns first two letters for single names", () => {
-      expect(getUserInitials({ name: "Admin", email: "admin@example.com" })).toBe("AD");
-      expect(getUserInitials({ name: "Bob", email: "bob@example.com" })).toBe("BO");
-    });
-
-    it("uses email username for null names", () => {
-      expect(getUserInitials({ name: null, email: "testuser@example.com" })).toBe("TE");
-      expect(getUserInitials({ name: null, email: "ab@example.com" })).toBe("AB");
-    });
-
-    it("handles multi-word names", () => {
-      expect(getUserInitials({ name: "Jean-Luc Picard", email: "captain@enterprise.com" })).toBe(
-        "JP"
-      );
-    });
-
-    it("returns uppercase initials", () => {
-      expect(getUserInitials({ name: "john doe", email: "john@example.com" })).toBe("JD");
     });
   });
 });

@@ -132,16 +132,7 @@ export function AppSidebar() {
           </div>
           <SidebarMenu>
             <SidebarMenuItem>
-              <LogoutButton
-                variant="sidebar"
-                showLabel={false}
-                className="group-data-[collapsible=icon]:hidden"
-              />
-              <LogoutButton
-                variant="sidebar"
-                showLabel={false}
-                className="hidden group-data-[collapsible=icon]:flex"
-              />
+              <LogoutButton variant="sidebar" showLabel={false} />
             </SidebarMenuItem>
           </SidebarMenu>
         </div>

@@ -49,10 +49,14 @@ const UserContext = createContext<UserContextValue | null>(null);
  */
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoadingState] = useState(true);
 
   const setUser = useCallback((newUser: User | null) => {
     setUserState(newUser);
+  }, []);
+
+  const setIsLoading = useCallback((loading: boolean) => {
+    setIsLoadingState(loading);
   }, []);
 
   const clearUser = useCallback(() => {
