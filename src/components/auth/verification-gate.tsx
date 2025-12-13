@@ -4,6 +4,9 @@
  * Story 2.2: Email Verification
  * AC-2.2.4: Unverified users accessing dashboard routes redirect to "Please verify your email" page
  *
+ * Story 2.3: User Login
+ * Stores user data in UserContext for use by other components (e.g., sidebar)
+ *
  * Client-side guard that checks emailVerified status and redirects if not verified.
  */
 
@@ -12,6 +15,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useUser, type User } from "@/contexts/user-context";
 
 interface VerificationGateProps {
   children: React.ReactNode;
@@ -29,10 +33,12 @@ const UNVERIFIED_ALLOWED_PATHS = ["/verify", "/verify-pending", "/logout"];
  *
  * Wraps protected content and ensures user's email is verified.
  * Redirects to /verify-pending if email is not verified.
+ * Stores user data in UserContext for other components to access.
  */
 export function VerificationGate({ children }: VerificationGateProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { setUser, setIsLoading } = useUser();
 
   // Check if current path is allowed for unverified users (memoized)
   const isAllowedPath = useMemo(
@@ -47,8 +53,11 @@ export function VerificationGate({ children }: VerificationGateProps) {
   );
 
   useEffect(() => {
-    // Skip verification check for allowed paths
+    // Skip verification check for allowed paths (e.g., /verify, /verify-pending)
+    // These paths don't require user data, so we immediately set loading to false
+    // and skip the API call. User data will remain null on these paths.
     if (isAllowedPath) {
+      setIsLoading(false);
       return;
     }
 
@@ -60,6 +69,7 @@ export function VerificationGate({ children }: VerificationGateProps) {
         if (cancelled) return null;
         if (!response.ok) {
           setAuthState("unauthenticated");
+          setIsLoading(false);
           return null;
         }
         return response.json();
@@ -67,10 +77,26 @@ export function VerificationGate({ children }: VerificationGateProps) {
       .then((data) => {
         if (cancelled || !data) return;
 
+        // Store user data in context for other components
+        if (data.user) {
+          const userData: User = {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            baseCurrency: data.user.baseCurrency,
+            emailVerified: data.user.emailVerified,
+            createdAt: data.user.createdAt,
+          };
+          setUser(userData);
+        }
+
         if (data.user?.emailVerified) {
           setAuthState("verified");
+          setIsLoading(false);
         } else {
           setAuthState("unverified");
+          // Set loading false after state change to prevent brief flash
+          setIsLoading(false);
           // Redirect to verify-pending with email
           const email = data.user?.email;
           const verifyUrl = email
@@ -82,13 +108,14 @@ export function VerificationGate({ children }: VerificationGateProps) {
       .catch(() => {
         if (!cancelled) {
           setAuthState("unauthenticated");
+          setIsLoading(false);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isAllowedPath, router]);
+  }, [isAllowedPath, router, setUser, setIsLoading]);
 
   // Show loading state while checking
   if (authState === "loading") {

@@ -14,8 +14,9 @@ import { verifyAccessToken } from "@/lib/auth/jwt";
 
 /**
  * Routes that require authentication
+ * Note: "/" is the dashboard page (route group doesn't add to URL)
  */
-const PROTECTED_ROUTES = ["/dashboard", "/portfolio", "/settings"];
+const PROTECTED_ROUTES = ["/", "/portfolio", "/settings", "/criteria", "/strategy", "/history"];
 
 /**
  * Routes that don't require authentication (public)
@@ -90,7 +91,7 @@ export async function middleware(request: NextRequest) {
 
       // Don't redirect if on verify pages (user might need to verify)
       if (pathname === "/login" || pathname === "/register") {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL("/", request.url));
       }
     } catch {
       // Token invalid - let them continue to public route

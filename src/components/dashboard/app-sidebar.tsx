@@ -5,6 +5,7 @@
  *
  * Main navigation sidebar for the dashboard.
  *
+ * Story 2.3: User Login - Display user name and email in footer
  * Story 2.4: User Logout - Added LogoutButton to footer
  */
 
@@ -34,6 +35,9 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useUserOptional } from "@/contexts/user-context";
+import { getDisplayName, getUserInitials } from "@/lib/utils/user";
 
 interface NavItem {
   label: string;
@@ -52,6 +56,10 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  // Use useUserOptional for defensive coding - prevents crash if rendered outside UserProvider
+  const userContext = useUserOptional();
+  const user = userContext?.user ?? null;
+  const isLoading = userContext?.isLoading ?? false;
 
   return (
     <Sidebar collapsible="icon" aria-label="Main navigation">
@@ -90,24 +98,44 @@ export function AppSidebar() {
       <SidebarFooter className="border-t">
         <div className="flex items-center justify-between gap-2 p-2">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-muted" aria-label="User avatar" />
+            {/* User Avatar */}
+            {isLoading ? (
+              <Skeleton className="h-8 w-8 rounded-full" />
+            ) : (
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
+                aria-label="User avatar"
+              >
+                {user ? getUserInitials(user) : "?"}
+              </div>
+            )}
+            {/* User Info */}
             <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-medium">User</span>
-              <span className="text-xs text-muted-foreground">user@example.com</span>
+              {isLoading ? (
+                <>
+                  <Skeleton className="h-4 w-20 mb-1" />
+                  <Skeleton className="h-3 w-28" />
+                </>
+              ) : user ? (
+                <>
+                  <span className="text-sm font-medium truncate max-w-[140px]">
+                    {getDisplayName(user)}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+                    {user.email}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm font-medium">Not logged in</span>
+                  <span className="text-xs text-muted-foreground">-</span>
+                </>
+              )}
             </div>
           </div>
           <SidebarMenu>
             <SidebarMenuItem>
-              <LogoutButton
-                variant="sidebar"
-                showLabel={false}
-                className="group-data-[collapsible=icon]:hidden"
-              />
-              <LogoutButton
-                variant="sidebar"
-                showLabel={false}
-                className="hidden group-data-[collapsible=icon]:flex"
-              />
+              <LogoutButton variant="sidebar" showLabel={false} />
             </SidebarMenuItem>
           </SidebarMenu>
         </div>

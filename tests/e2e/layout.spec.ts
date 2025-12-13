@@ -187,4 +187,106 @@ test.describe("Dashboard Layout", () => {
       await expect(page.getByText("Coming soon")).toBeVisible();
     });
   });
+
+  test.describe("User Display in Sidebar (Story 2.3)", () => {
+    test("should display user name and email in sidebar footer", async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+
+      // Mock authenticated user response
+      await page.route("**/api/auth/me", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            user: {
+              id: "test-user-id",
+              email: "john.doe@example.com",
+              name: "John Doe",
+              baseCurrency: "USD",
+              emailVerified: true,
+              createdAt: new Date().toISOString(),
+            },
+          }),
+        });
+      });
+
+      await page.goto("/");
+
+      // Wait for user data to load
+      await page.waitForSelector('[aria-label="User avatar"]');
+
+      // User initials should be displayed in avatar
+      const avatar = page.locator('[aria-label="User avatar"]');
+      await expect(avatar).toContainText("JD");
+
+      // User name should be displayed
+      await expect(page.getByText("John Doe")).toBeVisible();
+
+      // User email should be displayed
+      await expect(page.getByText("john.doe@example.com")).toBeVisible();
+    });
+
+    test("should display email username when name is null", async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+
+      // Mock authenticated user with null name
+      await page.route("**/api/auth/me", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            user: {
+              id: "test-user-id",
+              email: "testuser@example.com",
+              name: null,
+              baseCurrency: "USD",
+              emailVerified: true,
+              createdAt: new Date().toISOString(),
+            },
+          }),
+        });
+      });
+
+      await page.goto("/");
+
+      // Wait for user data to load
+      await page.waitForSelector('[aria-label="User avatar"]');
+
+      // User initials from email username
+      const avatar = page.locator('[aria-label="User avatar"]');
+      await expect(avatar).toContainText("TE");
+
+      // Display name should be email username
+      await expect(page.getByText("testuser")).toBeVisible();
+    });
+
+    test("should show loading skeleton while fetching user data", async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+
+      // Mock slow response
+      await page.route("**/api/auth/me", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            user: {
+              id: "test-user-id",
+              email: "test@example.com",
+              name: "Test User",
+              baseCurrency: "USD",
+              emailVerified: true,
+              createdAt: new Date().toISOString(),
+            },
+          }),
+        });
+      });
+
+      await page.goto("/");
+
+      // Skeleton should be visible while loading
+      const skeletons = page.locator('[data-slot="skeleton"]');
+      expect(await skeletons.count()).toBeGreaterThan(0);
+    });
+  });
 });
