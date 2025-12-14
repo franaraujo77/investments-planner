@@ -93,6 +93,8 @@ export const NOT_FOUND_ERRORS = {
   NO_CRITERIA: "NOT_FOUND_NO_CRITERIA",
   /** No assets found for calculation */
   NO_ASSETS: "NOT_FOUND_NO_ASSETS",
+  /** No recommendations available for user */
+  RECOMMENDATIONS_NOT_FOUND: "NOT_FOUND_RECOMMENDATIONS",
 } as const;
 
 // =============================================================================

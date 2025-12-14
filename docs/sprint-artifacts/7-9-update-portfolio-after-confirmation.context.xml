@@ -1,0 +1,302 @@
+<story-context id="7-9-update-portfolio-after-confirmation" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>9</storyId>
+    <title>Update Portfolio After Confirmation</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-9-update-portfolio-after-confirmation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to update portfolio allocation after investment confirmation</iWant>
+    <soThat>new allocation is immediately visible to the user</soThat>
+    <tasks>
+      <task id="1" ac="7.9.1,7.9.2">Extend InvestmentService with Portfolio Update Logic - Add updatePortfolioQuantities() private method, calculate quantity purchased = actualAmount / pricePerUnit, update portfolio_assets.quantity, use decimal.js, include in existing transaction from Story 7.8</task>
+      <task id="2" ac="7.9.2">Implement Allocation Recalculation - Calculate new portfolio total value, allocation percentage for each asset class and subclass, store before/after allocations, use decimal.js</task>
+      <task id="3" ac="7.9.3">Implement Cache Invalidation - Add invalidateUserCache() helper, invalidate recs:{userId}, portfolio:{userId}, alloc:{userId} keys, call after transaction commits, handle errors gracefully</task>
+      <task id="4" ac="7.9.4">Implement Event Emission - Verify INVESTMENT_CONFIRMED event type, create event with correlationId, include userId, portfolioId, investmentIds, totalAmount, allocations, emit after transaction, store in calculation_events</task>
+      <task id="5" ac="7.9.1,7.9.2">Update API Response with Allocations - Return before/after allocations in response, format as percentage strings, include summary</task>
+      <task id="6" ac="7.9.1">Write Unit Tests - Portfolio Update - Test quantity calculation accuracy, decimal.js precision, multiple assets, partial investments, existing vs new assets</task>
+      <task id="7" ac="7.9.2">Write Unit Tests - Allocation Calculation - Test allocation percentage, before/after comparison, multiple asset classes, ignored assets, edge cases</task>
+      <task id="8" ac="7.9.3">Write Unit Tests - Cache Invalidation - Test all expected keys invalidated, error handling, timing after transaction</task>
+      <task id="9" ac="7.9.4">Write Unit Tests - Event Emission - Test event structure, correlationId, required fields, storage in calculation_events</task>
+      <task id="10">Run Verification - TypeScript compilation, ESLint, all unit tests pass, build verification, Story 7.8 tests still pass</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.9.1">
+      <given>investments are confirmed via the confirmation modal</given>
+      <when>the transaction completes</when>
+      <then>portfolio_assets quantities are updated for each invested asset</then>
+      <and>quantity calculation uses: new_quantity = existing_quantity + (actual_amount / price_per_unit)</and>
+      <and>calculation uses decimal.js for precision</and>
+    </criterion>
+    <criterion id="AC-7.9.2">
+      <given>portfolio_assets quantities have been updated</given>
+      <when>the allocation calculation runs</when>
+      <then>new allocation percentages are calculated for all asset classes</then>
+      <and>percentages are based on updated portfolio values</and>
+      <and>calculation is deterministic and uses decimal.js</and>
+    </criterion>
+    <criterion id="AC-7.9.3">
+      <given>investments are confirmed</given>
+      <when>the transaction completes</when>
+      <then>Vercel KV cache is invalidated for this user</then>
+      <and>cache keys invalidated include: recs:{userId}, portfolio:{userId}</and>
+      <and>next dashboard load fetches fresh data</and>
+    </criterion>
+    <criterion id="AC-7.9.4">
+      <given>investments are confirmed</given>
+      <when>the transaction completes</when>
+      <then>INVESTMENT_CONFIRMED event is emitted</then>
+      <and>event includes: correlationId, userId, portfolioId, investmentIds, totalAmount, timestamp</and>
+      <and>event is stored in calculation_events table for audit trail</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-7.md</path>
+        <title>Epic 7 Technical Specification - Recommendations</title>
+        <section>Story 7.9: Update Portfolio After Confirmation</section>
+        <snippet>AC7.9.1-7.9.4 define portfolio update requirements: quantities updated, allocation percentages recalculate, KV cache invalidated, INVESTMENT_CONFIRMED event emitted</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-7.md</path>
+        <title>Investment Confirmation Flow</title>
+        <section>Workflows and Sequencing</section>
+        <snippet>Step 5: Transaction (atomic) includes update portfolio_assets quantities, emit INVESTMENT_CONFIRMED event, invalidate KV cache. Step 6: Calculate new allocations with before vs after comparison.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Key Decisions - ADR-002: Event-Sourced Calculations</section>
+        <snippet>All calculation steps captured as immutable events enabling perfect audit trail, replay capability, and complete transparency. Event types include INVESTMENT_CONFIRMED.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Caching Strategy - ADR-004</section>
+        <snippet>Vercel KV for recommendations cache with user-scoped keys. Cache invalidation pattern: recs:{userId}, portfolio:{userId}, allocation:{userId}. TTL 24h.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Decimal Precision Pattern</section>
+        <snippet>decimal.js configuration: precision 20, ROUND_HALF_UP. PostgreSQL numeric types for all currency. NEVER use JavaScript arithmetic for money.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Development Standards</title>
+        <section>Test Requirements for All Code Changes</section>
+        <snippet>Every code change MUST include appropriate test coverage. Unit tests for calculation logic, integration tests for API routes, test coverage targets: calculations 95%, services 90%.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/services/investment-service.ts</path>
+        <kind>service</kind>
+        <symbol>confirmInvestments</symbol>
+        <lines>380-554</lines>
+        <reason>PRIMARY FILE TO EXTEND - Story 7.8 already implements confirmInvestments() with transaction, creates investments, updates quantities, emits event, invalidates cache. Story 7.9 validates/extends this implementation.</reason>
+      </file>
+      <file>
+        <path>src/lib/services/investment-service.ts</path>
+        <kind>utility</kind>
+        <symbol>calculateAllocations</symbol>
+        <lines>559-633</lines>
+        <reason>REUSE - Already calculates allocation percentages by asset class. May need to extend for before/after comparison logic.</reason>
+      </file>
+      <file>
+        <path>src/lib/services/investment-service.ts</path>
+        <kind>utility</kind>
+        <symbol>emitInvestmentConfirmed</symbol>
+        <lines>638-696</lines>
+        <reason>REUSE - Already emits INVESTMENT_CONFIRMED event with full details including allocations. Verify event structure matches AC-7.9.4.</reason>
+      </file>
+      <file>
+        <path>src/lib/services/investment-service.ts</path>
+        <kind>utility</kind>
+        <symbol>invalidateRecsCache</symbol>
+        <lines>701-712</lines>
+        <reason>EXTEND - Currently only invalidates recs:{userId}. AC-7.9.3 requires also portfolio:{userId} and alloc:{userId}.</reason>
+      </file>
+      <file>
+        <path>src/lib/events/types.ts</path>
+        <kind>type</kind>
+        <symbol>InvestmentConfirmedEvent</symbol>
+        <lines>302-341</lines>
+        <reason>REUSE - Event type already defined with correlationId, userId, portfolioId, investments, allocations. Verify matches AC-7.9.4.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/invalidation.ts</path>
+        <kind>utility</kind>
+        <symbol>invalidateUserCache</symbol>
+        <lines>34-37</lines>
+        <reason>REUSE - Invalidates all user cache keys including recs, portfolio, allocation. Use this for AC-7.9.3.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/keys.ts</path>
+        <kind>utility</kind>
+        <symbol>getAllUserCacheKeys</symbol>
+        <lines>125-127</lines>
+        <reason>REUSE - Returns array of all cache keys for user: recs, portfolio, allocation. Used by invalidateUserCache.</reason>
+      </file>
+      <file>
+        <path>src/lib/types/recommendations.ts</path>
+        <kind>type</kind>
+        <symbol>ConfirmInvestmentResult</symbol>
+        <lines>469-488</lines>
+        <reason>REUSE - Result type already includes success, investmentIds, summary, allocations (before/after). Matches AC requirements.</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>portfolioAssets</symbol>
+        <lines>205-229</lines>
+        <reason>REFERENCE - Table schema: id, portfolioId, symbol, quantity (numeric 19,8), purchasePrice (numeric 19,4), currency, assetClassId, subclassId, isIgnored, updatedAt.</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>calculationEvents</symbol>
+        <lines>89-105</lines>
+        <reason>REFERENCE - Event store table: id, correlationId, userId, eventType, payload (jsonb), createdAt. Used for audit trail.</reason>
+      </file>
+      <file>
+        <path>src/lib/calculations/decimal-config.ts</path>
+        <kind>utility</kind>
+        <symbol>Decimal</symbol>
+        <reason>REUSE - Configured decimal.js with precision 20, ROUND_HALF_UP. Import from here for all monetary calculations.</reason>
+      </file>
+      <file>
+        <path>src/lib/calculations/decimal-utils.ts</path>
+        <kind>utility</kind>
+        <symbol>parseDecimal, add, divide, multiply</symbol>
+        <reason>REUSE - Utility functions for decimal operations. Already used in investment-service.ts.</reason>
+      </file>
+      <file>
+        <path>src/app/api/investments/confirm/route.ts</path>
+        <kind>api</kind>
+        <symbol>POST</symbol>
+        <lines>39-117</lines>
+        <reason>REUSE - API route already calls confirmInvestments and returns result. No changes needed here.</reason>
+      </file>
+      <file>
+        <path>tests/unit/services/investment-confirm.test.ts</path>
+        <kind>test</kind>
+        <symbol>confirmInvestments tests</symbol>
+        <reason>EXTEND - Add tests for Story 7.9 acceptance criteria. Follow existing test patterns.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <ecosystem name="node">
+        <package name="decimal.js" version="^10.6.0">Financial precision calculations - CRITICAL for AC-7.9.1, AC-7.9.2</package>
+        <package name="@vercel/kv" version="^3.0.0">Cache client for invalidation - AC-7.9.3</package>
+        <package name="drizzle-orm" version="^0.44.7">Database ORM for transactions and queries</package>
+        <package name="zod" version="^4.1.13">Input validation</package>
+        <package name="vitest" version="^4.0.14">Unit test framework</package>
+        <package name="@playwright/test" version="^1.57.0">E2E testing</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>confirmInvestments</name>
+      <kind>function</kind>
+      <signature>confirmInvestments(userId: string, input: ConfirmInvestmentInput): Promise&lt;ConfirmInvestmentResult&gt;</signature>
+      <path>src/lib/services/investment-service.ts</path>
+      <notes>Main entry point. Already implements most of Story 7.9 requirements. Verify quantity updates use decimal.js, cache invalidation includes all keys.</notes>
+    </interface>
+    <interface>
+      <name>ConfirmInvestmentInput</name>
+      <kind>type</kind>
+      <signature>{ recommendationId: string; investments: Array&lt;{ assetId: string; ticker: string; actualAmount: string; pricePerUnit: string }&gt; }</signature>
+      <path>src/lib/types/recommendations.ts</path>
+    </interface>
+    <interface>
+      <name>ConfirmInvestmentResult</name>
+      <kind>type</kind>
+      <signature>{ success: boolean; investmentIds: string[]; summary: { totalInvested: string; assetsUpdated: number }; allocations: { before: Record&lt;string, string&gt;; after: Record&lt;string, string&gt; } }</signature>
+      <path>src/lib/types/recommendations.ts</path>
+    </interface>
+    <interface>
+      <name>InvestmentConfirmedEvent</name>
+      <kind>type</kind>
+      <signature>{ type: "INVESTMENT_CONFIRMED"; correlationId: string; recommendationId: string; userId: string; portfolioId: string; totalInvested: string; investmentCount: number; investments: Array&lt;...&gt;; allocations: { before: Record&lt;string, string&gt;; after: Record&lt;string, string&gt; }; timestamp: Date }</signature>
+      <path>src/lib/events/types.ts</path>
+    </interface>
+    <interface>
+      <name>invalidateUserCache</name>
+      <kind>function</kind>
+      <signature>invalidateUserCache(userId: string): Promise&lt;void&gt;</signature>
+      <path>src/lib/cache/invalidation.ts</path>
+      <notes>Invalidates all user cache keys: recs, portfolio, allocation. Use instead of single-key invalidation.</notes>
+    </interface>
+    <interface>
+      <name>POST /api/investments/confirm</name>
+      <kind>REST endpoint</kind>
+      <signature>POST body: { recommendationId: string; investments: [...] } → { data: ConfirmInvestmentResult }</signature>
+      <path>src/app/api/investments/confirm/route.ts</path>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint source="Architecture ADR-002">Event Sourcing: INVESTMENT_CONFIRMED event MUST be emitted with correlationId for audit trail. Event MUST be stored in calculation_events table.</constraint>
+    <constraint source="Architecture - Decimal Precision">All monetary calculations MUST use decimal.js with precision: 20, ROUND_HALF_UP. NEVER use JavaScript arithmetic for money.</constraint>
+    <constraint source="Architecture ADR-004">Cache Invalidation: MUST invalidate AFTER transaction commits, not during. Keys: recs:{userId}, portfolio:{userId}, alloc:{userId}.</constraint>
+    <constraint source="Architecture">Multi-tenant Isolation: All database queries MUST be scoped by userId. No cross-user data access.</constraint>
+    <constraint source="Architecture">Transactions: All database operations for confirmation MUST be in a single atomic transaction. Either all succeed or all fail.</constraint>
+    <constraint source="Tech Spec">Quantity Calculation Formula: new_quantity = existing_quantity + (actual_amount / price_per_unit). Use decimal.js toFixed(8) for quantity precision.</constraint>
+    <constraint source="Tech Spec">Allocation Formula: allocation_percentage = (asset_value / portfolio_total) * 100. Use decimal.js toFixed(1) for percentage display.</constraint>
+    <constraint source="Story 7.8">DO NOT recreate InvestmentService - EXTEND the existing confirmInvestments() function created in Story 7.8.</constraint>
+    <constraint source="CLAUDE.md">Testing: Every code change MUST include unit tests. Test coverage target: 90% for services, 95% for calculations.</constraint>
+    <constraint source="CLAUDE.md">No console.log/console.error: Use logger from @/lib/telemetry/logger instead.</constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Testing uses Vitest (node environment) for unit/integration tests and Playwright for E2E. Tests located in tests/unit/ and tests/integration/ directories. Coverage targets: 80% overall, 90% for services, 95% for calculations. Use vi.mock() for mocking database and external services. Follow existing patterns in tests/unit/services/investment-confirm.test.ts. All tests MUST pass TypeScript compilation and ESLint before submission.
+    </standards>
+    <locations>
+      <pattern>tests/unit/services/*.test.ts</pattern>
+      <pattern>tests/unit/calculations/*.test.ts</pattern>
+      <pattern>tests/unit/events/*.test.ts</pattern>
+      <pattern>tests/unit/api/*.test.ts</pattern>
+      <pattern>tests/integration/*.test.ts</pattern>
+    </locations>
+    <ideas>
+      <idea ac="AC-7.9.1">Test quantity calculation: actual_amount=800, price_per_unit=35.50 → quantity=22.535... with decimal.js precision</idea>
+      <idea ac="AC-7.9.1">Test quantity update: existing=100.5, purchased=22.535 → new=123.035 with decimal.js</idea>
+      <idea ac="AC-7.9.1">Test multiple assets updated in single transaction - all succeed or all fail</idea>
+      <idea ac="AC-7.9.1">Test partial investment: not all recommended assets invested</idea>
+      <idea ac="AC-7.9.2">Test allocation percentage: value=5000, total=27777.77 → 18.0%</idea>
+      <idea ac="AC-7.9.2">Test before/after comparison accuracy</idea>
+      <idea ac="AC-7.9.2">Test allocation with ignored assets (should not affect allocation)</idea>
+      <idea ac="AC-7.9.2">Test edge case: 100% single asset class allocation</idea>
+      <idea ac="AC-7.9.3">Test cache invalidation includes all three keys: recs, portfolio, allocation</idea>
+      <idea ac="AC-7.9.3">Test cache error handling: graceful failure, logged but doesn't fail transaction</idea>
+      <idea ac="AC-7.9.3">Test invalidation timing: after transaction commits, not during</idea>
+      <idea ac="AC-7.9.4">Test INVESTMENT_CONFIRMED event has correct structure with all required fields</idea>
+      <idea ac="AC-7.9.4">Test correlationId is valid UUID and included in event</idea>
+      <idea ac="AC-7.9.4">Test event stored in calculation_events table with correct eventType</idea>
+      <idea ac="AC-7.9.4">Test event includes before/after allocations</idea>
+    </ideas>
+  </tests>
+
+  <notes>
+    <note type="critical">Most of Story 7.9 functionality is ALREADY IMPLEMENTED in confirmInvestments() from Story 7.8. This story validates and potentially extends that implementation. Review the existing code carefully before making changes.</note>
+    <note type="implementation">The existing invalidateRecsCache() function only invalidates the recs:{userId} key. For AC-7.9.3, consider replacing with invalidateUserCache() which invalidates all three keys (recs, portfolio, allocation).</note>
+    <note type="implementation">The existing emitInvestmentConfirmed() function already includes before/after allocations. Verify the event structure matches the InvestmentConfirmedEvent type definition.</note>
+    <note type="testing">Story 7.8 created tests in tests/unit/services/investment-confirm.test.ts. Extend these tests to cover Story 7.9 acceptance criteria.</note>
+    <note type="verification">Run existing Story 7.8 tests to ensure any changes don't break existing functionality.</note>
+  </notes>
+</story-context>

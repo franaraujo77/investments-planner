@@ -1,0 +1,747 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context XML
+  Generated: 2025-12-14
+  Story: 7.8 - Confirm Recommendations
+  Epic: 7 - Recommendations
+-->
+<story-context story_id="7.8" story_key="7-8-confirm-recommendations" generated="2025-12-14">
+
+  <!-- ========================================================================= -->
+  <!-- STORY METADATA -->
+  <!-- ========================================================================= -->
+
+  <metadata>
+    <epic_id>7</epic_id>
+    <story_id>8</story_id>
+    <story_key>7-8-confirm-recommendations</story_key>
+    <story_title>Confirm Recommendations</story_title>
+    <story_status>drafted</story_status>
+    <as_a>user</as_a>
+    <i_want>to confirm recommendations and enter actual invested amounts</i_want>
+    <so_that>my portfolio updates with real transactions</so_that>
+    <story_file>docs/sprint-artifacts/7-8-confirm-recommendations.md</story_file>
+  </metadata>
+
+  <!-- ========================================================================= -->
+  <!-- ACCEPTANCE CRITERIA -->
+  <!-- ========================================================================= -->
+
+  <acceptance_criteria>
+    <ac id="7.8.1" title="Click Opens Confirmation Modal with Pre-filled Amounts">
+      <given>I am viewing recommendations on the Dashboard</given>
+      <when>I click "Confirm Investments"</when>
+      <then>A confirmation modal opens with recommended amounts pre-filled but editable for each asset</then>
+      <details>Each row shows: ticker, asset name, recommended amount, editable actual amount input</details>
+    </ac>
+
+    <ac id="7.8.2" title="Real-time Total Updates">
+      <given>The confirmation modal is open</given>
+      <when>I adjust any individual amount</when>
+      <then>The running total updates in real-time, displayed prominently at the bottom</then>
+      <details>Amounts are formatted in the user's base currency</details>
+    </ac>
+
+    <ac id="7.8.3" title="Confirm Records Investments">
+      <given>I have valid amounts entered</given>
+      <when>I click the "Confirm" button</when>
+      <then>Investments are recorded in the database, modal closes, portfolio is updated</then>
+    </ac>
+
+    <ac id="7.8.4" title="Success Toast Notification">
+      <given>Confirmation succeeds</given>
+      <when>The transaction completes</when>
+      <then>A toast notification shows "{Month} investments recorded" with dynamic month</then>
+      <example>December investments recorded</example>
+    </ac>
+
+    <ac id="7.8.5" title="Validation Prevents Invalid Submissions">
+      <given>The confirmation modal is open</given>
+      <when>Any amount is negative OR total exceeds available capital</when>
+      <then>The Confirm button is disabled with a validation message</then>
+      <examples>
+        <example>"Amount cannot be negative"</example>
+        <example>"Total exceeds available capital"</example>
+      </examples>
+    </ac>
+  </acceptance_criteria>
+
+  <!-- ========================================================================= -->
+  <!-- API CONTRACTS -->
+  <!-- ========================================================================= -->
+
+  <api_contracts>
+    <endpoint method="POST" path="/api/investments/confirm">
+      <description>Confirm investment recommendations and record actual invested amounts</description>
+      <authentication>Bearer JWT token required</authentication>
+
+      <request>
+        <content_type>application/json</content_type>
+        <body_schema><![CDATA[
+{
+  recommendationId: string;  // UUID of the recommendation session
+  investments: Array<{
+    assetId: string;        // UUID of portfolio asset
+    ticker: string;         // Asset ticker symbol
+    actualAmount: string;   // Decimal string of actual invested amount
+    pricePerUnit: string;   // Decimal string of price per unit at time of investment
+  }>;
+}
+        ]]></body_schema>
+        <example><![CDATA[
+{
+  "recommendationId": "550e8400-e29b-41d4-a716-446655440000",
+  "investments": [
+    {
+      "assetId": "550e8400-e29b-41d4-a716-446655440001",
+      "ticker": "PETR4",
+      "actualAmount": "800.00",
+      "pricePerUnit": "35.50"
+    },
+    {
+      "assetId": "550e8400-e29b-41d4-a716-446655440002",
+      "ticker": "VALE3",
+      "actualAmount": "650.00",
+      "pricePerUnit": "72.30"
+    }
+  ]
+}
+        ]]></example>
+      </request>
+
+      <response status="200">
+        <description>Investments recorded successfully</description>
+        <body_schema><![CDATA[
+{
+  data: {
+    success: boolean;
+    investmentIds: string[];  // UUIDs of created investment records
+    summary: {
+      totalInvested: string;  // Decimal string
+      assetsUpdated: number;
+    };
+    allocations: {
+      before: Record<string, string>;  // assetClass -> percentage
+      after: Record<string, string>;   // assetClass -> percentage
+    };
+  }
+}
+        ]]></body_schema>
+      </response>
+
+      <response status="400">
+        <description>Validation error</description>
+        <body_schema><![CDATA[
+{
+  error: string;
+  code: "VALIDATION_ERROR";
+  details: {
+    fieldErrors: Record<string, string[]>;
+  }
+}
+        ]]></body_schema>
+      </response>
+
+      <response status="401">
+        <description>Unauthorized - invalid or missing token</description>
+      </response>
+
+      <response status="404">
+        <description>Recommendation not found or expired</description>
+      </response>
+    </endpoint>
+  </api_contracts>
+
+  <!-- ========================================================================= -->
+  <!-- EXISTING TYPES TO REUSE -->
+  <!-- ========================================================================= -->
+
+  <existing_types>
+    <type name="RecommendationDisplayItem" file="src/hooks/use-recommendations.ts">
+      <![CDATA[
+export interface RecommendationDisplayItem {
+  assetId: string;
+  symbol: string;
+  score: string;
+  currentAllocation: string;
+  targetAllocation: string;
+  allocationGap: string;
+  recommendedAmount: string;
+  isOverAllocated: boolean;
+}
+      ]]>
+    </type>
+
+    <type name="RecommendationData" file="src/hooks/use-recommendations.ts">
+      <![CDATA[
+export interface RecommendationData {
+  id: string;
+  contribution: string;
+  dividends: string;
+  totalInvestable: string;
+  baseCurrency: string;
+  generatedAt: string;
+  expiresAt: string;
+  items: RecommendationDisplayItem[];
+}
+      ]]>
+    </type>
+
+    <type name="RecommendationStatus" file="src/lib/types/recommendations.ts">
+      <![CDATA[
+export type RecommendationStatus = "pending" | "active" | "confirmed" | "expired";
+      ]]>
+    </type>
+
+    <type name="NewInvestment" file="src/lib/db/schema.ts">
+      <![CDATA[
+export type NewInvestment = {
+  userId: string;
+  portfolioId: string;
+  assetId: string;
+  symbol: string;
+  quantity: string;
+  pricePerUnit: string;
+  totalAmount: string;
+  currency: string;
+  recommendedAmount?: string | null;
+  investedAt: Date;
+};
+      ]]>
+    </type>
+  </existing_types>
+
+  <!-- ========================================================================= -->
+  <!-- NEW TYPES TO CREATE -->
+  <!-- ========================================================================= -->
+
+  <new_types>
+    <type name="ConfirmInvestmentInput" purpose="API request body">
+      <![CDATA[
+export interface ConfirmInvestmentInput {
+  recommendationId: string;
+  investments: Array<{
+    assetId: string;
+    ticker: string;
+    actualAmount: string;
+    pricePerUnit: string;
+  }>;
+}
+      ]]>
+    </type>
+
+    <type name="ConfirmInvestmentResult" purpose="API response and service return">
+      <![CDATA[
+export interface ConfirmInvestmentResult {
+  success: boolean;
+  investmentIds: string[];
+  summary: {
+    totalInvested: string;
+    assetsUpdated: number;
+  };
+  allocations: {
+    before: Record<string, string>;  // assetClass -> percentage
+    after: Record<string, string>;   // assetClass -> percentage
+  };
+}
+      ]]>
+    </type>
+
+    <type name="ConfirmationModalState" purpose="Modal state management">
+      <![CDATA[
+export interface ConfirmationModalState {
+  isOpen: boolean;
+  recommendation: RecommendationData | null;
+  editedAmounts: Record<string, string>;  // assetId -> amount
+  isSubmitting: boolean;
+  error: string | null;
+}
+      ]]>
+    </type>
+  </new_types>
+
+  <!-- ========================================================================= -->
+  <!-- EXISTING COMPONENTS TO REUSE -->
+  <!-- ========================================================================= -->
+
+  <existing_components>
+    <component name="RecommendationList" file="src/components/recommendations/recommendation-list.tsx">
+      <description>Grid display of recommendation cards - contains items to confirm</description>
+      <props>items: RecommendationDisplayItem[], baseCurrency: string, onCardClick?: (assetId: string) => void</props>
+    </component>
+
+    <component name="useRecommendations" file="src/hooks/use-recommendations.ts">
+      <description>Hook for fetching and managing recommendation data</description>
+      <returns>data, isLoading, error, isEmpty, itemCount, isStale, refetch</returns>
+    </component>
+
+    <component name="Dialog" file="@radix-ui/react-dialog via shadcn/ui">
+      <description>Modal dialog component - use for confirmation modal</description>
+    </component>
+
+    <component name="Toast" file="sonner">
+      <description>Toast notification - use for success message</description>
+      <usage>import { toast } from "sonner"</usage>
+    </component>
+
+    <component name="formatCurrency" file="src/lib/utils/currency-format.ts">
+      <description>Currency formatting utility</description>
+      <signature>formatCurrency(value: string | number, currency: string, options?): string</signature>
+    </component>
+
+    <component name="parseDecimal" file="src/lib/calculations/decimal-utils.ts">
+      <description>Decimal.js wrapper for precise calculations</description>
+    </component>
+  </existing_components>
+
+  <!-- ========================================================================= -->
+  <!-- NEW COMPONENTS TO CREATE -->
+  <!-- ========================================================================= -->
+
+  <new_components>
+    <component name="ConfirmationModal" file="src/components/recommendations/confirmation-modal.tsx">
+      <description>Dialog modal for confirming investment recommendations</description>
+      <props><![CDATA[
+interface ConfirmationModalProps {
+  recommendation: RecommendationData;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (result: ConfirmInvestmentResult) => void;
+}
+      ]]></props>
+      <responsibilities>
+        <item>Display Dialog with investment confirmation form</item>
+        <item>Render editable amount inputs for each recommendation item</item>
+        <item>Calculate and display real-time running total using decimal.js</item>
+        <item>Validation: disable Confirm if any amount negative</item>
+        <item>Validation: disable Confirm if total exceeds available</item>
+        <item>Show validation message when disabled</item>
+        <item>Loading state during submission</item>
+        <item>Call onConfirm with result on success</item>
+      </responsibilities>
+    </component>
+
+    <component name="InvestmentAmountRow" file="src/components/recommendations/investment-amount-row.tsx">
+      <description>Single row for editing investment amount</description>
+      <props><![CDATA[
+interface InvestmentAmountRowProps {
+  item: RecommendationDisplayItem;
+  value: string;
+  onChange: (value: string) => void;
+  currency: string;
+}
+      ]]></props>
+      <responsibilities>
+        <item>Display ticker and asset name</item>
+        <item>Display recommended amount (read-only reference)</item>
+        <item>Editable input for actual amount</item>
+        <item>Currency formatting on input</item>
+        <item>Visual indicator if amount differs from recommended</item>
+      </responsibilities>
+    </component>
+
+    <component name="useConfirmInvestments" file="src/hooks/use-confirm-investments.ts">
+      <description>Hook for calling the confirm API</description>
+      <returns><![CDATA[
+{
+  confirm: (input: ConfirmInvestmentInput) => Promise<ConfirmInvestmentResult>;
+  isLoading: boolean;
+  error: string | null;
+}
+      ]]></returns>
+    </component>
+
+    <component name="InvestmentService" file="src/lib/services/investment-service.ts">
+      <description>Service for recording confirmed investments</description>
+      <note>Note: This file may already exist - extend if needed</note>
+      <method name="confirmInvestments">
+        <signature>confirmInvestments(userId: string, input: ConfirmInvestmentInput): Promise&lt;ConfirmInvestmentResult&gt;</signature>
+        <responsibilities>
+          <item>Use database transaction for atomicity</item>
+          <item>Create investment records in investments table</item>
+          <item>Update portfolio_assets quantities using decimal.js</item>
+          <item>Mark recommendations record as "confirmed"</item>
+          <item>Emit INVESTMENT_CONFIRMED event with correlation ID</item>
+          <item>Invalidate Vercel KV cache for user</item>
+          <item>Calculate before/after allocation percentages</item>
+        </responsibilities>
+      </method>
+    </component>
+  </new_components>
+
+  <!-- ========================================================================= -->
+  <!-- DATABASE SCHEMA REFERENCE -->
+  <!-- ========================================================================= -->
+
+  <database_schema>
+    <table name="investments" file="src/lib/db/schema.ts">
+      <description>Records of actual investment transactions</description>
+      <columns>
+        <column name="id" type="uuid" primary_key="true" />
+        <column name="userId" type="uuid" references="users.id" />
+        <column name="portfolioId" type="uuid" references="portfolios.id" />
+        <column name="assetId" type="uuid" references="portfolio_assets.id" />
+        <column name="symbol" type="varchar(20)" />
+        <column name="quantity" type="numeric(19,8)" description="Supports crypto satoshis" />
+        <column name="pricePerUnit" type="numeric(19,4)" />
+        <column name="totalAmount" type="numeric(19,4)" />
+        <column name="currency" type="varchar(3)" />
+        <column name="recommendedAmount" type="numeric(19,4)" nullable="true" />
+        <column name="investedAt" type="timestamp" />
+        <column name="createdAt" type="timestamp" />
+      </columns>
+      <indexes>
+        <index name="investments_user_id_idx" columns="userId" />
+        <index name="investments_invested_at_idx" columns="investedAt" />
+      </indexes>
+    </table>
+
+    <table name="recommendations" file="src/lib/db/schema.ts">
+      <description>Recommendation sessions - update status to "confirmed"</description>
+      <relevant_columns>
+        <column name="status" type="varchar(20)" values="pending|active|confirmed|expired" />
+      </relevant_columns>
+    </table>
+
+    <table name="portfolio_assets" file="src/lib/db/schema.ts">
+      <description>Update quantity after investment</description>
+      <relevant_columns>
+        <column name="quantity" type="numeric(19,8)" />
+      </relevant_columns>
+    </table>
+  </database_schema>
+
+  <!-- ========================================================================= -->
+  <!-- EVENT SOURCING REFERENCE -->
+  <!-- ========================================================================= -->
+
+  <event_sourcing>
+    <event_type name="INVESTMENT_CONFIRMED" status="NEW - to be added">
+      <description>Emitted when investments are confirmed and recorded</description>
+      <payload><![CDATA[
+interface InvestmentConfirmedEvent {
+  type: "INVESTMENT_CONFIRMED";
+  correlationId: string;
+  recommendationId: string;
+  userId: string;
+  portfolioId: string;
+  totalInvested: string;
+  investmentCount: number;
+  investments: Array<{
+    investmentId: string;
+    assetId: string;
+    symbol: string;
+    quantity: string;
+    pricePerUnit: string;
+    totalAmount: string;
+    recommendedAmount: string;
+  }>;
+  allocations: {
+    before: Record<string, string>;
+    after: Record<string, string>;
+  };
+  timestamp: Date;
+}
+      ]]></payload>
+      <file>src/lib/events/types.ts</file>
+    </event_type>
+
+    <existing_events>
+      <event>CALC_STARTED</event>
+      <event>INPUTS_CAPTURED</event>
+      <event>SCORES_COMPUTED</event>
+      <event>CALC_COMPLETED</event>
+      <event>CURRENCY_CONVERTED</event>
+      <event>DATA_REFRESHED</event>
+      <event>RECS_INPUTS_CAPTURED</event>
+      <event>RECS_COMPUTED</event>
+    </existing_events>
+  </event_sourcing>
+
+  <!-- ========================================================================= -->
+  <!-- VALIDATION SCHEMA REFERENCE -->
+  <!-- ========================================================================= -->
+
+  <validation_schemas>
+    <schema name="confirmInvestmentSchema" file="src/lib/validations/investment-schemas.ts" status="NEW">
+      <![CDATA[
+import { z } from "zod";
+
+export const investmentItemSchema = z.object({
+  assetId: z.string().uuid("Invalid asset ID"),
+  ticker: z.string().min(1, "Ticker is required"),
+  actualAmount: z
+    .string()
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num >= 0;
+    }, { message: "Amount must be a non-negative number" }),
+  pricePerUnit: z
+    .string()
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num > 0;
+    }, { message: "Price must be a positive number" }),
+});
+
+export const confirmInvestmentSchema = z.object({
+  recommendationId: z.string().uuid("Invalid recommendation ID"),
+  investments: z
+    .array(investmentItemSchema)
+    .min(1, "At least one investment is required"),
+});
+
+export type ConfirmInvestmentInput = z.infer<typeof confirmInvestmentSchema>;
+      ]]>
+    </schema>
+
+    <existing_schema name="recommendationSchemas" file="src/lib/validations/recommendation-schemas.ts">
+      <exports>contributionSchema, dividendsSchema, validateContribution, validateDividends</exports>
+    </existing_schema>
+  </validation_schemas>
+
+  <!-- ========================================================================= -->
+  <!-- FILE STRUCTURE -->
+  <!-- ========================================================================= -->
+
+  <file_structure>
+    <new_files>
+      <file path="src/app/api/investments/confirm/route.ts" purpose="API route handler" />
+      <file path="src/components/recommendations/confirmation-modal.tsx" purpose="Modal component" />
+      <file path="src/components/recommendations/investment-amount-row.tsx" purpose="Row component" />
+      <file path="src/hooks/use-confirm-investments.ts" purpose="Confirmation hook" />
+      <file path="src/lib/validations/investment-schemas.ts" purpose="Zod validation schemas" />
+      <file path="tests/unit/api/investments-confirm.test.ts" purpose="API tests" />
+      <file path="tests/unit/components/confirmation-modal.test.ts" purpose="Modal component tests" />
+      <file path="tests/unit/components/investment-amount-row.test.ts" purpose="Row component tests" />
+      <file path="tests/unit/hooks/use-confirm-investments.test.ts" purpose="Hook tests" />
+      <file path="tests/unit/lib/validations/investment-schemas.test.ts" purpose="Validation tests" />
+    </new_files>
+
+    <modified_files>
+      <file path="src/lib/types/recommendations.ts" change="Add ConfirmInvestmentInput and ConfirmInvestmentResult types" />
+      <file path="src/lib/events/types.ts" change="Add INVESTMENT_CONFIRMED event type" />
+      <file path="src/lib/services/investment-service.ts" change="Add confirmInvestments method (or create if not exists)" />
+      <file path="src/components/recommendations/index.ts" change="Export ConfirmationModal and InvestmentAmountRow" />
+      <file path="src/app/(dashboard)/page.tsx" change="Add Confirm button and modal integration" />
+    </modified_files>
+  </file_structure>
+
+  <!-- ========================================================================= -->
+  <!-- TESTING PATTERNS -->
+  <!-- ========================================================================= -->
+
+  <testing_patterns>
+    <pattern name="Component Interface Tests">
+      <description>Test component props interface and utility logic only (no @testing-library/react)</description>
+      <example><![CDATA[
+// tests/unit/components/confirmation-modal.test.ts
+import { describe, it, expect } from "vitest";
+
+describe("ConfirmationModal", () => {
+  describe("Props Interface", () => {
+    it("should accept required props", () => {
+      const props = {
+        recommendation: mockRecommendation,
+        open: true,
+        onOpenChange: vi.fn(),
+        onConfirm: vi.fn(),
+      };
+      expect(props.recommendation).toBeDefined();
+      expect(props.open).toBe(true);
+    });
+  });
+
+  describe("Total Calculation Logic", () => {
+    it("should calculate total from edited amounts", () => {
+      const amounts = { "asset-1": "100.00", "asset-2": "200.00" };
+      const total = calculateTotal(amounts);
+      expect(total).toBe("300.00");
+    });
+  });
+});
+      ]]></example>
+    </pattern>
+
+    <pattern name="API Route Tests">
+      <description>Test API handler with mocked dependencies</description>
+      <example><![CDATA[
+// tests/unit/api/investments-confirm.test.ts
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/services/investment-service", () => ({
+  InvestmentService: {
+    confirmInvestments: vi.fn(),
+  },
+}));
+
+describe("POST /api/investments/confirm", () => {
+  it("should return 200 with valid input", async () => {
+    // Test implementation
+  });
+
+  it("should return 400 with invalid input", async () => {
+    // Test implementation
+  });
+});
+      ]]></example>
+    </pattern>
+
+    <pattern name="Hook Tests">
+      <description>Test hook behavior and state management</description>
+      <example><![CDATA[
+// tests/unit/hooks/use-confirm-investments.test.ts
+import { describe, it, expect, vi } from "vitest";
+
+describe("useConfirmInvestments", () => {
+  it("should return confirm function and state", () => {
+    // Test hook interface
+  });
+
+  it("should handle loading state", () => {
+    // Test loading behavior
+  });
+});
+      ]]></example>
+    </pattern>
+  </testing_patterns>
+
+  <!-- ========================================================================= -->
+  <!-- PREVIOUS STORY LEARNINGS -->
+  <!-- ========================================================================= -->
+
+  <previous_story_learnings story="7-7-view-recommendation-breakdown">
+    <learning category="Testing">
+      <item>Use interface/utility testing only - no @testing-library/react</item>
+      <item>Test prop interfaces and calculation logic separately</item>
+    </learning>
+
+    <learning category="TypeScript">
+      <item>Add `| undefined` to optional props due to exactOptionalPropertyTypes</item>
+      <item>Extend existing types in recommendations.ts rather than creating new files</item>
+    </learning>
+
+    <learning category="Components">
+      <item>Use Sheet for detail panels, Dialog for confirmation modals</item>
+      <item>Dashboard page already has state management patterns for panels</item>
+    </learning>
+
+    <learning category="Hooks">
+      <item>Follow useBreakdown pattern for new hooks with in-memory cache</item>
+      <item>Handle loading, error, and success states consistently</item>
+    </learning>
+
+    <learning category="Files Created in 7.7">
+      <item>src/app/api/recommendations/[id]/breakdown/route.ts</item>
+      <item>src/components/recommendations/calculation-steps.tsx</item>
+      <item>src/components/recommendations/recommendation-breakdown-panel.tsx</item>
+      <item>src/hooks/use-breakdown.ts</item>
+    </learning>
+  </previous_story_learnings>
+
+  <!-- ========================================================================= -->
+  <!-- ARCHITECTURE CONSTRAINTS -->
+  <!-- ========================================================================= -->
+
+  <architecture_constraints>
+    <constraint name="Event Sourcing" source="ADR-002">
+      <description>Emit INVESTMENT_CONFIRMED event with correlation ID for audit trail</description>
+    </constraint>
+
+    <constraint name="Decimal Precision" source="Architecture">
+      <description>All amount calculations must use decimal.js - never float arithmetic</description>
+      <import>import { parseDecimal, formatDecimal } from "@/lib/calculations/decimal-utils"</import>
+    </constraint>
+
+    <constraint name="Database Transactions" source="Architecture">
+      <description>Use transaction for atomicity when creating investments + updating portfolio + marking confirmed</description>
+    </constraint>
+
+    <constraint name="Cache Invalidation" source="Architecture">
+      <description>Invalidate Vercel KV cache after confirmation</description>
+    </constraint>
+
+    <constraint name="Multi-tenant Isolation" source="Architecture">
+      <description>All queries must be scoped by userId</description>
+    </constraint>
+  </architecture_constraints>
+
+  <!-- ========================================================================= -->
+  <!-- UI/UX REQUIREMENTS -->
+  <!-- ========================================================================= -->
+
+  <ui_ux_requirements>
+    <requirement name="Modal Pattern">
+      <description>Use Dialog component (not Sheet) for confirmation - different purpose than detail panels</description>
+    </requirement>
+
+    <requirement name="Visual Hierarchy">
+      <description>Summary at top, items in middle, actions at bottom</description>
+    </requirement>
+
+    <requirement name="Currency Formatting">
+      <description>Use formatCurrency() for all amount displays in user's base currency</description>
+    </requirement>
+
+    <requirement name="Real-time Feedback">
+      <description>Total updates immediately as amounts change</description>
+    </requirement>
+
+    <requirement name="Validation States">
+      <description>Disabled button with clear messaging for invalid states</description>
+    </requirement>
+
+    <requirement name="Toast Format">
+      <description>"{Month} investments recorded" - use Intl.DateTimeFormat for month name</description>
+      <code>new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date())</code>
+    </requirement>
+
+    <requirement name="Loading State">
+      <description>Show loading indicator during submission</description>
+    </requirement>
+  </ui_ux_requirements>
+
+  <!-- ========================================================================= -->
+  <!-- DEPENDENCIES -->
+  <!-- ========================================================================= -->
+
+  <dependencies>
+    <npm_packages>
+      <package name="decimal.js" version="^10.6.0" usage="Precise financial calculations" />
+      <package name="zod" version="^4.1.13" usage="Schema validation" />
+      <package name="sonner" version="^2.0.7" usage="Toast notifications" />
+      <package name="@radix-ui/react-dialog" version="^1.1.15" usage="Modal dialog" />
+    </npm_packages>
+
+    <story_dependencies>
+      <dependency story="7.7" status="complete">View Recommendation Breakdown - provides recommendation data and types</dependency>
+      <dependency story="7.5" status="complete">Display Recommendations Focus Mode - provides RecommendationList</dependency>
+      <dependency story="7.4" status="complete">Generate Investment Recommendations - provides recommendation generation</dependency>
+      <dependency story="3.8" status="complete">Record Investment Amount - provides investment recording concept</dependency>
+      <dependency story="1.4" status="complete">Event-Sourced Calculation Pipeline - provides event emission infrastructure</dependency>
+    </story_dependencies>
+  </dependencies>
+
+  <!-- ========================================================================= -->
+  <!-- QUICK REFERENCE -->
+  <!-- ========================================================================= -->
+
+  <quick_reference>
+    <imports>
+      <import description="Decimal utilities">import { parseDecimal, formatDecimal, add } from "@/lib/calculations/decimal-utils"</import>
+      <import description="Currency formatting">import { formatCurrency } from "@/lib/utils/currency-format"</import>
+      <import description="Toast notifications">import { toast } from "sonner"</import>
+      <import description="Dialog component">import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"</import>
+      <import description="Button component">import { Button } from "@/components/ui/button"</import>
+      <import description="Input component">import { Input } from "@/components/ui/input"</import>
+      <import description="Recommendation hook">import { useRecommendations, type RecommendationData } from "@/hooks/use-recommendations"</import>
+      <import description="API responses">import { successResponse, errorResponse, ERROR_CODES } from "@/lib/api/responses"</import>
+    </imports>
+
+    <month_formatting>
+      <code>const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());</code>
+      <toast>toast.success(`${monthName} investments recorded`);</toast>
+    </month_formatting>
+  </quick_reference>
+
+</story-context>

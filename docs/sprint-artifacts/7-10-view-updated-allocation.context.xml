@@ -1,0 +1,332 @@
+<story-context id="7-10-view-updated-allocation" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>10</storyId>
+    <title>View Updated Allocation</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-10-view-updated-allocation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see updated allocation percentages immediately after confirming investments</iWant>
+    <soThat>I can verify my portfolio balance improved as expected</soThat>
+    <tasks>
+      <task id="1" title="Create AllocationComparisonView Component" ac="7.10.1,7.10.2">
+        <file>src/components/recommendations/allocation-comparison-view.tsx</file>
+        <subtasks>
+          <subtask>Create AllocationComparisonView component</subtask>
+          <subtask>Accept `before` and `after` allocation props</subtask>
+          <subtask>Display each asset class with before/after/delta columns</subtask>
+          <subtask>Calculate delta for each class: delta = parseFloat(after) - parseFloat(before)</subtask>
+          <subtask>Format delta with sign: +3.8% or -2.1%</subtask>
+          <subtask>Use consistent decimal precision (1 decimal place)</subtask>
+        </subtasks>
+      </task>
+      <task id="2" title="Implement Visual Highlighting" ac="7.10.2">
+        <file>src/components/recommendations/allocation-comparison-view.tsx</file>
+        <subtasks>
+          <subtask>Add color coding for improved/worse allocations</subtask>
+          <subtask>Green styling for allocations closer to target</subtask>
+          <subtask>Red/amber styling for allocations further from target</subtask>
+          <subtask>Add direction indicators: ↑ for increase, ↓ for decrease</subtask>
+          <subtask>Gray/neutral styling for no change (delta = 0)</subtask>
+        </subtasks>
+      </task>
+      <task id="3" title="Integrate with Confirmation Modal" ac="7.10.1">
+        <file>src/components/recommendations/confirmation-modal.tsx</file>
+        <subtasks>
+          <subtask>Add success state display after confirmation completes</subtask>
+          <subtask>Show AllocationComparisonView with allocations from result</subtask>
+          <subtask>Transition from confirmation form to success view</subtask>
+          <subtask>Display success message</subtask>
+        </subtasks>
+      </task>
+      <task id="4" title="Add Portfolio Navigation" ac="7.10.3">
+        <file>src/components/recommendations/allocation-comparison-view.tsx</file>
+        <file>src/components/recommendations/confirmation-modal.tsx</file>
+        <subtasks>
+          <subtask>Add "View Portfolio" button/link</subtask>
+          <subtask>Implement navigation using Next.js router</subtask>
+          <subtask>Close modal before navigation</subtask>
+          <subtask>Route to /portfolio page</subtask>
+        </subtasks>
+      </task>
+      <task id="5" title="Write Unit Tests - AllocationComparisonView" ac="7.10.1,7.10.2">
+        <file>tests/unit/components/allocation-comparison-view.test.ts</file>
+        <subtasks>
+          <subtask>Test before/after display with multiple asset classes</subtask>
+          <subtask>Test delta calculation accuracy</subtask>
+          <subtask>Test positive/negative delta formatting</subtask>
+          <subtask>Test zero delta edge case</subtask>
+          <subtask>Test color coding based on improvement direction</subtask>
+        </subtasks>
+      </task>
+      <task id="6" title="Write Unit Tests - Success State Integration" ac="7.10.1,7.10.3">
+        <file>tests/unit/components/confirmation-success.test.ts</file>
+        <subtasks>
+          <subtask>Test success state renders AllocationComparisonView</subtask>
+          <subtask>Test navigation callback is called on button click</subtask>
+          <subtask>Test proper props are passed from confirmation result</subtask>
+          <subtask>Test success message displays correctly</subtask>
+        </subtasks>
+      </task>
+      <task id="7" title="Run Verification">
+        <subtasks>
+          <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+          <subtask>ESLint passes with no new errors</subtask>
+          <subtask>All unit tests pass</subtask>
+          <subtask>Build verification (pnpm build)</subtask>
+          <subtask>Existing Story 7.9 tests still pass</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.10.1" title="Before/After Allocation Comparison">
+      <given>investments are confirmed</given>
+      <when>the success screen shows</when>
+      <then>I see before/after allocation comparison</then>
+      <and>comparison shows allocation percentages by asset class</and>
+      <and>delta (change) is calculated for each class</and>
+    </criterion>
+    <criterion id="AC-7.10.2" title="Improved Allocations Highlighted">
+      <given>before/after comparison is shown</given>
+      <when>allocations are displayed</when>
+      <then>improved allocations are highlighted (green for closer to target)</then>
+      <and>allocations that moved away from target are shown in different color</and>
+      <and>visual indicators clearly show direction of change (↑ ↓)</and>
+    </criterion>
+    <criterion id="AC-7.10.3" title="Navigate to Portfolio View">
+      <given>confirmation is complete</given>
+      <when>I view the success screen</when>
+      <then>I can navigate to Portfolio view for full details</then>
+      <and>Portfolio view shows all assets with updated values</and>
+      <and>navigation uses standard app routing</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-7.md</path>
+        <title>Epic 7 Technical Specification</title>
+        <section>Story 7.10 View Updated Allocation</section>
+        <snippet>AC7.10.1-7.10.3: Before/after allocation comparison on success screen, visual highlighting of improved allocations, navigation to Portfolio view</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Fintech Components</section>
+        <snippet>AllocationGauge component for visual allocation display; decimal.js for financial precision; shadcn/ui for component library</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/7-9-update-portfolio-after-confirmation.md</path>
+        <title>Previous Story: Update Portfolio After Confirmation</title>
+        <section>Dev Agent Record</section>
+        <snippet>Allocations already returned by confirmInvestments() in format { before: Record, after: Record }; no recalculation needed</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Project Standards</title>
+        <section>Test Requirements for All Code Changes</section>
+        <snippet>Every code change MUST include appropriate test coverage; unit tests for components, integration tests for API endpoints</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/types/recommendations.ts</path>
+        <kind>types</kind>
+        <symbol>ConfirmInvestmentResult</symbol>
+        <lines>469-488</lines>
+        <reason>Core type for confirmation result; contains allocations.before and allocations.after that this story displays</reason>
+      </file>
+      <file>
+        <path>src/hooks/use-confirm-investments.ts</path>
+        <kind>hook</kind>
+        <symbol>useConfirmInvestments</symbol>
+        <lines>127-193</lines>
+        <reason>Hook managing confirmation; returns result with allocations; extend to pass result to success UI</reason>
+      </file>
+      <file>
+        <path>src/components/recommendations/confirmation-modal.tsx</path>
+        <kind>component</kind>
+        <symbol>ConfirmationModal</symbol>
+        <lines>100-321</lines>
+        <reason>Existing modal to extend with success state showing AllocationComparisonView</reason>
+      </file>
+      <file>
+        <path>src/components/recommendations/allocation-gauge.tsx</path>
+        <kind>component</kind>
+        <symbol>AllocationGauge, getAllocationStatus</symbol>
+        <lines>56-76,142-230</lines>
+        <reason>Existing allocation visualization; reuse patterns for color coding and status display</reason>
+      </file>
+      <file>
+        <path>src/lib/services/investment-service.ts</path>
+        <kind>service</kind>
+        <symbol>confirmInvestments, calculateAllocations</symbol>
+        <lines>377-551,556-630</lines>
+        <reason>Service returning allocations; calculateAllocations format defines data structure</reason>
+      </file>
+      <file>
+        <path>src/lib/utils/currency-format.ts</path>
+        <kind>utility</kind>
+        <symbol>formatCurrency</symbol>
+        <reason>Utility for formatting currency values; used in confirmation-modal</reason>
+      </file>
+      <file>
+        <path>tests/unit/components/confirmation-modal.test.ts</path>
+        <kind>test</kind>
+        <symbol>ConfirmationModal tests</symbol>
+        <reason>Existing test patterns for modal component; reference for success state tests</reason>
+      </file>
+      <file>
+        <path>tests/unit/calculations/allocation-update.test.ts</path>
+        <kind>test</kind>
+        <symbol>Allocation calculation tests</symbol>
+        <reason>Existing allocation test patterns; reference for delta calculation tests</reason>
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package>react</package>
+        <version>19.2.0</version>
+      </node>
+      <node>
+        <package>next</package>
+        <version>16.0.10</version>
+      </node>
+      <node>
+        <package>@radix-ui/react-dialog</package>
+        <version>^1.1.15</version>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.555.0</version>
+      </node>
+      <node>
+        <package>sonner</package>
+        <version>^2.0.7</version>
+      </node>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <dev>true</dev>
+      </node>
+      <node>
+        <package>tailwind-merge</package>
+        <version>^3.4.0</version>
+      </node>
+      <node>
+        <package>clsx</package>
+        <version>^2.1.1</version>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      Display percentages with 1 decimal place (e.g., "48.5%") per architecture decimal precision guidelines
+    </constraint>
+    <constraint type="architecture">
+      Reuse existing AllocationGauge color patterns: green=within/improved, amber=near, red=outside/worse
+    </constraint>
+    <constraint type="pattern">
+      Use Next.js App Router navigation (useRouter from next/navigation) for Portfolio link
+    </constraint>
+    <constraint type="pattern">
+      Follow shadcn/ui Dialog patterns for modal state management
+    </constraint>
+    <constraint type="testing">
+      Interface/utility testing only - no @testing-library/react due to dependency constraints
+    </constraint>
+    <constraint type="testing">
+      All new functions must have corresponding unit tests per CLAUDE.md
+    </constraint>
+    <constraint type="typescript">
+      exactOptionalPropertyTypes requires `| undefined` for optional props
+    </constraint>
+    <constraint type="reuse">
+      CRITICAL: Use allocations from ConfirmInvestmentResult - do NOT recalculate
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="ConfirmInvestmentResult">
+      <kind>TypeScript Interface</kind>
+      <signature>
+interface ConfirmInvestmentResult {
+  success: boolean;
+  investmentIds: string[];
+  summary: { totalInvested: string; assetsUpdated: number; };
+  allocations: {
+    before: Record&lt;string, string&gt;;  // assetClass -> "48.5%"
+    after: Record&lt;string, string&gt;;   // assetClass -> "52.3%"
+  };
+}
+      </signature>
+      <path>src/lib/types/recommendations.ts</path>
+    </interface>
+    <interface name="AllocationComparisonViewProps">
+      <kind>Component Props (NEW)</kind>
+      <signature>
+interface AllocationComparisonViewProps {
+  before: Record&lt;string, string&gt;;
+  after: Record&lt;string, string&gt;;
+  targets?: Record&lt;string, { min: string; max: string }&gt; | undefined;
+  onNavigateToPortfolio: () => void;
+}
+      </signature>
+      <path>src/components/recommendations/allocation-comparison-view.tsx (to create)</path>
+    </interface>
+    <interface name="useConfirmInvestments return">
+      <kind>Hook Return Type</kind>
+      <signature>
+{
+  isConfirming: boolean;
+  error: string | null;
+  result: ConfirmInvestmentResult | null;  // USE THIS for allocations
+  confirmInvestments: (id: string, investments: InvestmentInput[]) => Promise&lt;ConfirmInvestmentResult | null&gt;;
+  resetError: () => void;
+}
+      </signature>
+      <path>src/hooks/use-confirm-investments.ts</path>
+    </interface>
+    <interface name="getAllocationStatus">
+      <kind>Function</kind>
+      <signature>
+function getAllocationStatus(current: number, targetMin: number, targetMax: number): "within" | "near" | "outside"
+      </signature>
+      <path>src/components/recommendations/allocation-gauge.tsx</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use Vitest with coverage requirements. Tests should follow interface/utility testing pattern due to @testing-library/react dependency constraints. Component logic should be extracted to testable utility functions. Use describe/it blocks with clear test names. Mock external dependencies. Test edge cases including zero values, negative deltas, and missing data.
+    </standards>
+    <locations>
+      <location>tests/unit/components/</location>
+      <location>tests/unit/calculations/</location>
+      <location>tests/unit/hooks/</location>
+    </locations>
+    <ideas>
+      <idea ac="7.10.1">Test delta calculation: calculateDelta("48.5%", "52.3%") returns { value: 3.8, formatted: "+3.8%" }</idea>
+      <idea ac="7.10.1">Test delta with negative: calculateDelta("55.0%", "52.0%") returns { value: -3.0, formatted: "-3.0%" }</idea>
+      <idea ac="7.10.1">Test delta zero: calculateDelta("50.0%", "50.0%") returns { value: 0, formatted: "0.0%" }</idea>
+      <idea ac="7.10.2">Test isImproved with target: when allocation moves from 48% to 52% with target 50%, returns true</idea>
+      <idea ac="7.10.2">Test isImproved negative: when allocation moves from 52% to 55% with target 50%, returns false</idea>
+      <idea ac="7.10.2">Test direction indicator: positive delta shows "↑", negative shows "↓", zero shows no indicator</idea>
+      <idea ac="7.10.3">Test navigation callback is invoked when View Portfolio clicked</idea>
+      <idea ac="7.10.3">Test props passed correctly from useConfirmInvestments result to AllocationComparisonView</idea>
+    </ideas>
+  </tests>
+</story-context>

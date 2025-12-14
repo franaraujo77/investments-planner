@@ -1,0 +1,303 @@
+<story-context id="7-2-enter-dividends-received" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>2</storyId>
+    <title>Enter Dividends Received</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-13</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-2-enter-dividends-received.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to enter the dividends I received this period</iWant>
+    <soThat>the system includes this income in my total investable capital for recommendations</soThat>
+    <tasks>
+      <task id="1" files="src/components/recommendations/dividends-input.tsx">
+        Create DividendsInput Component (AC: 7.2.1, 7.2.4)
+        - Create component mirroring ContributionInput structure
+        - Add numeric input with validation (>= 0, numeric only)
+        - Display currency symbol based on user's base currency
+        - Use Intl.NumberFormat for locale-aware formatting
+        - Add inline error display below field (red, 14px)
+        - Support decimal values up to 2 places
+        - Use existing validateDividends() from recommendation-schemas.ts
+      </task>
+      <task id="2" files="src/components/dashboard/recommendation-input-section.tsx">
+        Update Dashboard to Use DividendsInput (AC: 7.2.1, 7.2.5)
+        - Replace placeholder dividends input (lines 137-145) with DividendsInput component
+        - Wire up to useContribution hook's setDividends function
+        - Add onBlur validation handler
+        - Display dividends error state from hook
+      </task>
+      <task id="3" files="src/components/dashboard/recommendation-input-section.tsx">
+        Add Capital Breakdown Display (AC: 7.2.3)
+        - Add breakdown section: "Contribution: $X + Dividends: $Y = $Z to invest"
+        - Use SimpleCurrencyDisplay for each amount
+        - Show breakdown only when contribution is valid and > 0
+        - Format each value in user's base currency
+      </task>
+      <task id="4" files="src/hooks/use-contribution.ts">
+        Extend useContribution Hook (AC: 7.2.2, 7.2.5)
+        - Add dividends validation via validateDividends()
+        - Add dividendsError state
+        - Ensure dividends defaults to "0.00" when empty
+        - Verify totalInvestable calculation handles empty dividends correctly
+      </task>
+      <task id="5" files="tests/unit/components/dividends-input.test.ts, tests/unit/lib/validations/recommendation-schemas.test.ts">
+        Write Unit Tests (AC: All)
+        - Test DividendsInput renders with currency symbol
+        - Test validation accepts zero and positive values
+        - Test validation rejects negative values and non-numeric
+        - Test error message displays correctly
+        - Test breakdown display shows correct format
+        - Test total updates when dividends change
+      </task>
+      <task id="6">
+        Run Verification
+        - TypeScript compilation successful (npx tsc --noEmit)
+        - ESLint passes with no new errors
+        - All unit tests pass
+        - Build verification complete
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="7.2.1" title="Enter Dividends Amount on Dashboard">
+      <given>I am on the Dashboard</given>
+      <when>I enter a dividends amount ≥ 0 in the dividends input field</when>
+      <then>the amount is validated and saved</then>
+      <and>the input field displays in my base currency with proper formatting</and>
+      <and>dividends amount defaults to $0 if not entered</and>
+    </ac>
+    <ac id="7.2.2" title="Default Dividends to Zero">
+      <given>I don't enter a dividends amount</given>
+      <when>recommendations generate</when>
+      <then>dividends default to $0</then>
+      <and>total investable equals contribution only</and>
+    </ac>
+    <ac id="7.2.3" title="Capital Breakdown Display">
+      <given>I enter contribution and dividends amounts</given>
+      <when>I view the investment section</when>
+      <then>I see a breakdown: "Contribution: $X + Dividends: $Y = $Z to invest"</then>
+      <and>each amount displays in my base currency with proper formatting</and>
+    </ac>
+    <ac id="7.2.4" title="Dividends Validation">
+      <given>I enter an invalid dividends amount (negative or non-numeric)</given>
+      <when>I blur the field or submit</when>
+      <then>inline validation error appears below the field (red, 14px per UX spec)</then>
+      <and>the error message is clear: "Dividends cannot be negative"</and>
+    </ac>
+    <ac id="7.2.5" title="Real-time Total Update">
+      <given>I have already entered a contribution amount</given>
+      <when>I modify the dividends amount</when>
+      <then>the total investable display updates immediately</then>
+      <and>no page refresh is required</and>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-7.md</path>
+        <title>Epic 7 Technical Specification: Recommendations</title>
+        <section>Story 7.2: Enter Dividends Received</section>
+        <snippet>AC7.2.1: Given I am on the Dashboard, when I enter dividends amount ≥ 0, then the amount is saved. AC7.2.2: Given I don't enter dividends, when recommendations generate, then dividends default to $0.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Decimal Precision</section>
+        <snippet>All monetary calculations use decimal.js with precision: 20, rounding: ROUND_HALF_UP. Currency amounts stored as numeric(19,4) in PostgreSQL.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/7-1-enter-monthly-contribution.md</path>
+        <title>Story 7.1: Enter Monthly Contribution</title>
+        <section>Dev Agent Record</section>
+        <snippet>ContributionInput component created. Validation schemas defined in recommendation-schemas.ts. useContribution hook implemented with dividends state already added.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Form Patterns</section>
+        <snippet>Form validation: On blur, not on change. Error display: Inline below field, red text (14px). Currency formatting locale-aware via Intl API.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/validations/recommendation-schemas.ts</path>
+        <kind>validation</kind>
+        <symbol>dividendsSchema, validateDividends, DIVIDENDS_ERRORS</symbol>
+        <lines>114-248</lines>
+        <reason>REUSE: Dividends validation already exists. Use validateDividends() function and DIVIDENDS_ERRORS constants.</reason>
+      </file>
+      <file>
+        <path>src/hooks/use-contribution.ts</path>
+        <kind>hook</kind>
+        <symbol>useContribution</symbol>
+        <lines>160-310</lines>
+        <reason>EXTEND: Hook already manages dividends state (line 165), setDividends (line 219-221), and totalInvestable calculation (line 276-293). Add dividendsError state.</reason>
+      </file>
+      <file>
+        <path>src/components/dashboard/recommendation-input-section.tsx</path>
+        <kind>component</kind>
+        <symbol>RecommendationInputSection</symbol>
+        <lines>121-149</lines>
+        <reason>MODIFY: Replace placeholder dividends input (lines 137-145) with DividendsInput component.</reason>
+      </file>
+      <file>
+        <path>src/components/recommendations/contribution-input.tsx</path>
+        <kind>component</kind>
+        <symbol>ContributionInput</symbol>
+        <lines>1-358</lines>
+        <reason>REFERENCE: Use as template for DividendsInput component. Same currency formatting and locale handling patterns.</reason>
+      </file>
+      <file>
+        <path>src/lib/utils/currency-format.ts</path>
+        <kind>utility</kind>
+        <symbol>formatCurrency, parseCurrency, getLocaleForCurrency</symbol>
+        <lines>1-207</lines>
+        <reason>REUSE: Currency formatting utilities for display values.</reason>
+      </file>
+      <file>
+        <path>src/components/fintech/currency-display.tsx</path>
+        <kind>component</kind>
+        <symbol>SimpleCurrencyDisplay</symbol>
+        <reason>REUSE: For displaying formatted currency amounts in breakdown section.</reason>
+      </file>
+      <file>
+        <path>src/lib/calculations/decimal-utils.ts</path>
+        <kind>utility</kind>
+        <symbol>parseDecimal, add</symbol>
+        <reason>REUSE: Decimal.js utilities for financial calculations.</reason>
+      </file>
+      <file>
+        <path>tests/unit/components/contribution-input.test.ts</path>
+        <kind>test</kind>
+        <symbol>ContributionInput tests</symbol>
+        <reason>REFERENCE: Use as template for dividends-input.test.ts testing patterns.</reason>
+      </file>
+      <file>
+        <path>tests/unit/lib/validations/recommendation-schemas.test.ts</path>
+        <kind>test</kind>
+        <symbol>dividendsSchema tests</symbol>
+        <reason>VERIFY: Dividends validation tests already exist. May need additional tests.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Financial precision calculations</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Input validation schemas</purpose>
+      </node>
+      <node>
+        <package>sonner</package>
+        <version>^2.0.7</version>
+        <purpose>Toast notifications</purpose>
+      </node>
+      <node>
+        <package>lucide-react</package>
+        <version>^0.555.0</version>
+        <purpose>Icons (TrendingUp for dividends)</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">All monetary calculations must use decimal.js with precision: 20, rounding: ROUND_HALF_UP</constraint>
+    <constraint source="architecture">Currency amounts stored as numeric(19,4) in PostgreSQL</constraint>
+    <constraint source="architecture">Components in components/recommendations/ directory</constraint>
+    <constraint source="ux-spec">Form validation on blur, not on change</constraint>
+    <constraint source="ux-spec">Error display: Inline below field, red text (14px)</constraint>
+    <constraint source="ux-spec">Currency formatting locale-aware via Intl.NumberFormat</constraint>
+    <constraint source="story-7.1">Use existing validation schema from recommendation-schemas.ts</constraint>
+    <constraint source="story-7.1">Extend useContribution hook (do not create new hook)</constraint>
+    <constraint source="story-7.1">Follow ContributionInput patterns for consistency</constraint>
+    <constraint source="claude-md">All code changes must include appropriate test coverage</constraint>
+    <constraint source="claude-md">Use structured logger from @/lib/telemetry/logger (not console.error)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>DividendsInputProps</name>
+      <kind>TypeScript Interface</kind>
+      <signature>
+interface DividendsInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  currency: string; // ISO 4217 code
+  error?: string;
+  label?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  onBlur?: () => void;
+}
+      </signature>
+      <path>src/components/recommendations/dividends-input.tsx</path>
+    </interface>
+    <interface>
+      <name>validateDividends</name>
+      <kind>Function</kind>
+      <signature>function validateDividends(value: string): string | undefined</signature>
+      <path>src/lib/validations/recommendation-schemas.ts:235-241</path>
+    </interface>
+    <interface>
+      <name>dividendsSchema</name>
+      <kind>Zod Schema</kind>
+      <signature>z.string().refine(...).default("0.00")</signature>
+      <path>src/lib/validations/recommendation-schemas.ts:141-174</path>
+    </interface>
+    <interface>
+      <name>useContribution return</name>
+      <kind>React Hook Return</kind>
+      <signature>
+{
+  dividends: string;
+  setDividends: (value: string) => void;
+  totalInvestable: string;
+  baseCurrency: string;
+  // ... other existing properties
+}
+      </signature>
+      <path>src/hooks/use-contribution.ts:53-80</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows patterns from Story 7.1 and Epic 6:
+      - Unit tests with Vitest in tests/unit/ directory
+      - Mock external dependencies (API calls, hooks)
+      - Test both success and error paths
+      - Test accessibility (aria attributes)
+      - Component tests use testing-library patterns
+      - Validation tests use Zod safeParse
+    </standards>
+    <locations>
+      <location>tests/unit/components/dividends-input.test.ts (new)</location>
+      <location>tests/unit/lib/validations/recommendation-schemas.test.ts (extend)</location>
+      <location>tests/unit/hooks/use-contribution.test.ts (extend)</location>
+    </locations>
+    <ideas>
+      <idea acId="7.2.1">Test DividendsInput renders with currency symbol for USD, BRL, EUR</idea>
+      <idea acId="7.2.1">Test input accepts "0", "0.00", "100", "100.50"</idea>
+      <idea acId="7.2.2">Test hook returns "0.00" for dividends when not set</idea>
+      <idea acId="7.2.2">Test totalInvestable equals contribution when dividends empty</idea>
+      <idea acId="7.2.3">Test breakdown display shows correct format with both values</idea>
+      <idea acId="7.2.3">Test breakdown only shows when contribution > 0</idea>
+      <idea acId="7.2.4">Test validation rejects "-100" with proper error message</idea>
+      <idea acId="7.2.4">Test validation rejects "abc" with proper error message</idea>
+      <idea acId="7.2.4">Test error message displays in red below input</idea>
+      <idea acId="7.2.5">Test totalInvestable updates when dividends changes</idea>
+      <idea acId="7.2.5">Test no reload required for update (state-based)</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,229 @@
+<story-context id="7-4-generate-investment-recommendations" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>4</storyId>
+    <title>Generate Investment Recommendations</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-4-generate-investment-recommendations.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to generate investment recommendations based on scores and allocation targets</iWant>
+    <soThat>users know exactly what to buy each month</soThat>
+    <tasks>
+      <task id="1" files="src/lib/db/schema.ts">
+        Add Database Tables for Recommendations (Schema)
+        - Add recommendations table with fields: id, userId, portfolioId, contribution, dividends, totalInvestable, baseCurrency, generatedAt, expiresAt, status
+        - Add recommendationItems table with fields: id, recommendationId, assetId, ticker, score, currentAllocation, targetAllocation, allocationGap, recommendedAmount, isOverAllocated, breakdown
+        - Add relations for new tables
+        - Add type exports for new tables
+        - Run pnpm db:generate to generate migrations
+      </task>
+      <task id="2" files="src/lib/types/recommendations.ts" ac="all">
+        Create Type Definitions
+        - Define Recommendation interface
+        - Define RecommendationItem interface
+        - Define RecommendationBreakdown interface
+        - Define GenerateRecommendationsInput interface
+        - Define GenerateRecommendationsResult interface
+      </task>
+      <task id="3" files="src/lib/calculations/recommendations.ts" ac="7.4.1, 7.4.2, 7.4.3, 7.4.4">
+        Create Recommendation Engine
+        - Create calculatePriority(allocationGap, score) function
+        - Create distributeCapital(assets, totalInvestable, minAllocations) function
+        - Create handleRedistribution(amount, remainingAssets) function
+        - Implement priority sorting (gap x score/100)
+        - Implement minimum allocation enforcement
+        - Use decimal.js for all calculations
+        - Ensure deterministic output (same inputs = same result)
+      </task>
+      <task id="4" files="src/lib/services/recommendation-service.ts" ac="all">
+        Create Recommendation Service
+        - Create RecommendationService class
+        - Implement generateRecommendations(userId, portfolioId, contribution, dividends) method
+        - Implement getPortfolioState(portfolioId) helper
+        - Implement getAllocationTargets(userId) helper
+        - Implement getAssetScoresForPortfolio(userId, portfolioId) helper
+        - Emit events via event store (CALC_STARTED, INPUTS_CAPTURED, RECS_COMPUTED, CALC_COMPLETED)
+        - Store recommendations in database
+        - Cache recommendations in Vercel KV
+      </task>
+      <task id="5" files="src/app/api/recommendations/generate/route.ts" ac="all">
+        Create API Route
+        - Create POST handler for recommendation generation
+        - Validate input schema (contribution > 0, dividends >= 0)
+        - Authenticate user via JWT
+        - Call RecommendationService.generateRecommendations()
+        - Return standardized API response
+        - Handle errors with proper error codes
+      </task>
+      <task id="6" files="tests/unit/calculations/recommendations.test.ts" ac="7.4.1-7.4.4">
+        Write Unit Tests - Recommendation Engine
+        - Test priority calculation: gap x score/100
+        - Test capital distribution exhausts total investable
+        - Test minimum allocation enforcement with redistribution
+        - Test over-allocated assets receive $0
+        - Test deterministic output (run same inputs twice)
+        - Test edge cases: zero capital, single asset, all over-allocated
+        - Test decimal precision maintained
+      </task>
+      <task id="7" files="tests/unit/services/recommendation-service.test.ts" ac="7.4.5">
+        Write Unit Tests - Recommendation Service
+        - Test event emission sequence (CALC_STARTED -> INPUTS_CAPTURED -> RECS_COMPUTED -> CALC_COMPLETED)
+        - Test correlation_id linking across events
+        - Test portfolio state capture in INPUTS_CAPTURED
+        - Test recommendation storage in database
+        - Test cache storage in Vercel KV (mock)
+        - Test error handling and event emission on failure
+      </task>
+      <task id="8" files="tests/integration/api/recommendations-generate.test.ts" ac="all">
+        Write Integration Tests - API Route
+        - Test successful recommendation generation
+        - Test validation errors (negative contribution, etc.)
+        - Test authentication required
+        - Test response format matches contract
+        - Test total of recommendations equals total investable
+      </task>
+      <task id="9">
+        Run Verification
+        - TypeScript compilation successful (npx tsc --noEmit)
+        - ESLint passes with no new errors
+        - All unit tests pass
+        - Integration tests pass
+        - Build verification complete
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.4.1" title="Priority Ranking by Allocation Gap x Score">
+      - Given scores and allocation targets exist
+      - When recommendations generate
+      - Then assets are prioritized by (allocation_gap x score)
+      - And higher priority assets receive capital first
+      - And prioritization is deterministic (same inputs = same output)
+    </criterion>
+    <criterion id="AC-7.4.2" title="Under-Allocated Classes Favor High Scorers">
+      - Given an asset class is below target allocation
+      - When recommendations generate
+      - Then higher-scoring assets in that class receive recommendations
+      - And assets are evaluated within their class context
+    </criterion>
+    <criterion id="AC-7.4.3" title="Total Recommendations Equal Total Investable">
+      - Given total capital to distribute
+      - When recommendations complete
+      - Then sum of all recommendation amounts = total investable capital
+      - And no capital is left unallocated (unless all assets at capacity)
+    </criterion>
+    <criterion id="AC-7.4.4" title="Minimum Allocation Values Enforced">
+      - Given minimum allocation values are set for classes/subclasses
+      - When an asset would receive less than the minimum
+      - Then that amount is redistributed to next highest priority asset
+      - And redistribution continues until all capital is allocated
+    </criterion>
+    <criterion id="AC-7.4.5" title="Event Sourcing for Audit Trail">
+      - Given a recommendation calculation runs
+      - When calculation completes
+      - Then events are emitted: CALC_STARTED, INPUTS_CAPTURED, RECS_COMPUTED, CALC_COMPLETED
+      - And all events share a correlation_id for replay capability
+      - And INPUTS_CAPTURED stores: portfolio state, scores snapshot, allocation targets, investable amount
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" title="Epic 7 Tech Spec" section="Story 7.4" snippet="AC7.4.1-AC7.4.5: Assets prioritized by allocation_gap x score, under-allocated classes favor higher-scoring assets, sum equals total investable, minimum allocation enforcement, event sourcing per ADR-002."/>
+      <doc path="docs/architecture.md" title="Architecture" section="Key Decisions" snippet="Decimal Precision: decimal.js with precision: 20, ROUND_HALF_UP. Event Sourcing per ADR-002: 4 events per calculation. Caching: Vercel KV with 24h TTL."/>
+      <doc path="docs/architecture.md" title="Architecture" section="ADR-002" snippet="Event-Sourced Calculations: CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED. Events are immutable and append-only. Any calculation can be replayed from its events."/>
+      <doc path="docs/epics.md" title="Epics" section="Story 7.4" snippet="Generate recommendations based on scores and allocation targets. Priority: allocation gap x score. Recommendations equal total investable. Over-allocated classes get $0."/>
+      <doc path="docs/sprint-artifacts/7-3-calculate-total-investable-capital.md" title="Previous Story" section="Dev Agent Record" snippet="useContribution hook provides totalInvestable via useMemo. Decimal.js configuration established. Pattern for silent catch blocks used intentionally."/>
+    </docs>
+    <code>
+      <file path="src/lib/calculations/decimal-config.ts" kind="utility" symbol="Decimal" lines="1-26" reason="Financial precision configuration (precision: 20, ROUND_HALF_UP) - REUSE for all monetary calculations"/>
+      <file path="src/lib/events/event-store.ts" kind="service" symbol="EventStore, eventStore" lines="1-207" reason="Event sourcing implementation per ADR-002 - REUSE for emitting CALC_STARTED, INPUTS_CAPTURED, RECS_COMPUTED, CALC_COMPLETED"/>
+      <file path="src/lib/events/types.ts" kind="types" symbol="CalculationEvent, CalcStartedEvent, InputsCapturedEvent, ScoresComputedEvent, CalcCompletedEvent" reason="Event type definitions for audit trail - EXTEND with recommendation-specific events if needed"/>
+      <file path="src/hooks/use-contribution.ts" kind="hook" symbol="useContribution, totalInvestable" lines="1-389" reason="Provides contribution + dividends and totalInvestable as input to recommendations - REUSE as input source"/>
+      <file path="src/lib/calculations/scoring-engine.ts" kind="calculation" symbol="calculateScores, ScoringEngine" lines="1-581" reason="Asset scores calculation - REUSE getAssetScores pattern for retrieving cached scores"/>
+      <file path="src/lib/calculations/allocation-utils.ts" kind="utility" symbol="formatAllocationPercent" lines="1-30" reason="Allocation percentage formatting - EXTEND with gap calculation utilities"/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="portfolios, portfolioAssets, assetClasses, assetSubclasses, assetScores, investments" lines="1-844" reason="Database schema - ADD recommendations and recommendationItems tables following existing patterns"/>
+      <file path="src/lib/services/allocation-service.ts" kind="service" symbol="AllocationService" reason="Current allocation calculation - REUSE for getting current portfolio state"/>
+      <file path="src/lib/validations/recommendation-schemas.ts" kind="validation" symbol="validateContribution, validateDividends" reason="Existing validation functions - EXTEND with recommendation input validation"/>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="decimal.js" version="^10.6.0" purpose="Financial precision calculations"/>
+        <package name="@vercel/kv" version="^3.0.0" purpose="Recommendation caching"/>
+        <package name="zod" version="^4.1.13" purpose="Input validation"/>
+        <package name="drizzle-orm" version="^0.44.7" purpose="Database ORM"/>
+        <package name="inngest" version="^3.46.0" purpose="Background jobs (future use)"/>
+        <package name="vitest" version="^4.0.14" purpose="Unit testing"/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="precision">All monetary calculations MUST use decimal.js with precision: 20, ROUND_HALF_UP</constraint>
+    <constraint type="precision">Recommendation amounts stored as numeric(19,4) in PostgreSQL</constraint>
+    <constraint type="event-sourcing">MUST emit 4 events per calculation: CALC_STARTED, INPUTS_CAPTURED, RECS_COMPUTED, CALC_COMPLETED</constraint>
+    <constraint type="event-sourcing">All events MUST share a correlation_id for audit trail linkage</constraint>
+    <constraint type="determinism">Same inputs MUST produce identical outputs (deterministic algorithm)</constraint>
+    <constraint type="caching">Store recommendations in Vercel KV with key recs:${userId} and 24h TTL</constraint>
+    <constraint type="multi-currency">All amounts normalized to base currency before calculations</constraint>
+    <constraint type="architecture">Follow existing patterns from scoring-engine.ts for event emission</constraint>
+    <constraint type="testing">All new code MUST have corresponding unit tests per CLAUDE.md standards</constraint>
+    <constraint type="logging">Use logger from @/lib/telemetry/logger - NO console.log/console.error</constraint>
+    <constraint type="api">Use standardized API responses from @/lib/api/responses.ts</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/recommendations/generate" kind="REST endpoint" path="src/app/api/recommendations/generate/route.ts">
+      Request: { contribution: string, dividends: string }
+      Response: { data: { id, contribution, dividends, totalInvestable, baseCurrency, generatedAt, items: RecommendationItem[] } }
+      Error: { error: string, code: string, details?: { fieldErrors } }
+    </interface>
+    <interface name="RecommendationService" kind="class interface" path="src/lib/services/recommendation-service.ts">
+      generateRecommendations(userId: string, portfolioId: string, contribution: string, dividends: string): Promise&lt;Recommendation&gt;
+      Uses: EventStore.append(), KV cache, AllocationService, AssetScores
+    </interface>
+    <interface name="calculatePriority" kind="function signature" path="src/lib/calculations/recommendations.ts">
+      calculatePriority(allocationGap: Decimal, score: Decimal): Decimal
+      Returns: gap * (score / 100) as priority weight
+    </interface>
+    <interface name="distributeCapital" kind="function signature" path="src/lib/calculations/recommendations.ts">
+      distributeCapital(assets: AssetWithPriority[], totalInvestable: Decimal, minAllocations: Map&lt;string, Decimal&gt;): RecommendationItem[]
+      Distributes capital to assets by priority, respecting minimum allocations
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest framework with comprehensive edge case coverage. All new code requires unit tests.
+      Integration tests use mocked database and cache. Follow patterns from scoring-engine.test.ts for calculation testing.
+      Tests located in tests/unit/ and tests/integration/ directories matching source structure.
+      Use decimal.js assertions for financial precision validation.
+    </standards>
+    <locations>
+      <location>tests/unit/calculations/recommendations.test.ts</location>
+      <location>tests/unit/services/recommendation-service.test.ts</location>
+      <location>tests/integration/api/recommendations-generate.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-7.4.1">Test priority calculation: gap=2%, score=87 -> priority=1.74; gap=5%, score=60 -> priority=3.00</idea>
+      <idea ac="AC-7.4.1">Test determinism: run calculateRecommendations twice with same inputs, verify identical output</idea>
+      <idea ac="AC-7.4.2">Test under-allocated class: given class at 18% with target 20%, higher scorer in class gets capital first</idea>
+      <idea ac="AC-7.4.3">Test sum invariant: for any input, sum(recommendations.amount) === totalInvestable (unless all over-allocated)</idea>
+      <idea ac="AC-7.4.3">Test edge case: all assets over-allocated -> recommendations sum to 0, remaining capital returned</idea>
+      <idea ac="AC-7.4.4">Test minimum enforcement: if recommendation $50 but minimum is $100, redistribute to next asset</idea>
+      <idea ac="AC-7.4.4">Test cascade redistribution: if all remaining assets have minimums higher than remaining capital</idea>
+      <idea ac="AC-7.4.5">Test event sequence: verify events emitted in order CALC_STARTED -> INPUTS_CAPTURED -> RECS_COMPUTED -> CALC_COMPLETED</idea>
+      <idea ac="AC-7.4.5">Test correlation_id: all 4 events for a calculation share the same correlation_id</idea>
+      <idea ac="AC-7.4.5">Test INPUTS_CAPTURED payload: contains portfolio snapshot, scores, allocation targets, investable amount</idea>
+      <idea ac="all">Test decimal precision: verify no floating point errors in multi-currency scenarios</idea>
+      <idea ac="all">Test zero capital edge case: contribution=0, dividends=0 -> no recommendations generated</idea>
+      <idea ac="all">Test single asset portfolio: all capital goes to the one asset (if not over-allocated)</idea>
+    </ideas>
+  </tests>
+</story-context>

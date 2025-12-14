@@ -1,0 +1,284 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>5</storyId>
+    <title>Display Recommendations (Focus Mode)</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-5-display-recommendations-focus-mode.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see recommendations displayed as simple actionable items in Focus Mode</iWant>
+    <soThat>I know exactly what to buy each month</soThat>
+    <tasks>
+      <task id="1" ac="all">Create GET API Route for Recommendations
+        <subtask>Create GET handler to retrieve existing recommendations</subtask>
+        <subtask>Authenticate user via JWT</subtask>
+        <subtask>Try Vercel KV cache first, fallback to PostgreSQL</subtask>
+        <subtask>Return standardized API response with recommendations data</subtask>
+        <subtask>Handle 404 when no recommendations exist</subtask>
+        <subtask>Handle error states with proper error codes</subtask>
+      </task>
+      <task id="2" ac="all">Create useRecommendations Hook
+        <subtask>Create React Query hook for fetching recommendations</subtask>
+        <subtask>Configure stale time and cache behavior</subtask>
+        <subtask>Expose loading, error, and data states</subtask>
+        <subtask>Add refetch capability for manual refresh</subtask>
+      </task>
+      <task id="3" ac="7.5.2">Create RecommendationCard Component
+        <subtask>Create component with props: recommendationItem: RecommendationItem</subtask>
+        <subtask>Display ticker prominently</subtask>
+        <subtask>Display score with ScoreBadge (color-coded)</subtask>
+        <subtask>Display recommended amount with currency formatting</subtask>
+        <subtask>Display AllocationGauge showing current vs target</subtask>
+        <subtask>Add hover state styling per UX spec</subtask>
+        <subtask>Add click handler placeholder for breakdown (Story 7.7)</subtask>
+      </task>
+      <task id="4" ac="7.5.2">Create AllocationGauge Component
+        <subtask>Create visual gauge showing current vs target range</subtask>
+        <subtask>Accept props: current: string, targetMin: string, targetMax: string</subtask>
+        <subtask>Color coding: green (within range), amber (near), red (outside)</subtask>
+        <subtask>Display percentage values</subtask>
+      </task>
+      <task id="5" ac="7.5.1">Create FocusModeHeader Component
+        <subtask>Create header component with "Ready to invest" message</subtask>
+        <subtask>Accept props: totalInvestable: string, baseCurrency: string</subtask>
+        <subtask>Display formatted currency amount</subtask>
+        <subtask>Style as prominent header per UX spec</subtask>
+      </task>
+      <task id="6" ac="7.5.3">Create RecommendationList Component
+        <subtask>Create list component that renders RecommendationCards</subtask>
+        <subtask>Sort cards by recommendedAmount descending</subtask>
+        <subtask>Handle empty array (delegate to balanced state)</subtask>
+        <subtask>Responsive grid layout (1 col mobile, 2-3 cols desktop)</subtask>
+      </task>
+      <task id="7" ac="7.5.5">Create RecommendationSummary Component
+        <subtask>Create summary component "N assets totaling $X"</subtask>
+        <subtask>Accept props: count: number, total: string, baseCurrency: string</subtask>
+        <subtask>Format currency using existing utility</subtask>
+      </task>
+      <task id="8" ac="7.5.4">Create BalancedPortfolioState Component
+        <subtask>Create empty state for balanced portfolio</subtask>
+        <subtask>Display encouraging message "Your portfolio is perfectly balanced this month!"</subtask>
+        <subtask>Optionally show current allocation summary</subtask>
+        <subtask>Use EmptyState pattern per UX spec</subtask>
+      </task>
+      <task id="9" ac="all">Integrate Focus Mode into Dashboard
+        <subtask>Import and integrate useRecommendations hook</subtask>
+        <subtask>Add FocusModeHeader below input section</subtask>
+        <subtask>Add RecommendationList for displaying cards</subtask>
+        <subtask>Add RecommendationSummary at bottom</subtask>
+        <subtask>Handle loading state with skeleton</subtask>
+        <subtask>Handle error state with error message</subtask>
+        <subtask>Show BalancedPortfolioState when no recommendations</subtask>
+      </task>
+      <task id="10" ac="all">Create Component Index Export
+        <subtask>Create barrel export file for all recommendation components</subtask>
+        <subtask>Export: RecommendationCard, RecommendationList, FocusModeHeader, RecommendationSummary, BalancedPortfolioState, AllocationGauge</subtask>
+      </task>
+      <task id="11" ac="7.5.2-7.5.5">Write Unit Tests - Components
+        <subtask>Test RecommendationCard renders ticker, score, amount, gauge</subtask>
+        <subtask>Test score badge color coding (green/amber/red)</subtask>
+        <subtask>Test currency formatting</subtask>
+        <subtask>Test RecommendationList sorts by amount descending</subtask>
+        <subtask>Test BalancedPortfolioState renders correct message</subtask>
+        <subtask>Test FocusModeHeader displays formatted amount</subtask>
+      </task>
+      <task id="12" ac="7.5.1">Write Unit Tests - Hook and API
+        <subtask>Test useRecommendations returns loading state initially</subtask>
+        <subtask>Test useRecommendations returns data on success</subtask>
+        <subtask>Test useRecommendations handles error state</subtask>
+        <subtask>Test API route returns cached recommendations</subtask>
+        <subtask>Test API route fallback to PostgreSQL on cache miss</subtask>
+        <subtask>Test API route returns 404 when no recommendations</subtask>
+      </task>
+      <task id="13" ac="all">Run Verification
+        <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+        <subtask>ESLint passes with no new errors</subtask>
+        <subtask>All unit tests pass</subtask>
+        <subtask>Visual verification in browser</subtask>
+        <subtask>Build verification complete</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.5.1" title="Focus Mode Header Display">
+      <given>recommendations exist</given>
+      <when>Dashboard loads</when>
+      <then>Focus Mode displays with header "Ready to invest. You have $X available"</then>
+      <and>the amount displays in user's base currency with proper formatting</and>
+      <and>header updates when total investable changes</and>
+    </criterion>
+    <criterion id="AC-7.5.2" title="RecommendationCard Display">
+      <given>recommendations exist</given>
+      <when>recommendation cards render</when>
+      <then>each RecommendationCard shows: Ticker symbol prominently displayed, Score badge with color coding (green: 80+, amber: 50-79, red: less than 50), Recommended amount in base currency, AllocationGauge showing current vs target allocation</then>
+      <and>card styling follows shadcn/ui design patterns</and>
+    </criterion>
+    <criterion id="AC-7.5.3" title="Cards Sorted by Amount">
+      <given>recommendations exist</given>
+      <when>cards render</when>
+      <then>cards are sorted by recommended amount (highest first)</then>
+      <and>sorting is deterministic (same order on refresh)</and>
+    </criterion>
+    <criterion id="AC-7.5.4" title="Balanced Portfolio Empty State">
+      <given>no recommendations are needed (portfolio is balanced)</given>
+      <when>Dashboard loads</when>
+      <then>display shows "Your portfolio is perfectly balanced this month!"</then>
+      <and>empty state is visually distinct and encouraging</and>
+      <and>shows current allocation summary</and>
+    </criterion>
+    <criterion id="AC-7.5.5" title="Total Summary Display">
+      <given>recommendations exist</given>
+      <when>cards display</when>
+      <then>total summary shows "N assets totaling $X"</then>
+      <and>summary updates when recommendations change</and>
+      <and>amounts are formatted in base currency</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" title="Epic 7 Tech Spec" section="Story 7.5 Acceptance Criteria">
+        Defines AC7.5.1-7.5.5: Focus Mode header with "Ready to invest", RecommendationCard components, sorting by amount, balanced portfolio empty state, summary display patterns.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" title="Epic 7 Tech Spec" section="Component Integration Diagram">
+        Shows Dashboard(Focus Mode) containing ContributionInput, DividendInput, TotalDisplay, and RecommendationCard List components. API routes at /api/recommendations.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" title="Epic 7 Tech Spec" section="APIs and Interfaces">
+        GET /api/recommendations returns data with id, contribution, dividends, totalInvestable, baseCurrency, items[]. Response 404 returns NO_RECOMMENDATIONS code.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" title="Epic 7 Tech Spec" section="Performance">
+        Recommendation display target: less than 100ms via pre-computed Vercel KV cache. Dashboard initial load target: less than 2s.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="User-Centered Architecture">
+        Core philosophy: "Simplicity in front, complexity behind". Dashboard less than 2s load via pre-computed overnight processing. Focus Mode layout per UX spec.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Caching Strategy">
+        Recommendations cached in Vercel KV with 24h TTL. Cache key pattern: recs:{userId}. Invalidation on overnight job completion.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Project Structure">
+        Components at src/components/recommendations/, Hooks at src/hooks/use-recommendations.ts, API routes at src/app/api/recommendations/.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Spec" section="Core User Experience">
+        Signature moment: "It tells me exactly what to buy each month based on my own rules." Monthly Investment Review flow: Login - Dashboard - Review Recs - Confirm - Done in 5 minutes.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Spec" section="Component Library - RecommendationCard">
+        Card shows Asset Name, Asset Class, Score badge, Amount, Allocation progress bar. Click to expand details. Accepts editable amount input for confirmation.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Spec" section="Empty States">
+        No Recommendations: "Your portfolio is perfectly balanced this month!" with link to portfolio view.
+      </doc>
+      <doc path="docs/ux-design-specification.md" title="UX Design Spec" section="Responsive Strategy">
+        Recommendation Cards: List view on desktop, Card stack on mobile. Dashboard responsive breakpoints: lg+ expanded, md collapsed, sm hamburger.
+      </doc>
+      <doc path="CLAUDE.md" title="Project Standards" section="Test Requirements">
+        Every code change MUST include appropriate test coverage. Unit tests for all new components with edge cases. All tests must pass before marking complete.
+      </doc>
+    </docs>
+    <code>
+      <file path="src/lib/types/recommendations.ts" kind="types" symbol="RecommendationItemResult, GenerateRecommendationsResult" reason="Core type definitions for recommendation data used by components. Contains assetId, symbol, score, currentAllocation, targetAllocation, recommendedAmount, isOverAllocated."/>
+      <file path="src/lib/services/recommendation-service.ts" kind="service" symbol="RecommendationService, getCachedRecommendation, getRecommendationById" reason="Service layer for retrieving recommendations. getCachedRecommendation() tries KV cache first, getRecommendationById() fetches from PostgreSQL."/>
+      <file path="src/lib/cache/recommendations.ts" kind="cache" symbol="cacheSet, cacheGet, cacheDel" reason="Cache utilities for Vercel KV operations. Key pattern: recs:{userId}. TTL: 86400 seconds (24h)."/>
+      <file path="src/app/(dashboard)/page.tsx" kind="page" symbol="DashboardPage" reason="Main dashboard page to integrate Focus Mode. Already contains RecommendationInputSection. Add recommendation display components below."/>
+      <file path="src/components/dashboard/recommendation-input-section.tsx" kind="component" symbol="RecommendationInputSection" reason="Existing component for contribution/dividend input. Focus Mode header and recommendation list should appear below this."/>
+      <file path="src/lib/utils/currency-format.ts" kind="utility" symbol="formatCurrency, parseCurrency" reason="Currency formatting utilities for displaying amounts. Use formatCurrency(value, currency) for all monetary displays."/>
+      <file path="src/components/fintech/score-badge.tsx" kind="component" symbol="ScoreBadge, getScoreLevel" reason="Existing score badge component with color coding (green 80+, amber 50-79, red less than 50). Reuse for RecommendationCard score display."/>
+      <file path="src/app/api/recommendations/generate/route.ts" kind="api" symbol="POST handler" reason="Existing POST route for generating recommendations. Follow same patterns for new GET route - auth verification, error handling, response format."/>
+      <file path="src/lib/api/responses.ts" kind="utility" symbol="successResponse, errorResponse" reason="Standardized API response utilities. Use for consistent response format in GET recommendations route."/>
+      <file path="src/lib/api/error-codes.ts" kind="constants" symbol="ERROR_CODES" reason="Standardized error codes for API responses. Use NO_RECOMMENDATIONS or similar for 404 case."/>
+    </code>
+    <dependencies>
+      <node>
+        <package name="next" version="16.0.10">React framework with App Router</package>
+        <package name="react" version="19.2.0">UI library</package>
+        <package name="@tanstack/react-query" version="not installed - need to add">Client-side data fetching for useRecommendations hook</package>
+        <package name="decimal.js" version="10.6.0">Financial precision calculations</package>
+        <package name="@vercel/kv" version="3.0.0">Vercel KV cache for recommendations</package>
+        <package name="zod" version="4.1.13">Schema validation for API inputs</package>
+        <package name="lucide-react" version="0.555.0">Icons for UI components</package>
+        <package name="class-variance-authority" version="0.7.1">Component variants</package>
+        <package name="tailwind-merge" version="3.4.0">Utility for merging Tailwind classes</package>
+        <package name="vitest" version="4.0.14">Testing framework</package>
+      </node>
+      <note>Project does NOT currently have @tanstack/react-query installed. Alternative: use native fetch with useState/useEffect pattern, or add react-query as new dependency.</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture">Cache-First: Retrieve recommendations from Vercel KV first for less than 100ms load. Fallback to PostgreSQL query if cache miss.</constraint>
+    <constraint source="Architecture">Decimal Precision: All currency values formatted using decimal.js utilities and formatCurrency function.</constraint>
+    <constraint source="Architecture">Performance Target: Dashboard load less than 2 seconds. Pre-computed recommendations for instant display.</constraint>
+    <constraint source="Tech-Spec">Score Badge Colors: green (80+), amber (50-79), red (less than 50). Use existing ScoreBadge component.</constraint>
+    <constraint source="UX-Spec">Cards sorted by recommended amount descending. Deterministic ordering on refresh.</constraint>
+    <constraint source="UX-Spec">Empty state pattern: "Your portfolio is perfectly balanced this month!" - encouraging, visually distinct.</constraint>
+    <constraint source="CLAUDE.md">No console.log/console.error in production code. Use logger from @/lib/telemetry/logger.</constraint>
+    <constraint source="CLAUDE.md">Use standardized API responses from @/lib/api/responses.ts.</constraint>
+    <constraint source="CLAUDE.md">All new code must have corresponding unit tests covering success and error cases.</constraint>
+    <constraint source="Project">Responsive design: 1 column mobile, 2-3 columns desktop for card grid.</constraint>
+    <constraint source="Project">Follow shadcn/ui component patterns for Card, Button, and other UI elements.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GET /api/recommendations" kind="REST endpoint">
+      Request: GET with Authorization Bearer JWT header.
+      Response 200: { data: { id, contribution, dividends, totalInvestable, baseCurrency, generatedAt, expiresAt, items: RecommendationItemResult[] } }
+      Response 404: { error: "No recommendations available", code: "NO_RECOMMENDATIONS" }
+    </interface>
+    <interface name="RecommendationItemResult" kind="TypeScript interface" path="src/lib/types/recommendations.ts">
+      { assetId: string, symbol: string, score: string, currentAllocation: string, targetAllocation: string, allocationGap: string, recommendedAmount: string, isOverAllocated: boolean, breakdown: RecommendationItemBreakdown, sortOrder: number }
+    </interface>
+    <interface name="RecommendationCardProps" kind="Component props">
+      { item: RecommendationItemResult, baseCurrency: string, onClick?: () => void }
+    </interface>
+    <interface name="FocusModeHeaderProps" kind="Component props">
+      { totalInvestable: string, baseCurrency: string }
+    </interface>
+    <interface name="AllocationGaugeProps" kind="Component props">
+      { current: string, targetMin: string, targetMax: string }
+    </interface>
+    <interface name="useRecommendations" kind="React Hook" path="src/hooks/use-recommendations.ts">
+      Returns: { data: GenerateRecommendationsResult | null, isLoading: boolean, error: Error | null, refetch: () => void }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing framework: Vitest for unit tests, Playwright for E2E tests. Unit tests located in tests/unit/ directory mirroring src/ structure (e.g., src/lib/api/ maps to tests/unit/api/). Tests use @/ path alias. Coverage thresholds: 80% for lines, functions, branches, statements. All tests must pass before marking story complete. Use vi.mock() for mocking dependencies.
+    </standards>
+    <locations>
+      <location>tests/unit/components/*.test.ts - Component unit tests</location>
+      <location>tests/unit/hooks/*.test.ts - Hook unit tests</location>
+      <location>tests/unit/api/*.test.ts - API route unit tests</location>
+      <location>tests/e2e/*.spec.ts - Playwright E2E tests</location>
+    </locations>
+    <ideas>
+      <idea ac="7.5.1">Test FocusModeHeader renders "Ready to invest. You have $X available" with formatted currency</idea>
+      <idea ac="7.5.1">Test header updates when totalInvestable prop changes</idea>
+      <idea ac="7.5.2">Test RecommendationCard displays ticker symbol prominently</idea>
+      <idea ac="7.5.2">Test ScoreBadge shows green for score 80+</idea>
+      <idea ac="7.5.2">Test ScoreBadge shows amber for score 50-79</idea>
+      <idea ac="7.5.2">Test ScoreBadge shows red for score less than 50</idea>
+      <idea ac="7.5.2">Test AllocationGauge displays current vs target correctly</idea>
+      <idea ac="7.5.2">Test AllocationGauge color coding for within/near/outside range</idea>
+      <idea ac="7.5.3">Test RecommendationList sorts items by recommendedAmount descending</idea>
+      <idea ac="7.5.3">Test sorting is deterministic with same input data</idea>
+      <idea ac="7.5.4">Test BalancedPortfolioState displays when items array is empty</idea>
+      <idea ac="7.5.4">Test empty state shows "Your portfolio is perfectly balanced this month!"</idea>
+      <idea ac="7.5.5">Test RecommendationSummary displays "N assets totaling $X"</idea>
+      <idea ac="7.5.5">Test summary counts and total update with different data</idea>
+      <idea ac="API">Test GET /api/recommendations returns cached data when available</idea>
+      <idea ac="API">Test GET /api/recommendations falls back to PostgreSQL on cache miss</idea>
+      <idea ac="API">Test GET /api/recommendations returns 404 with NO_RECOMMENDATIONS code</idea>
+      <idea ac="API">Test GET /api/recommendations requires valid JWT authentication</idea>
+      <idea ac="hook">Test useRecommendations returns isLoading=true initially</idea>
+      <idea ac="hook">Test useRecommendations returns data after successful fetch</idea>
+      <idea ac="hook">Test useRecommendations sets error state on fetch failure</idea>
+      <idea ac="hook">Test refetch triggers new API call</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -119,3 +119,94 @@ export async function getUserProfile(userId: string): Promise<User | null> {
 
   return user ?? null;
 }
+
+// =============================================================================
+// USER SETTINGS (Story 7.1)
+// =============================================================================
+
+/**
+ * User settings data structure
+ *
+ * Story 7.1: Enter Monthly Contribution
+ */
+export interface UserSettings {
+  defaultContribution: string | null;
+  baseCurrency: string;
+}
+
+/**
+ * Gets a user's settings
+ *
+ * Story 7.1: AC-7.1.3 - Pre-fill default contribution
+ *
+ * @param userId - User ID to fetch settings for
+ * @returns User settings or null if user not found
+ */
+export async function getUserSettings(userId: string): Promise<UserSettings | null> {
+  const [user] = await db
+    .select({
+      defaultContribution: users.defaultContribution,
+      baseCurrency: users.baseCurrency,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    defaultContribution: user.defaultContribution,
+    baseCurrency: user.baseCurrency,
+  };
+}
+
+/**
+ * Updates a user's default contribution
+ *
+ * Story 7.1: AC-7.1.4 - Save default contribution preference
+ *
+ * @param userId - User ID to update
+ * @param defaultContribution - New default contribution value (numeric string or null to clear)
+ * @returns Updated user settings
+ * @throws Error if user not found
+ */
+export async function updateDefaultContribution(
+  userId: string,
+  defaultContribution: string | null
+): Promise<UserSettings> {
+  // Verify user exists
+  const [currentUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+  if (!currentUser) {
+    throw new Error("User not found");
+  }
+
+  // Update the default contribution
+  const [updatedUser] = await db
+    .update(users)
+    .set({
+      defaultContribution: defaultContribution,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId))
+    .returning({
+      defaultContribution: users.defaultContribution,
+      baseCurrency: users.baseCurrency,
+    });
+
+  if (!updatedUser) {
+    throw new Error("Failed to update default contribution");
+  }
+
+  logger.info("Updated default contribution", {
+    userId: redactUserId(userId),
+    hasContribution: !!defaultContribution,
+  });
+
+  return {
+    defaultContribution: updatedUser.defaultContribution,
+    baseCurrency: updatedUser.baseCurrency,
+  };
+}
