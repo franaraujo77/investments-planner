@@ -1,0 +1,244 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>1</storyId>
+    <title>Inngest Job Infrastructure</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-1-inngest-job-infrastructure.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>Inngest configured for background job orchestration</iWant>
+    <soThat>overnight processing can run reliably with automatic retries and observability</soThat>
+    <tasks>
+      <task id="1" ac="8.1.1">Verify/Install Inngest Package - Check inngest ^3.46.0 in package.json (already installed)</task>
+      <task id="2" ac="8.1.1">Extend Inngest Client Configuration - Add overnight processing event types to existing src/lib/inngest/client.ts</task>
+      <task id="3" ac="8.1.2">Verify Webhook Handler - Already at src/app/api/inngest/route.ts (extend to include new functions)</task>
+      <task id="4" ac="8.1.3,8.1.4">Create Placeholder Overnight Scoring Function - src/lib/inngest/functions/overnight-scoring.ts with step function pattern</task>
+      <task id="5" ac="8.1.3">Create Placeholder Cache Warmer Function - src/lib/inngest/functions/cache-warmer.ts</task>
+      <task id="6" ac="8.1.2,8.1.3">Register Functions in Webhook Handler - Update src/lib/inngest/index.ts exports</task>
+      <task id="7" ac="8.1.1">Add Environment Variables Template - Add INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY, OVERNIGHT_JOB_CRON to .env.example</task>
+      <task id="8" ac="8.1.1">Write Unit Tests - Inngest Client - tests/unit/inngest/client.test.ts</task>
+      <task id="9" ac="8.1.4">Write Unit Tests - Function Definitions - tests/unit/inngest/overnight-scoring.test.ts</task>
+      <task id="10" ac="8.1.2">Write Integration Test - Webhook Handler - tests/integration/api/inngest-webhook.test.ts</task>
+      <task id="11">Run Verification - TypeScript, ESLint, tests, build</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-8.1.1">Inngest client is configured in lib/inngest/client.ts with correct event types</criterion>
+    <criterion id="AC-8.1.2">Webhook handler at /api/inngest receives and processes Inngest events</criterion>
+    <criterion id="AC-8.1.3">Inngest dashboard shows registered functions when dev server runs</criterion>
+    <criterion id="AC-8.1.4">Step functions enable checkpointing (job can resume after failure)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification - Overnight Processing</title>
+        <section>Story 8.1: Inngest Job Infrastructure</section>
+        <snippet>AC-8.1.1-8.1.4 define Inngest client in lib/inngest/client.ts, webhook handler at /api/inngest, dashboard visibility, step functions for checkpointing. Services: Inngest Client, Overnight Scoring Function, Cache Warmer Function.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-003: Background Jobs Framework</section>
+        <snippet>Use Inngest for background job orchestration. Serverless, event-driven, Vercel-native. Step functions for complex workflows, built-in retries with exponential backoff. Client ID: investments-planner.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-002: Event-Sourced Calculations with OpenTelemetry</section>
+        <snippet>4 event types: CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED. Job-level OTel spans for overnight processing. EventStore interface for persistence.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/inngest/client.ts</path>
+        <kind>module</kind>
+        <symbol>inngest, Events</symbol>
+        <lines>1-71</lines>
+        <reason>EXISTING Inngest client configuration. Already has client ID 'investments-planner' and Events type with user/deletion.scheduled, email/verification.requested, email/password-reset.requested. EXTEND with overnight processing event types.</reason>
+      </file>
+      <file>
+        <path>src/lib/inngest/index.ts</path>
+        <kind>module</kind>
+        <symbol>functions, inngest</symbol>
+        <lines>1-23</lines>
+        <reason>EXISTING module index. Exports inngest client and functions array [purgeDeletedUser, sendVerificationEmailJob, sendPasswordResetEmailJob]. EXTEND functions array with new overnight functions.</reason>
+      </file>
+      <file>
+        <path>src/app/api/inngest/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>GET, POST, PUT</symbol>
+        <lines>1-36</lines>
+        <reason>EXISTING webhook handler. Uses serve() from inngest/next, imports functions from @/lib/inngest. Already exports GET, POST, PUT. NO CHANGES NEEDED if functions array updated.</reason>
+      </file>
+      <file>
+        <path>src/lib/inngest/functions/purge-deleted-user.ts</path>
+        <kind>inngest-function</kind>
+        <symbol>purgeDeletedUser</symbol>
+        <lines>1-65</lines>
+        <reason>REFERENCE for Inngest function pattern. Uses inngest.createFunction() with step.sleepUntil() and step.run(). Follow this pattern for overnight-scoring.ts.</reason>
+      </file>
+      <file>
+        <path>src/lib/events/event-store.ts</path>
+        <kind>service</kind>
+        <symbol>EventStore, eventStore</symbol>
+        <lines>1-207</lines>
+        <reason>Event store service from Story 1.4. Use for appending overnight calculation events. Methods: append(), appendBatch(), getByCorrelationId().</reason>
+      </file>
+      <file>
+        <path>src/lib/events/types.ts</path>
+        <kind>types</kind>
+        <symbol>CalculationEvent, CalcStartedEvent, InputsCapturedEvent, ScoresComputedEvent, CalcCompletedEvent</symbol>
+        <lines>1-420</lines>
+        <reason>Event types for calculation pipeline. Overnight scoring will use these existing types. No new event types needed for Story 8.1.</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/index.ts</path>
+        <kind>module</kind>
+        <symbol>getTracer, createJobSpan, withSpan, addTimingAttribute</symbol>
+        <lines>1-84</lines>
+        <reason>Telemetry utilities from Story 1.5. Use for job-level spans in overnight processing. createJobSpan() for overnight-scoring-job span.</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger, redactUserId</symbol>
+        <lines>1-177</lines>
+        <reason>Structured logger with trace correlation. Use for overnight job logging. Follow existing pattern from purge-deleted-user.ts.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/index.ts</path>
+        <kind>module</kind>
+        <symbol>CacheService, cacheService, setRecommendations</symbol>
+        <lines>1-100</lines>
+        <reason>Vercel KV cache infrastructure from Story 1.6. Will be used in Story 8.4 for cache warming. Provides key patterns: recs:${userId}.</reason>
+      </file>
+      <file>
+        <path>tests/unit/events/event-store.test.ts</path>
+        <kind>test</kind>
+        <symbol>EventStore tests</symbol>
+        <lines>1-322</lines>
+        <reason>REFERENCE for unit test pattern. Uses vi.fn() mocks, describe/it structure. Follow for Inngest client tests.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>inngest</package>
+        <version>^3.46.0</version>
+        <status>installed</status>
+        <purpose>Background job orchestration with step functions</purpose>
+      </node>
+      <node>
+        <package>@vercel/kv</package>
+        <version>^3.0.0</version>
+        <status>installed</status>
+        <purpose>Redis cache for recommendations (used in later stories)</purpose>
+      </node>
+      <node>
+        <package>@opentelemetry/api</package>
+        <version>^1.9.0</version>
+        <status>installed</status>
+        <purpose>Distributed tracing for job observability</purpose>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <status>devDependency</status>
+        <purpose>Unit testing framework</purpose>
+      </node>
+      <node>
+        <package>@playwright/test</package>
+        <version>^1.57.0</version>
+        <status>devDependency</status>
+        <purpose>E2E testing framework</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="pattern">Follow existing Inngest function pattern from purge-deleted-user.ts: inngest.createFunction() with id, name, retries; step.run() for checkpointed steps</constraint>
+    <constraint type="pattern">Use structured logger from @/lib/telemetry/logger with redactUserId() for any user IDs in logs</constraint>
+    <constraint type="pattern">All monetary/numeric values use decimal.js and stored as string to preserve precision</constraint>
+    <constraint type="architecture">Inngest client ID MUST be 'investments-planner' (already configured)</constraint>
+    <constraint type="architecture">Event types must follow existing Events type union pattern in client.ts</constraint>
+    <constraint type="architecture">Webhook handler uses functions array from lib/inngest/index.ts - add new functions there</constraint>
+    <constraint type="testing">All tests must use Vitest with describe/it/expect pattern</constraint>
+    <constraint type="testing">Mock database and external services in unit tests</constraint>
+    <constraint type="testing">No console.log/console.error - use logger from @/lib/telemetry/logger</constraint>
+    <constraint type="typescript">exactOptionalPropertyTypes enabled - use | undefined for optional props</constraint>
+    <constraint type="linting">ESLint must pass with no warnings (--max-warnings 0)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Inngest Client</name>
+      <kind>module</kind>
+      <signature>export const inngest = new Inngest({ id: 'investments-planner' })</signature>
+      <path>src/lib/inngest/client.ts</path>
+    </interface>
+    <interface>
+      <name>serve() Function</name>
+      <kind>function</kind>
+      <signature>serve({ client: inngest, functions: InngestFunction[] })</signature>
+      <path>inngest/next</path>
+    </interface>
+    <interface>
+      <name>createFunction</name>
+      <kind>method</kind>
+      <signature>inngest.createFunction({ id: string, name: string, retries?: number }, { event?: string, cron?: string }, async ({ event, step }) => Promise&lt;T&gt;)</signature>
+      <path>src/lib/inngest/client.ts</path>
+    </interface>
+    <interface>
+      <name>step.run</name>
+      <kind>method</kind>
+      <signature>await step.run(stepName: string, async () => Promise&lt;T&gt;): Promise&lt;T&gt;</signature>
+      <path>Inngest SDK</path>
+    </interface>
+    <interface>
+      <name>EventStore.append</name>
+      <kind>method</kind>
+      <signature>async append(userId: string, event: CalculationEvent): Promise&lt;void&gt;</signature>
+      <path>src/lib/events/event-store.ts</path>
+    </interface>
+    <interface>
+      <name>createJobSpan</name>
+      <kind>function</kind>
+      <signature>createJobSpan(name: string, attributes?: SpanAttributes): Span</signature>
+      <path>src/lib/telemetry/tracer.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use Vitest with describe/it/expect pattern. Mock database with vi.fn() returning chainable methods.
+      Mock Inngest SDK internals for function definition tests. Test file location mirrors source: src/lib/inngest/client.ts -> tests/unit/inngest/client.test.ts.
+      All tests must pass before marking complete (pnpm test). TypeScript strict mode enabled.
+      Per CLAUDE.md: All new code requires corresponding unit tests covering success, error, and edge cases.
+    </standards>
+    <locations>
+      <location>tests/unit/inngest/client.test.ts</location>
+      <location>tests/unit/inngest/overnight-scoring.test.ts</location>
+      <location>tests/integration/api/inngest-webhook.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-8.1.1">Test that inngest client exports correct ID ('investments-planner')</idea>
+      <idea ac="AC-8.1.1">Test that Events type includes overnight processing event types</idea>
+      <idea ac="AC-8.1.1">Test that new event types have correct data shape</idea>
+      <idea ac="AC-8.1.2">Test webhook route exports GET, POST, PUT methods</idea>
+      <idea ac="AC-8.1.2">Test functions array includes overnight-scoring and cache-warmer</idea>
+      <idea ac="AC-8.1.3">Manual verification: Inngest dashboard shows functions when npx inngest-cli@latest dev runs</idea>
+      <idea ac="AC-8.1.4">Test overnight-scoring function uses step.run() for checkpointing</idea>
+      <idea ac="AC-8.1.4">Test that each step in overnight function is independently defined</idea>
+      <idea ac="AC-8.1.4">Mock step.run() to verify it's called with correct step names</idea>
+    </ideas>
+  </tests>
+</story-context>
