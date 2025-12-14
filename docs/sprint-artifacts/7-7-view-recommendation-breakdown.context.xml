@@ -1,0 +1,256 @@
+<story-context id="7-7-view-recommendation-breakdown" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>7</storyId>
+    <title>View Recommendation Breakdown</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-7-view-recommendation-breakdown.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to view the calculation breakdown for any recommendation</iWant>
+    <soThat>I understand why this amount was recommended for each asset</soThat>
+    <tasks>
+      <task id="1" ac="7.7.1,7.7.3,7.7.4">Extend Types for Detailed Breakdown - Add DetailedBreakdown, AuditTrailInfo, CalculationStep interfaces</task>
+      <task id="2" ac="7.7.1,7.7.3,7.7.4">Create Breakdown API Route - GET /api/recommendations/[id]/breakdown with authorization and audit trail</task>
+      <task id="3" ac="7.7.3">Create CalculationSteps Component - Display step-by-step calculation with visual hierarchy</task>
+      <task id="4" ac="7.7.1,7.7.2,7.7.3,7.7.4">Create RecommendationBreakdownPanel Component - Sheet-based panel with allocation gap, score link, formula, audit trail</task>
+      <task id="5" ac="7.7.1,7.7.3,7.7.4">Create useBreakdown Hook - Fetch detailed breakdown from API with React Query caching</task>
+      <task id="6" ac="7.7.1">Update RecommendationCard Click Handler - Open breakdown panel for non-over-allocated items</task>
+      <task id="7">Update Component Barrel Export - Export new components</task>
+      <task id="8-12">Write Unit Tests - Types, CalculationSteps, RecommendationBreakdownPanel, API Route, useBreakdown Hook</task>
+      <task id="13">Run Verification - TypeScript, ESLint, unit tests, build</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.7.1">
+      <description>Click Opens Detail Panel with Allocation Gap</description>
+      <given>I click on a RecommendationCard</given>
+      <when>the detail panel opens</when>
+      <then>I see the allocation gap calculation displayed with current allocation %, target allocation range, and gap %</then>
+    </criterion>
+    <criterion id="AC-7.7.2">
+      <description>Breakdown Shows Score Breakdown Link</description>
+      <given>the breakdown panel is open</given>
+      <when>I view the recommendation details</when>
+      <then>I see a link to the score breakdown that navigates to or opens score details with clear "View Score Breakdown" label</then>
+    </criterion>
+    <criterion id="AC-7.7.3">
+      <description>Formula Display</description>
+      <given>the breakdown panel is open</given>
+      <when>I view the calculation details</when>
+      <then>I see the formula "Gap: X%, Score contribution: Y, Amount: $Z" with proper formatting (percentages, currency) and clear calculation steps</then>
+    </criterion>
+    <criterion id="AC-7.7.4">
+      <description>Audit Trail Information</description>
+      <given>the breakdown panel is open</given>
+      <when>I view the audit information</when>
+      <then>I see correlation ID, generation timestamp, and optional full audit trail link</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-7.md</path>
+        <title>Epic 7 Technical Specification</title>
+        <section>Story 7.7: View Recommendation Breakdown</section>
+        <snippet>AC7.7.1-7.7.4 define breakdown panel requirements. API contract: GET /api/recommendations/:id/breakdown returns calculation inputs, steps, result, and audit trail.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 7.7: View Recommendation Breakdown</section>
+        <snippet>As a user, I want to view the calculation breakdown for any recommendation. Shows: current vs target allocation, score breakdown link, gap calculation, amount calculation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Event Sourcing</section>
+        <snippet>All calculations have correlation IDs for audit trail (ADR-002). Calculations are deterministic and can be replayed from events.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/7-6-zero-buy-signal-for-over-allocated.md</path>
+        <title>Previous Story - Story 7.6</title>
+        <section>Dev Agent Record</section>
+        <snippet>OverAllocatedExplanation uses Sheet component pattern. RecommendationCard has click handler routing - non-over-allocated items preserve onClick prop for Story 7.7.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Development Standards</title>
+        <section>Test Requirements</section>
+        <snippet>Every code change must include appropriate test coverage. Unit tests for component interfaces and utility functions. Follow interface/utility testing pattern.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/components/recommendations/recommendation-card.tsx</path>
+        <kind>component</kind>
+        <symbol>RecommendationCard</symbol>
+        <lines>1-237</lines>
+        <reason>Main component to extend with breakdown panel trigger. Already has click handler routing: over-allocated opens OverAllocatedExplanation, non-over-allocated preserves onClick prop for breakdown.</reason>
+      </file>
+      <file>
+        <path>src/components/recommendations/over-allocated-explanation.tsx</path>
+        <kind>component</kind>
+        <symbol>OverAllocatedExplanation, calculateTargetRange, generateGuidanceMessage</symbol>
+        <lines>1-205</lines>
+        <reason>Reference implementation for Sheet-based explanation panel. Reuse pattern for RecommendationBreakdownPanel. Utility functions available for target range calculation.</reason>
+      </file>
+      <file>
+        <path>src/components/recommendations/allocation-gauge.tsx</path>
+        <kind>component</kind>
+        <symbol>AllocationGauge, getAllocationStatus</symbol>
+        <lines>1-231</lines>
+        <reason>Visual gauge component showing current vs target allocation. Include in breakdown panel for visual representation.</reason>
+      </file>
+      <file>
+        <path>src/lib/types/recommendations.ts</path>
+        <kind>types</kind>
+        <symbol>RecommendationItemResult, GenerateRecommendationsResult, RecommendationStatus</symbol>
+        <lines>1-306</lines>
+        <reason>Existing recommendation types. Extend with DetailedBreakdown, AuditTrailInfo, CalculationStep interfaces for breakdown API response.</reason>
+      </file>
+      <file>
+        <path>src/components/fintech/score-badge.tsx</path>
+        <kind>component</kind>
+        <symbol>ScoreBadge, getScoreLevel, normalizeScore</symbol>
+        <lines>1-355</lines>
+        <reason>Display asset score in breakdown panel. Include link to score breakdown (Story 5.11). Reuse for consistent score display.</reason>
+      </file>
+      <file>
+        <path>src/lib/utils/currency-format.ts</path>
+        <kind>utility</kind>
+        <symbol>formatCurrency, parseCurrency, formatNumber</symbol>
+        <lines>1-207</lines>
+        <reason>Currency formatting for recommended amounts and calculation values in breakdown display.</reason>
+      </file>
+      <file>
+        <path>src/components/recommendations/index.ts</path>
+        <kind>barrel</kind>
+        <symbol>exports</symbol>
+        <lines>1-36</lines>
+        <reason>Barrel export file to update with new RecommendationBreakdownPanel and CalculationSteps exports.</reason>
+      </file>
+      <file>
+        <path>src/hooks/use-recommendations.ts</path>
+        <kind>hook</kind>
+        <symbol>useRecommendations, RecommendationDisplayItem</symbol>
+        <reason>Reference for React Query hook pattern. New useBreakdown hook should follow same structure.</reason>
+      </file>
+      <file>
+        <path>src/components/ui/sheet.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription</symbol>
+        <reason>shadcn/ui Sheet component for slide-over panel. Used by OverAllocatedExplanation, reuse for breakdown panel.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@tanstack/react-query</package>
+        <note>Not installed but referenced in tech spec. Use existing data fetching pattern with fetch or install if needed.</note>
+      </node>
+      <node>
+        <package>react@19.2.0</package>
+        <usage>Core React with hooks (useState, useMemo)</usage>
+      </node>
+      <node>
+        <package>next@16.0.10</package>
+        <usage>App Router API routes at src/app/api/</usage>
+      </node>
+      <node>
+        <package>zod@4.1.13</package>
+        <usage>Input validation for API routes</usage>
+      </node>
+      <node>
+        <package>decimal.js@10.6.0</package>
+        <usage>Precision calculations for financial math</usage>
+      </node>
+      <node>
+        <package>lucide-react@0.555.0</package>
+        <usage>Icons (Calculator, ExternalLink, Clock)</usage>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Event Sourcing: All calculations have correlation IDs for audit trail (ADR-002). Include correlation ID in breakdown response.</constraint>
+    <constraint source="architecture">Decimal Precision: All calculation values use decimal.js with precision: 20, rounding: ROUND_HALF_UP</constraint>
+    <constraint source="architecture">Multi-tenant isolation: All queries scoped by userId - verify user owns recommendation before returning breakdown</constraint>
+    <constraint source="testing">Follow interface/utility testing pattern (no @testing-library/react). Test component props, utilities, API contracts.</constraint>
+    <constraint source="ux">Sheet slide-over panel pattern consistent with Story 7.6. Clear visual hierarchy: allocation gap → score → amount.</constraint>
+    <constraint source="previous-story">RecommendationCard click handler routing: non-over-allocated items preserve onClick prop - wire this to open breakdown panel.</constraint>
+    <constraint source="typescript">exactOptionalPropertyTypes enabled - add `| undefined` to optional props</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/recommendations/:id/breakdown</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/recommendations/{id}/breakdown?itemId={uuid} → { data: DetailedBreakdown }</signature>
+      <path>src/app/api/recommendations/[id]/breakdown/route.ts</path>
+    </interface>
+    <interface>
+      <name>DetailedBreakdown</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface DetailedBreakdown { item: RecommendationItem; calculation: { inputs, steps, result }; auditTrail: AuditTrailInfo }</signature>
+      <path>src/lib/types/recommendations.ts</path>
+    </interface>
+    <interface>
+      <name>CalculationStep</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface CalculationStep { step: string; value: string; formula: string }</signature>
+      <path>src/lib/types/recommendations.ts</path>
+    </interface>
+    <interface>
+      <name>AuditTrailInfo</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface AuditTrailInfo { correlationId: string; generatedAt: string; criteriaVersionId: string }</signature>
+      <path>src/lib/types/recommendations.ts</path>
+    </interface>
+    <interface>
+      <name>RecommendationBreakdownPanelProps</name>
+      <kind>Component props</kind>
+      <signature>{ item: RecommendationItem; open: boolean; onOpenChange: (open: boolean) => void; baseCurrency: string }</signature>
+      <path>src/components/recommendations/recommendation-breakdown-panel.tsx</path>
+    </interface>
+    <interface>
+      <name>CalculationStepsProps</name>
+      <kind>Component props</kind>
+      <signature>{ steps: CalculationStep[]; baseCurrency?: string }</signature>
+      <path>src/components/recommendations/calculation-steps.tsx</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests using Vitest. Follow interface/utility testing pattern without @testing-library/react for component tests. Test component prop interfaces, utility function logic, API response structures, and data transformations. All tests must pass before marking story complete.
+    </standards>
+    <locations>
+      <location>tests/unit/lib/types/recommendation-breakdown.test.ts</location>
+      <location>tests/unit/components/calculation-steps.test.ts</location>
+      <location>tests/unit/components/recommendation-breakdown-panel.test.ts</location>
+      <location>tests/unit/api/recommendations-breakdown.test.ts</location>
+      <location>tests/unit/hooks/use-breakdown.test.ts</location>
+      <location>tests/unit/components/recommendation-card.test.ts (extend existing)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-7.7.1">Test RecommendationBreakdownPanel props interface validates required fields (item, open, onOpenChange)</idea>
+      <idea ac="AC-7.7.1">Test allocation gap calculation utility function with various current/target combinations</idea>
+      <idea ac="AC-7.7.2">Test score breakdown link generation with asset ID parameter</idea>
+      <idea ac="AC-7.7.3">Test CalculationSteps component renders all steps with proper value formatting</idea>
+      <idea ac="AC-7.7.3">Test formula display with percentage and currency formatting</idea>
+      <idea ac="AC-7.7.4">Test API route returns audit trail with correlation ID and timestamp</idea>
+      <idea ac="AC-7.7.4">Test API route validates user authorization (owns recommendation)</idea>
+      <idea ac="AC-7.7.1">Test RecommendationCard click handler opens breakdown for non-over-allocated items</idea>
+      <idea>Test DetailedBreakdown type structure validation</idea>
+      <idea>Test useBreakdown hook loading/error/success states</idea>
+    </ideas>
+  </tests>
+</story-context>

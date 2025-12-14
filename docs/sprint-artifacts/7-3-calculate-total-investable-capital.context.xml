@@ -1,0 +1,198 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>3</storyId>
+    <title>Calculate Total Investable Capital</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-13</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-3-calculate-total-investable-capital.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>to calculate total investable capital from contribution and dividends</iWant>
+    <soThat>recommendations can be generated for the correct investment amount</soThat>
+    <tasks>
+      <task id="1" title="Verify Decimal.js Configuration" ac="7.3.1">
+        <files>src/lib/calculations/decimal-config.ts, src/hooks/use-contribution.ts</files>
+        <items>
+          <item>Verify decimal.js is configured with precision: 20, ROUND_HALF_UP</item>
+          <item>Verify useContribution hook imports configured Decimal</item>
+          <item>Verify totalInvestable calculation uses Decimal.plus() method</item>
+          <item>Add explicit configuration if not already present</item>
+        </items>
+      </task>
+      <task id="2" title="Enhance Total Investable Display" ac="7.3.3">
+        <files>src/components/dashboard/recommendation-input-section.tsx</files>
+        <items>
+          <item>Add prominent "You have $X to invest" display section</item>
+          <item>Style with larger font size (text-2xl or text-3xl)</item>
+          <item>Use accent/primary color for emphasis</item>
+          <item>Ensure currency symbol displays correctly using SimpleCurrencyDisplay</item>
+          <item>Position prominently in the investment input section</item>
+        </items>
+      </task>
+      <task id="3" title="Verify Real-time Updates" ac="7.3.2">
+        <files>src/hooks/use-contribution.ts, src/components/dashboard/recommendation-input-section.tsx</files>
+        <items>
+          <item>Verify useMemo dependency array includes contribution and dividends</item>
+          <item>Verify no debouncing delays the calculation</item>
+          <item>Test update latency is imperceptible</item>
+          <item>Ensure no page refresh on input changes</item>
+        </items>
+      </task>
+      <task id="4" title="Write Unit Tests for Total Calculation" ac="7.3.1, 7.3.2">
+        <files>tests/unit/calculations/total-investable.test.ts, tests/unit/hooks/use-contribution.test.ts</files>
+        <items>
+          <item>Test total = contribution + dividends with decimal.js precision</item>
+          <item>Test edge cases: zero contribution, zero dividends, both zero</item>
+          <item>Test large amounts maintain precision (no floating point errors)</item>
+          <item>Test negative handling (should not occur but verify behavior)</item>
+          <item>Test real-time update triggers on input change</item>
+          <item>Test empty string handling defaults to 0</item>
+        </items>
+      </task>
+      <task id="5" title="Add Integration Test for Display" ac="7.3.3">
+        <files>tests/unit/components/total-investable-display.test.ts</files>
+        <items>
+          <item>Test "You have $X to invest" text renders</item>
+          <item>Test currency formatting is correct for base currency</item>
+          <item>Test total updates when contribution/dividends change</item>
+          <item>Test styling is prominent (appropriate classes applied)</item>
+        </items>
+      </task>
+      <task id="6" title="Run Verification">
+        <items>
+          <item>TypeScript compilation successful (npx tsc --noEmit)</item>
+          <item>ESLint passes with no new errors</item>
+          <item>All unit tests pass</item>
+          <item>Build verification complete</item>
+        </items>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.3.1" title="Total Calculation with Decimal Precision">
+      <given>contribution and dividends are entered</given>
+      <when>calculation runs</when>
+      <then>total = contribution + dividends using decimal.js</then>
+      <and>calculation uses precision: 20 with ROUND_HALF_UP rounding</and>
+      <and>result is stored as string to preserve precision</and>
+    </criterion>
+    <criterion id="AC-7.3.2" title="Real-time Total Update on Input Change">
+      <given>I have entered a contribution amount</given>
+      <when>I modify either contribution or dividends amount</when>
+      <then>the total investable display updates immediately</then>
+      <and>no page refresh is required</and>
+      <and>update latency is imperceptible (&lt;100ms)</and>
+    </criterion>
+    <criterion id="AC-7.3.3" title="Prominent Total Display">
+      <given>total is calculated</given>
+      <when>I view the investment section</when>
+      <then>display shows "You have $X to invest" prominently</then>
+      <and>amount is formatted in my base currency</and>
+      <and>the total is visually emphasized (larger font, distinct styling)</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" title="Epic 7 Technical Specification" section="Story 7.3: Calculate Total Investable Capital" snippet="AC7.3.1: Given contribution and dividends entered, when calculation runs, then total = contribution + dividends (using decimal.js). AC7.3.2: Given inputs change, then total updates immediately. AC7.3.3: Given total is calculated, then display shows 'You have $X to invest' prominently." />
+      <doc path="docs/architecture.md" title="Architecture Document" section="Decimal Precision Strategy" snippet="All monetary calculations use decimal.js with precision: 20, rounding: ROUND_HALF_UP. NEVER use JavaScript native Number for currency calculations. PostgreSQL numeric(19,4) for currency amounts." />
+      <doc path="docs/sprint-artifacts/7-1-enter-monthly-contribution.md" title="Story 7.1 - Enter Monthly Contribution" section="Dev Notes" snippet="Provides contribution input infrastructure: useContribution hook, ContributionInput component, validation schemas, currency formatting utilities." />
+      <doc path="docs/sprint-artifacts/7-2-enter-dividends-received.md" title="Story 7.2 - Enter Dividends Received" section="Dev Notes" snippet="Extended useContribution hook with dividends state, totalInvestable computed via useMemo. Capital breakdown display implemented in recommendation-input-section.tsx." />
+      <doc path="CLAUDE.md" title="Development Standards" section="Test Requirements" snippet="Every code change MUST include appropriate test coverage. Unit tests for individual functions, integration tests for API endpoints, component tests for UI." />
+    </docs>
+    <code>
+      <file path="src/hooks/use-contribution.ts" kind="hook" symbol="useContribution" lines="172-342" reason="Core hook managing contribution, dividends, and totalInvestable state. Contains the useMemo calculation for total that needs verification. Lines 305-322 implement the total calculation using add() from decimal-utils." />
+      <file path="src/lib/calculations/decimal-config.ts" kind="config" symbol="Decimal" lines="1-26" reason="Global decimal.js configuration with precision: 20 and ROUND_HALF_UP. This is the authoritative config that useContribution must import." />
+      <file path="src/lib/calculations/decimal-utils.ts" kind="utility" symbol="add, parseDecimal" lines="34-39, 21-26" reason="Decimal math utility functions. add() function is used for totalInvestable calculation. parseDecimal() converts string to Decimal." />
+      <file path="src/components/dashboard/recommendation-input-section.tsx" kind="component" symbol="RecommendationInputSection" lines="1-216" reason="Dashboard section for monthly investment setup. Contains Total Investable display (lines 157-172) and Capital Breakdown (lines 175-211). Needs enhancement per AC-7.3.3 for prominent display." />
+      <file path="src/lib/validations/recommendation-schemas.ts" kind="validation" symbol="contributionSchema, dividendsSchema" lines="76-107, 141-174" reason="Zod validation schemas for contribution and dividends amounts. Used by useContribution for input validation." />
+      <file path="src/lib/utils/currency-format.ts" kind="utility" symbol="formatCurrency" lines="60-105" reason="Currency formatting utility for display. Used by SimpleCurrencyDisplay component." />
+      <file path="src/components/fintech/currency-display.tsx" kind="component" symbol="SimpleCurrencyDisplay" lines="1-*" reason="Currency display component used throughout the recommendation input section for showing formatted monetary values." />
+      <file path="tests/unit/hooks/use-contribution.test.ts" kind="test" symbol="useContribution tests" lines="1-*" reason="Existing test file for useContribution hook. Tests should be extended to cover totalInvestable calculation edge cases per Task 4." />
+      <file path="tests/unit/calculations/decimal-utils.test.ts" kind="test" symbol="decimal-utils tests" lines="1-*" reason="Existing tests for decimal utility functions. Reference for testing patterns with Decimal values." />
+    </code>
+    <dependencies>
+      <node>
+        <package name="decimal.js" version="^10.6.0" purpose="Financial precision calculations - core dependency for all monetary math" />
+        <package name="react" version="19.2.0" purpose="UI framework - useMemo for reactive total calculation" />
+        <package name="zod" version="^4.1.13" purpose="Schema validation for contribution/dividends amounts" />
+        <package name="vitest" version="^4.0.14" purpose="Unit testing framework" />
+        <package name="@vitest/coverage-v8" version="^4.0.14" purpose="Test coverage reporting" />
+        <package name="sonner" version="^2.0.7" purpose="Toast notifications for save actions" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="Architecture" type="precision">All monetary calculations MUST use decimal.js with precision: 20 and ROUND_HALF_UP rounding. NEVER use JavaScript native Number arithmetic for currency.</constraint>
+    <constraint source="Architecture" type="database">Currency amounts stored as numeric(19,4) in PostgreSQL for lossless precision.</constraint>
+    <constraint source="Architecture" type="state">Total calculated in useMemo for performance - no API call required, client-side only.</constraint>
+    <constraint source="Tech-Spec" type="performance">Update latency must be imperceptible (&lt;100ms) for real-time total display.</constraint>
+    <constraint source="CLAUDE.md" type="testing">Every code change MUST include appropriate test coverage. Unit tests for calculations, component tests for display.</constraint>
+    <constraint source="Story" type="implementation">This story primarily verifies and enhances existing implementation from Stories 7.1 and 7.2 rather than creating new functionality.</constraint>
+    <constraint source="Story" type="reuse">CRITICAL: Do NOT recreate infrastructure from 7.1/7.2 - extend useContribution hook and recommendation-input-section.tsx.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="useContribution" kind="React Hook" path="src/hooks/use-contribution.ts">
+      <signature>function useContribution(options?: UseContributionOptions): UseContributionReturn</signature>
+      <returns>
+        <field name="contribution" type="string" description="Current contribution value as decimal string" />
+        <field name="dividends" type="string" description="Current dividends value as decimal string" />
+        <field name="totalInvestable" type="string" description="Sum of contribution + dividends (computed via useMemo)" />
+        <field name="setContribution" type="(value: string) => void" description="Update contribution value" />
+        <field name="setDividends" type="(value: string) => void" description="Update dividends value" />
+        <field name="baseCurrency" type="string" description="User's base currency code (e.g., 'USD')" />
+        <field name="error" type="string | undefined" description="Contribution validation error" />
+        <field name="dividendsError" type="string | undefined" description="Dividends validation error" />
+      </returns>
+    </interface>
+    <interface name="add" kind="Function" path="src/lib/calculations/decimal-utils.ts">
+      <signature>function add(...values: Decimal[]): Decimal</signature>
+      <description>Add multiple Decimal values with full precision. Used for totalInvestable calculation.</description>
+    </interface>
+    <interface name="parseDecimal" kind="Function" path="src/lib/calculations/decimal-utils.ts">
+      <signature>function parseDecimal(value: string | number): Decimal</signature>
+      <description>Parse a string or number into a Decimal instance. Throws on empty string.</description>
+    </interface>
+    <interface name="SimpleCurrencyDisplay" kind="React Component" path="src/components/fintech/currency-display.tsx">
+      <signature>&lt;SimpleCurrencyDisplay value={string} currency={string} className={string} /&gt;</signature>
+      <description>Displays formatted currency value with proper symbol and locale formatting.</description>
+    </interface>
+    <interface name="Decimal Configuration" kind="Global Config" path="src/lib/calculations/decimal-config.ts">
+      <signature>Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP, toExpNeg: -9, toExpPos: 20 })</signature>
+      <description>Global decimal.js configuration. MUST be imported before any decimal calculations.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows Vitest for unit tests with React Testing Library for component tests. All financial calculations require edge case testing for precision. Tests located in tests/unit/ mirroring src/ structure. Coverage targets: 95% for calculations, 80% for components. Use Decimal string comparisons for precision verification.
+    </standards>
+    <locations>
+      <location>tests/unit/calculations/</location>
+      <location>tests/unit/hooks/</location>
+      <location>tests/unit/components/</location>
+      <location>tests/unit/lib/validations/</location>
+    </locations>
+    <ideas>
+      <idea ac="7.3.1">Test total calculation: new Decimal(contribution).plus(dividends) returns correct string result</idea>
+      <idea ac="7.3.1">Test precision preservation: 123456789.1234 + 987654321.9876 maintains all digits</idea>
+      <idea ac="7.3.1">Test ROUND_HALF_UP: verify 0.125 rounds to 0.13 not 0.12</idea>
+      <idea ac="7.3.1">Test zero handling: contribution="0" + dividends="0" = "0"</idea>
+      <idea ac="7.3.1">Test empty string defaults: contribution="" + dividends="100" = "100"</idea>
+      <idea ac="7.3.2">Test useMemo recalculates when contribution changes</idea>
+      <idea ac="7.3.2">Test useMemo recalculates when dividends changes</idea>
+      <idea ac="7.3.2">Test no API call is made for total calculation (client-side only)</idea>
+      <idea ac="7.3.3">Test "You have $X to invest" text renders with correct value</idea>
+      <idea ac="7.3.3">Test currency formatting matches user's baseCurrency</idea>
+      <idea ac="7.3.3">Test prominent styling classes are applied (text-2xl or larger)</idea>
+      <idea ac="7.3.3">Test display updates immediately when inputs change (mock useMemo)</idea>
+    </ideas>
+  </tests>
+</story-context>

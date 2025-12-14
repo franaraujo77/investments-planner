@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   name: varchar("name", { length: 100 }),
   baseCurrency: varchar("base_currency", { length: 3 }).notNull().default("USD"),
+  defaultContribution: numeric("default_contribution", { precision: 19, scale: 4 }), // Story 7.1: AC-7.1.3, AC-7.1.4
   emailVerified: boolean("email_verified").default(false),
   emailVerifiedAt: timestamp("email_verified_at"),
   disclaimerAcknowledgedAt: timestamp("disclaimer_acknowledged_at"),
@@ -667,6 +668,114 @@ export const investments = pgTable(
 );
 
 // =============================================================================
+// RECOMMENDATIONS TABLE (Epic 7)
+// =============================================================================
+
+/**
+ * RecommendationItemBreakdown interface - detailed breakdown for a single recommendation
+ *
+ * Story 7.4: Generate Investment Recommendations
+ * Stores the calculation details for audit and display
+ */
+export interface RecommendationItemBreakdown {
+  classId: string | null;
+  className: string | null;
+  subclassId: string | null;
+  subclassName: string | null;
+  currentValue: string; // Asset's current value in base currency
+  targetMidpoint: string; // Target allocation midpoint percentage
+  priority: string; // Calculated priority (gap × score/100)
+  redistributedFrom: string | null; // Amount redistributed from other assets
+}
+
+/**
+ * Recommendations table - stores recommendation generation sessions
+ *
+ * Story 7.4: Generate Investment Recommendations
+ * AC-7.4.3: Total Recommendations Equal Total Investable
+ * AC-7.4.5: Event Sourcing for Audit Trail
+ *
+ * Key design decisions:
+ * - Uses numeric(19,4) for monetary values (fintech precision)
+ * - Links to portfolio and user for multi-tenant isolation
+ * - Status tracks lifecycle: pending, active, confirmed, expired
+ * - correlationId links to calculation events for audit trail
+ */
+export const recommendations = pgTable(
+  "recommendations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    portfolioId: uuid("portfolio_id")
+      .notNull()
+      .references(() => portfolios.id, { onDelete: "cascade" }),
+    contribution: numeric("contribution", { precision: 19, scale: 4 }).notNull(),
+    dividends: numeric("dividends", { precision: 19, scale: 4 }).notNull(),
+    totalInvestable: numeric("total_investable", { precision: 19, scale: 4 }).notNull(),
+    baseCurrency: varchar("base_currency", { length: 3 }).notNull(),
+    correlationId: uuid("correlation_id").notNull(), // Links to calculation_events
+    status: varchar("status", { length: 20 }).notNull().default("active"), // pending, active, confirmed, expired
+    generatedAt: timestamp("generated_at").notNull().defaultNow(),
+    expiresAt: timestamp("expires_at").notNull(), // 24h TTL per ADR-004
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    index("recommendations_user_id_idx").on(table.userId),
+    index("recommendations_portfolio_id_idx").on(table.portfolioId),
+    index("recommendations_correlation_id_idx").on(table.correlationId),
+    index("recommendations_status_idx").on(table.status),
+  ]
+);
+
+// =============================================================================
+// RECOMMENDATION ITEMS TABLE (Epic 7)
+// =============================================================================
+
+/**
+ * Recommendation items table - individual asset recommendations
+ *
+ * Story 7.4: Generate Investment Recommendations
+ * AC-7.4.1: Priority Ranking by Allocation Gap × Score
+ * AC-7.4.2: Under-Allocated Classes Favor High Scorers
+ * AC-7.4.4: Minimum Allocation Values Enforced
+ *
+ * Key design decisions:
+ * - Uses numeric(19,4) for monetary values (fintech precision)
+ * - Uses numeric(7,4) for percentages and scores
+ * - JSONB breakdown for flexible calculation detail storage
+ * - isOverAllocated flag for zero-buy signal (Story 7.6)
+ */
+export const recommendationItems = pgTable(
+  "recommendation_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    recommendationId: uuid("recommendation_id")
+      .notNull()
+      .references(() => recommendations.id, { onDelete: "cascade" }),
+    assetId: uuid("asset_id")
+      .notNull()
+      .references(() => portfolioAssets.id),
+    symbol: varchar("symbol", { length: 20 }).notNull(),
+    score: numeric("score", { precision: 7, scale: 4 }).notNull(), // From scoring engine
+    currentAllocation: numeric("current_allocation", { precision: 7, scale: 4 }).notNull(), // Current %
+    targetAllocation: numeric("target_allocation", { precision: 7, scale: 4 }).notNull(), // Target midpoint %
+    allocationGap: numeric("allocation_gap", { precision: 7, scale: 4 }).notNull(), // target - current
+    recommendedAmount: numeric("recommended_amount", { precision: 19, scale: 4 }).notNull(), // $ to invest
+    isOverAllocated: boolean("is_over_allocated").notNull().default(false), // AC-7.4.2
+    breakdown: jsonb("breakdown").notNull().$type<RecommendationItemBreakdown>(),
+    sortOrder: integer("sort_order").notNull(), // Display order by priority
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("recommendation_items_recommendation_id_idx").on(table.recommendationId),
+    index("recommendation_items_asset_id_idx").on(table.assetId),
+  ]
+);
+
+// =============================================================================
 // RELATIONS
 // =============================================================================
 
@@ -681,6 +790,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   criteriaVersions: many(criteriaVersions),
   assetScores: many(assetScores),
   scoreHistory: many(scoreHistory),
+  recommendations: many(recommendations),
 }));
 
 export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
@@ -690,6 +800,7 @@ export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
   }),
   assets: many(portfolioAssets),
   investments: many(investments),
+  recommendations: many(recommendations),
 }));
 
 export const portfolioAssetsRelations = relations(portfolioAssets, ({ one, many }) => ({
@@ -789,6 +900,29 @@ export const scoreHistoryRelations = relations(scoreHistory, ({ one }) => ({
   }),
 }));
 
+export const recommendationsRelations = relations(recommendations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [recommendations.userId],
+    references: [users.id],
+  }),
+  portfolio: one(portfolios, {
+    fields: [recommendations.portfolioId],
+    references: [portfolios.id],
+  }),
+  items: many(recommendationItems),
+}));
+
+export const recommendationItemsRelations = relations(recommendationItems, ({ one }) => ({
+  recommendation: one(recommendations, {
+    fields: [recommendationItems.recommendationId],
+    references: [recommendations.id],
+  }),
+  asset: one(portfolioAssets, {
+    fields: [recommendationItems.assetId],
+    references: [portfolioAssets.id],
+  }),
+}));
+
 // =============================================================================
 // TYPE EXPORTS
 // =============================================================================
@@ -840,3 +974,9 @@ export type NewAssetPrice = typeof assetPrices.$inferInsert;
 
 export type ExchangeRate = typeof exchangeRates.$inferSelect;
 export type NewExchangeRate = typeof exchangeRates.$inferInsert;
+
+export type Recommendation = typeof recommendations.$inferSelect;
+export type NewRecommendation = typeof recommendations.$inferInsert;
+
+export type RecommendationItem = typeof recommendationItems.$inferSelect;
+export type NewRecommendationItem = typeof recommendationItems.$inferInsert;

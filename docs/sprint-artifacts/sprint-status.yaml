@@ -137,18 +137,18 @@ development_status:
   # Goal: Deliver the core product value - simple, actionable investment recommendations
   # Stories: 10 | FRs: FR44-FR55
   # =============================================================================
-  epic-7: backlog
-  7-1-enter-monthly-contribution: backlog
-  7-2-enter-dividends-received: backlog
-  7-3-calculate-total-investable-capital: backlog
-  7-4-generate-investment-recommendations: backlog
-  7-5-display-recommendations-focus-mode: backlog
-  7-6-zero-buy-signal-for-over-allocated: backlog
-  7-7-view-recommendation-breakdown: backlog
-  7-8-confirm-recommendations: backlog
-  7-9-update-portfolio-after-confirmation: backlog
-  7-10-view-updated-allocation: backlog
-  epic-7-retrospective: optional
+  epic-7: contexted
+  7-1-enter-monthly-contribution: done
+  7-2-enter-dividends-received: done
+  7-3-calculate-total-investable-capital: done
+  7-4-generate-investment-recommendations: done
+  7-5-display-recommendations-focus-mode: done
+  7-6-zero-buy-signal-for-over-allocated: done
+  7-7-view-recommendation-breakdown: done
+  7-8-confirm-recommendations: done
+  7-9-update-portfolio-after-confirmation: done
+  7-10-view-updated-allocation: done
+  epic-7-retrospective: completed
 
   # =============================================================================
   # EPIC 8: OVERNIGHT PROCESSING

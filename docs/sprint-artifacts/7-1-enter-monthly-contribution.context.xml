@@ -1,0 +1,263 @@
+<story-context id="7-1-enter-monthly-contribution" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>1</storyId>
+    <title>Enter Monthly Contribution</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-13</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-1-enter-monthly-contribution.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to enter my monthly contribution amount</iWant>
+    <soThat>the system knows how much I plan to invest and can generate appropriate recommendations</soThat>
+    <tasks>
+      <task id="1" files="src/components/recommendations/contribution-input.tsx">
+        Create ContributionInput Component (AC: 7.1.1, 7.1.2, 7.1.5)
+        - Create ContributionInput component with currency formatting
+        - Add numeric input with validation (> 0, numeric only)
+        - Display currency symbol based on user's base currency
+        - Use Intl.NumberFormat for locale-aware formatting
+        - Add inline error display below field (red, 14px)
+        - Support decimal values up to 2 places
+        - Use decimal.js for internal value handling
+      </task>
+      <task id="2" files="src/lib/validations/recommendation-schemas.ts">
+        Create Contribution Validation Schema (AC: 7.1.2)
+        - Create Zod schema for contribution amount
+        - Validate: numeric string, > 0, max 2 decimal places
+        - Add custom error messages matching AC requirements
+        - Export schema for form and API use
+      </task>
+      <task id="3" files="src/lib/db/schema.ts, migration file">
+        Add Default Contribution to User Settings (AC: 7.1.3, 7.1.4)
+        - Add default_contribution field to users table
+        - Field type: numeric(19,4), nullable
+        - Create database migration
+        - Run migration to apply changes
+      </task>
+      <task id="4" files="src/app/api/user/settings/route.ts">
+        Create/Extend User Settings API (AC: 7.1.3, 7.1.4)
+        - Add GET handler to retrieve default_contribution
+        - Add PATCH handler to update default_contribution
+        - Validate input with Zod schema
+        - Return updated settings on success
+      </task>
+      <task id="5" files="src/hooks/use-contribution.ts">
+        Create useContribution Hook (AC: 7.1.1, 7.1.3, 7.1.6)
+        - Create hook to manage contribution state
+        - Load default contribution on mount
+        - Provide setContribution function
+        - Provide saveAsDefault function
+        - Handle loading and error states
+      </task>
+      <task id="6" files="src/app/(dashboard)/page.tsx, src/components/dashboard/recommendation-input-section.tsx">
+        Integrate into Dashboard Layout (AC: 7.1.1, 7.1.6)
+        - Add ContributionInput to Dashboard Focus Mode
+        - Position prominently per UX spec
+        - Wire up to useContribution hook
+        - Display total investable (contribution + dividends placeholder)
+        - Ensure real-time update on value change
+      </task>
+      <task id="7" files="src/lib/utils/currency-format.ts">
+        Add Currency Formatting Utilities (AC: 7.1.5)
+        - Create formatCurrency(value, currency) function
+        - Support USD, BRL, EUR, GBP, CAD, AUD, JPY, CHF
+        - Use Intl.NumberFormat with proper locale
+        - Create parseCurrency(formatted) to extract numeric value
+        - Handle edge cases (empty, invalid)
+      </task>
+      <task id="8" files="tests/unit/components/contribution-input.test.tsx, tests/unit/hooks/use-contribution.test.ts, tests/unit/lib/validations/recommendation-schemas.test.ts">
+        Write Unit Tests (AC: All)
+        - Test ContributionInput renders with currency symbol
+        - Test validation rejects invalid values
+        - Test error message displays correctly
+        - Test currency formatting for different locales
+        - Test useContribution hook loads default
+        - Test saveAsDefault persists value
+        - Test Zod schema validation
+      </task>
+      <task id="9" files="tests/unit/api/user-settings-contribution.test.ts">
+        Write API Integration Tests (AC: 7.1.3, 7.1.4)
+        - Test GET /api/user/settings returns default_contribution
+        - Test PATCH /api/user/settings updates default_contribution
+        - Test validation rejects invalid values
+        - Test authentication required
+      </task>
+      <task id="10">
+        Run Verification
+        - TypeScript compilation successful
+        - ESLint passes with no new errors
+        - All unit tests pass
+        - Build verification complete
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-7.1.1" title="Enter Contribution Amount on Dashboard">
+      Given I am on the Dashboard
+      When I enter a contribution amount in the input field
+      Then the amount is validated and saved
+      And the input field displays in my base currency with proper formatting
+      And currency symbol shows based on user's base currency setting
+    </criterion>
+    <criterion id="AC-7.1.2" title="Validation for Invalid Amounts">
+      Given I enter an invalid amount (<=0, non-numeric, negative)
+      When I submit or blur the field
+      Then inline validation error appears below the field in red (14px per UX spec)
+      And the error message is clear: "Contribution must be greater than 0"
+    </criterion>
+    <criterion id="AC-7.1.3" title="Pre-fill Default Contribution">
+      Given I have previously saved a contribution amount
+      When I return to the Dashboard next month
+      Then my previous amount is pre-filled as the default
+      And I can modify it if needed
+    </criterion>
+    <criterion id="AC-7.1.4" title="Save Default Contribution Preference">
+      Given I enter a contribution amount
+      When I check "Save as default" (or it auto-saves)
+      Then this amount is stored as my default for future months
+      And the preference is persisted in user settings
+    </criterion>
+    <criterion id="AC-7.1.5" title="Currency Display Formatting">
+      Given I am entering a contribution amount
+      Then the amount displays in my base currency with proper formatting:
+      - USD: $2,000.00
+      - BRL: R$ 2.000,00
+      - EUR: 2.000,00 EUR
+      And input accepts numeric values with up to 2 decimal places
+    </criterion>
+    <criterion id="AC-7.1.6" title="Real-time Total Update">
+      Given I enter or modify the contribution amount
+      When the value changes
+      Then the total investable display updates immediately (contribution + dividends)
+      And no page refresh is required
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-7.md" title="Epic 7 Technical Specification" section="Story 7.1: Enter Monthly Contribution">
+        Defines API contracts, data models, and acceptance criteria for contribution input. Includes POST /api/recommendations/generate endpoint specification and UI component architecture.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Decimal Precision / Data Architecture">
+        All monetary calculations MUST use decimal.js with precision: 20, rounding: ROUND_HALF_UP. Database stores currency as numeric(19,4). Never use JavaScript native arithmetic for money.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Implementation Patterns">
+        API route patterns, service layer patterns, React Query patterns, and decimal calculation patterns to follow for consistency across the codebase.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/calculations/decimal-utils.ts" kind="utility" symbol="formatCurrency, parseDecimal, add, multiply" reason="Financial math utilities with decimal.js. Use for all currency calculations."/>
+      <file path="src/lib/calculations/decimal-config.ts" kind="config" symbol="Decimal" reason="Global decimal.js configuration with precision: 20, ROUND_HALF_UP."/>
+      <file path="src/components/fintech/currency-display.tsx" kind="component" symbol="CurrencyDisplay, SimpleCurrencyDisplay, formatCurrencyValue" reason="Existing currency display patterns. Reference for currency symbol handling and Intl.NumberFormat usage."/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="users" lines="34-46" reason="Users table - add default_contribution field here. Uses numeric type for monetary values."/>
+      <file path="src/app/api/user/profile/route.ts" kind="api" symbol="GET, PATCH" reason="Pattern for user settings API with withAuth middleware, Zod validation, and standardized responses."/>
+      <file path="src/lib/api/responses.ts" kind="utility" symbol="successResponse, errorResponse, validationError, withErrorHandling" reason="Standardized API response factories. Must use for all API routes."/>
+      <file path="src/components/ui/input.tsx" kind="component" symbol="Input" reason="shadcn/ui Input component. Extend or wrap for ContributionInput."/>
+      <file path="src/hooks/use-criteria.ts" kind="hook" symbol="useCriteria" reason="Pattern for data fetching hooks with loading/error states. Follow for useContribution hook."/>
+      <file path="src/lib/validations/criteria-schemas.ts" kind="validation" symbol="CreateCriteriaSetInput" reason="Pattern for Zod validation schemas with custom error messages."/>
+      <file path="src/lib/services/user-service.ts" kind="service" symbol="updateUserProfile" reason="User service pattern. May need to extend for settings updates."/>
+      <file path="src/contexts/user-context.tsx" kind="context" symbol="UserContext" reason="User context provides baseCurrency. Access via useUser hook."/>
+      <file path="src/lib/services/exchange-rate-service.ts" kind="service" symbol="getCurrencySymbol" reason="Currency symbol lookup utility for display purposes."/>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="decimal.js" version="^10.6.0" purpose="Financial precision calculations"/>
+        <package name="zod" version="^4.1.13" purpose="Input validation schemas"/>
+        <package name="react-hook-form" version="^7.67.0" purpose="Form state management"/>
+        <package name="@hookform/resolvers" version="^5.2.2" purpose="Zod resolver for react-hook-form"/>
+        <package name="sonner" version="^2.0.7" purpose="Toast notifications"/>
+        <package name="next" version="16.0.10" purpose="Framework"/>
+        <package name="drizzle-orm" version="^0.44.7" purpose="Database ORM"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface name="POST /api/recommendations/generate" kind="REST endpoint" path="docs/sprint-artifacts/tech-spec-epic-7.md">
+      Request: { contribution: "2000.00", dividends: "0.00" }
+      Response 200: { data: { id, contribution, dividends, totalInvestable, items[] } }
+      Response 400: { error: "Validation failed", code: "VALIDATION_ERROR", details: { fieldErrors } }
+    </interface>
+    <interface name="GET /api/user/profile" kind="REST endpoint" path="src/app/api/user/profile/route.ts">
+      Returns user profile including baseCurrency. Extend to include default_contribution.
+    </interface>
+    <interface name="PATCH /api/user/profile" kind="REST endpoint" path="src/app/api/user/profile/route.ts">
+      Updates user profile. May need new endpoint or extend for settings.
+    </interface>
+    <interface name="withAuth middleware" kind="function signature" path="src/lib/auth/middleware.ts">
+      withAuth&lt;T&gt;(handler: (request, session) => Promise&lt;NextResponse&lt;T&gt;&gt;): RouteHandler
+    </interface>
+    <interface name="successResponse" kind="function signature" path="src/lib/api/responses.ts">
+      successResponse&lt;T&gt;(data: T, status?: number, meta?: object): NextResponse
+    </interface>
+    <interface name="CurrencyDisplay" kind="component interface" path="src/components/fintech/currency-display.tsx">
+      Props: { value: string, currency: string, showSymbol?: boolean, size?: "sm"|"md"|"lg", className?: string }
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint source="architecture.md" category="precision">
+      All monetary calculations MUST use decimal.js with precision: 20, rounding: ROUND_HALF_UP. NEVER use JavaScript native arithmetic for money.
+    </constraint>
+    <constraint source="architecture.md" category="database">
+      Currency amounts stored as numeric(19,4) in PostgreSQL. Use Drizzle numeric type.
+    </constraint>
+    <constraint source="architecture.md" category="patterns">
+      API routes must use withAuth middleware, Zod validation, and standardized response factories (successResponse, errorResponse).
+    </constraint>
+    <constraint source="CLAUDE.md" category="testing">
+      Every code change MUST include appropriate test coverage. Unit tests for components, hooks, and schemas. API integration tests for endpoints.
+    </constraint>
+    <constraint source="CLAUDE.md" category="logging">
+      Use logger from @/lib/telemetry/logger instead of console.error. Never use console.log in production code.
+    </constraint>
+    <constraint source="architecture.md" category="styling">
+      Use shadcn/ui components with Tailwind utility classes. Form validation errors in red (14px per UX spec).
+    </constraint>
+    <constraint source="architecture.md" category="accessibility">
+      All form elements must be keyboard accessible with proper labels.
+    </constraint>
+    <constraint source="tech-spec-epic-7.md" category="validation">
+      Contribution must be > 0, numeric, with max 2 decimal places. Dividends >= 0.
+    </constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Project uses Vitest for unit/integration tests (tests/unit/) and Playwright for E2E tests (tests/e2e/). Tests follow the pattern of matching directory structure (e.g., src/lib/api/ -> tests/unit/api/). All test files use .test.ts or .test.tsx extensions. Use vi.mock() for mocking dependencies. Component tests should render with proper providers (UserContext, etc.).
+    </standards>
+    <locations>
+      <location>tests/unit/components/ - Component unit tests</location>
+      <location>tests/unit/hooks/ - Hook unit tests</location>
+      <location>tests/unit/api/ - API route integration tests</location>
+      <location>tests/unit/lib/validations/ - Validation schema tests</location>
+      <location>tests/e2e/ - End-to-end user flow tests</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-7.1.1">Test ContributionInput renders with correct currency symbol for different currencies (USD, BRL, EUR)</idea>
+      <idea ac="AC-7.1.1">Test ContributionInput value changes update parent state</idea>
+      <idea ac="AC-7.1.2">Test validation rejects zero, negative, and non-numeric values</idea>
+      <idea ac="AC-7.1.2">Test validation accepts valid positive decimal values</idea>
+      <idea ac="AC-7.1.2">Test error message "Contribution must be greater than 0" displays correctly</idea>
+      <idea ac="AC-7.1.3">Test useContribution loads default value on mount</idea>
+      <idea ac="AC-7.1.3">Test pre-filled value can be modified</idea>
+      <idea ac="AC-7.1.4">Test saveAsDefault persists value via API</idea>
+      <idea ac="AC-7.1.4">Test API validates and stores default_contribution</idea>
+      <idea ac="AC-7.1.5">Test formatCurrency with USD returns "$2,000.00" format</idea>
+      <idea ac="AC-7.1.5">Test formatCurrency with BRL returns "R$ 2.000,00" format</idea>
+      <idea ac="AC-7.1.5">Test input accepts max 2 decimal places</idea>
+      <idea ac="AC-7.1.6">Test total updates immediately on contribution change (no debounce delay)</idea>
+      <idea ac="API">Test GET /api/user/settings returns default_contribution</idea>
+      <idea ac="API">Test PATCH /api/user/settings updates default_contribution</idea>
+      <idea ac="API">Test API requires authentication</idea>
+      <idea ac="API">Test API rejects invalid contribution values</idea>
+    </ideas>
+  </tests>
+</story-context>

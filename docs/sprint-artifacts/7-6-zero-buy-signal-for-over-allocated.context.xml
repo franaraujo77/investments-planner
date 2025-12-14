@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context Document
+  Story 7.6: Zero Buy Signal for Over-Allocated
+  Generated: 2025-12-14
+
+  This document provides all context needed to implement the story,
+  including relevant documentation, existing code, and architecture decisions.
+-->
+<story-context story-id="7.6" epic-id="7" generated="2025-12-14">
+
+  <!-- ========================================================================
+       SECTION 1: STORY DEFINITION
+       The complete story specification from sprint-status or story file
+       ======================================================================== -->
+  <story-definition>
+    <metadata>
+      <id>7.6</id>
+      <title>Zero Buy Signal for Over-Allocated</title>
+      <status>drafted</status>
+      <epic>Epic 7: Recommendations</epic>
+      <functional-requirements>FR50</functional-requirements>
+    </metadata>
+
+    <user-story>
+      <as-a>system</as-a>
+      <i-want>to show zero buy signal for over-allocated assets</i-want>
+      <so-that>rebalancing happens naturally through contributions (without forced selling)</so-that>
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC-7.6.1" name="Zero Recommendation Display">
+        <given>an asset/class is above target allocation</given>
+        <when>recommendations display</when>
+        <then>that asset shows: "$0 recommended (over-allocated)"</then>
+        <notes>
+          - Visual: grayed out card with explanation
+          - Card should be clearly distinguishable from normal recommendations
+          - Use amber/warning color scheme for over-allocated indicator
+        </notes>
+      </criterion>
+
+      <criterion id="AC-7.6.2" name="Over-Allocation Explanation Tooltip">
+        <given>user views an over-allocated recommendation card</given>
+        <when>user clicks/hovers on the card</when>
+        <then>tooltip/panel shows: "Current: 55%, Target: 40-50%. Consider rebalancing through contributions."</then>
+        <notes>
+          - Must show current allocation percentage
+          - Must show target range (min-max)
+          - Actionable guidance text about rebalancing
+        </notes>
+      </criterion>
+
+      <criterion id="AC-7.6.3" name="No Forced Selling Philosophy">
+        <given>portfolio has over-allocated assets</given>
+        <when>recommendations are generated</when>
+        <then>system does NOT suggest selling - only shows zero buy</then>
+        <notes>
+          - Core philosophy: contribution-only rebalancing
+          - Never recommend selling to rebalance
+          - Over-time natural rebalancing through strategic contributions
+        </notes>
+      </criterion>
+    </acceptance-criteria>
+
+    <prerequisites>
+      <story-ref>7.5</story-ref>
+      <description>Display Recommendations (Focus Mode) - provides RecommendationCard and base UI</description>
+    </prerequisites>
+
+    <technical-notes>
+      - Calculate over-allocation in recommendation engine (ALREADY DONE in Story 7.4)
+      - Display explanation in RecommendationCard tooltip
+      - Use existing isOverAllocated flag from recommendation items
+      - Enhance RecommendationCard with click handler for explanation panel
+    </technical-notes>
+  </story-definition>
+
+  <!-- ========================================================================
+       SECTION 2: TECH SPEC EXCERPT
+       Relevant portions from the epic's technical specification
+       ======================================================================== -->
+  <tech-spec-excerpt epic="7">
+    <algorithm-context>
+      <description>
+        Story 7.6 extends the existing recommendation display (Story 7.5) to provide
+        better visual feedback and explanatory information for over-allocated assets.
+
+        The core over-allocation calculation is already implemented in the recommendation
+        engine (Story 7.4). This story focuses on UI/UX enhancements:
+
+        1. Enhanced visual treatment for over-allocated cards (grayed out styling)
+        2. Clickable explanation panel showing allocation details
+        3. Guidance text following contribution-only rebalancing philosophy
+      </description>
+    </algorithm-context>
+
+    <over-allocation-detection>
+      <description>
+        Over-allocation is detected when: currentAllocation > targetMax
+
+        The isOverAllocated flag is set in the recommendation engine and passed
+        through to the display components. Assets with isOverAllocated=true
+        receive recommendedAmount="0.00" automatically.
+      </description>
+      <formula>isOverAllocated = currentAllocation > targetAllocation_max</formula>
+    </over-allocation-detection>
+
+    <ui-requirements>
+      <requirement>RecommendationCard shows "Over-allocated" badge for isOverAllocated items</requirement>
+      <requirement>Amount displays "No buy needed" instead of "$0.00"</requirement>
+      <requirement>Card has amber/warning visual treatment (border, background)</requirement>
+      <requirement>Click/tap triggers explanation panel (Sheet or Tooltip)</requirement>
+      <requirement>Explanation shows: current%, target range, rebalancing guidance</requirement>
+    </ui-requirements>
+
+    <api-contract>
+      <note>No API changes required - uses existing recommendation response</note>
+      <existing-fields>
+        <field name="isOverAllocated" type="boolean">Already included in recommendation items</field>
+        <field name="currentAllocation" type="string">Decimal string of current %</field>
+        <field name="targetAllocation" type="string">Decimal string of target midpoint %</field>
+        <field name="allocationGap" type="string">Negative value indicates over-allocation</field>
+      </existing-fields>
+    </api-contract>
+  </tech-spec-excerpt>
+
+  <!-- ========================================================================
+       SECTION 3: ARCHITECTURE CONTEXT
+       Relevant architecture decisions and patterns
+       ======================================================================== -->
+  <architecture-context>
+    <patterns-in-use>
+      <pattern name="Component Composition">
+        RecommendationCard composes ScoreBadge and AllocationGauge.
+        Story 7.6 adds an OverAllocationExplanation component/panel.
+      </pattern>
+      <pattern name="Props-based Styling">
+        Card styling varies based on isOverAllocated prop.
+        Uses cn() utility for conditional class merging.
+      </pattern>
+      <pattern name="Sheet for Detail Panels">
+        shadcn/ui Sheet component used for slide-over detail panels.
+        Consistent with ScoreBreakdown pattern from Story 5.11.
+      </pattern>
+    </patterns-in-use>
+
+    <component-hierarchy>
+      <component name="RecommendationList">
+        <child name="RecommendationCard" note="One per recommendation item">
+          <child name="ScoreBadge"/>
+          <child name="AllocationGauge"/>
+          <child name="OverAllocationExplanation" note="NEW - shows on click for over-allocated"/>
+        </child>
+      </component>
+    </component-hierarchy>
+
+    <ui-components-available>
+      <component name="Sheet" path="@/components/ui/sheet">Slide-over panel for detailed explanations</component>
+      <component name="Tooltip" path="@/components/ui/tooltip">Hover tooltips for quick info</component>
+      <component name="Card" path="@/components/ui/card">Base card component with CardContent</component>
+      <component name="Badge" path="@/components/ui/badge">For "Over-allocated" indicator</component>
+    </ui-components-available>
+  </architecture-context>
+
+  <!-- ========================================================================
+       SECTION 4: EXISTING CODE ARTIFACTS
+       Relevant existing implementations to build upon or integrate with
+       ======================================================================== -->
+  <existing-code>
+
+    <artifact type="component" path="src/components/recommendations/recommendation-card.tsx">
+      <purpose>Displays individual recommendation - needs enhancement for over-allocation explanation</purpose>
+      <key-features>
+        - Already has isOverAllocated detection and visual treatment
+        - Shows "Over-allocated" badge when isOverAllocated=true
+        - Shows "No buy needed" for zero amounts
+        - Has amber border/background for over-allocated cards
+        - Has onClick handler prop for opening breakdown panel
+      </key-features>
+      <enhancements-needed>
+        - Add explanation panel/sheet triggered by click on over-allocated cards
+        - Show current%, target range, and rebalancing guidance in panel
+        - Ensure clickable area is clear for user interaction
+      </enhancements-needed>
+      <current-implementation>
+        <![CDATA[
+// Current over-allocated visual treatment (already implemented):
+{isOverAllocated && (
+  <span
+    className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+    data-testid="over-allocated-badge"
+  >
+    Over-allocated
+  </span>
+)}
+
+// Current card styling for over-allocated:
+className={cn(
+  "transition-all duration-200",
+  onClick && "cursor-pointer hover:shadow-md hover:border-primary/20",
+  isOverAllocated && "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20",
+  className
+)}
+
+// Current amount display:
+{isZeroAmount ? "No buy needed" : formattedAmount}
+        ]]>
+      </current-implementation>
+    </artifact>
+
+    <artifact type="component" path="src/components/recommendations/allocation-gauge.tsx">
+      <purpose>Visual gauge showing current vs target allocation</purpose>
+      <key-features>
+        - Shows current allocation with color coding (green/amber/red)
+        - Displays target range visually
+        - getAllocationStatus utility function available
+        - Accessible with proper ARIA attributes
+      </key-features>
+      <exports>
+        - AllocationGauge component
+        - getAllocationStatus(current, targetMin, targetMax): AllocationStatus
+        - AllocationStatus type: "within" | "near" | "outside"
+      </exports>
+    </artifact>
+
+    <artifact type="types" path="src/lib/types/recommendations.ts">
+      <purpose>Type definitions for recommendation data</purpose>
+      <relevant-types>
+        <![CDATA[
+// RecommendationItemResult includes all needed fields:
+export interface RecommendationItemResult {
+  assetId: string;
+  symbol: string;
+  score: string;
+  currentAllocation: string;  // For display in explanation
+  targetAllocation: string;   // For display in explanation
+  allocationGap: string;      // Negative = over-allocated
+  recommendedAmount: string;
+  isOverAllocated: boolean;   // KEY: indicates over-allocation
+  breakdown: RecommendationItemBreakdown;
+  sortOrder: number;
+}
+        ]]>
+      </relevant-types>
+    </artifact>
+
+    <artifact type="hook" path="src/hooks/use-recommendations.ts">
+      <purpose>Fetches and manages recommendation state</purpose>
+      <key-features>
+        - Returns RecommendationDisplayItem[] with isOverAllocated flag
+        - Handles loading, error, empty states
+        - Provides refetch capability
+      </key-features>
+      <relevant-type>
+        <![CDATA[
+export interface RecommendationDisplayItem {
+  assetId: string;
+  symbol: string;
+  score: string;
+  currentAllocation: string;
+  targetAllocation: string;
+  allocationGap: string;
+  recommendedAmount: string;
+  isOverAllocated: boolean;  // Used for explanation display
+}
+        ]]>
+      </relevant-type>
+    </artifact>
+
+    <artifact type="component" path="src/components/recommendations/recommendation-list.tsx">
+      <purpose>Container for recommendation cards</purpose>
+      <key-features>
+        - Renders RecommendationCard for each item
+        - Passes onClick handler for card interactions
+        - Responsive grid layout
+      </key-features>
+    </artifact>
+
+    <artifact type="utility" path="src/lib/utils/currency-format.ts">
+      <purpose>Currency formatting utilities</purpose>
+      <exports>
+        - formatCurrency(value, currency, options?)
+        - formatNumber(value, currency)
+        - getCurrencySymbol(currency)
+      </exports>
+    </artifact>
+
+    <artifact type="calculation" path="src/lib/calculations/recommendations.ts">
+      <purpose>Recommendation engine - sets isOverAllocated flag</purpose>
+      <relevant-logic>
+        <![CDATA[
+// Over-allocated assets filtered during capital distribution:
+const eligibleAssets = sortedAssets.filter((a) => !a.isOverAllocated);
+
+// Over-allocated assets get zero amount:
+for (const asset of sortedAssets) {
+  if (asset.isOverAllocated) {
+    distributions.set(asset.id, {
+      assetId: asset.id,
+      amount: new Decimal(0),  // Zero buy
+      redistributedFrom: new Decimal(0),
+    });
+  }
+}
+        ]]>
+      </relevant-logic>
+    </artifact>
+
+    <artifact type="barrel-export" path="src/components/recommendations/index.ts">
+      <purpose>Barrel export for recommendation components</purpose>
+      <note>Add new exports here when creating new components</note>
+      <current-exports>
+        - AllocationGauge, getAllocationStatus
+        - RecommendationCard
+        - FocusModeHeader
+        - RecommendationList
+        - RecommendationSummary
+        - BalancedPortfolioState
+      </current-exports>
+    </artifact>
+
+    <artifact type="test" path="tests/unit/components/recommendation-card.test.ts">
+      <purpose>Unit tests for RecommendationCard</purpose>
+      <note>Extend with tests for over-allocation explanation</note>
+      <existing-coverage>
+        - Type interface tests
+        - Score level mapping
+        - Amount display logic (including zero amount detection)
+        - Over-allocated item detection
+      </existing-coverage>
+    </artifact>
+
+  </existing-code>
+
+  <!-- ========================================================================
+       SECTION 5: IMPLEMENTATION GUIDANCE
+       Specific guidance for implementing this story
+       ======================================================================== -->
+  <implementation-guidance>
+
+    <task id="1" name="Create OverAllocationExplanation Component">
+      <description>
+        Create a new component that displays detailed over-allocation information
+        when user clicks on an over-allocated RecommendationCard.
+      </description>
+      <requirements>
+        - Use Sheet component for slide-over panel (mobile-friendly)
+        - Show: Current allocation percentage
+        - Show: Target allocation range (min-max)
+        - Show: Rebalancing guidance text
+        - Follow existing design patterns (ScoreBreakdown as reference)
+      </requirements>
+      <file-location>src/components/recommendations/over-allocation-explanation.tsx</file-location>
+      <props>
+        <![CDATA[
+interface OverAllocationExplanationProps {
+  /** Whether the sheet is open */
+  open: boolean;
+  /** Callback to close the sheet */
+  onOpenChange: (open: boolean) => void;
+  /** Asset ticker symbol */
+  symbol: string;
+  /** Current allocation percentage (decimal string) */
+  currentAllocation: string;
+  /** Target allocation percentage (decimal string, midpoint) */
+  targetAllocation: string;
+  /** Allocation gap (negative = over-allocated) */
+  allocationGap: string;
+}
+        ]]>
+      </props>
+    </task>
+
+    <task id="2" name="Enhance RecommendationCard Click Handler">
+      <description>
+        Update RecommendationCard to open the explanation panel when clicked
+        (for over-allocated items specifically).
+      </description>
+      <requirements>
+        - Keep existing onClick prop for future Story 7.7 breakdown panel
+        - Add state management for explanation sheet open/close
+        - Conditionally show explanation for over-allocated items
+      </requirements>
+      <approach>
+        Option A: Add internal state and Sheet to RecommendationCard
+        Option B: Lift state to RecommendationList and pass callbacks
+        Recommendation: Option A for encapsulation
+      </approach>
+    </task>
+
+    <task id="3" name="Calculate Target Range for Display">
+      <description>
+        The current RecommendationCard calculates targetMin/targetMax from
+        the targetAllocation midpoint with a fixed ±5% range. For accurate
+        display, we may need the actual target range from the recommendation data.
+      </description>
+      <current-calculation>
+        <![CDATA[
+// Current approximation:
+const targetValue = parseFloat(targetAllocation) || 0;
+const targetMin = Math.max(targetValue - 5, 0).toFixed(1);
+const targetMax = Math.min(targetValue + 5, 100).toFixed(1);
+        ]]>
+      </current-calculation>
+      <note>
+        This is acceptable for MVP. Future enhancement could include actual
+        target ranges in the recommendation API response.
+      </note>
+    </task>
+
+    <task id="4" name="Update Barrel Export">
+      <description>
+        Add OverAllocationExplanation to the recommendations barrel export.
+      </description>
+      <file>src/components/recommendations/index.ts</file>
+    </task>
+
+    <task id="5" name="Write Unit Tests">
+      <description>
+        Add tests for the new over-allocation explanation functionality.
+      </description>
+      <test-cases>
+        - OverAllocationExplanation renders correct allocation values
+        - OverAllocationExplanation shows guidance text
+        - RecommendationCard opens explanation for over-allocated items
+        - Clicking non-over-allocated card does NOT open explanation (calls regular onClick)
+      </test-cases>
+      <file>tests/unit/components/over-allocation-explanation.test.ts</file>
+    </task>
+
+    <guidance-text>
+      <for-explanation-panel>
+        <![CDATA[
+Rebalancing Guidance Text (AC-7.6.2):
+
+"This asset is currently over-allocated at {currentAllocation}%,
+above your target range of {targetMin}%-{targetMax}%.
+
+No additional investment is recommended. Over time, as you continue
+contributing to other assets, your portfolio will naturally rebalance
+toward your target allocation without needing to sell."
+        ]]>
+      </for-explanation-panel>
+    </guidance-text>
+
+  </implementation-guidance>
+
+  <!-- ========================================================================
+       SECTION 6: DEPENDENCIES
+       External dependencies and related systems
+       ======================================================================== -->
+  <dependencies>
+    <ui-libraries>
+      <library name="@radix-ui/react-dialog" purpose="Sheet component base" installed="true"/>
+      <library name="@radix-ui/react-tooltip" purpose="Tooltip component" installed="true"/>
+      <library name="lucide-react" purpose="Icons" installed="true"/>
+    </ui-libraries>
+
+    <internal-dependencies>
+      <dependency path="@/components/ui/sheet">Sheet, SheetContent, SheetHeader, SheetTitle</dependency>
+      <dependency path="@/components/ui/tooltip">Tooltip, TooltipContent, TooltipTrigger</dependency>
+      <dependency path="@/components/recommendations/allocation-gauge">AllocationGauge</dependency>
+      <dependency path="@/lib/utils">cn utility for class merging</dependency>
+    </internal-dependencies>
+  </dependencies>
+
+  <!-- ========================================================================
+       SECTION 7: TESTING REQUIREMENTS
+       Test coverage requirements per CLAUDE.md
+       ======================================================================== -->
+  <testing-requirements>
+    <requirement type="unit">
+      <description>OverAllocationExplanation component interface and data display</description>
+      <file>tests/unit/components/over-allocation-explanation.test.ts</file>
+    </requirement>
+    <requirement type="unit">
+      <description>RecommendationCard click behavior for over-allocated items</description>
+      <file>tests/unit/components/recommendation-card.test.ts (extend)</file>
+    </requirement>
+    <requirement type="e2e">
+      <description>
+        Visual verification that over-allocated cards:
+        - Show correct styling (grayed out, amber border)
+        - Display explanation panel on click
+        - Show correct allocation values in panel
+      </description>
+      <note>E2E test to be added in tests/e2e/recommendations.spec.ts</note>
+    </requirement>
+  </testing-requirements>
+
+</story-context>
