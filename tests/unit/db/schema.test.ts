@@ -143,8 +143,8 @@ describe("Schema Type Safety", () => {
 });
 
 describe("Event Types", () => {
-  it("should define 8 calculation event types (AC: 4 + CURRENCY_CONVERTED + DATA_REFRESHED + RECS_INPUTS_CAPTURED + RECS_COMPUTED)", () => {
-    expect(CALCULATION_EVENT_TYPES).toHaveLength(8);
+  it("should define 9 calculation event types (AC: 4 + CURRENCY_CONVERTED + DATA_REFRESHED + RECS_INPUTS_CAPTURED + RECS_COMPUTED + INVESTMENT_CONFIRMED)", () => {
+    expect(CALCULATION_EVENT_TYPES).toHaveLength(9);
     expect(CALCULATION_EVENT_TYPES).toContain("CALC_STARTED");
     expect(CALCULATION_EVENT_TYPES).toContain("INPUTS_CAPTURED");
     expect(CALCULATION_EVENT_TYPES).toContain("SCORES_COMPUTED");
@@ -153,6 +153,7 @@ describe("Event Types", () => {
     expect(CALCULATION_EVENT_TYPES).toContain("DATA_REFRESHED");
     expect(CALCULATION_EVENT_TYPES).toContain("RECS_INPUTS_CAPTURED");
     expect(CALCULATION_EVENT_TYPES).toContain("RECS_COMPUTED");
+    expect(CALCULATION_EVENT_TYPES).toContain("INVESTMENT_CONFIRMED");
   });
 
   it("should create valid CALC_STARTED event", () => {

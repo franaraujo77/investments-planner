@@ -1,0 +1,24 @@
+0 verbose cli /Users/francisaraujo/.nvm/versions/node/v22.20.0/bin/node /Users/francisaraujo/.nvm/versions/node/v22.20.0/lib/node_modules/npm/bin/npm-cli.js
+1 info using npm@11.6.2
+2 info using node@v22.20.0
+3 silly config load:file:/Users/francisaraujo/.nvm/versions/node/v22.20.0/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/francisaraujo/repos/investments-planner/.npmrc
+5 silly config load:file:/Users/francisaraujo/repos/investments-planner/~/.npmrc
+6 silly config load:file:/Users/francisaraujo/.nvm/versions/node/v22.20.0/etc/npmrc
+7 verbose title npm exec vitest run tests/unit/db/schema.test.ts --reporter=verbose
+8 verbose argv "exec" "--" "vitest" "run" "tests/unit/db/schema.test.ts" "--reporter=verbose"
+9 verbose logfile logs-max:10 dir:/Users/francisaraujo/repos/investments-planner/~/.npm/_logs/2025-12-14T20_40_27_018Z-
+10 verbose logfile /Users/francisaraujo/repos/investments-planner/~/.npm/_logs/2025-12-14T20_40_27_018Z-debug-0.log
+11 silly logfile done cleaning log files
+12 http fetch GET 200 https://registry.npmjs.org/npm 186ms
+13 verbose cwd /Users/francisaraujo/repos/investments-planner
+14 verbose os Darwin 25.2.0
+15 verbose node v22.20.0
+16 verbose npm  v11.6.2
+17 notice
+17 notice New minor version of npm available! 11.6.2 -> 11.7.0
+17 notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+17 notice To update run: npm install -g npm@11.7.0
+17 notice  { force: true, [Symbol(proc-log.meta)]: true }
+18 verbose exit 0
+19 info ok
