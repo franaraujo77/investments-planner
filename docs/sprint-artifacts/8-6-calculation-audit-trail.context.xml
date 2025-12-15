@@ -1,0 +1,129 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>6</storyId>
+    <title>Calculation Audit Trail</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-15</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-6-calculation-audit-trail.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>all my calculations logged for audit with queryable access</iWant>
+    <soThat>I can review my calculation history, verify numbers, and satisfy compliance needs</soThat>
+    <tasks>
+      <task id="1" ac="8.6.1">Add overnight_job_runs Table to Schema - extends existing table with cache warming metrics</task>
+      <task id="2" ac="8.6.1,8.6.3">Create Job Run Recording Functions - JobRunService class</task>
+      <task id="3" ac="8.6.1,8.6.2,8.6.3">Integrate Job Run Recording into Overnight Scoring - extend existing job</task>
+      <task id="4" ac="8.6.4">Extend Event Store with Asset Query - add getByAssetId method</task>
+      <task id="5" ac="8.6.4">Create Audit Service - getCalculationHistory method</task>
+      <task id="6" ac="8.6.4">Create Audit API Route - /api/audit/calculations endpoint</task>
+      <task id="7" ac="8.6.5">Add Data Retention Markers - 2 year retention policy</task>
+      <task id="8" ac="8.6.1,8.6.3">Write Unit Tests - Job Run Service</task>
+      <task id="9" ac="8.6.4">Write Unit Tests - Audit Service</task>
+      <task id="10" ac="8.6.4">Write Unit Tests - Audit API Route</task>
+      <task id="11" ac="8.6.1,8.6.2">Write Integration Tests - Overnight Job Recording</task>
+      <task id="12">Run Verification - TypeScript, ESLint, tests, build</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="8.6.1">overnight_job_runs table tracks all job executions with id, jobType, status, timestamps, user counts, correlationId, errorDetails, metrics</ac>
+    <ac id="8.6.2">correlationId links job runs to calculation events - all events share same correlationId as job run</ac>
+    <ac id="8.6.3">Job metrics recorded including totalDurationMs, fetchRatesMs, processUsersMs, cacheWarmMs, assetsScored, recommendationsGenerated</ac>
+    <ac id="8.6.4">Users can query calculation history by asset - returns calculations with date, score, criteria version, breakdown, sorted desc, tenant isolated</ac>
+    <ac id="8.6.5">Audit data retained for 2 years - records older than 2 years eligible for archival</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-8.md" title="Epic 8 Tech Spec" section="Story 8.6 Calculation Audit Trail" snippet="overnight_job_runs table tracks all job executions with correlationId linkage to calculation_events. Users can query 'Show me all calculations for asset X' via event store."/>
+      <doc path="docs/architecture.md" title="Architecture" section="ADR-002 Event-Sourced Calculations" snippet="All calculation steps captured as immutable events (CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED) with correlationId for audit trail. 2-year retention."/>
+      <doc path="docs/epics.md" title="Epics" section="Story 8.6" snippet="System logs all calculations for audit. Events include correlation_id, INPUTS_CAPTURED with criteria version. Users query by asset. 2-year retention."/>
+      <doc path="CLAUDE.md" title="Project Standards" section="Test Requirements" snippet="Every code change MUST include appropriate test coverage. Unit tests for services, integration tests for flows, all tests must pass before marking complete."/>
+    </docs>
+    <code>
+      <file path="src/lib/events/event-store.ts" kind="service" symbol="EventStore" reason="EXISTING - Core event store to EXTEND with getByAssetId method for AC-8.6.4. Already has append, appendBatch, getByCorrelationId, getByUserId, getByEventType."/>
+      <file path="src/lib/events/types.ts" kind="types" symbol="CalculationEvent" reason="EXISTING - Event type definitions including CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED. REUSE - do not modify."/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="overnightJobRuns" lines="795-831" reason="EXISTING - overnight_job_runs table already defined with all required columns. May need to add cacheWarmingDurationMs to metrics type."/>
+      <file path="src/lib/db/schema.ts" kind="schema" symbol="calculationEvents" lines="89-105" reason="EXISTING - calculation_events table with correlationId index. REUSE for asset-based queries."/>
+      <file path="src/lib/services/overnight-job-service.ts" kind="service" symbol="OvernightJobService" reason="EXISTING - createJobRun, completeJobRun, failJobRun already implemented. REUSE or extend for job run recording."/>
+      <file path="src/lib/inngest/functions/overnight-scoring.ts" kind="inngest-function" symbol="overnightScoringJob" reason="EXISTING - Already creates job run, uses correlationId, records metrics. Integration point for audit trail."/>
+      <file path="src/lib/services/batch-scoring-service.ts" kind="service" symbol="batchScoringService" reason="EXISTING - Processes user batches with correlation tracking. Integration point."/>
+      <file path="src/lib/api/responses.ts" kind="utility" symbol="successResponse,errorResponse,withErrorHandling" reason="REUSE - Standardized API responses for audit endpoint."/>
+      <file path="src/lib/api/error-codes.ts" kind="constants" reason="REUSE - Standardized error codes for API responses."/>
+      <file path="src/lib/telemetry/logger.ts" kind="utility" symbol="logger" reason="REUSE - Structured logging. Use instead of console."/>
+      <file path="tests/unit/events/event-store.test.ts" kind="test" symbol="EventStore tests" reason="REFERENCE - Test patterns for event store. Use same mocking approach for new methods."/>
+      <file path="tests/unit/services/overnight-job-service.test.ts" kind="test" reason="REFERENCE (if exists) - Test patterns for overnight job service."/>
+    </code>
+    <dependencies>
+      <node>
+        <package name="drizzle-orm" version="^0.44.7" reason="Database ORM - use eq, and, desc for queries"/>
+        <package name="zod" version="^4.1.13" reason="Input validation for API routes"/>
+        <package name="vitest" version="^4.0.14" reason="Test framework"/>
+        <package name="inngest" version="^3.46.0" reason="Background job framework - overnight jobs"/>
+        <package name="@vercel/kv" version="^3.0.0" reason="Cache - used in overnight job for recommendations"/>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">Event Sourcing: All calculations emit 4 events with correlationId - ADR-002</constraint>
+    <constraint source="architecture">Tenant Isolation: All queries must filter by userId - no cross-user data access</constraint>
+    <constraint source="architecture">Data Retention: 2 years per architecture spec</constraint>
+    <constraint source="CLAUDE.md">Logger Usage: Use logger from @/lib/telemetry/logger - never console.log/console.error</constraint>
+    <constraint source="CLAUDE.md">API Responses: Use standardized responses from @/lib/api/responses.ts</constraint>
+    <constraint source="CLAUDE.md">Error Codes: Use codes from @/lib/api/error-codes.ts</constraint>
+    <constraint source="CLAUDE.md">Test Coverage: All new code must have corresponding unit tests</constraint>
+    <constraint source="tech-spec">overnight_job_runs table already exists - extend metrics type if needed</constraint>
+    <constraint source="tech-spec">OvernightJobService already handles job run CRUD - extend if needed</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="EventStore.getByAssetId" kind="method" path="src/lib/events/event-store.ts">
+      <signature>async getByAssetId(userId: string, assetId: string, options?: { startDate?: Date; endDate?: Date; limit?: number; offset?: number }): Promise&lt;StoredEvent[]&gt;</signature>
+      <notes>New method to add. Must enforce tenant isolation. Return events sorted by createdAt desc.</notes>
+    </interface>
+    <interface name="AuditService.getCalculationHistory" kind="method" path="src/lib/services/audit-service.ts">
+      <signature>async getCalculationHistory(userId: string, assetId: string, options?: { startDate?: Date; endDate?: Date; limit?: number; offset?: number }): Promise&lt;CalculationHistoryResult&gt;</signature>
+      <notes>New service method. Join calculation_events with scores for complete picture. Transform to user-friendly format.</notes>
+    </interface>
+    <interface name="GET /api/audit/calculations" kind="REST endpoint" path="src/app/api/audit/calculations/route.ts">
+      <signature>GET /api/audit/calculations?assetId=uuid&amp;startDate=ISO&amp;endDate=ISO&amp;limit=N&amp;offset=N</signature>
+      <notes>New endpoint. Requires authentication. Returns standardized successResponse with calculation history.</notes>
+    </interface>
+    <interface name="OvernightJobService" kind="class" path="src/lib/services/overnight-job-service.ts">
+      <signature>createJobRun({ jobType, correlationId }): Promise&lt;OvernightJobRun&gt;</signature>
+      <signature>completeJobRun(id, { usersProcessed, usersFailed?, metrics? }): Promise&lt;OvernightJobRun&gt;</signature>
+      <signature>failJobRun(id, { errorDetails, usersProcessed?, usersFailed?, metrics? }): Promise&lt;OvernightJobRun&gt;</signature>
+      <notes>EXISTING - already implements job run tracking. May need to extend JobRunMetrics type.</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use Vitest for unit tests with vi.fn() mocks. Mock database operations by creating mock objects with fluent API chains (insert().values().returning()). Follow existing patterns in tests/unit/events/event-store.test.ts. Service tests mock dependencies and verify correct method calls. API route tests mock services and verify response formats. All tests should cover happy path, edge cases, and error scenarios.</standards>
+    <locations>
+      <location>tests/unit/services/*.test.ts - Service unit tests</location>
+      <location>tests/unit/api/*.test.ts - API route unit tests</location>
+      <location>tests/unit/events/*.test.ts - Event store tests</location>
+      <location>tests/integration/*.test.ts - Integration tests</location>
+    </locations>
+    <ideas>
+      <idea ac="8.6.1">Test JobRunService.startJobRun creates record with status started</idea>
+      <idea ac="8.6.1">Test JobRunService.completeJobRun updates status and metrics</idea>
+      <idea ac="8.6.3">Test metrics JSON structure contains all required fields</idea>
+      <idea ac="8.6.4">Test EventStore.getByAssetId returns events for correct asset</idea>
+      <idea ac="8.6.4">Test EventStore.getByAssetId enforces tenant isolation</idea>
+      <idea ac="8.6.4">Test AuditService.getCalculationHistory returns formatted results</idea>
+      <idea ac="8.6.4">Test AuditService.getCalculationHistory date range filtering</idea>
+      <idea ac="8.6.4">Test AuditService.getCalculationHistory pagination</idea>
+      <idea ac="8.6.4">Test GET /api/audit/calculations returns correct format</idea>
+      <idea ac="8.6.4">Test GET /api/audit/calculations requires authentication</idea>
+      <idea ac="8.6.4">Test GET /api/audit/calculations validates query params</idea>
+      <idea ac="8.6.5">Test retention policy query identifies old records</idea>
+      <idea ac="8.6.2">Integration: Test correlationId links job run to calculation events</idea>
+    </ideas>
+  </tests>
+</story-context>

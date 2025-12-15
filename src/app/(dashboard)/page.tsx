@@ -6,6 +6,7 @@
  * Story 7.5: Display Recommendations (Focus Mode)
  * Story 7.7: View Recommendation Breakdown
  * Story 7.8: Confirm Recommendations
+ * Story 8.5: Instant Dashboard Load
  *
  * Main dashboard page displaying:
  * - Welcome message with refresh button
@@ -13,6 +14,7 @@
  * - Focus Mode with investment recommendations
  * - Recommendation breakdown panel on card click
  * - Confirmation modal for finalizing investments
+ * - Data freshness badge showing when recommendations were generated
  *
  * AC-7.5.1: Focus Mode Header Display
  * AC-7.5.2: RecommendationCard Display
@@ -28,6 +30,8 @@
  * AC-7.8.3: Confirm Records Investments
  * AC-7.8.4: Success Toast Notification
  * AC-7.8.5: Validation Prevents Invalid Submissions
+ * AC-8.5.4: Dashboard Loads in Under 2 Seconds
+ * AC-8.5.5: Data Freshness Badge Shows Generation Time
  */
 
 import { useState, useCallback } from "react";
@@ -44,6 +48,7 @@ import {
   RecommendationBreakdownPanel,
   ConfirmationModal,
 } from "@/components/recommendations";
+import { DataFreshnessBadge } from "@/components/fintech/data-freshness-badge";
 import { useRecommendations, type RecommendationDisplayItem } from "@/hooks/use-recommendations";
 import { useConfirmInvestments } from "@/hooks/use-confirm-investments";
 import { AlertCircle, RefreshCw, CheckCircle } from "lucide-react";
@@ -127,7 +132,7 @@ function RecommendationsError({ message, onRetry }: RecommendationsErrorProps) {
 // =============================================================================
 
 function FocusModeSection() {
-  const { data, isLoading, error, isEmpty, itemCount, refetch } = useRecommendations();
+  const { data, isLoading, error, isEmpty, itemCount, refetch, isStale } = useRecommendations();
 
   // State for breakdown panel (Story 7.7)
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -204,8 +209,18 @@ function FocusModeSection() {
   // Recommendations display
   return (
     <div className="space-y-6" data-testid="focus-mode-section">
-      {/* AC-7.5.1: Focus Mode Header */}
-      <FocusModeHeader totalInvestable={data.totalInvestable} baseCurrency={data.baseCurrency} />
+      {/* AC-7.5.1: Focus Mode Header with AC-8.5.5: Data Freshness Badge */}
+      <div className="flex items-center justify-between">
+        <FocusModeHeader totalInvestable={data.totalInvestable} baseCurrency={data.baseCurrency} />
+        {/* AC-8.5.5: DataFreshnessBadge shows when recommendations were generated */}
+        <DataFreshnessBadge
+          updatedAt={new Date(data.generatedAt)}
+          source="Recommendations"
+          showRefreshButton
+          onClick={refetch}
+          isRefreshing={isStale}
+        />
+      </div>
 
       {/* AC-7.5.2 & AC-7.5.3: Recommendation Cards (sorted by amount) */}
       <RecommendationList

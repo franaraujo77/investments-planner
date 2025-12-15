@@ -1,0 +1,352 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>3</storyId>
+    <title>Recommendation Pre-Generation</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-3-recommendation-pre-generation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>pre-generated recommendations per user after overnight scoring</iWant>
+    <soThat>dashboard loads instantly with ready-to-use investment recommendations</soThat>
+    <tasks>
+      <task id="1" title="Create Batch Recommendation Service" ac="8.3.1, 8.3.2">
+        <file>src/lib/services/batch-recommendation-service.ts</file>
+        <subtasks>
+          <subtask>Create BatchRecommendationService class</subtask>
+          <subtask>Implement generateRecommendationsForUser(userId, scores, exchangeRates) method</subtask>
+          <subtask>Integrate with existing RecommendationEngine (src/lib/calculations/recommendations.ts)</subtask>
+          <subtask>Fetch user's allocation targets from asset_classes/subclasses</subtask>
+          <subtask>Fetch user's default_contribution from user_settings</subtask>
+          <subtask>Calculate allocation gaps using existing AllocationService</subtask>
+          <subtask>Return recommendations with allocation gap metadata</subtask>
+          <subtask>Handle users with no default contribution (generate informational recommendations)</subtask>
+        </subtasks>
+      </task>
+      <task id="2" title="Implement Allocation Gap Calculation" ac="8.3.4">
+        <file>src/lib/services/batch-recommendation-service.ts</file>
+        <subtasks>
+          <subtask>For each asset class, calculate current allocation percentage, target range, gap</subtask>
+          <subtask>Weight recommendations by gap x score</subtask>
+          <subtask>Over-allocated classes get $0 recommendation with "over-allocated" flag</subtask>
+          <subtask>Store gap details with each recommendation</subtask>
+        </subtasks>
+      </task>
+      <task id="3" title="Create Recommendation Cache Service" ac="8.3.3">
+        <file>src/lib/cache/recommendation-cache.ts</file>
+        <subtasks>
+          <subtask>Implement RecommendationCacheService interface: get, set, invalidate</subtask>
+          <subtask>Use Vercel KV with key pattern recs:${userId}</subtask>
+          <subtask>Set TTL to 24 hours</subtask>
+          <subtask>Include criteria_version_id in cached data</subtask>
+          <subtask>Include dataFreshness timestamps</subtask>
+        </subtasks>
+      </task>
+      <task id="4" title="Extend Overnight Job with Recommendation Generation" ac="8.3.1-8.3.4">
+        <file>src/lib/inngest/functions/overnight-scoring.ts</file>
+        <subtasks>
+          <subtask>Add new step after scoring: "generate-recommendations"</subtask>
+          <subtask>Call BatchRecommendationService.generateRecommendationsForUser() for each user</subtask>
+          <subtask>Include allocation gap calculations</subtask>
+          <subtask>Track recommendation generation metrics</subtask>
+        </subtasks>
+      </task>
+      <task id="5" title="Store Audit Trail Data" ac="8.3.3">
+        <file>src/lib/services/batch-recommendation-service.ts</file>
+        <subtasks>
+          <subtask>Include criteria_version_id with each recommendation</subtask>
+          <subtask>Store exchange_rates snapshot reference</subtask>
+          <subtask>Store scores snapshot reference (correlationId)</subtask>
+          <subtask>Store generation timestamp</subtask>
+          <subtask>Link to overnight_job_run via correlationId</subtask>
+        </subtasks>
+      </task>
+      <task id="6" title="Write Unit Tests - Batch Recommendation Service" ac="8.3.1, 8.3.2, 8.3.4">
+        <file>tests/unit/services/batch-recommendation.test.ts</file>
+        <subtasks>
+          <subtask>Test single user recommendation generation</subtask>
+          <subtask>Test allocation gap calculation</subtask>
+          <subtask>Test default contribution usage</subtask>
+          <subtask>Test user without default contribution</subtask>
+          <subtask>Test over-allocated class handling ($0 recommendation)</subtask>
+          <subtask>Test minimum allocation value enforcement</subtask>
+          <subtask>Test integration with RecommendationEngine</subtask>
+        </subtasks>
+      </task>
+      <task id="7" title="Write Unit Tests - Recommendation Cache Service" ac="8.3.3">
+        <file>tests/unit/cache/recommendation-cache.test.ts</file>
+        <subtasks>
+          <subtask>Test cache get/set operations</subtask>
+          <subtask>Test TTL configuration</subtask>
+          <subtask>Test invalidation</subtask>
+          <subtask>Test data structure compliance</subtask>
+          <subtask>Mock Vercel KV operations</subtask>
+        </subtasks>
+      </task>
+      <task id="8" title="Write Integration Tests" ac="8.3.1-8.3.4">
+        <file>tests/unit/inngest/overnight-recommendation.test.ts</file>
+        <subtasks>
+          <subtask>Test recommendation step in overnight job</subtask>
+          <subtask>Test end-to-end flow: scores -> recommendations</subtask>
+          <subtask>Test metrics tracking</subtask>
+          <subtask>Test error handling (continue on user failure)</subtask>
+        </subtasks>
+      </task>
+      <task id="9" title="Run Verification">
+        <subtasks>
+          <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+          <subtask>ESLint passes with no new errors</subtask>
+          <subtask>All unit tests pass</subtask>
+          <subtask>Build verification (pnpm build)</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-8.3.1" title="Recommendations Generated from Latest Scores">
+      <given>scores have been computed by the overnight scoring job</given>
+      <when>recommendation generation runs</when>
+      <then>recommendations are generated for each user using latest scores, allocation targets, and portfolio current allocations</then>
+      <and>recommendations prioritize: (1) assets below target allocation by gap size, (2) higher-scoring assets within each class, (3) respecting class/subclass allocation ranges</and>
+    </criterion>
+    <criterion id="AC-8.3.2" title="Default Contribution Amount Used">
+      <given>a user has a default_contribution set in user_settings</given>
+      <when>recommendations are generated</when>
+      <then>recommendations use the default contribution amount</then>
+      <and>if no default is set, recommendations use $0 (informational only)</and>
+      <and>total recommendation amount equals user's default contribution</and>
+      <and>recommendation amounts respect minimum allocation values (FR23)</and>
+    </criterion>
+    <criterion id="AC-8.3.3" title="Criteria Version Stored for Audit">
+      <given>recommendations are generated</given>
+      <when>stored in cache/database</when>
+      <then>criteria_version_id is stored with the recommendations</then>
+      <and>exchange_rates snapshot used is stored</and>
+      <and>scores snapshot used is stored</and>
+      <and>this enables audit trail and replay capability</and>
+    </criterion>
+    <criterion id="AC-8.3.4" title="Allocation Gap Calculations Included">
+      <given>recommendations are generated</given>
+      <when>stored for display</when>
+      <then>each recommendation includes: current allocation percentage, target allocation range, allocation gap, gap-weighted score</then>
+      <and>over-allocated classes show $0 recommendation with explanation</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - Recommendations</section>
+        <snippet>FR48: System generates investment recommendations based on scores and allocation targets. FR58: System pre-generates allocation recommendations for each user. FR50: System shows zero buy signal for over-allocated assets.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Asset Class Configuration</section>
+        <snippet>FR23: Users can set minimum allocation values for specific classes/subclasses. Recommendations must respect these minimum values.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-002: Event-Sourced Calculations</section>
+        <snippet>Store calculation events, not just results. Enables perfect audit trail and replay capability. 4 event types: CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-003: Inngest for Background Jobs</section>
+        <snippet>Step functions for overnight processing. Built-in retries with exponential backoff. Fan-out pattern for scoring each user.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Service Blueprint - Backstage Services</section>
+        <snippet>RecommendationCard, AllocationService (calculate percentages using decimal.js), DashboardService (load pre-computed from Redis Cache).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification</title>
+        <section>Story 8.3: Recommendation Pre-Generation</section>
+        <snippet>AC-8.3.1-8.3.4: After scores computed, recommendations generated using user's allocation targets and default contribution. Stored with criteria_version_id. Include allocation gap calculations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification</title>
+        <section>Data Models - CachedRecommendations</section>
+        <snippet>Key pattern recs:${userId}, TTL 24 hours. Interface includes: userId, generatedAt, recommendations array, portfolioSummary, dataFreshness (pricesAsOf, ratesAsOf, criteriaVersion).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/8-2-overnight-scoring-job.md</path>
+        <title>Story 8.2 Completion Notes</title>
+        <section>Dev Agent Record - Completion Notes</section>
+        <snippet>Overnight job has 7 steps. BatchScoringService stores scores. PricesMap.fetchedAt uses string (not Date) for Inngest JSON serialization. UserQueryService gets active users with portfolios.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/calculations/recommendations.ts</path>
+        <purpose>RecommendationEngine - Core algorithm for distributing capital</purpose>
+        <keyFunction name="generateRecommendationItems">
+          <signature>generateRecommendationItems(assets: AssetWithContext[], totalInvestable: string): RecommendationItemResult[]</signature>
+          <description>Main entry point. Distributes capital based on allocation gaps and scores. Use this function directly.</description>
+        </keyFunction>
+        <keyFunction name="calculatePriority">
+          <signature>calculatePriority(allocationGap: Decimal, score: Decimal): Decimal</signature>
+          <description>priority = allocation_gap x (score / 100). Higher gap + higher score = higher priority.</description>
+        </keyFunction>
+        <note>All calculations use decimal.js. Over-allocated assets get $0. Minimum allocation enforcement with redistribution.</note>
+      </file>
+      <file>
+        <path>src/lib/services/batch-scoring-service.ts</path>
+        <purpose>Batch processing pattern to follow for recommendations</purpose>
+        <keyInterface name="BatchProcessingResult">
+          <fields>usersProcessed, usersSuccess, usersFailed, totalAssetsScored, totalDurationMs, results[]</fields>
+        </keyInterface>
+        <keyInterface name="ExchangeRatesMap">
+          <fields>[currencyPair: string]: rate string. Example: "USD_BRL" -> "5.25"</fields>
+        </keyInterface>
+        <keyInterface name="PricesMap">
+          <fields>[symbol]: { price, currency, fetchedAt (ISO string!), source }</fields>
+        </keyInterface>
+        <note>CRITICAL: fetchedAt must be ISO string (not Date) for Inngest JSON serialization.</note>
+      </file>
+      <file>
+        <path>src/lib/inngest/functions/overnight-scoring.ts</path>
+        <purpose>Overnight job - add recommendation step after scoring step</purpose>
+        <currentSteps>1: setup, 2: fetch-exchange-rates, 3: get-active-users, 4: fetch-asset-prices, 5: score-portfolios, 6: finalize, 7: trigger-cache-warming (placeholder)</currentSteps>
+        <insertionPoint>After step 5 (score-portfolios), before step 6 (finalize). Or modify step 7 to include recommendations.</insertionPoint>
+        <stepPattern>await step.run("generate-recommendations", async (): Promise&lt;RecommendationResult&gt; => { ... })</stepPattern>
+        <note>Each step result is checkpointed. Results from prior steps available via setupResult, exchangeRatesResult, scoringResult, etc.</note>
+      </file>
+      <file>
+        <path>src/lib/services/user-query-service.ts</path>
+        <purpose>Get user data with portfolios for batch processing</purpose>
+        <keyInterface name="ActiveUserForScoring">
+          <fields>userId, email, baseCurrency, portfolioId, portfolioName, assets[], criteria (versionId, rules)</fields>
+        </keyInterface>
+        <note>Can extend to include allocation targets and default_contribution. May need new query method.</note>
+      </file>
+      <file>
+        <path>src/lib/cache/types.ts</path>
+        <purpose>Cache type definitions - extend or use as-is</purpose>
+        <keyInterface name="CachedRecommendations">
+          <fields>recommendations[], generatedAt, criteriaVersionId, baseCurrency, totalAmount, metadata</fields>
+        </keyInterface>
+        <keyInterface name="CachedAssetRecommendation">
+          <fields>assetId, symbol, score, amount, breakdown[]</fields>
+        </keyInterface>
+        <note>Extend CachedAssetRecommendation to include allocation gap fields for AC-8.3.4.</note>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <purpose>Database schema - users.defaultContribution field exists</purpose>
+        <relevantField name="users.defaultContribution">
+          <type>numeric(19,4)</type>
+          <description>User's default contribution amount. Nullable - use $0 if not set per AC-8.3.2.</description>
+        </relevantField>
+        <note>No new tables needed for this story - recommendations stored in Vercel KV cache.</note>
+      </file>
+    </code>
+    <dependencies>
+      <dependency name="decimal.js" version="^10.6.0">
+        <purpose>Financial precision calculations - REQUIRED for all monetary math</purpose>
+        <usage>import { Decimal } from "./decimal-config"; import { parseDecimal, multiply, divide } from "./decimal-utils";</usage>
+      </dependency>
+      <dependency name="inngest" version="^3.46.0">
+        <purpose>Background job orchestration with step functions</purpose>
+        <usage>import { inngest } from "../client"; inngest.createFunction({ ... }, async ({ step }) => { await step.run(...) })</usage>
+      </dependency>
+      <dependency name="@vercel/kv" version="^3.0.0">
+        <purpose>Redis cache for recommendations</purpose>
+        <usage>import { kv } from "@vercel/kv"; await kv.set(key, value, { ex: ttlSeconds }); await kv.get(key);</usage>
+      </dependency>
+      <dependency name="drizzle-orm" version="installed">
+        <purpose>Database queries</purpose>
+        <usage>import { db } from "@/lib/db"; await db.select().from(table).where(...);</usage>
+      </dependency>
+      <dependency name="vitest" version="dev">
+        <purpose>Unit testing framework</purpose>
+        <usage>import { describe, it, expect, vi } from "vitest";</usage>
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" title="Financial Precision">
+      <rule>All monetary calculations MUST use decimal.js (import from calculations/decimal-config.ts)</rule>
+      <rule>No JavaScript Number for financial values - string decimal representation throughout</rule>
+      <rule>4 decimal places for monetary, 4 for percentages</rule>
+    </constraint>
+    <constraint id="C2" title="Inngest JSON Serialization">
+      <rule>Date objects become strings when passed between Inngest steps</rule>
+      <rule>Use ISO string format for all timestamps in step results (fetchedAt, generatedAt)</rule>
+      <rule>Dates in step inputs should be parsed back: new Date(isoString)</rule>
+    </constraint>
+    <constraint id="C3" title="Graceful Error Handling">
+      <rule>Continue processing remaining users if one fails (don't throw)</rule>
+      <rule>Log errors but don't abort batch</rule>
+      <rule>Track failed users in metrics</rule>
+    </constraint>
+    <constraint id="C4" title="Cache Key Pattern">
+      <rule>Vercel KV key: recs:${userId}</rule>
+      <rule>TTL: 24 hours (86400 seconds)</rule>
+      <rule>Include criteria_version_id for cache invalidation logic</rule>
+    </constraint>
+    <constraint id="C5" title="Event Sourcing Alignment">
+      <rule>Follow same 4-event pattern if needed (CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED)</rule>
+      <rule>Share correlationId with scoring events for audit trail linkage</rule>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="AssetWithContext" source="src/lib/types/recommendations.ts">
+      <description>Input to generateRecommendationItems - asset with allocation context</description>
+      <fields>id, symbol, score, currentAllocation, targetAllocation, allocationGap, isOverAllocated, minAllocationValue, classId, className, subclassId, subclassName, currentValue</fields>
+    </interface>
+    <interface name="RecommendationItemResult" source="src/lib/types/recommendations.ts">
+      <description>Output from generateRecommendationItems</description>
+      <fields>assetId, symbol, score, currentAllocation, targetAllocation, allocationGap, recommendedAmount, isOverAllocated, breakdown, sortOrder</fields>
+    </interface>
+    <interface name="UserProcessingResult" source="src/lib/services/batch-scoring-service.ts">
+      <description>Result for single user processing - use similar pattern</description>
+      <fields>userId, success, correlationId, scoresComputed (or recsGenerated), durationMs, error?</fields>
+    </interface>
+    <interface name="CachedRecommendations" source="src/lib/cache/types.ts" extend="true">
+      <description>Extend to include allocation gap data and dataFreshness</description>
+      <addFields>dataFreshness: { pricesAsOf, ratesAsOf, criteriaVersion }, portfolioSummary?, allocationGaps[]</addFields>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Every new function requires unit tests (CLAUDE.md policy)</standard>
+      <standard>Mock external dependencies (database, cache, services)</standard>
+      <standard>Test both success and error paths</standard>
+      <standard>Use vitest (pnpm test) - NOT jest</standard>
+      <standard>Tests in tests/unit/services/, tests/unit/cache/, tests/unit/inngest/</standard>
+    </standards>
+    <locations>
+      <location>tests/unit/services/batch-recommendation.test.ts (new)</location>
+      <location>tests/unit/cache/recommendation-cache.test.ts (new)</location>
+      <location>tests/unit/inngest/overnight-recommendation.test.ts (new or extend overnight-scoring-job.test.ts)</location>
+    </locations>
+    <ideas>
+      <idea>Test recommendation generation with various allocation gap scenarios</idea>
+      <idea>Test $0 contribution (informational recommendations)</idea>
+      <idea>Test over-allocated classes receive $0 with explanation</idea>
+      <idea>Test minimum allocation value enforcement</idea>
+      <idea>Test cache TTL and key pattern</idea>
+      <idea>Test audit trail data inclusion (criteria_version_id, rates, scores ref)</idea>
+      <idea>Test end-to-end: scores computed -> recommendations generated -> cached</idea>
+      <idea>Test continue-on-failure pattern (one user fails, others succeed)</idea>
+      <idea>Test metrics tracking in overnight job step</idea>
+    </ideas>
+  </tests>
+</story-context>

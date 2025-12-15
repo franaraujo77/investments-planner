@@ -1,0 +1,340 @@
+<story-context id="8-4-cache-warming" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>4</storyId>
+    <title>Cache Warming</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-4-cache-warming.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>Vercel KV cache warmed after overnight processing</iWant>
+    <soThat>first dashboard load is fast and users see instant recommendations</soThat>
+    <tasks>
+      <task id="1" ac="8.4.1,8.4.5">
+        <title>Create Cache Warmer Service</title>
+        <file>src/lib/services/cache-warmer-service.ts</file>
+        <subtasks>
+          <subtask>Create CacheWarmerService class</subtask>
+          <subtask>Implement warmCacheForUsers(userRecommendations) method</subtask>
+          <subtask>Integrate with existing RecommendationCacheService for cache writes</subtask>
+          <subtask>Process users in batches (configurable batch size, default 50)</subtask>
+          <subtask>Implement parallelization within batches for performance</subtask>
+          <subtask>Handle individual user failures without blocking batch</subtask>
+          <subtask>Track metrics: users_cached, cache_failures, duration_ms</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="8.4.4">
+        <title>Transform Recommendations for Cache Storage</title>
+        <file>src/lib/services/cache-warmer-service.ts</file>
+        <subtasks>
+          <subtask>Map GeneratedRecommendation to CachedRecommendations format</subtask>
+          <subtask>Include portfolio summary from recommendation data</subtask>
+          <subtask>Include data freshness timestamps</subtask>
+          <subtask>Include generation timestamp (generatedAt)</subtask>
+          <subtask>Validate cache data completeness before write</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="8.4.1,8.4.2,8.4.3">
+        <title>Implement Cache Warming Step in Overnight Job</title>
+        <file>src/lib/inngest/functions/overnight-scoring.ts</file>
+        <subtasks>
+          <subtask>Replace placeholder Step 7 with actual cache warming implementation</subtask>
+          <subtask>Receive generated recommendations from Step 6</subtask>
+          <subtask>Call CacheWarmerService.warmCacheForUsers()</subtask>
+          <subtask>Track cache warming metrics</subtask>
+          <subtask>Report metrics to job finalization step</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="8.4.4">
+        <title>Add Portfolio Summary Cache</title>
+        <files>
+          <file>src/lib/cache/recommendation-cache.ts</file>
+          <file>src/lib/services/cache-warmer-service.ts</file>
+        </files>
+        <subtasks>
+          <subtask>Extend RecommendationCacheService to cache portfolio:${userId} entries</subtask>
+          <subtask>Include allocations array with class names and target ranges</subtask>
+          <subtask>Set 24-hour TTL for portfolio cache</subtask>
+          <subtask>Cache both recommendations and portfolio in single operation</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="8.4.5">
+        <title>Performance Optimization</title>
+        <file>src/lib/services/cache-warmer-service.ts</file>
+        <subtasks>
+          <subtask>Implement Promise.allSettled for parallel cache writes</subtask>
+          <subtask>Configure batch size based on Vercel KV rate limits</subtask>
+          <subtask>Add timing metrics for batches</subtask>
+          <subtask>Target: 1000 users in less than 5 minutes</subtask>
+          <subtask>Test with concurrent writes to verify no rate limiting</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="8.4.1,8.4.5">
+        <title>Write Unit Tests - Cache Warmer Service</title>
+        <file>tests/unit/services/cache-warmer.test.ts</file>
+        <subtasks>
+          <subtask>Test single user cache warming</subtask>
+          <subtask>Test batch processing</subtask>
+          <subtask>Test parallelization</subtask>
+          <subtask>Test error handling (continue on failure)</subtask>
+          <subtask>Test metrics tracking</subtask>
+          <subtask>Mock RecommendationCacheService</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="8.4.1-8.4.5">
+        <title>Write Unit Tests - Extended Overnight Job</title>
+        <file>tests/unit/inngest/cache-warming.test.ts</file>
+        <subtasks>
+          <subtask>Test cache warming step execution</subtask>
+          <subtask>Test integration with recommendation generation step</subtask>
+          <subtask>Test metrics passed to finalize step</subtask>
+          <subtask>Test error handling scenarios</subtask>
+          <subtask>Test step ordering</subtask>
+        </subtasks>
+      </task>
+      <task id="8">
+        <title>Run Verification</title>
+        <subtasks>
+          <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+          <subtask>ESLint passes with no new errors</subtask>
+          <subtask>All unit tests pass</subtask>
+          <subtask>Build verification (pnpm build)</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="8.4.1" title="Recommendations Stored in Vercel KV">
+      <given>overnight processing completes and recommendations are generated</given>
+      <when>cache warming runs</when>
+      <then>recommendations are stored in Vercel KV for all processed users</then>
+      <and>cache data matches the CachedRecommendations interface</and>
+    </ac>
+    <ac id="8.4.2" title="Cache Key Pattern">
+      <given>recommendations are being cached for a user</given>
+      <when>stored in Vercel KV</when>
+      <then>cache key follows pattern recs:${userId}</then>
+      <and>each user has exactly one cache entry</and>
+    </ac>
+    <ac id="8.4.3" title="Cache TTL Configuration">
+      <given>recommendations are stored in cache</given>
+      <when>TTL is configured</when>
+      <then>TTL is set to 24 hours (86400 seconds)</then>
+      <and>stale cache entries are automatically expired</and>
+    </ac>
+    <ac id="8.4.4" title="Cache Data Completeness">
+      <given>recommendations are stored for a user</given>
+      <when>cache entry is created</when>
+      <then>cache includes: complete recommendations array, portfolio summary, data freshness timestamps, generation timestamp</then>
+      <and>dashboard can load entirely from cache without DB queries</and>
+    </ac>
+    <ac id="8.4.5" title="Cache Warming Performance">
+      <given>1000 users need cache warming</given>
+      <when>cache warming step runs</when>
+      <then>all users are cached within 5 minutes</then>
+      <and>batch processing with parallelization is used</and>
+      <and>individual user failures don't block other users</and>
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification</title>
+        <section>Story 8.4 - Cache Warming</section>
+        <snippet>Cache warming after recommendations generated. Key pattern recs:${userId}, TTL 24 hours, includes portfolio summary and data freshness. Performance target: 1000 users in 5 minutes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>ADR-003 - Background Jobs Framework, Caching Strategy</section>
+        <snippet>Inngest for background jobs with step functions. Vercel KV for recommendations cache with 24h TTL. Edge proximity for fast reads.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics and Stories</title>
+        <section>Story 8.4</section>
+        <snippet>Cache Warming - Vercel KV cache warmed after overnight processing for instant dashboard load.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/8-3-recommendation-pre-generation.md</path>
+        <title>Story 8.3 - Recommendation Pre-Generation</title>
+        <section>Completion Notes, Dev Agent Record</section>
+        <snippet>RecommendationCacheService fully implemented with get/set/invalidate methods, key pattern recs:${userId}, TTL 86400s. BatchRecommendationService generates recommendations with allocation gaps. Step 6 in overnight job generates recommendations.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Project Standards</title>
+        <section>Test Requirements for All Code Changes</section>
+        <snippet>Unit tests required for all new services. Integration tests for API endpoints. All tests must pass before marking complete.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/lib/cache/recommendation-cache.ts</path>
+        <kind>service</kind>
+        <symbol>RecommendationCacheService</symbol>
+        <lines>1-425</lines>
+        <reason>EXISTING service to REUSE for cache writes. Has get/set/invalidate/exists/getTTL methods. Key pattern recs:${userId}, TTL 86400s (24h). transformToCache() converts GeneratedRecommendation to CachedRecommendations format.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/services/batch-recommendation-service.ts</path>
+        <kind>service</kind>
+        <symbol>BatchRecommendationService, GeneratedRecommendation</symbol>
+        <lines>1-836</lines>
+        <reason>EXISTING service from Story 8.3. Provides GeneratedRecommendation type that cache warmer receives. Step 6 output comes from this service.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/inngest/functions/overnight-scoring.ts</path>
+        <kind>inngest-function</kind>
+        <symbol>overnightScoringJob</symbol>
+        <lines>616-625</lines>
+        <reason>Step 8 "trigger-cache-warming" is PLACEHOLDER - implement actual cache warming here. Step 6 generates recommendations that need to be passed to cache warming.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/services/overnight-job-service.ts</path>
+        <kind>service</kind>
+        <symbol>OvernightJobService, JobRunMetrics</symbol>
+        <reason>EXISTING service for tracking job metrics. Extend JobRunMetrics with cache warming fields: usersCached, cacheFailures, cacheWarmingDurationMs.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/cache/recommendation-cache.test.ts</path>
+        <kind>test</kind>
+        <symbol>RecommendationCacheService tests</symbol>
+        <reason>Reference for testing patterns. 22 tests covering get/set/invalidate/exists/getTTL with mocked Vercel KV.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/inngest/recommendation-generation.test.ts</path>
+        <kind>test</kind>
+        <symbol>Recommendation generation step tests</symbol>
+        <reason>Reference for Inngest step function testing patterns. 8 tests covering step execution, metrics, error handling.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/services/batch-recommendation.test.ts</path>
+        <kind>test</kind>
+        <symbol>BatchRecommendationService tests</symbol>
+        <reason>Reference for service testing patterns. 14 tests covering user processing, error handling, batch aggregation.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package>@vercel/kv</package>
+        <version>^3.0.0</version>
+        <usage>Vercel KV client for cache operations. Use kv.set() with { ex: 86400 } for TTL.</usage>
+      </node>
+      <node>
+        <package>inngest</package>
+        <version>^3.46.0</version>
+        <usage>Background job framework. Use step.run() for checkpointed operations.</usage>
+      </node>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <usage>Precision decimal arithmetic for monetary values.</usage>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <usage>Unit test framework. Use vi.mock() for mocking services.</usage>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="pattern">
+      <name>Reuse Existing Services</name>
+      <description>CRITICAL: Use existing RecommendationCacheService for cache writes. Do NOT recreate cache logic - call service.set() method.</description>
+    </constraint>
+    <constraint type="pattern">
+      <name>Inngest Step Functions</name>
+      <description>Each step.run() creates a checkpoint. Step results are persisted and available to subsequent steps. Use this for cache warming step.</description>
+    </constraint>
+    <constraint type="pattern">
+      <name>JSON Serialization</name>
+      <description>Use ISO string timestamps (not Date objects) for Inngest step function data passing. Pattern established in Story 8.2.</description>
+    </constraint>
+    <constraint type="pattern">
+      <name>Error Handling</name>
+      <description>Continue processing remaining users if one fails (AC-8.4.5). Use Promise.allSettled() for parallel operations.</description>
+    </constraint>
+    <constraint type="performance">
+      <name>Cache Warming Target</name>
+      <description>1000 users in 5 minutes = ~3.3 users/second minimum. Use batch parallelization to achieve.</description>
+    </constraint>
+    <constraint type="testing">
+      <name>Test Coverage Required</name>
+      <description>Unit tests for CacheWarmerService and overnight job cache warming step. Follow patterns from Story 8.3 tests.</description>
+    </constraint>
+    <constraint type="architecture">
+      <name>Cache Key Pattern</name>
+      <description>Key pattern is recs:${userId} - already implemented in RecommendationCacheService. Do not change.</description>
+    </constraint>
+    <constraint type="architecture">
+      <name>Cache TTL</name>
+      <description>TTL is 24 hours (86400 seconds) - already configured in RecommendationCacheService. Do not change.</description>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>RecommendationCacheService.set</name>
+      <kind>method</kind>
+      <signature>async set(userId: string, recommendation: GeneratedRecommendation): Promise&lt;CacheSetResult&gt;</signature>
+      <path>src/lib/cache/recommendation-cache.ts:195-235</path>
+    </interface>
+    <interface>
+      <name>GeneratedRecommendation</name>
+      <kind>type</kind>
+      <signature>interface with userId, portfolioId, generatedAt, totalInvestable, baseCurrency, items, allocationGaps, auditTrail</signature>
+      <path>src/lib/services/batch-recommendation-service.ts:123-138</path>
+    </interface>
+    <interface>
+      <name>CachedRecommendations</name>
+      <kind>type</kind>
+      <signature>interface with userId, generatedAt, recommendations[], portfolioSummary, dataFreshness, totalInvestable, correlationId</signature>
+      <path>src/lib/cache/recommendation-cache.ts:44-80</path>
+    </interface>
+    <interface>
+      <name>CacheSetResult</name>
+      <kind>type</kind>
+      <signature>{ success: boolean; key: string; error?: string }</signature>
+      <path>src/lib/cache/recommendation-cache.ts:94-98</path>
+    </interface>
+    <interface>
+      <name>Inngest step.run</name>
+      <kind>function</kind>
+      <signature>await step.run("step-name", async (): Promise&lt;T&gt; =&gt; { ... })</signature>
+      <path>https://www.inngest.com/docs/functions/multi-step</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing uses Vitest framework with vi.mock() for mocking. Tests are organized in tests/unit/ and tests/integration/ directories. Follow AC-labeled test pattern from Story 8.3 (e.g., "AC-8.4.1: should store recommendations in Vercel KV"). Mock @vercel/kv using vi.mock("@vercel/kv"). Mock services using vi.fn() and mockResolvedValue(). All tests must pass before marking complete.
+    </standards>
+    <locations>
+      <location>tests/unit/services/cache-warmer.test.ts</location>
+      <location>tests/unit/inngest/cache-warming.test.ts</location>
+      <location>tests/unit/cache/recommendation-cache.test.ts (reference)</location>
+      <location>tests/unit/inngest/recommendation-generation.test.ts (reference)</location>
+    </locations>
+    <ideas>
+      <idea ac="8.4.1">Test that CacheWarmerService calls RecommendationCacheService.set() for each user</idea>
+      <idea ac="8.4.1">Test that cache data structure matches CachedRecommendations interface</idea>
+      <idea ac="8.4.2">Test that cache key follows pattern recs:${userId}</idea>
+      <idea ac="8.4.3">Test that TTL is 24 hours (verify RecommendationCacheService config)</idea>
+      <idea ac="8.4.4">Test that cache includes portfolioSummary and dataFreshness</idea>
+      <idea ac="8.4.5">Test batch processing with parallelization</idea>
+      <idea ac="8.4.5">Test that individual user failure doesn't block other users</idea>
+      <idea ac="8.4.5">Test metrics tracking (usersCached, cacheFailures, durationMs)</idea>
+      <idea>Test overnight job cache warming step receives recommendations from Step 6</idea>
+      <idea>Test overnight job metrics include cache warming fields</idea>
+    </ideas>
+  </tests>
+</story-context>
