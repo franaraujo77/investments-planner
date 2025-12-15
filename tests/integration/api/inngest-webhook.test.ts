@@ -71,24 +71,14 @@ describe("Inngest Webhook Handler", () => {
       expect(overnightScoring).toBeDefined();
     });
 
-    it("includes cache-warmer function in registration", async () => {
-      // Verify the functions array includes cache-warmer
-      const { functions } = await import("@/lib/inngest");
-      const cacheWarmer = functions.find(
-        (fn) => fn.id("investments-planner") === "investments-planner-cache-warmer"
-      );
-      expect(cacheWarmer).toBeDefined();
-    });
-
     it("includes all expected Epic 8 functions", async () => {
       const { functions } = await import("@/lib/inngest");
 
       // Get all function IDs
       const functionIds = functions.map((fn) => fn.id("investments-planner"));
 
-      // Epic 8 functions
+      // Epic 8 functions (cache warming is done inline in overnight-scoring, not as separate function)
       expect(functionIds).toContain("investments-planner-overnight-scoring");
-      expect(functionIds).toContain("investments-planner-cache-warmer");
     });
 
     it("includes existing functions alongside new Epic 8 functions", async () => {
@@ -102,12 +92,11 @@ describe("Inngest Webhook Handler", () => {
       expect(functionIds).toContain("investments-planner-send-verification-email");
       expect(functionIds).toContain("investments-planner-send-password-reset-email");
 
-      // New Epic 8 functions
+      // Epic 8 function (cache warming is done inline in overnight-scoring Step 7)
       expect(functionIds).toContain("investments-planner-overnight-scoring");
-      expect(functionIds).toContain("investments-planner-cache-warmer");
 
-      // Total should be 5 functions
-      expect(functions.length).toBe(5);
+      // Total should be 4 functions
+      expect(functions.length).toBe(4);
     });
   });
 
