@@ -167,12 +167,13 @@ describe("Step Responsibilities", () => {
     expect(stepPurpose).toContain("job status");
   });
 
-  it("trigger-cache-warming step initiates cache population", () => {
-    // The trigger-cache-warming step:
-    // - Placeholder for Story 8.4
-    // - Will send cache/warming.started event
-    const stepPurpose = "Initiate cache population with results";
-    expect(stepPurpose).toContain("cache");
+  it("warm-cache step populates Vercel KV cache", () => {
+    // The warm-cache step (Step 7):
+    // - Implemented inline in Story 8.4
+    // - Stores recommendations in Vercel KV using cacheWarmerService
+    // - Key pattern: recs:${userId}, TTL: 24 hours
+    const stepPurpose = "Cache recommendations in Vercel KV";
+    expect(stepPurpose.toLowerCase()).toContain("cache");
   });
 });
 

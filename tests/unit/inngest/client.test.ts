@@ -111,29 +111,6 @@ describe("Inngest Client", () => {
       expect(errorEvent.success).toBe(false);
       expect(errorEvent.error).toBe("Database connection failed");
     });
-
-    it("includes cache warming started event type", () => {
-      const warmingEvent: Events["cache/warming.started"]["data"] = {
-        correlationId: "corr-123",
-        triggeredAt: "2024-12-14T04:30:00Z",
-        triggeredBy: "overnight-job",
-      };
-      expect(warmingEvent.correlationId).toBe("corr-123");
-      expect(warmingEvent.triggeredBy).toBe("overnight-job");
-    });
-
-    it("includes cache warming completed event type", () => {
-      const completedEvent: Events["cache/warming.completed"]["data"] = {
-        correlationId: "corr-123",
-        completedAt: "2024-12-14T04:35:00Z",
-        keysWarmed: 150,
-        durationMs: 300000,
-        success: true,
-        error: undefined,
-      };
-      expect(completedEvent.keysWarmed).toBe(150);
-      expect(completedEvent.success).toBe(true);
-    });
   });
 
   describe("Event type constraints", () => {
@@ -142,14 +119,6 @@ describe("Inngest Client", () => {
       const cronTrigger: Events["overnight/scoring.started"]["data"]["triggeredBy"] = "cron";
       const manualTrigger: Events["overnight/scoring.started"]["data"]["triggeredBy"] = "manual";
       expect(cronTrigger).toBe("cron");
-      expect(manualTrigger).toBe("manual");
-    });
-
-    it("triggeredBy for cache warming must be overnight-job or manual", () => {
-      // Type-level constraint verification
-      const jobTrigger: Events["cache/warming.started"]["data"]["triggeredBy"] = "overnight-job";
-      const manualTrigger: Events["cache/warming.started"]["data"]["triggeredBy"] = "manual";
-      expect(jobTrigger).toBe("overnight-job");
       expect(manualTrigger).toBe("manual");
     });
   });

@@ -9,7 +9,9 @@
  * - Scheduled hard delete after 30-day grace period
  * - Overnight scoring jobs (Epic 8)
  * - Recommendation pre-generation (Epic 8)
- * - Cache warming (Epic 8)
+ *
+ * Note: Cache warming is performed inline within the overnight scoring job
+ * (Step 7: warm-cache) rather than as a separate triggered function.
  *
  * @see https://www.inngest.com/docs/quick-start
  */
@@ -86,33 +88,6 @@ export type Events = {
       completedAt: string; // ISO date string
       usersProcessed: number;
       assetsScored: number;
-      durationMs: number;
-      success: boolean;
-      error?: string | undefined;
-    };
-  };
-
-  /**
-   * Triggered to start cache warming
-   * Story 8.4: Cache Warming
-   */
-  "cache/warming.started": {
-    data: {
-      correlationId: string;
-      triggeredAt: string; // ISO date string
-      triggeredBy: "overnight-job" | "manual";
-    };
-  };
-
-  /**
-   * Triggered when cache warming completes
-   * Story 8.4: Cache Warming
-   */
-  "cache/warming.completed": {
-    data: {
-      correlationId: string;
-      completedAt: string; // ISO date string
-      keysWarmed: number;
       durationMs: number;
       success: boolean;
       error?: string | undefined;
