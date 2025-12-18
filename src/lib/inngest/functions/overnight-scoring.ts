@@ -19,6 +19,14 @@
  * Uses Inngest step functions for checkpointing - each step is independently
  * retryable and results are persisted between invocations.
  *
+ * Note on Cache Warming Architecture:
+ * Cache warming (Step 7) is intentionally integrated into this function rather than
+ * being a separate Inngest function. This ensures:
+ * - Recommendations are cached immediately after generation (no race conditions)
+ * - Single transaction context for audit trail consistency
+ * - No need to re-fetch recommendations from database
+ * For manual/ad-hoc cache warming, use the CacheWarmerService directly via API.
+ *
  * AC-8.2.1: Cron Trigger Configuration
  * AC-8.2.2: Exchange Rates Fetch Once
  * AC-8.2.3: User Portfolio Processing
@@ -136,21 +144,72 @@ interface CacheWarmingResult {
 }
 
 /**
+ * Check if we're running in production mode
+ * Uses NODE_ENV to determine environment
+ */
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+/**
  * Create exchange rate service (can be mocked in tests)
+ *
+ * In production: Returns configured service or throws if not configured
+ * In development: Returns null to allow mock data usage
  */
 function createExchangeRateService(): ExchangeRateService | null {
-  // Return null if providers not configured
-  // In production, this would return the configured service
+  // TODO(epic-8): Implement actual exchange rate provider initialization
+  // Example: return new ExchangeRateService(process.env.EXCHANGE_RATE_API_KEY)
+
+  // Return null for now - actual implementation pending provider setup
   return null;
 }
 
 /**
  * Create price service (can be mocked in tests)
+ *
+ * In production: Returns configured service or throws if not configured
+ * In development: Returns null to allow mock data usage
  */
 function createPriceService(): PriceService | null {
-  // Return null if providers not configured
-  // In production, this would return the configured service
+  // TODO(epic-8): Implement actual price provider initialization
+  // Example: return new PriceService(process.env.PRICE_API_KEY)
+
+  // Return null for now - actual implementation pending provider setup
   return null;
+}
+
+/**
+ * Validate exchange rate service configuration for production
+ * Throws error if service not configured in production environment
+ */
+function validateExchangeRateServiceOrThrow(
+  service: ExchangeRateService | null,
+  correlationId: string
+): void {
+  if (!service && isProduction()) {
+    logger.error("Exchange rate provider not configured in production", {
+      correlationId,
+      environment: process.env.NODE_ENV,
+    });
+    throw new Error(
+      "Exchange rate provider not configured. Set EXCHANGE_RATE_API_KEY environment variable."
+    );
+  }
+}
+
+/**
+ * Validate price service configuration for production
+ * Throws error if service not configured in production environment
+ */
+function validatePriceServiceOrThrow(service: PriceService | null, correlationId: string): void {
+  if (!service && isProduction()) {
+    logger.error("Price provider not configured in production", {
+      correlationId,
+      environment: process.env.NODE_ENV,
+    });
+    throw new Error("Price provider not configured. Set PRICE_API_KEY environment variable.");
+  }
 }
 
 /**
@@ -230,13 +289,24 @@ export const overnightScoringJob = inngest.createFunction(
 
               if (targetCurrencies.length > 0) {
                 const rateService = createExchangeRateService();
+
+                // Validate service configuration for production
+                validateExchangeRateServiceOrThrow(rateService, setupResult.correlationId);
+
                 if (rateService) {
                   const result = await rateService.getRates(baseCurrency, targetCurrencies);
                   for (const [currency, rate] of Object.entries(result.rates.rates)) {
                     rates[`${baseCurrency}_${currency}`] = rate;
                   }
                 } else {
-                  // No provider configured - use mock rates for development
+                  // No provider configured - use mock rates for development only
+                  // This code path only executes in non-production (dev/test)
+                  logger.warn("Using mock exchange rates (development mode)", {
+                    correlationId: setupResult.correlationId,
+                    environment: process.env.NODE_ENV,
+                    targetCurrencyCount: targetCurrencies.length,
+                    mockRate: "1.0",
+                  });
                   for (const currency of targetCurrencies) {
                     rates[`${baseCurrency}_${currency}`] = "1.0";
                   }
@@ -306,6 +376,10 @@ export const overnightScoringJob = inngest.createFunction(
 
           if (symbols.length > 0) {
             const priceService = createPriceService();
+
+            // Validate service configuration for production
+            validatePriceServiceOrThrow(priceService, setupResult.correlationId);
+
             if (priceService) {
               const result = await priceService.getPrices(symbols);
               for (const price of result.prices) {
@@ -317,9 +391,12 @@ export const overnightScoringJob = inngest.createFunction(
                 };
               }
             } else {
-              // No provider configured - prices will be empty
-              logger.warn("No price provider configured", {
+              // No provider configured - skip prices for development only
+              // This code path only executes in non-production (dev/test)
+              logger.warn("No price provider configured (development mode)", {
                 correlationId: setupResult.correlationId,
+                environment: process.env.NODE_ENV,
+                symbolsRequested: symbols.length,
               });
             }
           }
@@ -366,6 +443,12 @@ export const overnightScoringJob = inngest.createFunction(
         });
 
         // Process users in batches
+        // TODO(performance): Consider parallel batch processing for scale
+        // Current: Sequential batches (20 batches for 1000 users @ 50/batch)
+        // Potential: Parallel batches with concurrency limit (e.g., 3-5 concurrent)
+        // Trade-off: Parallelism vs. database connection pool limits
+        // Current target: 1000 users in <4 hours (~14 seconds/user) - sequential is sufficient for MVP
+        // Consider parallelization when processing time exceeds 1 hour for typical user counts
         for (let i = 0; i < usersResult.users.length; i += USER_BATCH_SIZE) {
           const batch = usersResult.users.slice(i, i + USER_BATCH_SIZE);
           const batchNumber = Math.floor(i / USER_BATCH_SIZE) + 1;
