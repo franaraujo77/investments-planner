@@ -1,0 +1,381 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>5</storyId>
+    <title>Instant Dashboard Load</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-5-instant-dashboard-load.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see instant recommendations on login</iWant>
+    <soThat>I can make investment decisions without waiting for calculations</soThat>
+    <tasks>
+      <task id="1" ac="8.5.1,8.5.2,8.5.3">Create Dashboard Service with Cache-First Logic
+        <file>src/lib/services/dashboard-service.ts</file>
+        <subtasks>
+          <subtask>Create DashboardService class</subtask>
+          <subtask>Implement getDashboardData(userId: string) method</subtask>
+          <subtask>Call RecommendationCacheService.get(userId) first</subtask>
+          <subtask>If cache hit: return data with fromCache: true</subtask>
+          <subtask>If cache miss: fall back to PostgreSQL query</subtask>
+          <subtask>Transform fallback data to match DashboardResponse format</subtask>
+          <subtask>Return fromCache: false for database-sourced data</subtask>
+          <subtask>Log cache hit/miss for monitoring</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="8.5.1,8.5.2,8.5.3">Update Dashboard API Route
+        <file>src/app/api/dashboard/route.ts</file>
+        <subtasks>
+          <subtask>Import DashboardService</subtask>
+          <subtask>Call dashboardService.getDashboardData(userId)</subtask>
+          <subtask>Return properly formatted DashboardResponse</subtask>
+          <subtask>Include fromCache boolean in response</subtask>
+          <subtask>Handle errors gracefully with appropriate status codes</subtask>
+          <subtask>Add timing metrics for performance monitoring</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="8.5.2">Implement PostgreSQL Fallback Query
+        <file>src/lib/services/dashboard-service.ts</file>
+        <subtasks>
+          <subtask>Query latest scores from scores table</subtask>
+          <subtask>Query portfolio holdings and allocations</subtask>
+          <subtask>Query user's contribution/dividend settings</subtask>
+          <subtask>Generate recommendations using existing recommendation engine</subtask>
+          <subtask>Transform to DashboardResponse format</subtask>
+          <subtask>Include freshness data from database timestamps</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="8.5.4,8.5.5">Update Dashboard UI for Cache-Aware Display
+        <file>src/app/(dashboard)/page.tsx</file>
+        <file>src/components/dashboard/recommendations-view.tsx</file>
+        <subtasks>
+          <subtask>Fetch dashboard data using cache-first API</subtask>
+          <subtask>Display recommendations without loading spinner (data should be ready)</subtask>
+          <subtask>Show DataFreshnessBadge with generatedAt timestamp</subtask>
+          <subtask>Pass fromCache to components for optional display</subtask>
+          <subtask>Add skeleton loader ONLY for manual refresh scenarios</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="8.5.5">Enhance DataFreshnessBadge for Recommendations
+        <file>src/components/fintech/data-freshness-badge.tsx</file>
+        <subtasks>
+          <subtask>Verify badge accepts generatedAt ISO timestamp</subtask>
+          <subtask>Display relative time (e.g., "Generated 2 hours ago")</subtask>
+          <subtask>Color coding: green (&lt;24h), amber (1-3 days), red (&gt;3 days)</subtask>
+          <subtask>Click triggers refresh action via callback prop</subtask>
+          <subtask>Tooltip shows exact timestamp on hover</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="8.5.5">Add Manual Refresh Capability
+        <file>src/app/(dashboard)/page.tsx</file>
+        <file>src/hooks/use-dashboard.ts</file>
+        <subtasks>
+          <subtask>Add "Refresh" button to dashboard header</subtask>
+          <subtask>Implement refresh handler that calls force data refresh API</subtask>
+          <subtask>Shows loading state during refresh</subtask>
+          <subtask>Updates recommendations with fresh data</subtask>
+          <subtask>Respect rate limiting (max 5 refreshes per hour)</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="8.5.1,8.5.2,8.5.3">Write Unit Tests - Dashboard Service
+        <file>tests/unit/services/dashboard-service.test.ts</file>
+        <subtasks>
+          <subtask>Test cache hit scenario returns cached data with fromCache: true</subtask>
+          <subtask>Test cache miss scenario falls back to PostgreSQL</subtask>
+          <subtask>Test PostgreSQL fallback returns data with fromCache: false</subtask>
+          <subtask>Test error handling when both cache and DB fail</subtask>
+          <subtask>Test timing/logging of cache hits and misses</subtask>
+          <subtask>Mock RecommendationCacheService</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="8.5.1-8.5.5">Write Unit Tests - Dashboard API Route
+        <file>tests/unit/api/dashboard.test.ts</file>
+        <subtasks>
+          <subtask>Test successful cache-hit response format</subtask>
+          <subtask>Test successful cache-miss response format</subtask>
+          <subtask>Test fromCache indicator presence</subtask>
+          <subtask>Test authentication requirement</subtask>
+          <subtask>Test error responses</subtask>
+        </subtasks>
+      </task>
+      <task id="9">Run Verification
+        <subtasks>
+          <subtask>TypeScript compilation successful (npx tsc --noEmit)</subtask>
+          <subtask>ESLint passes with no new errors</subtask>
+          <subtask>All unit tests pass</subtask>
+          <subtask>Build verification (pnpm build)</subtask>
+          <subtask>Manual verification: Login and confirm &lt;2s dashboard load</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-8.5.1" title="Dashboard API Reads from Cache First">
+      <given>a user logs in after overnight processing</given>
+      <when>the dashboard API is called</when>
+      <then>it reads recommendations from Vercel KV cache first</then>
+      <and>cache key pattern is recs:${userId}</and>
+      <and>portfolio summary is read from portfolio:${userId}</and>
+    </criterion>
+    <criterion id="AC-8.5.2" title="Dashboard API Falls Back to PostgreSQL">
+      <given>user's recommendations are not in cache (cache miss)</given>
+      <when>the dashboard API is called</when>
+      <then>recommendations are fetched from PostgreSQL</then>
+      <and>the fallback query includes latest scores and allocation data</and>
+      <and>user experience is gracefully degraded (slightly slower but functional)</and>
+    </criterion>
+    <criterion id="AC-8.5.3" title="Dashboard Response Includes Cache Indicator">
+      <given>recommendations are returned from the dashboard API</given>
+      <when>the response is constructed</when>
+      <then>it includes fromCache: boolean indicator</then>
+      <and>client can use this to show data source to user</and>
+      <and>logging captures cache hit/miss rate</and>
+    </criterion>
+    <criterion id="AC-8.5.4" title="Dashboard Loads in Under 2 Seconds">
+      <given>cached recommendations exist for user</given>
+      <when>the dashboard loads</when>
+      <then>recommendations display in &lt;2 seconds total</then>
+      <and>no "Loading..." spinner for initial view (data pre-computed)</and>
+      <and>loading states only shown during manual refresh actions</and>
+    </criterion>
+    <criterion id="AC-8.5.5" title="Data Freshness Badge Shows Generation Time">
+      <given>recommendations are displayed on the dashboard</given>
+      <when>user views the recommendations</when>
+      <then>DataFreshnessBadge component shows when recommendations were generated</then>
+      <and>badge displays relative time (e.g., "Generated 2 hours ago")</and>
+      <and>clicking badge triggers manual refresh option</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification</title>
+        <section>Story 8.5: Instant Dashboard Load</section>
+        <snippet>AC-8.5.1-8.5.5: Dashboard API reads from Vercel KV cache first, falls back to PostgreSQL if cache miss, response includes fromCache boolean indicator, dashboard loads in &lt;2 seconds with cached data, DataFreshnessBadge shows when recommendations were generated.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/8-4-cache-warming.md</path>
+        <title>Story 8.4: Cache Warming</title>
+        <section>Dev Agent Record - Completion Notes</section>
+        <snippet>RecommendationCacheService fully implemented with get/set/invalidate methods, key pattern recs:${userId}, 24h TTL, getPortfolio for portfolio:${userId}. CacheWarmerService writes all data in correct format during overnight job.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Caching Strategy, Performance Considerations</section>
+        <snippet>Vercel KV cache with &lt;100ms read latency (edge proximity). Performance target: Dashboard &lt;2s total load time. Graceful degradation: Cache miss falls back to PostgreSQL.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Project Standards</title>
+        <section>Test Requirements for All Code Changes</section>
+        <snippet>Every code change MUST include appropriate test coverage. Unit tests for all new code. Tests must cover success cases, error cases, and edge cases.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/lib/cache/recommendation-cache.ts</path>
+        <kind>service</kind>
+        <symbol>RecommendationCacheService</symbol>
+        <lines>158-703</lines>
+        <reason>CRITICAL: Existing cache service with get(userId), getPortfolio(userId) methods. Dashboard service should CALL this - do NOT recreate. Key pattern recs:${userId}, portfolio:${userId}. TTL 24 hours.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/recommendation-cache.ts</path>
+        <kind>type</kind>
+        <symbol>CachedRecommendations</symbol>
+        <lines>50-86</lines>
+        <reason>Interface for cached recommendation data structure. Includes userId, generatedAt, recommendations[], portfolioSummary, dataFreshness, totalInvestable, correlationId.</reason>
+      </file>
+      <file>
+        <path>src/lib/cache/recommendation-cache.ts</path>
+        <kind>type</kind>
+        <symbol>CachedPortfolioSummary</symbol>
+        <lines>92-103</lines>
+        <reason>Interface for cached portfolio summary. Includes totalValue, assetCount, allocations[], baseCurrency, cachedAt.</reason>
+      </file>
+      <file>
+        <path>src/app/(dashboard)/page.tsx</path>
+        <kind>page</kind>
+        <symbol>DashboardPage</symbol>
+        <lines>1-301</lines>
+        <reason>Existing dashboard page using useRecommendations hook. Story 8.5 modifies this to use cache-first API and display DataFreshnessBadge.</reason>
+      </file>
+      <file>
+        <path>src/hooks/use-recommendations.ts</path>
+        <kind>hook</kind>
+        <symbol>useRecommendations</symbol>
+        <lines>205-274</lines>
+        <reason>Existing hook for fetching recommendations from /api/recommendations. May need modification to use new cache-first dashboard API.</reason>
+      </file>
+      <file>
+        <path>src/components/fintech/data-freshness-badge.tsx</path>
+        <kind>component</kind>
+        <symbol>DataFreshnessBadge</symbol>
+        <lines>152-219</lines>
+        <reason>Existing component for freshness display. Already has color coding (fresh/stale/very_stale), relative time, refresh button. Verify compatibility with generatedAt from cache.</reason>
+      </file>
+      <file>
+        <path>src/components/data/refresh-button.tsx</path>
+        <kind>component</kind>
+        <symbol>RefreshButton</symbol>
+        <reason>Existing refresh button component used on dashboard (Story 6.6). Reuse for manual refresh capability.</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <reason>Project logging utility. Use logger.debug/info/error for cache hit/miss logging - not console.error.</reason>
+      </file>
+      <file>
+        <path>src/lib/api/responses.ts</path>
+        <kind>utility</kind>
+        <symbol>successResponse, errorResponse</symbol>
+        <reason>Standardized API response helpers. Use for dashboard API route responses.</reason>
+      </file>
+      <file>
+        <path>src/lib/api/error-codes.ts</path>
+        <kind>constants</kind>
+        <symbol>ERROR_CODES</symbol>
+        <reason>Standardized error codes. Use for dashboard API error responses.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package>@vercel/kv</package>
+        <version>^3.0.0</version>
+        <purpose>Vercel KV cache for recommendations storage</purpose>
+      </node>
+      <node>
+        <package>next</package>
+        <version>16.0.10</version>
+        <purpose>Next.js App Router for API routes and pages</purpose>
+      </node>
+      <node>
+        <package>react</package>
+        <version>19.2.0</version>
+        <purpose>React for UI components</purpose>
+      </node>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Financial precision for decimal calculations</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Schema validation for API requests/responses</purpose>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.44.7</version>
+        <purpose>Database ORM for PostgreSQL fallback queries</purpose>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <purpose>Unit testing framework</purpose>
+        <devDependency>true</devDependency>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Use existing RecommendationCacheService - do NOT recreate cache logic</constraint>
+    <constraint type="architecture">Follow cache-first pattern: KV cache -> PostgreSQL fallback</constraint>
+    <constraint type="architecture">Use logger from @/lib/telemetry/logger - not console.error</constraint>
+    <constraint type="architecture">Use standardized API responses from @/lib/api/responses.ts</constraint>
+    <constraint type="architecture">Use standardized error codes from @/lib/api/error-codes.ts</constraint>
+    <constraint type="performance">Dashboard load from cache must be &lt;2 seconds total</constraint>
+    <constraint type="performance">Cache read latency target: &lt;100ms (Vercel KV edge)</constraint>
+    <constraint type="testing">All new code must have corresponding unit tests</constraint>
+    <constraint type="testing">Tests must cover cache hit, cache miss, and error scenarios</constraint>
+    <constraint type="pattern">Follow existing service patterns in src/lib/services/</constraint>
+    <constraint type="pattern">Follow existing test patterns in tests/unit/services/</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>RecommendationCacheService.get</name>
+      <kind>method</kind>
+      <signature>async get(userId: string): Promise&lt;CacheGetResult&gt;</signature>
+      <path>src/lib/cache/recommendation-cache.ts:181-222</path>
+    </interface>
+    <interface>
+      <name>RecommendationCacheService.getPortfolio</name>
+      <kind>method</kind>
+      <signature>async getPortfolio(userId: string): Promise&lt;PortfolioCacheGetResult&gt;</signature>
+      <path>src/lib/cache/recommendation-cache.ts:470-511</path>
+    </interface>
+    <interface>
+      <name>DashboardResponse</name>
+      <kind>interface</kind>
+      <signature>
+interface DashboardResponse {
+  data: {
+    recommendations: Array&lt;{
+      assetId: string;
+      symbol: string;
+      score: string;
+      amount: string;
+      currency: string;
+      allocationGap: string;
+      breakdown: { criteriaCount: number; topContributor: string; };
+    }&gt;;
+    portfolioSummary: {
+      totalValue: string;
+      baseCurrency: string;
+      allocations: Record&lt;string, string&gt;;
+    };
+    totalInvestable: string;
+    baseCurrency: string;
+    dataFreshness: {
+      generatedAt: string;
+      pricesAsOf: string;
+      ratesAsOf: string;
+    };
+    fromCache: boolean;
+  };
+}
+      </signature>
+      <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+    </interface>
+    <interface>
+      <name>GET /api/dashboard</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/dashboard -> DashboardResponse | ErrorResponse</signature>
+      <path>src/app/api/dashboard/route.ts (to create)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Per project testing standards (CLAUDE.md): Unit tests required for all new code. Use Vitest framework with @vitest/coverage-v8. Tests located in tests/unit/ directory mirroring src/ structure. Mock external dependencies (RecommendationCacheService, database). Test cache hit, cache miss, and error scenarios. Follow existing test patterns in tests/unit/services/*.test.ts and tests/unit/api/*.test.ts.
+    </standards>
+    <locations>
+      <location>tests/unit/services/dashboard-service.test.ts</location>
+      <location>tests/unit/api/dashboard.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="8.5.1">Test that DashboardService calls RecommendationCacheService.get(userId) first</idea>
+      <idea ac="8.5.1">Test that cache hit returns data with fromCache: true</idea>
+      <idea ac="8.5.2">Test that cache miss triggers PostgreSQL fallback query</idea>
+      <idea ac="8.5.2">Test that PostgreSQL fallback returns data with fromCache: false</idea>
+      <idea ac="8.5.3">Test that dashboard API response includes fromCache boolean</idea>
+      <idea ac="8.5.3">Test that cache hit/miss is logged for monitoring</idea>
+      <idea ac="8.5.4">Performance test: Verify cache hit response &lt;100ms</idea>
+      <idea ac="8.5.5">Test DataFreshnessBadge receives generatedAt from cache</idea>
+      <idea ac="error">Test error handling when both cache and DB fail</idea>
+      <idea ac="error">Test authentication requirement on dashboard API</idea>
+    </ideas>
+  </tests>
+</story-context>

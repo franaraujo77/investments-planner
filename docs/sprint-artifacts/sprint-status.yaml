@@ -1,5 +1,5 @@
 # Sprint Status - investments-planner
-# Generated: 2025-12-10
+# Generated: 2025-12-14
 # Project: investments-planner
 
 # STATUS DEFINITIONS:
@@ -26,7 +26,7 @@
 # - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
 
-generated: 2025-12-11
+generated: 2025-12-14 (refreshed)
 project: investments-planner
 project_key: investments-planner
 tracking_system: file-system
@@ -155,13 +155,13 @@ development_status:
   # Goal: Pre-compute everything overnight for instant dashboard load
   # Stories: 6 | FRs: FR56-FR59, FR64
   # =============================================================================
-  epic-8: backlog
-  8-1-inngest-job-infrastructure: backlog
-  8-2-overnight-scoring-job: backlog
-  8-3-recommendation-pre-generation: backlog
-  8-4-cache-warming: backlog
-  8-5-instant-dashboard-load: backlog
-  8-6-calculation-audit-trail: backlog
+  epic-8: contexted
+  8-1-inngest-job-infrastructure: done
+  8-2-overnight-scoring-job: done
+  8-3-recommendation-pre-generation: done
+  8-4-cache-warming: done
+  8-5-instant-dashboard-load: done
+  8-6-calculation-audit-trail: done
   epic-8-retrospective: optional
 
   # =============================================================================

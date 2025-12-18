@@ -59,6 +59,11 @@ vi.mock("@/lib/telemetry/logger", () => ({
 // TEST DATA
 // =============================================================================
 
+// Use relative dates to avoid test failures when dates become stale
+const now = new Date();
+const generatedAt = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+const expiresAt = new Date(now.getTime() + 23 * 60 * 60 * 1000); // 23 hours from now
+
 const mockRecommendation = {
   id: "rec-123",
   userId: "test-user-id",
@@ -69,8 +74,8 @@ const mockRecommendation = {
   baseCurrency: "USD",
   correlationId: "corr-123",
   status: "active",
-  generatedAt: new Date("2025-12-14T10:00:00Z"),
-  expiresAt: new Date("2025-12-15T10:00:00Z"), // Valid for 24 hours
+  generatedAt,
+  expiresAt,
   items: [
     {
       assetId: "asset-1",
@@ -160,7 +165,7 @@ describe("GET /api/recommendations", () => {
   it("returns 404 when recommendations are expired", async () => {
     const expiredRec = {
       ...mockRecommendation,
-      expiresAt: new Date("2024-01-01T00:00:00Z"), // Expired
+      expiresAt: new Date(Date.now() - 60 * 60 * 1000), // 1 hour in the past (expired)
     };
     mockGetCachedRecommendation.mockResolvedValue(expiredRec);
 
@@ -188,8 +193,9 @@ describe("GET /api/recommendations", () => {
     const response = await GET(request);
     const body = await response.json();
 
-    expect(body.data.generatedAt).toBe("2025-12-14T10:00:00.000Z");
-    expect(body.data.expiresAt).toBe("2025-12-15T10:00:00.000Z");
+    // Verify dates are ISO strings (dynamic dates, so check format not exact value)
+    expect(body.data.generatedAt).toBe(generatedAt.toISOString());
+    expect(body.data.expiresAt).toBe(expiresAt.toISOString());
   });
 
   it("includes all item fields in response", async () => {

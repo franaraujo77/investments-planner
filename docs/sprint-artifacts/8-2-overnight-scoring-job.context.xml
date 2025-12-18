@@ -1,0 +1,392 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>2</storyId>
+    <title>Overnight Scoring Job</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/8-2-overnight-scoring-job.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system</asA>
+    <iWant>automated overnight processing that calculates scores for all users</iWant>
+    <soThat>recommendations are ready when users log in, providing an instant dashboard experience</soThat>
+    <tasks>
+      <task id="1" title="Create Batch Scoring Service">
+        <ac>AC-8.2.3, AC-8.2.4</ac>
+        <files>src/lib/services/batch-scoring-service.ts</files>
+        <subtasks>
+          <item>Create BatchScoringService class</item>
+          <item>Implement processUserBatch(users, exchangeRates) method</item>
+          <item>For each user: fetch prices, load criteria, calculate scores</item>
+          <item>Integrate with existing ScoringEngine</item>
+          <item>Emit 4 calculation events per user via EventStore</item>
+          <item>Handle individual user failures without stopping batch</item>
+          <item>Return batch results with success/failure counts</item>
+        </subtasks>
+      </task>
+      <task id="2" title="Implement Overnight Scoring Job Steps">
+        <ac>AC-8.2.1, AC-8.2.2, AC-8.2.3</ac>
+        <files>src/lib/inngest/functions/overnight-scoring.ts</files>
+        <subtasks>
+          <item>Implement Step 1 (setup): Create correlationId, record overnight_job_run</item>
+          <item>Implement Step 2 (fetch-exchange-rates): Call ExchangeRateService.fetchRates()</item>
+          <item>Implement Step 3 (get-active-users): Query users with active portfolios</item>
+          <item>Implement Step 4 (fetch-asset-prices): Batch fetch prices for all unique assets</item>
+          <item>Implement Step 5 (score-portfolios): Call BatchScoringService for user batches</item>
+          <item>Implement Step 6 (finalize): Update job status, emit completion event</item>
+        </subtasks>
+      </task>
+      <task id="3" title="Create Overnight Job Run Tracking">
+        <ac>AC-8.2.5, AC-8.2.6</ac>
+        <files>src/lib/db/schema.ts, drizzle/migrations/</files>
+        <subtasks>
+          <item>Add overnight_job_runs table to schema</item>
+          <item>Generate and apply migration</item>
+          <item>Create helper functions for job run CRUD operations</item>
+        </subtasks>
+      </task>
+      <task id="4" title="Add OpenTelemetry Instrumentation">
+        <ac>AC-8.2.7</ac>
+        <files>src/lib/inngest/functions/overnight-scoring.ts</files>
+        <subtasks>
+          <item>Create job-level span: overnight-scoring-job</item>
+          <item>Add timing attributes: fetch_rates_ms, process_users_ms, total_duration_ms</item>
+          <item>Add count attributes: users_total, users_success, users_failed, assets_scored</item>
+          <item>Set span status appropriately on completion/error</item>
+        </subtasks>
+      </task>
+      <task id="5" title="Implement User Query Service">
+        <ac>AC-8.2.3</ac>
+        <files>src/lib/services/user-query-service.ts</files>
+        <subtasks>
+          <item>Create query to get active users with portfolios</item>
+          <item>Include user's configured markets</item>
+          <item>Include user's criteria version</item>
+          <item>Optimize query for batch processing</item>
+        </subtasks>
+      </task>
+      <task id="6" title="Write Unit Tests - Batch Scoring Service">
+        <ac>AC-8.2.3, AC-8.2.4</ac>
+        <files>tests/unit/services/batch-scoring-service.test.ts</files>
+        <subtasks>
+          <item>Test single user processing</item>
+          <item>Test batch processing (50 users)</item>
+          <item>Test event emission (4 events per user)</item>
+          <item>Test error handling (continue on user failure)</item>
+          <item>Test integration with ScoringEngine</item>
+        </subtasks>
+      </task>
+      <task id="7" title="Write Unit Tests - Overnight Scoring Job">
+        <ac>AC-8.2.1-8.2.7</ac>
+        <files>tests/unit/inngest/overnight-scoring-full.test.ts</files>
+        <subtasks>
+          <item>Test cron trigger configuration</item>
+          <item>Test exchange rates fetched once</item>
+          <item>Test user batch processing</item>
+          <item>Test graceful error handling</item>
+          <item>Test OpenTelemetry span attributes</item>
+          <item>Mock step.run calls for checkpointing verification</item>
+        </subtasks>
+      </task>
+      <task id="8" title="Write Integration Tests">
+        <ac>AC-8.2.3, AC-8.2.4</ac>
+        <files>tests/integration/overnight-scoring.test.ts</files>
+        <subtasks>
+          <item>Test end-to-end job execution with test database</item>
+          <item>Test event store integration (events recorded correctly)</item>
+          <item>Test overnight_job_runs table updates</item>
+          <item>Test partial failure scenarios</item>
+        </subtasks>
+      </task>
+      <task id="9" title="Run Verification">
+        <subtasks>
+          <item>TypeScript compilation successful</item>
+          <item>ESLint passes with no new errors</item>
+          <item>All unit tests pass</item>
+          <item>All integration tests pass</item>
+          <item>Build verification</item>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-8.2.1" title="Cron Trigger Configuration">
+      <given>the overnight scoring job is registered with Inngest</given>
+      <when>the configured cron time is reached (2h before market open)</when>
+      <then>
+        <item>the job triggers automatically</item>
+        <item>cron schedule is configurable via OVERNIGHT_JOB_CRON environment variable</item>
+        <item>default schedule is 4 AM UTC daily</item>
+      </then>
+    </criterion>
+    <criterion id="AC-8.2.2" title="Exchange Rates Fetch Once">
+      <given>the overnight job starts</given>
+      <when>exchange rates are needed</when>
+      <then>
+        <item>rates are fetched ONCE at the beginning of the job</item>
+        <item>the same rates are reused for ALL users in that job run</item>
+        <item>rates are stored in memory/context for the duration of the job</item>
+        <item>this ensures data consistency across all user calculations</item>
+      </then>
+    </criterion>
+    <criterion id="AC-8.2.3" title="User Portfolio Processing">
+      <given>exchange rates are fetched</given>
+      <when>the job processes users</when>
+      <then>
+        <item>for each active user with a portfolio: fetch prices, load criteria, calculate scores, store with audit</item>
+        <item>users are processed in batches of 50 for efficiency</item>
+        <item>processing uses the shared exchange rates from AC-8.2.2</item>
+      </then>
+    </criterion>
+    <criterion id="AC-8.2.4" title="Event Sourcing Integration">
+      <given>a user's scores are being calculated</given>
+      <when>the calculation completes</when>
+      <then>
+        <item>4 events are emitted per user: CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED</item>
+        <item>all events share the same correlationId linking the calculation</item>
+        <item>events are stored in the calculation_events table</item>
+      </then>
+    </criterion>
+    <criterion id="AC-8.2.5" title="Graceful Error Handling">
+      <given>a user's processing fails (e.g., API error, invalid data)</given>
+      <when>the error is caught</when>
+      <then>
+        <item>the job logs the error with user context</item>
+        <item>the job continues processing remaining users</item>
+        <item>failed users are counted in job metrics</item>
+        <item>partial completion is acceptable</item>
+      </then>
+    </criterion>
+    <criterion id="AC-8.2.6" title="Performance Target">
+      <given>the job is running for production scale</given>
+      <when>processing 1000 users</when>
+      <then>
+        <item>the job completes within 4 hours</item>
+        <item>this ensures completion before market open</item>
+        <item>average per-user processing time is less than 10 seconds</item>
+      </then>
+    </criterion>
+    <criterion id="AC-8.2.7" title="OpenTelemetry Observability">
+      <given>the overnight job runs</given>
+      <when>it completes (success or failure)</when>
+      <then>
+        <item>an OpenTelemetry span is created with attributes: fetch_rates_ms, users_total, users_success, users_failed, total_duration_ms, assets_scored</item>
+        <item>span status is set appropriately (OK/ERROR)</item>
+      </then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-8.md</path>
+        <title>Epic 8 Technical Specification: Overnight Processing</title>
+        <section>Story 8.2 - Overnight Scoring Job</section>
+        <snippet>Job triggers at cron time, fetches rates once, processes users with scoring. Events follow existing 4-event pattern from Story 1.4. Step functions enable checkpointing for long-running jobs.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-002, ADR-003</section>
+        <snippet>ADR-002: Event-Sourced Calculations - emit 4 events per calculation. ADR-003: Inngest for Background Jobs - step functions for checkpointing, per-market scheduling.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/8-1-inngest-job-infrastructure.md</path>
+        <title>Story 8.1: Inngest Job Infrastructure</title>
+        <section>Dev Agent Record</section>
+        <snippet>Created Inngest client with overnight processing event types. Placeholder overnight-scoring.ts has 6-step checkpointed pipeline with TODO comments for this story.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/inngest/client.ts</path>
+        <kind>service</kind>
+        <symbol>inngest, Events</symbol>
+        <lines>1-132</lines>
+        <reason>Inngest client with typed events including overnight/scoring.started, overnight/scoring.completed</reason>
+      </file>
+      <file>
+        <path>src/lib/inngest/functions/overnight-scoring.ts</path>
+        <kind>job-function</kind>
+        <symbol>overnightScoringJob</symbol>
+        <lines>1-137</lines>
+        <reason>Placeholder overnight scoring function with 6 step.run calls - this story implements the TODOs</reason>
+      </file>
+      <file>
+        <path>src/lib/events/event-store.ts</path>
+        <kind>service</kind>
+        <symbol>EventStore, eventStore</symbol>
+        <lines>1-207</lines>
+        <reason>Event store for appending and retrieving calculation events - REUSE append() and appendBatch()</reason>
+      </file>
+      <file>
+        <path>src/lib/calculations/scoring-engine.ts</path>
+        <kind>service</kind>
+        <symbol>calculateScores, calculateScoresWithEvents, ScoringEngine</symbol>
+        <lines>1-581</lines>
+        <reason>Scoring engine with decimal.js precision - REUSE calculateScores() or calculateScoresWithEvents()</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/exchange-rate-service.ts</path>
+        <kind>service</kind>
+        <symbol>ExchangeRateService</symbol>
+        <lines>1-458</lines>
+        <reason>Exchange rate service with fallback chain - REUSE getRates() method</reason>
+      </file>
+      <file>
+        <path>src/lib/providers/price-service.ts</path>
+        <kind>service</kind>
+        <symbol>PriceService</symbol>
+        <lines>1-441</lines>
+        <reason>Price service with fallback chain - REUSE getPrices() method</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/index.ts</path>
+        <kind>module</kind>
+        <symbol>getTracer, createJobSpan, withSpan, addTimingAttribute, SpanStatusCode</symbol>
+        <lines>1-84</lines>
+        <reason>OpenTelemetry utilities for job-level spans and timing attributes</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <reason>Structured logger for job status and error logging</reason>
+      </file>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>users, portfolios, portfolioAssets, criteriaVersions, calculationEvents, assetScores</symbol>
+        <lines>1-983</lines>
+        <reason>Database schema - add overnight_job_runs table per Task 3</reason>
+      </file>
+      <file>
+        <path>tests/unit/inngest/overnight-scoring.test.ts</path>
+        <kind>test</kind>
+        <symbol>describe, it</symbol>
+        <lines>1-100</lines>
+        <reason>Existing test patterns for Inngest functions - extend with full implementation tests</reason>
+      </file>
+    </code>
+    <dependencies>
+      <node>
+        <package>inngest</package>
+        <version>^3.46.0</version>
+        <purpose>Background job orchestration with step functions</purpose>
+      </node>
+      <node>
+        <package>decimal.js</package>
+        <version>^10.6.0</version>
+        <purpose>Financial precision for scoring calculations</purpose>
+      </node>
+      <node>
+        <package>drizzle-orm</package>
+        <version>^0.44.7</version>
+        <purpose>Type-safe database queries</purpose>
+      </node>
+      <node>
+        <package>@opentelemetry/api</package>
+        <version>^1.9.0</version>
+        <purpose>Span creation and attributes</purpose>
+      </node>
+      <node>
+        <package>zod</package>
+        <version>^4.1.13</version>
+        <purpose>Schema validation</purpose>
+      </node>
+      <node>
+        <package>vitest</package>
+        <version>^4.0.14</version>
+        <purpose>Unit testing framework</purpose>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture">ADR-002: Use 4-event pattern (CALC_STARTED, INPUTS_CAPTURED, SCORES_COMPUTED, CALC_COMPLETED)</constraint>
+    <constraint source="architecture">ADR-003: Use Inngest step functions for checkpointing</constraint>
+    <constraint source="architecture">decimal.js for all financial calculations - never use JavaScript arithmetic</constraint>
+    <constraint source="tech-spec">Users processed in batches of 50</constraint>
+    <constraint source="tech-spec">Exchange rates fetched ONCE per job run, reused for all users</constraint>
+    <constraint source="tech-spec">Continue processing on individual user failures</constraint>
+    <constraint source="tech-spec">Performance target: 1000 users in less than 4 hours</constraint>
+    <constraint source="CLAUDE.md">All new code must have corresponding unit tests</constraint>
+    <constraint source="CLAUDE.md">Use logger from @/lib/telemetry/logger - no console.error</constraint>
+    <constraint source="CLAUDE.md">Use standardized API responses from @/lib/api/responses.ts</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>EventStore.append</name>
+      <kind>method</kind>
+      <signature>async append(userId: string, event: CalculationEvent): Promise&lt;void&gt;</signature>
+      <path>src/lib/events/event-store.ts</path>
+    </interface>
+    <interface>
+      <name>EventStore.appendBatch</name>
+      <kind>method</kind>
+      <signature>async appendBatch(userId: string, events: CalculationEvent[]): Promise&lt;void&gt;</signature>
+      <path>src/lib/events/event-store.ts</path>
+    </interface>
+    <interface>
+      <name>calculateScores</name>
+      <kind>function</kind>
+      <signature>calculateScores(criteria: CriterionRule[], assets: AssetWithFundamentals[], criteriaVersionId: string): AssetScoreResult[]</signature>
+      <path>src/lib/calculations/scoring-engine.ts</path>
+    </interface>
+    <interface>
+      <name>calculateScoresWithEvents</name>
+      <kind>function</kind>
+      <signature>async calculateScoresWithEvents(config: ScoringEngineConfig, criteria: CriterionRule[], assets: AssetWithFundamentals[], eventEmitter: EventEmitter): Promise&lt;ScoreCalculationResult&gt;</signature>
+      <path>src/lib/calculations/scoring-engine.ts</path>
+    </interface>
+    <interface>
+      <name>ExchangeRateService.getRates</name>
+      <kind>method</kind>
+      <signature>async getRates(base: string, targets: string[], options?: ProviderServiceOptions): Promise&lt;ExchangeRateServiceResult&gt;</signature>
+      <path>src/lib/providers/exchange-rate-service.ts</path>
+    </interface>
+    <interface>
+      <name>PriceService.getPrices</name>
+      <kind>method</kind>
+      <signature>async getPrices(symbols: string[], options?: ProviderServiceOptions): Promise&lt;PriceServiceResult&gt;</signature>
+      <path>src/lib/providers/price-service.ts</path>
+    </interface>
+    <interface>
+      <name>step.run</name>
+      <kind>inngest-step</kind>
+      <signature>await step.run(name: string, fn: () =&gt; Promise&lt;T&gt;): Promise&lt;T&gt;</signature>
+      <path>inngest SDK</path>
+    </interface>
+    <interface>
+      <name>createJobSpan</name>
+      <kind>function</kind>
+      <signature>createJobSpan(name: string, attributes?: JobSpanAttributes): Span</signature>
+      <path>src/lib/telemetry/tracer.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows CLAUDE.md requirements: all new code must have unit tests covering success cases, error cases, and edge cases. Use Vitest for unit/integration tests, Playwright for E2E. Mock external services (providers). Tests located in tests/unit/ and tests/integration/. Follow existing patterns in tests/unit/inngest/*.test.ts for Inngest function testing.
+    </standards>
+    <locations>
+      <location>tests/unit/services/batch-scoring-service.test.ts (new)</location>
+      <location>tests/unit/inngest/overnight-scoring-full.test.ts (new)</location>
+      <location>tests/integration/overnight-scoring.test.ts (new)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-8.2.1">Test that overnightScoringJob has cron trigger; verify OVERNIGHT_JOB_CRON env var override works</idea>
+      <idea ac="AC-8.2.2">Mock ExchangeRateService; verify getRates called exactly once per job; verify same rates passed to all user batches</idea>
+      <idea ac="AC-8.2.3">Test BatchScoringService.processUserBatch with mock users; verify prices fetched, criteria loaded, scores calculated for each</idea>
+      <idea ac="AC-8.2.4">Mock EventStore.appendBatch; verify 4 events emitted per user with same correlationId</idea>
+      <idea ac="AC-8.2.5">Simulate user processing error; verify job continues and counts failure; verify error logged with user context</idea>
+      <idea ac="AC-8.2.6">Performance test with 100 mock users; verify average processing time under threshold</idea>
+      <idea ac="AC-8.2.7">Mock tracer; verify span created with required attributes; verify span status set on completion/error</idea>
+    </ideas>
+  </tests>
+</story-context>

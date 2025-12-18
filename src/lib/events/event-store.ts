@@ -13,7 +13,7 @@
 
 import { db, type Database } from "@/lib/db";
 import { calculationEvents } from "@/lib/db/schema";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, gte, lte, sql } from "drizzle-orm";
 import type { CalculationEvent, CalculationEventType, CalcStartedEvent } from "./types";
 
 /**
@@ -197,6 +197,124 @@ export class EventStore {
     const events = await this.getByCorrelationId(correlationId);
     const startedEvent = events.find((e) => e.eventType === "CALC_STARTED");
     return startedEvent ? (startedEvent.payload as CalcStartedEvent) : null;
+  }
+
+  /**
+   * Retrieves calculation events for a specific asset
+   *
+   * Story 8.6: Calculation Audit Trail
+   * AC-8.6.4: Users can query calculation history by asset
+   *
+   * This method searches for events where the payload contains the assetId.
+   * Events are stored with assetId in various locations depending on type:
+   * - INPUTS_CAPTURED: assetIds array
+   * - SCORES_COMPUTED: results[].assetId
+   *
+   * @param userId - User ID for tenant isolation (REQUIRED)
+   * @param assetId - Asset ID to search for in event payloads
+   * @param options - Query options for filtering and pagination
+   * @returns Array of events matching the asset in reverse chronological order
+   */
+  async getByAssetId(
+    userId: string,
+    assetId: string,
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<StoredEvent[]> {
+    const limit = options?.limit ?? 100;
+    const offset = options?.offset ?? 0;
+
+    // Build conditions array - always include userId for tenant isolation
+    const conditions = [eq(calculationEvents.userId, userId)];
+
+    // Add date range filters if provided
+    if (options?.startDate) {
+      conditions.push(gte(calculationEvents.createdAt, options.startDate));
+    }
+    if (options?.endDate) {
+      conditions.push(lte(calculationEvents.createdAt, options.endDate));
+    }
+
+    // Query events that contain the assetId in their payload
+    // Use JSONB contains operator to search within the payload
+    // This handles multiple event types where assetId might be in different locations
+    const results = await this.database
+      .select()
+      .from(calculationEvents)
+      .where(
+        and(
+          ...conditions,
+          // Search for assetId in payload using JSONB text search
+          // This matches assetId anywhere in the JSONB payload
+          sql`${calculationEvents.payload}::text LIKE ${"%" + assetId + "%"}`
+        )
+      )
+      .orderBy(desc(calculationEvents.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return results.map((row) => ({
+      id: row.id,
+      correlationId: row.correlationId,
+      userId: row.userId,
+      eventType: row.eventType as CalculationEventType,
+      payload: row.payload as CalculationEvent,
+      createdAt: row.createdAt,
+    }));
+  }
+
+  /**
+   * Gets all calculation events for a user within a date range
+   *
+   * Story 8.6: Calculation Audit Trail
+   * AC-8.6.4: Query calculation history with date range filtering
+   *
+   * @param userId - User ID for tenant isolation (REQUIRED)
+   * @param options - Query options for filtering and pagination
+   * @returns Array of events in reverse chronological order
+   */
+  async getByUserIdWithDateRange(
+    userId: string,
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<StoredEvent[]> {
+    const limit = options?.limit ?? 100;
+    const offset = options?.offset ?? 0;
+
+    // Build conditions array
+    const conditions = [eq(calculationEvents.userId, userId)];
+
+    if (options?.startDate) {
+      conditions.push(gte(calculationEvents.createdAt, options.startDate));
+    }
+    if (options?.endDate) {
+      conditions.push(lte(calculationEvents.createdAt, options.endDate));
+    }
+
+    const results = await this.database
+      .select()
+      .from(calculationEvents)
+      .where(and(...conditions))
+      .orderBy(desc(calculationEvents.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return results.map((row) => ({
+      id: row.id,
+      correlationId: row.correlationId,
+      userId: row.userId,
+      eventType: row.eventType as CalculationEventType,
+      payload: row.payload as CalculationEvent,
+      createdAt: row.createdAt,
+    }));
   }
 }
 

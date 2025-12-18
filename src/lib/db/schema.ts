@@ -776,6 +776,65 @@ export const recommendationItems = pgTable(
 );
 
 // =============================================================================
+// OVERNIGHT JOB RUNS TABLE (Epic 8)
+// =============================================================================
+
+/**
+ * Overnight job runs table - tracks execution history of overnight jobs
+ *
+ * Story 8.2: Overnight Scoring Job
+ * AC-8.2.5: Graceful Error Handling (job logs errors, counts failures)
+ * AC-8.2.6: Performance Target (track metrics for monitoring)
+ * AC-8.2.7: OpenTelemetry Observability (metrics stored)
+ *
+ * Key design decisions:
+ * - Tracks job execution for monitoring and debugging
+ * - JSONB metrics for flexible timing and count storage
+ * - correlationId links to calculation_events for audit trail
+ */
+export const overnightJobRuns = pgTable(
+  "overnight_job_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobType: varchar("job_type", { length: 50 }).notNull(), // 'scoring', 'recommendations', 'cache-warm'
+    status: varchar("status", { length: 20 }).notNull(), // 'started', 'completed', 'failed', 'partial'
+    startedAt: timestamp("started_at").notNull(),
+    completedAt: timestamp("completed_at"),
+    usersProcessed: integer("users_processed").default(0),
+    usersFailed: integer("users_failed").default(0),
+    correlationId: uuid("correlation_id").notNull(),
+    errorDetails: jsonb("error_details").$type<{
+      errors: Array<{
+        userId?: string;
+        message: string;
+        stage?: string;
+      }>;
+    }>(),
+    metrics: jsonb("metrics").$type<{
+      fetchRatesMs?: number;
+      processUsersMs?: number;
+      totalDurationMs?: number;
+      assetsScored?: number;
+      usersTotal?: number;
+      // Story 8.3: Recommendation metrics
+      recommendationsGenerated?: number;
+      usersWithRecommendations?: number;
+      recommendationDurationMs?: number;
+      // Story 8.4: Cache warming metrics
+      usersCached?: number;
+      cacheFailures?: number;
+      cacheWarmMs?: number;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("overnight_job_runs_correlation_id_idx").on(table.correlationId),
+    index("overnight_job_runs_status_idx").on(table.status),
+    index("overnight_job_runs_started_at_idx").on(table.startedAt),
+  ]
+);
+
+// =============================================================================
 // RELATIONS
 // =============================================================================
 
@@ -980,3 +1039,6 @@ export type NewRecommendation = typeof recommendations.$inferInsert;
 
 export type RecommendationItem = typeof recommendationItems.$inferSelect;
 export type NewRecommendationItem = typeof recommendationItems.$inferInsert;
+
+export type OvernightJobRun = typeof overnightJobRuns.$inferSelect;
+export type NewOvernightJobRun = typeof overnightJobRuns.$inferInsert;
