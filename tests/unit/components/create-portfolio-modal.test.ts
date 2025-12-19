@@ -6,13 +6,28 @@
  *
  * Tests for the CreatePortfolioModal controlled/uncontrolled behavior.
  *
+ * ## Test Coverage Plan
+ *
+ * **Unit Tests (this file):**
+ * - Props interface validation (TypeScript type checking)
+ * - Controlled/uncontrolled state logic
+ * - Open state resolution
+ * - handleOpenChange behavior
+ * - Name validation logic
+ *
+ * **E2E Tests (tests/e2e/portfolio.spec.ts):**
+ * - Full modal rendering and interaction
+ * - Form submission flow
+ * - Toast notifications
+ * - Page refresh after creation
+ *
  * Note: Since @testing-library/react is not installed,
- * we test the component props, type definitions, and state logic.
- * Full component rendering tests are E2E tests in Playwright.
+ * component rendering tests are covered in E2E tests with Playwright.
  */
 
 import { describe, it, expect, vi } from "vitest";
 import type { CreatePortfolioModalProps } from "@/components/portfolio/create-portfolio-modal";
+import { PORTFOLIO_NAME_MAX_LENGTH } from "@/lib/validations/portfolio";
 
 // =============================================================================
 // CONTROLLED VS UNCONTROLLED MODE TESTS
@@ -308,7 +323,8 @@ describe("Empty State Integration with CreatePortfolioModal", () => {
 // =============================================================================
 
 describe("CreatePortfolioModal Name Validation", () => {
-  const PORTFOLIO_NAME_MAX_LENGTH = 50;
+  // PORTFOLIO_NAME_MAX_LENGTH is imported from @/lib/validations/portfolio
+  // to ensure tests stay in sync with the actual validation rules
 
   describe("Character Counter", () => {
     it("should calculate remaining characters correctly", () => {

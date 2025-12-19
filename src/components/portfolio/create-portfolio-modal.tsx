@@ -189,14 +189,17 @@ export function CreatePortfolioModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button>
-            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-            Create Portfolio
-          </Button>
-        )}
-      </DialogTrigger>
+      {/* Only render trigger in uncontrolled mode to avoid conflicts with external state */}
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button>
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+              Create Portfolio
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
