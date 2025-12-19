@@ -37,12 +37,27 @@ import {
 interface CreatePortfolioModalProps {
   trigger?: React.ReactNode;
   onSuccess?: () => void;
+  /** External control: open state (optional - uses internal state if not provided) */
+  open?: boolean;
+  /** External control: callback when open state changes */
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CreatePortfolioModal({ trigger, onSuccess }: CreatePortfolioModalProps) {
+export function CreatePortfolioModal({
+  trigger,
+  onSuccess,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
+}: CreatePortfolioModalProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  // Use internal state if external control is not provided
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Determine if we're using external or internal control
+  const isControlled = externalOpen !== undefined;
+  const open = isControlled ? externalOpen : internalOpen;
+  const setOpen = isControlled ? (externalOnOpenChange ?? (() => {})) : setInternalOpen;
 
   const {
     register,

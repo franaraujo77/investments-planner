@@ -48,7 +48,7 @@ export function PortfolioPageClient({
   baseCurrency = "USD",
 }: PortfolioPageClientProps) {
   const router = useRouter();
-  const [, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedPortfolioId, setExpandedPortfolioId] = useState<string | null>(
     // Expand first portfolio by default if there's only one
     initialPortfolios.length === 1 && initialPortfolios[0] ? initialPortfolios[0].id : null
@@ -68,7 +68,8 @@ export function PortfolioPageClient({
       <>
         <PortfolioEmptyState onCreateClick={() => setIsModalOpen(true)} canCreate={canCreate} />
         <CreatePortfolioModal
-          trigger={<span className="hidden" />}
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
           onSuccess={handleCreateSuccess}
         />
       </>
