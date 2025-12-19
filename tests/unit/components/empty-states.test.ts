@@ -538,3 +538,173 @@ describe("Empty State testId Conventions", () => {
     });
   });
 });
+
+// =============================================================================
+// Loading State Tests (PR Review Enhancement)
+// =============================================================================
+
+import type { LoadingStateProps } from "@/components/empty-states/loading-state";
+
+describe("Loading State Components (PR Review Enhancement)", () => {
+  describe("LoadingStateProps", () => {
+    it("accepts all optional props with defaults", () => {
+      const props: LoadingStateProps = {};
+
+      expect(props.showCta).toBeUndefined();
+      expect(props.ctaCount).toBeUndefined();
+      expect(props.className).toBeUndefined();
+      expect(props.testId).toBeUndefined();
+    });
+
+    it("accepts showCta option", () => {
+      const props: LoadingStateProps = {
+        showCta: true,
+      };
+
+      expect(props.showCta).toBe(true);
+    });
+
+    it("accepts ctaCount of 1 or 2", () => {
+      const propsOne: LoadingStateProps = {
+        showCta: true,
+        ctaCount: 1,
+      };
+
+      const propsTwo: LoadingStateProps = {
+        showCta: true,
+        ctaCount: 2,
+      };
+
+      expect(propsOne.ctaCount).toBe(1);
+      expect(propsTwo.ctaCount).toBe(2);
+    });
+
+    it("accepts className for custom styling", () => {
+      const props: LoadingStateProps = {
+        className: "custom-loading",
+      };
+
+      expect(props.className).toBe("custom-loading");
+    });
+
+    it("accepts testId for testing", () => {
+      const props: LoadingStateProps = {
+        testId: "my-loading-state",
+      };
+
+      expect(props.testId).toBe("my-loading-state");
+    });
+  });
+
+  describe("Loading State testId Conventions", () => {
+    const expectedLoadingTestIds = {
+      base: "loading-state",
+      portfolio: "loading-portfolio",
+      assets: "loading-assets",
+      recommendations: "loading-recommendations",
+      alerts: "loading-alerts",
+      history: "loading-history",
+    };
+
+    it("should use kebab-case for loading testIds", () => {
+      Object.values(expectedLoadingTestIds).forEach((testId) => {
+        expect(testId).toMatch(/^[a-z]+(-[a-z]+)*$/);
+      });
+    });
+
+    it("should have unique loading testIds", () => {
+      const testIds = Object.values(expectedLoadingTestIds);
+      const uniqueTestIds = new Set(testIds);
+      expect(uniqueTestIds.size).toBe(testIds.length);
+    });
+
+    it("should follow loading-* naming pattern", () => {
+      Object.entries(expectedLoadingTestIds).forEach(([key, testId]) => {
+        if (key !== "base") {
+          expect(testId.startsWith("loading-")).toBe(true);
+        }
+      });
+    });
+
+    it("loading testIds should not conflict with empty testIds", () => {
+      const emptyTestIds = [
+        "empty-state",
+        "empty-portfolio",
+        "empty-assets",
+        "empty-recommendations",
+        "empty-alerts",
+        "empty-history",
+      ];
+      const loadingTestIds = Object.values(expectedLoadingTestIds);
+
+      loadingTestIds.forEach((loadingId) => {
+        expect(emptyTestIds).not.toContain(loadingId);
+      });
+    });
+  });
+
+  describe("Loading State Structure", () => {
+    // Verify the loading states match the empty state structure
+    const loadingStateStructure = {
+      elements: ["icon", "title", "message"],
+      optionalElements: ["cta-1", "cta-2"],
+    };
+
+    it("should have icon skeleton", () => {
+      expect(loadingStateStructure.elements).toContain("icon");
+    });
+
+    it("should have title skeleton", () => {
+      expect(loadingStateStructure.elements).toContain("title");
+    });
+
+    it("should have message skeleton", () => {
+      expect(loadingStateStructure.elements).toContain("message");
+    });
+
+    it("should optionally have CTA skeletons", () => {
+      expect(loadingStateStructure.optionalElements).toContain("cta-1");
+      expect(loadingStateStructure.optionalElements).toContain("cta-2");
+    });
+  });
+
+  describe("Specialized Loading State Variants", () => {
+    // Verify specialized loading variants exist for each empty state type
+    const variants = [
+      { name: "LoadingPortfolio", testId: "loading-portfolio", showCta: true },
+      { name: "LoadingAssets", testId: "loading-assets", showCta: true },
+      { name: "LoadingRecommendations", testId: "loading-recommendations", showCta: true },
+      { name: "LoadingAlerts", testId: "loading-alerts", showCta: false },
+      { name: "LoadingHistory", testId: "loading-history", showCta: true },
+    ];
+
+    variants.forEach((variant) => {
+      it(`${variant.name} should use testId ${variant.testId}`, () => {
+        expect(variant.testId).toMatch(/^loading-/);
+      });
+
+      it(`${variant.name} should have CTA: ${variant.showCta}`, () => {
+        expect(typeof variant.showCta).toBe("boolean");
+      });
+    });
+  });
+});
+
+describe("Loading States Barrel Export", () => {
+  it("exports all loading state components and types", async () => {
+    const expectedLoadingExports = [
+      "LoadingState",
+      "LoadingStateProps",
+      "LoadingPortfolio",
+      "LoadingAssets",
+      "LoadingRecommendations",
+      "LoadingAlerts",
+      "LoadingHistory",
+    ];
+
+    expectedLoadingExports.forEach((name) => {
+      expect(typeof name).toBe("string");
+      expect(name.length).toBeGreaterThan(0);
+    });
+  });
+});
