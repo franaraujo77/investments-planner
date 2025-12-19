@@ -34,14 +34,76 @@ import {
   PORTFOLIO_NAME_MAX_LENGTH,
 } from "@/lib/validations/portfolio";
 
-interface CreatePortfolioModalProps {
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Base props shared by both controlled and uncontrolled modes
+ */
+interface CreatePortfolioModalBaseProps {
+  /**
+   * Optional trigger element that opens the modal when clicked.
+   *
+   * **Uncontrolled mode:** Required - clicking the trigger opens the modal.
+   * **Controlled mode:** Optional - the modal is controlled by the `open` prop,
+   * so the trigger may not be needed if you're opening the modal externally
+   * (e.g., from a separate button like in the empty state).
+   *
+   * @default Button with "Create Portfolio" text
+   */
   trigger?: React.ReactNode;
+  /** Callback fired after successful portfolio creation */
   onSuccess?: () => void;
-  /** External control: open state (optional - uses internal state if not provided) */
-  open?: boolean;
-  /** External control: callback when open state changes */
-  onOpenChange?: (open: boolean) => void;
 }
+
+/**
+ * Props for uncontrolled mode (default) - modal manages its own open state
+ */
+interface CreatePortfolioModalUncontrolledProps extends CreatePortfolioModalBaseProps {
+  open?: never;
+  onOpenChange?: never;
+}
+
+/**
+ * Props for controlled mode - parent manages the open state
+ *
+ * Both `open` and `onOpenChange` must be provided together to ensure
+ * the modal can be opened and closed properly.
+ */
+interface CreatePortfolioModalControlledProps extends CreatePortfolioModalBaseProps {
+  /** Whether the modal is open (controlled mode) */
+  open: boolean;
+  /** Callback fired when the modal open state should change (controlled mode) */
+  onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * CreatePortfolioModal props - supports both controlled and uncontrolled modes
+ *
+ * @example Uncontrolled mode (default)
+ * ```tsx
+ * <CreatePortfolioModal onSuccess={() => router.refresh()} />
+ * ```
+ *
+ * @example Controlled mode (for external state management)
+ * ```tsx
+ * const [isOpen, setIsOpen] = useState(false);
+ * <Button onClick={() => setIsOpen(true)}>Create Portfolio</Button>
+ * <CreatePortfolioModal
+ *   open={isOpen}
+ *   onOpenChange={setIsOpen}
+ *   onSuccess={() => router.refresh()}
+ * />
+ * ```
+ */
+export type CreatePortfolioModalProps =
+  | CreatePortfolioModalUncontrolledProps
+  | CreatePortfolioModalControlledProps;
+
+// =============================================================================
+// COMPONENT
+// =============================================================================
 
 export function CreatePortfolioModal({
   trigger,
