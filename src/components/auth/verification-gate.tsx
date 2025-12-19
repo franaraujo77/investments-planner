@@ -85,6 +85,7 @@ export function VerificationGate({ children }: VerificationGateProps) {
             name: data.user.name,
             baseCurrency: data.user.baseCurrency,
             emailVerified: data.user.emailVerified,
+            disclaimerAcknowledgedAt: data.user.disclaimerAcknowledgedAt,
             createdAt: data.user.createdAt,
           };
           setUser(userData);

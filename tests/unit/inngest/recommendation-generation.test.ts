@@ -109,12 +109,45 @@ vi.mock("@/lib/providers/price-service", () => ({
   PriceService: class MockPriceService {},
 }));
 
+// Story 9.1: Mock alert detection service (added to overnight job)
+vi.mock("@/lib/services/alert-detection-service", () => ({
+  alertDetectionService: {
+    detectOpportunityAlerts: vi.fn(() =>
+      Promise.resolve({
+        userId: "",
+        portfolioId: "",
+        classesAnalyzed: 0,
+        assetsChecked: 0,
+        alertsCreated: 0,
+        alertsUpdated: 0,
+        alertsSkipped: 0,
+        durationMs: 5,
+      })
+    ),
+  },
+}));
+
+// Story 8.4: Mock cache warmer service
+vi.mock("@/lib/services/cache-warmer-service", () => ({
+  cacheWarmerService: {
+    warmCacheForUsers: vi.fn(() =>
+      Promise.resolve({
+        usersCached: 0,
+        cacheFailures: 0,
+        durationMs: 5,
+      })
+    ),
+  },
+}));
+
 // Import after mocks
 import { overnightScoringJob } from "@/lib/inngest/functions/overnight-scoring";
 import { batchRecommendationService } from "@/lib/services/batch-recommendation-service";
 import { userQueryService } from "@/lib/services/user-query-service";
 import { batchScoringService } from "@/lib/services/batch-scoring-service";
 import { overnightJobService } from "@/lib/services/overnight-job-service";
+import { alertDetectionService } from "@/lib/services/alert-detection-service";
+import { cacheWarmerService } from "@/lib/services/cache-warmer-service";
 
 describe("Overnight Job - Recommendation Generation Step", () => {
   let mockStep: {
@@ -128,6 +161,25 @@ describe("Overnight Job - Recommendation Generation Step", () => {
     mockStep = {
       run: vi.fn((name, fn) => fn()),
     };
+
+    // Reset alert detection mock to default (Story 9.1)
+    vi.mocked(alertDetectionService.detectOpportunityAlerts).mockResolvedValue({
+      userId: "",
+      portfolioId: "",
+      classesAnalyzed: 0,
+      assetsChecked: 0,
+      alertsCreated: 0,
+      alertsUpdated: 0,
+      alertsSkipped: 0,
+      durationMs: 5,
+    });
+
+    // Reset cache warmer mock to default (Story 8.4)
+    vi.mocked(cacheWarmerService.warmCacheForUsers).mockResolvedValue({
+      usersCached: 0,
+      cacheFailures: 0,
+      durationMs: 5,
+    });
   });
 
   describe("Step 6: generate-recommendations", () => {

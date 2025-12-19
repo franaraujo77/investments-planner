@@ -55,6 +55,15 @@ export interface JobRunMetrics {
   usersCached?: number;
   cacheFailures?: number;
   cacheWarmMs?: number; // AC-8.6.3: renamed from cacheWarmingDurationMs
+  // Story 9.1: Alert detection metrics
+  alertsCreated?: number;
+  alertsUpdated?: number;
+  alertDetectionMs?: number;
+  // Story 9.2: Drift alert detection metrics
+  driftAlertsCreated?: number;
+  driftAlertsUpdated?: number;
+  driftAlertsDismissed?: number;
+  driftAlertDetectionMs?: number;
 }
 
 /**

@@ -4,20 +4,26 @@
  * BalancedPortfolioState Component
  *
  * Story 7.5: Display Recommendations (Focus Mode)
+ * Story 9.6: Empty States & Helpful Messaging
+ *
  * AC-7.5.4: Balanced Portfolio Empty State
+ * AC-9.6.3: Empty Recommendations State Shows Encouraging Message
  *
  * Displays encouraging empty state when portfolio is balanced:
- * - "Your portfolio is perfectly balanced this month!"
+ * - "You're all set!" (per AC-9.6.3)
+ * - "Your portfolio is balanced. Check back next month for new recommendations."
  * - Visually distinct and encouraging
  * - Optional allocation summary
  *
  * Features:
  * - EmptyState pattern per UX spec
- * - Celebration icon
- * - Optional link to portfolio view
+ * - Celebration icon (CheckCircle2)
+ * - Link to portfolio view
  */
 
-import { CheckCircle, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -41,12 +47,11 @@ export interface BalancedPortfolioStateProps {
  * BalancedPortfolioState Component
  *
  * Displays an encouraging empty state for a balanced portfolio.
+ * Updated in Story 9.6 to match AC-9.6.3 requirements.
  *
  * @example
  * ```tsx
- * <BalancedPortfolioState
- *   onViewPortfolio={() => router.push("/portfolio")}
- * />
+ * <BalancedPortfolioState />
  * ```
  */
 export function BalancedPortfolioState({
@@ -61,25 +66,30 @@ export function BalancedPortfolioState({
         "text-center",
         className
       )}
-      data-testid="balanced-portfolio-state"
+      data-testid="empty-recommendations"
     >
-      {/* Celebration Icon */}
+      {/* Celebration Icon - AC-9.6.6: Relevant illustration */}
       <div
         className="flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-green-100 dark:bg-green-900/30"
         aria-hidden="true"
       >
-        <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+        <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
       </div>
 
-      {/* Main Message */}
-      <h3 className="text-xl font-semibold text-foreground mb-2" data-testid="balanced-title">
-        Your portfolio is perfectly balanced this month!
+      {/* AC-9.6.3: Title - "You're all set!" */}
+      <h3
+        className="text-xl font-semibold text-foreground mb-2"
+        data-testid="empty-recommendations-title"
+      >
+        You&apos;re all set!
       </h3>
 
-      {/* Subtitle */}
-      <p className="text-muted-foreground mb-6 max-w-md" data-testid="balanced-subtitle">
-        All your assets are within their target allocation ranges. No additional investments are
-        needed right now.
+      {/* AC-9.6.3: Message - encouraging, not confusing */}
+      <p
+        className="text-muted-foreground mb-6 max-w-md"
+        data-testid="empty-recommendations-message"
+      >
+        Your portfolio is balanced. Check back next month for new recommendations.
       </p>
 
       {/* Allocation Summary (optional) */}
@@ -90,19 +100,19 @@ export function BalancedPortfolioState({
         </div>
       )}
 
-      {/* View Portfolio Link (optional) */}
-      {onViewPortfolio && (
-        <button
-          type="button"
+      {/* AC-9.6.3: Secondary CTA - "View Portfolio" */}
+      {onViewPortfolio ? (
+        <Button
+          variant="outline"
           onClick={onViewPortfolio}
-          className={cn(
-            "text-sm font-medium text-primary hover:text-primary/80",
-            "underline underline-offset-4 transition-colors"
-          )}
-          data-testid="view-portfolio-link"
+          data-testid="empty-recommendations-secondary-cta"
         >
-          View your portfolio
-        </button>
+          View Portfolio
+        </Button>
+      ) : (
+        <Button asChild variant="outline" data-testid="empty-recommendations-secondary-cta">
+          <Link href="/portfolio">View Portfolio</Link>
+        </Button>
       )}
     </div>
   );

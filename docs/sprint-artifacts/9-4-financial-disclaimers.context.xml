@@ -1,0 +1,219 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>4</storyId>
+    <title>Financial Disclaimers</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-4-financial-disclaimers.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform</asA>
+    <iWant>display prominent financial disclaimers</iWant>
+    <soThat>users understand this is a calculation tool, not financial advice, and trust is established through transparency</soThat>
+    <tasks>
+      <task id="1" ac="9.4.4">Verify Database Schema Has disclaimerAcknowledgedAt Field - Files: src/lib/db/schema.ts</task>
+      <task id="2" ac="9.4.3,9.4.4">Create DisclaimerService - Files: src/lib/services/disclaimer-service.ts</task>
+      <task id="3" ac="9.4.3,9.4.4">Create Disclaimer Acknowledgment API Endpoint - Files: src/app/api/user/disclaimer/route.ts</task>
+      <task id="4" ac="9.4.1,9.4.2,9.4.3">Create Disclaimer Modal Component - Files: src/components/disclaimer/disclaimer-modal.tsx</task>
+      <task id="5" ac="9.4.1,9.4.3">Create DisclaimerCheck Wrapper Component - Files: src/components/disclaimer/disclaimer-check.tsx</task>
+      <task id="6" ac="9.4.1">Integrate DisclaimerCheck into Dashboard Layout - Files: src/app/(dashboard)/layout.tsx</task>
+      <task id="7" ac="9.4.5,9.4.6">Create Static Disclaimer Page - Files: src/app/(legal)/disclaimer/page.tsx</task>
+      <task id="8" ac="9.4.5">Add Disclaimer Link to Footer - Files: src/components/layout/footer.tsx (or equivalent)</task>
+      <task id="9" ac="9.4.3,9.4.4">Write Unit Tests - DisclaimerService - Files: tests/unit/services/disclaimer-service.test.ts</task>
+      <task id="10" ac="9.4.3,9.4.4">Write Unit Tests - Disclaimer API - Files: tests/unit/api/disclaimer.test.ts</task>
+      <task id="11" ac="9.4.1-9.4.6">Write E2E Tests - Disclaimer Flow - Files: tests/e2e/disclaimer.spec.ts</task>
+      <task id="12">Run Verification - TypeScript, ESLint, Tests, Build</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-9.4.1">Financial disclaimer modal shown on first dashboard visit - Modal blocks dashboard access, cannot be dismissed by clicking outside or pressing Escape</criterion>
+    <criterion id="AC-9.4.2">Disclaimer text explains non-financial-advice nature - Includes: mathematical calculations based on user criteria, NOT financial advice, past performance warning, consult advisor recommendation, user sole responsibility</criterion>
+    <criterion id="AC-9.4.3">User must acknowledge disclaimer before accessing dashboard - Click "I Understand" button records acknowledgment with timestamp, closes modal, subsequent visits skip modal</criterion>
+    <criterion id="AC-9.4.4">Acknowledgment timestamp stored in user record - disclaimerAcknowledgedAt field in users table set to current timestamp, persisted permanently</criterion>
+    <criterion id="AC-9.4.5">Disclaimer accessible anytime from footer link - "Financial Disclaimer" link in footer navigates to /disclaimer page with full disclaimer text</criterion>
+    <criterion id="AC-9.4.6">Disclaimer page includes algorithm transparency section - Explains: scoring based on user-configured criteria, market data from external providers, recommendations are mathematical calculations</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9: Alerts and Polish - Technical Specification</title>
+        <section>Story 9.4: Financial Disclaimers</section>
+        <snippet>FR63 coverage. Middleware intercepts dashboard routes, redirects to disclaimer if not acknowledged. Static /disclaimer page for reference. users.disclaimerAcknowledgedAt field already exists in schema.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Security Architecture, Implementation Patterns</section>
+        <snippet>Multi-tenant isolation: All queries MUST include userId filter. API Standards: Use standardized responses from @/lib/api/responses.ts. Custom error classes and error codes for error handling.</snippet>
+      </doc>
+      <doc>
+        <path>CLAUDE.md</path>
+        <title>Development Standards</title>
+        <section>PR Review Checklist, Test Requirements</section>
+        <snippet>Use logger from @/lib/telemetry/logger (not console.error). All new code requires corresponding unit tests. Use standardized API responses and error codes.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/lib/db/schema.ts</path>
+        <kind>schema</kind>
+        <symbol>users table - disclaimerAcknowledgedAt field</symbol>
+        <lines>43</lines>
+        <reason>Database field for storing disclaimer acknowledgment timestamp - already exists as timestamp("disclaimer_acknowledged_at")</reason>
+      </file>
+      <file>
+        <path>src/middleware.ts</path>
+        <kind>middleware</kind>
+        <symbol>middleware function, PROTECTED_ROUTES, PUBLIC_ROUTES</symbol>
+        <lines>42-106</lines>
+        <reason>Existing auth middleware pattern - may need to extend for disclaimer check, or use client-side approach like VerificationGate</reason>
+      </file>
+      <file>
+        <path>src/app/(dashboard)/layout.tsx</path>
+        <kind>layout</kind>
+        <symbol>DashboardLayout with VerificationGate wrapper</symbol>
+        <lines>20-50</lines>
+        <reason>Dashboard layout where DisclaimerCheck component should be integrated - follows VerificationGate pattern</reason>
+      </file>
+      <file>
+        <path>src/components/auth/verification-gate.tsx</path>
+        <kind>component</kind>
+        <symbol>VerificationGate</symbol>
+        <reason>Pattern to follow for DisclaimerCheck - wrapper component that checks condition and blocks/allows access</reason>
+      </file>
+      <file>
+        <path>src/lib/services/alert-preferences-service.ts</path>
+        <kind>service</kind>
+        <symbol>AlertPreferencesService class</symbol>
+        <lines>77-261</lines>
+        <reason>Service pattern to follow for DisclaimerService - constructor with Database injection, methods for get/update, tenant isolation via userId</reason>
+      </file>
+      <file>
+        <path>src/lib/api/responses.ts</path>
+        <kind>utility</kind>
+        <symbol>successResponse, errorResponse functions</symbol>
+        <reason>Standardized API response formats - MUST use for disclaimer API endpoints</reason>
+      </file>
+      <file>
+        <path>src/lib/api/error-codes.ts</path>
+        <kind>constants</kind>
+        <symbol>ERROR_CODES</symbol>
+        <reason>Standardized error codes - MUST use for disclaimer API error handling</reason>
+      </file>
+      <file>
+        <path>src/lib/telemetry/logger.ts</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <reason>Structured logging - MUST use instead of console.error/console.log</reason>
+      </file>
+      <file>
+        <path>src/components/ui/dialog.tsx</path>
+        <kind>ui-component</kind>
+        <symbol>Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription</symbol>
+        <reason>shadcn/ui Dialog component - use for DisclaimerModal, configure to prevent outside click dismiss</reason>
+      </file>
+      <file>
+        <path>src/lib/auth/service.ts</path>
+        <kind>service</kind>
+        <symbol>AuthService</symbol>
+        <reason>Contains user data fetching patterns - may need to extend for disclaimer status check</reason>
+      </file>
+      <file>
+        <path>src/app/api/auth/register/route.ts</path>
+        <kind>api-route</kind>
+        <symbol>POST handler</symbol>
+        <reason>Registration endpoint pattern - may need to verify it initializes disclaimerAcknowledgedAt as null</reason>
+      </file>
+      <file>
+        <path>src/contexts/user-context.tsx</path>
+        <kind>context</kind>
+        <symbol>UserProvider, useUser</symbol>
+        <reason>User context pattern - DisclaimerCheck can access user data including disclaimerAcknowledgedAt from here</reason>
+      </file>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.10">Framework - App Router for pages and API routes</package>
+        <package name="react" version="19.2.0">UI library</package>
+        <package name="@radix-ui/react-dialog" version="^1.1.15">Dialog component base for modal</package>
+        <package name="drizzle-orm" version="^0.44.7">ORM for database queries</package>
+        <package name="zod" version="^4.1.13">Schema validation for API inputs</package>
+        <package name="lucide-react" version="^0.555.0">Icons for UI</package>
+        <package name="sonner" version="^2.0.7">Toast notifications for errors</package>
+        <package name="vitest" version="^4.0.14">Unit testing framework</package>
+        <package name="@playwright/test" version="^1.57.0">E2E testing framework</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Multi-tenant isolation: All user queries MUST include userId filter to prevent data leakage</constraint>
+    <constraint type="api">Use standardized response formats from @/lib/api/responses.ts - successResponse() and errorResponse()</constraint>
+    <constraint type="api">Use standardized error codes from @/lib/api/error-codes.ts</constraint>
+    <constraint type="logging">Use structured logger from @/lib/telemetry/logger.ts - never use console.error or console.log</constraint>
+    <constraint type="security">Modal must not be dismissible by clicking outside or pressing Escape - user MUST click acknowledge button</constraint>
+    <constraint type="database">disclaimerAcknowledgedAt field already exists in users table - no schema migration needed</constraint>
+    <constraint type="pattern">Follow existing service patterns (AlertPreferencesService) with Database constructor injection</constraint>
+    <constraint type="pattern">Follow existing wrapper component pattern (VerificationGate) for DisclaimerCheck</constraint>
+    <constraint type="testing">All new code requires unit tests (service + API) and E2E tests</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>DisclaimerService</name>
+      <kind>class</kind>
+      <signature>class DisclaimerService { constructor(database: Database = db); async hasAcknowledgedDisclaimer(userId: string): Promise&lt;boolean&gt;; async acknowledgeDisclaimer(userId: string): Promise&lt;Date&gt;; }</signature>
+      <path>src/lib/services/disclaimer-service.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>POST /api/user/disclaimer/acknowledge</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/user/disclaimer/acknowledge - Body: {} - Response: { data: { acknowledgedAt: string } } - Requires authentication</signature>
+      <path>src/app/api/user/disclaimer/route.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>GET /api/user/disclaimer/status</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/user/disclaimer/status - Response: { data: { acknowledged: boolean, acknowledgedAt: string | null } } - Requires authentication</signature>
+      <path>src/app/api/user/disclaimer/route.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>users.disclaimerAcknowledgedAt</name>
+      <kind>database column</kind>
+      <signature>disclaimerAcknowledgedAt: timestamp("disclaimer_acknowledged_at") - nullable, set when user acknowledges disclaimer</signature>
+      <path>src/lib/db/schema.ts:43</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Testing follows project standards: Vitest for unit/integration tests, Playwright for E2E. All tests must pass before marking task complete. Unit tests mock database and external dependencies. API tests use mocked services. Test files mirror src directory structure. Use describe/it pattern with clear test descriptions.</standards>
+    <locations>
+      <location>tests/unit/services/*.test.ts - Service unit tests</location>
+      <location>tests/unit/api/*.test.ts - API route unit tests</location>
+      <location>tests/e2e/*.spec.ts - End-to-end Playwright tests</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-9.4.1">E2E: New user navigates to dashboard, modal appears blocking content</idea>
+      <idea ac="AC-9.4.1">E2E: Modal cannot be dismissed by Escape key or clicking outside</idea>
+      <idea ac="AC-9.4.2">Unit: DisclaimerModal renders correct disclaimer text with all required elements</idea>
+      <idea ac="AC-9.4.3">Unit: DisclaimerService.hasAcknowledgedDisclaimer returns false when disclaimerAcknowledgedAt is null</idea>
+      <idea ac="AC-9.4.3">Unit: DisclaimerService.hasAcknowledgedDisclaimer returns true when disclaimerAcknowledgedAt is set</idea>
+      <idea ac="AC-9.4.3">Unit: DisclaimerService.acknowledgeDisclaimer sets timestamp and returns it</idea>
+      <idea ac="AC-9.4.3">Integration: POST /acknowledge updates user record and returns timestamp</idea>
+      <idea ac="AC-9.4.3">E2E: Clicking acknowledge button closes modal and dashboard is accessible</idea>
+      <idea ac="AC-9.4.3">E2E: Returning user does not see disclaimer modal</idea>
+      <idea ac="AC-9.4.4">Unit: acknowledgeDisclaimer does not overwrite existing timestamp (idempotent)</idea>
+      <idea ac="AC-9.4.4">Unit: Tenant isolation - cannot acknowledge for other users</idea>
+      <idea ac="AC-9.4.5">E2E: Footer contains "Financial Disclaimer" link visible on all pages</idea>
+      <idea ac="AC-9.4.5">E2E: Clicking footer link navigates to /disclaimer page</idea>
+      <idea ac="AC-9.4.6">E2E: /disclaimer page contains algorithm transparency section</idea>
+      <idea ac="AC-9.4.6">Unit: Disclaimer page renders all required transparency content</idea>
+    </ideas>
+  </tests>
+</story-context>

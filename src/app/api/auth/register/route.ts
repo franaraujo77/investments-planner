@@ -20,6 +20,8 @@ import { inngest } from "@/lib/inngest";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { handleDbError, databaseError } from "@/lib/api/responses";
 import { DbErrorCode } from "@/lib/db/errors";
+import { alertPreferencesService } from "@/lib/services/alert-preferences-service";
+import { logger } from "@/lib/telemetry/logger";
 
 /**
  * Response type for registration
@@ -117,6 +119,20 @@ export async function POST(
       const user = await createUser(email, password, name, disclaimerAcknowledgedAt);
 
       span.setAttribute("user.id", user.id);
+
+      // Story 9.3: Create default alert preferences for the new user (AC-9.3.6)
+      // Note: This is fire-and-forget - registration succeeds even if preferences fail
+      // (preferences will be lazily created on first access if this fails)
+      try {
+        await alertPreferencesService.createDefaultPreferences(user.id);
+        logger.info("Default alert preferences created during registration", { userId: user.id });
+      } catch (prefError) {
+        // Log but don't fail registration - preferences will be created on first access
+        logger.warn("Failed to create default alert preferences during registration", {
+          userId: user.id,
+          error: prefError instanceof Error ? prefError.message : "Unknown error",
+        });
+      }
 
       // Generate verification token (JWT, 24h expiry)
       const verificationToken = await signVerificationToken(user.id);

@@ -9,6 +9,7 @@
  * Story 3.5: Mark Asset as Ignored
  * Story 3.6: Portfolio Overview with Values
  * Story 5.10: View Asset Score
+ * Story 9.6: Empty States & Helpful Messaging
  *
  * AC-3.2.5: Uses decimal.js for value calculations
  * AC-3.2.6: Displays assets with calculated total value
@@ -24,6 +25,7 @@
  * AC-3.6.5: Table sorting
  * AC-3.6.6: Table filtering
  * AC-5.10.1: Score badge display in asset rows
+ * AC-9.6.2: Empty Assets State messaging
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -561,9 +563,10 @@ export function PortfolioTable({
       </div>
 
       {assets.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <p>No assets in this portfolio yet.</p>
-          <p className="text-sm mt-1">Click &quot;Add Asset&quot; to get started.</p>
+        /* AC-9.6.2: Empty Assets State messaging */
+        <div className="text-center py-8 text-muted-foreground" data-testid="empty-assets-inline">
+          <p className="font-medium text-foreground">Your portfolio is empty</p>
+          <p className="text-sm mt-1">Add assets to get personalized investment recommendations.</p>
         </div>
       ) : (
         <div className="rounded-md border">
@@ -774,9 +777,10 @@ export function PortfolioTableWithValues({
       </div>
 
       {assets.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <p>No assets in this portfolio yet.</p>
-          <p className="text-sm mt-1">Click &quot;Add Asset&quot; to get started.</p>
+        /* AC-9.6.2: Empty Assets State messaging */
+        <div className="text-center py-8 text-muted-foreground" data-testid="empty-assets-inline">
+          <p className="font-medium text-foreground">Your portfolio is empty</p>
+          <p className="text-sm mt-1">Add assets to get personalized investment recommendations.</p>
         </div>
       ) : filteredAndSortedAssets.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">

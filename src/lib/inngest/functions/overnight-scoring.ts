@@ -68,6 +68,7 @@ import {
 import { cacheWarmerService } from "@/lib/services/cache-warmer-service";
 import { ExchangeRateService } from "@/lib/providers/exchange-rate-service";
 import { PriceService } from "@/lib/providers/price-service";
+import { alertDetectionService } from "@/lib/services/alert-detection-service";
 
 /**
  * Default cron schedule for overnight scoring
@@ -140,6 +141,31 @@ interface RecommendationResult {
 interface CacheWarmingResult {
   usersCached: number;
   cacheFailures: number;
+  durationMs: number;
+}
+
+/**
+ * Story 9.1: Alert detection result
+ */
+interface AlertDetectionResult {
+  usersProcessed: number;
+  alertsCreated: number;
+  alertsUpdated: number;
+  alertsSkipped: number;
+  usersFailed: number;
+  durationMs: number;
+}
+
+/**
+ * Story 9.2: Drift alert detection result
+ */
+interface DriftAlertDetectionResult {
+  usersProcessed: number;
+  classesAnalyzed: number;
+  alertsCreated: number;
+  alertsUpdated: number;
+  alertsDismissed: number;
+  usersFailed: number;
   durationMs: number;
 }
 
@@ -531,6 +557,221 @@ export const overnightScoringJob = inngest.createFunction(
       span.setAttribute("users_failed", scoringResult.usersFailed);
       span.setAttribute(SpanAttributes.ASSET_COUNT, scoringResult.assetsScored);
 
+      // Step 5b: Detect opportunity alerts (Story 9.1)
+      // AC-9.1.1: Alert triggered when better asset exists (10+ points higher)
+      // Must run after scoring so we have fresh scores to compare
+      // Alert detection failures should NOT fail the entire job
+      const alertDetectionResult = await step.run(
+        "detect-alerts",
+        async (): Promise<AlertDetectionResult> => {
+          const startMs = Date.now();
+          let totalUsersProcessed = 0;
+          let totalAlertsCreated = 0;
+          let totalAlertsUpdated = 0;
+          let totalAlertsSkipped = 0;
+          let totalUsersFailed = 0;
+
+          logger.info("Starting opportunity alert detection", {
+            correlationId: setupResult.correlationId,
+            usersToProcess: scoringResult.usersSuccess,
+          });
+
+          // Process alerts for successfully scored users
+          const successfulUsers = usersResult.users.filter(
+            (u) =>
+              !scoringResult.errors.some(
+                (e) => e.userId === u.userId && e.stage === "score-calculation"
+              )
+          );
+
+          // Process in batches to avoid overwhelming the database
+          for (let i = 0; i < successfulUsers.length; i += USER_BATCH_SIZE) {
+            const batch = successfulUsers.slice(i, i + USER_BATCH_SIZE);
+            const batchNumber = Math.floor(i / USER_BATCH_SIZE) + 1;
+
+            logger.info("Processing alert detection batch", {
+              correlationId: setupResult.correlationId,
+              batchNumber,
+              batchSize: batch.length,
+            });
+
+            for (const user of batch) {
+              try {
+                // Detect opportunities for this user's portfolio
+                const result = await alertDetectionService.detectOpportunityAlerts(
+                  user.userId,
+                  user.portfolioId
+                );
+
+                totalUsersProcessed++;
+                totalAlertsCreated += result.alertsCreated;
+                totalAlertsUpdated += result.alertsUpdated;
+                totalAlertsSkipped += result.alertsSkipped;
+
+                if (result.error) {
+                  totalUsersFailed++;
+                  logger.warn("Alert detection failed for user", {
+                    correlationId: setupResult.correlationId,
+                    userId: user.userId,
+                    error: result.error,
+                  });
+                }
+              } catch (error) {
+                // Don't fail entire job for alert detection errors
+                totalUsersFailed++;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.warn("Alert detection exception for user", {
+                  correlationId: setupResult.correlationId,
+                  userId: user.userId,
+                  error: errorMessage,
+                });
+              }
+            }
+
+            logger.info("Alert detection batch processed", {
+              correlationId: setupResult.correlationId,
+              batchNumber,
+              usersProcessed: batch.length,
+            });
+          }
+
+          const durationMs = Date.now() - startMs;
+
+          logger.info("Opportunity alert detection completed", {
+            correlationId: setupResult.correlationId,
+            usersProcessed: totalUsersProcessed,
+            alertsCreated: totalAlertsCreated,
+            alertsUpdated: totalAlertsUpdated,
+            alertsSkipped: totalAlertsSkipped,
+            usersFailed: totalUsersFailed,
+            durationMs,
+          });
+
+          return {
+            usersProcessed: totalUsersProcessed,
+            alertsCreated: totalAlertsCreated,
+            alertsUpdated: totalAlertsUpdated,
+            alertsSkipped: totalAlertsSkipped,
+            usersFailed: totalUsersFailed,
+            durationMs,
+          };
+        }
+      );
+
+      span.setAttribute("alerts_created", alertDetectionResult.alertsCreated);
+      span.setAttribute("alerts_updated", alertDetectionResult.alertsUpdated);
+
+      // Step 5c: Detect drift alerts (Story 9.2)
+      // AC-9.2.1: Alert when allocation drifts outside target range
+      // AC-9.2.4: Uses user's configured drift threshold
+      // AC-9.2.5: Respects driftAlertsEnabled preference
+      // AC-9.2.6: Auto-dismiss when allocation returns to range
+      // Must run after scoring so we have fresh allocation calculations
+      // Drift detection failures should NOT fail the entire job
+      const driftAlertDetectionResult = await step.run(
+        "detect-drift-alerts",
+        async (): Promise<DriftAlertDetectionResult> => {
+          const startMs = Date.now();
+          let totalUsersProcessed = 0;
+          let totalClassesAnalyzed = 0;
+          let totalAlertsCreated = 0;
+          let totalAlertsUpdated = 0;
+          let totalAlertsDismissed = 0;
+          let totalUsersFailed = 0;
+
+          logger.info("Starting drift alert detection", {
+            correlationId: setupResult.correlationId,
+            usersToProcess: scoringResult.usersSuccess,
+          });
+
+          // Process drift alerts for successfully scored users
+          const successfulUsers = usersResult.users.filter(
+            (u) =>
+              !scoringResult.errors.some(
+                (e) => e.userId === u.userId && e.stage === "score-calculation"
+              )
+          );
+
+          // Process in batches to avoid overwhelming the database
+          for (let i = 0; i < successfulUsers.length; i += USER_BATCH_SIZE) {
+            const batch = successfulUsers.slice(i, i + USER_BATCH_SIZE);
+            const batchNumber = Math.floor(i / USER_BATCH_SIZE) + 1;
+
+            logger.info("Processing drift alert detection batch", {
+              correlationId: setupResult.correlationId,
+              batchNumber,
+              batchSize: batch.length,
+            });
+
+            for (const user of batch) {
+              try {
+                // Detect drift for this user's portfolio
+                const result = await alertDetectionService.detectDriftAlerts(
+                  user.userId,
+                  user.portfolioId
+                );
+
+                totalUsersProcessed++;
+                totalClassesAnalyzed += result.classesAnalyzed;
+                totalAlertsCreated += result.alertsCreated;
+                totalAlertsUpdated += result.alertsUpdated;
+                totalAlertsDismissed += result.alertsDismissed;
+
+                if (result.error) {
+                  totalUsersFailed++;
+                  logger.warn("Drift alert detection failed for user", {
+                    correlationId: setupResult.correlationId,
+                    userId: user.userId,
+                    error: result.error,
+                  });
+                }
+              } catch (error) {
+                // Don't fail entire job for drift detection errors
+                totalUsersFailed++;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.warn("Drift alert detection exception for user", {
+                  correlationId: setupResult.correlationId,
+                  userId: user.userId,
+                  error: errorMessage,
+                });
+              }
+            }
+
+            logger.info("Drift alert detection batch processed", {
+              correlationId: setupResult.correlationId,
+              batchNumber,
+              usersProcessed: batch.length,
+            });
+          }
+
+          const durationMs = Date.now() - startMs;
+
+          logger.info("Drift alert detection completed", {
+            correlationId: setupResult.correlationId,
+            usersProcessed: totalUsersProcessed,
+            classesAnalyzed: totalClassesAnalyzed,
+            alertsCreated: totalAlertsCreated,
+            alertsUpdated: totalAlertsUpdated,
+            alertsDismissed: totalAlertsDismissed,
+            usersFailed: totalUsersFailed,
+            durationMs,
+          });
+
+          return {
+            usersProcessed: totalUsersProcessed,
+            classesAnalyzed: totalClassesAnalyzed,
+            alertsCreated: totalAlertsCreated,
+            alertsUpdated: totalAlertsUpdated,
+            alertsDismissed: totalAlertsDismissed,
+            usersFailed: totalUsersFailed,
+            durationMs,
+          };
+        }
+      );
+
+      span.setAttribute("drift_alerts_created", driftAlertDetectionResult.alertsCreated);
+      span.setAttribute("drift_alerts_dismissed", driftAlertDetectionResult.alertsDismissed);
+
       // Step 6: Generate recommendations for each user (Story 8.3)
       // AC-8.3.1: Recommendations generated using latest scores, allocation targets, portfolio allocations
       // AC-8.3.2: Uses default contribution amount
@@ -761,6 +1002,15 @@ export const overnightScoringJob = inngest.createFunction(
           usersCached: cacheWarmingResult.usersCached,
           cacheFailures: cacheWarmingResult.cacheFailures,
           cacheWarmMs: cacheWarmingResult.durationMs, // AC-8.6.3
+          // Story 9.1: Add alert detection metrics
+          alertsCreated: alertDetectionResult.alertsCreated,
+          alertsUpdated: alertDetectionResult.alertsUpdated,
+          alertDetectionMs: alertDetectionResult.durationMs,
+          // Story 9.2: Add drift alert detection metrics
+          driftAlertsCreated: driftAlertDetectionResult.alertsCreated,
+          driftAlertsUpdated: driftAlertDetectionResult.alertsUpdated,
+          driftAlertsDismissed: driftAlertDetectionResult.alertsDismissed,
+          driftAlertDetectionMs: driftAlertDetectionResult.durationMs,
         };
 
         if (scoringResult.usersFailed > 0 && scoringResult.errors.length > 0) {
@@ -776,6 +1026,9 @@ export const overnightScoringJob = inngest.createFunction(
             usersProcessed: scoringResult.usersProcessed,
             usersFailed: scoringResult.usersFailed,
             usersCached: cacheWarmingResult.usersCached,
+            alertsCreated: alertDetectionResult.alertsCreated,
+            driftAlertsCreated: driftAlertDetectionResult.alertsCreated,
+            driftAlertsDismissed: driftAlertDetectionResult.alertsDismissed,
             totalDurationMs,
           });
         } else {
@@ -790,6 +1043,9 @@ export const overnightScoringJob = inngest.createFunction(
             usersProcessed: scoringResult.usersProcessed,
             assetsScored: scoringResult.assetsScored,
             usersCached: cacheWarmingResult.usersCached,
+            alertsCreated: alertDetectionResult.alertsCreated,
+            driftAlertsCreated: driftAlertDetectionResult.alertsCreated,
+            driftAlertsDismissed: driftAlertDetectionResult.alertsDismissed,
             totalDurationMs,
           });
         }
@@ -814,6 +1070,13 @@ export const overnightScoringJob = inngest.createFunction(
         // Story 8.4: Add cache warming counts
         usersCached: cacheWarmingResult.usersCached,
         cacheFailures: cacheWarmingResult.cacheFailures,
+        // Story 9.1: Add alert detection counts
+        alertsCreated: alertDetectionResult.alertsCreated,
+        alertsUpdated: alertDetectionResult.alertsUpdated,
+        // Story 9.2: Add drift alert detection counts
+        driftAlertsCreated: driftAlertDetectionResult.alertsCreated,
+        driftAlertsUpdated: driftAlertDetectionResult.alertsUpdated,
+        driftAlertsDismissed: driftAlertDetectionResult.alertsDismissed,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
