@@ -37,6 +37,8 @@ export interface FetchRetryResult<T> {
   data?: T;
   /** Error message (if failed) */
   error?: string;
+  /** Error code from API response (if failed) - matches ERROR_CODES from @/lib/api/error-codes */
+  errorCode?: string;
   /** Whether the request succeeded */
   ok: boolean;
   /** HTTP status code */
@@ -167,6 +169,7 @@ export async function fetchWithRetry<T = unknown>(
       if (!response.ok) {
         return {
           error: result.error || `Request failed with status ${response.status}`,
+          errorCode: result.code, // Capture API error code for specific error handling
           ok: false,
           status: response.status,
           attempts,

@@ -144,19 +144,14 @@ export function CreatePortfolioModal({
 
     try {
       // Use postWithRetry for automatic rate limit handling with exponential backoff
-      const result = await postWithRetry<{
-        id: string;
-        name: string;
-        code?: string;
-        error?: string;
-      }>("/api/portfolios", data);
+      // Generic type matches SuccessResponseBody<T> structure from @/lib/api/responses.ts
+      const result = await postWithRetry<{ id: string; name: string }>("/api/portfolios", data);
 
       if (!result.ok) {
-        // Handle specific error codes
-        const errorData = result.data as { code?: string; error?: string } | undefined;
-        if (errorData?.code === "LIMIT_EXCEEDED") {
-          toast.error(errorData.error ?? "Portfolio limit exceeded");
-        } else if (errorData?.code === "VALIDATION_ERROR") {
+        // Handle specific error codes using errorCode from FetchRetryResult
+        if (result.errorCode === "LIMIT_EXCEEDED") {
+          toast.error(result.error ?? "Portfolio limit exceeded");
+        } else if (result.errorCode === "VALIDATION_ERROR") {
           toast.error("Please check your input and try again");
         } else {
           toast.error(result.error ?? "Failed to create portfolio");
@@ -164,7 +159,7 @@ export function CreatePortfolioModal({
         return;
       }
 
-      // Success
+      // Success - result.data is properly typed as { id: string; name: string }
       toast.success("Portfolio created successfully");
       setOpen(false);
       reset();

@@ -527,6 +527,56 @@ describe("fetchWithRetry", () => {
       expect(result.ok).toBe(false);
       expect(result.error).toBe("Request failed with status 500");
     });
+
+    it("captures error code from API response", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ error: "Portfolio limit exceeded", code: "LIMIT_EXCEEDED" }),
+        headers: new Headers(),
+      });
+
+      const resultPromise = fetchWithRetry("/api/test");
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Portfolio limit exceeded");
+      expect(result.errorCode).toBe("LIMIT_EXCEEDED");
+    });
+
+    it("handles missing error code gracefully", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: () => Promise.resolve({ error: "Validation error" }),
+        headers: new Headers(),
+      });
+
+      const resultPromise = fetchWithRetry("/api/test");
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe("Validation error");
+      expect(result.errorCode).toBeUndefined();
+    });
+
+    it("captures VALIDATION_ERROR code", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: () => Promise.resolve({ error: "Invalid input", code: "VALIDATION_ERROR" }),
+        headers: new Headers(),
+      });
+
+      const resultPromise = fetchWithRetry("/api/test");
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.ok).toBe(false);
+      expect(result.errorCode).toBe("VALIDATION_ERROR");
+    });
   });
 });
 
