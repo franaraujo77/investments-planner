@@ -12,9 +12,13 @@
  * AC5: Submit button disabled until form valid
  * AC7: Financial disclaimer checkbox
  * AC8: Success message
+ *
+ * Story 9.5: Terms of Service & Privacy Policy
+ * AC-9.5.3: Links to Terms and Privacy visible near registration submit button
  */
 
 import * as React from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -216,6 +220,27 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
             </FormItem>
           )}
         />
+
+        {/* Legal Links - Story 9.5: AC-9.5.3 */}
+        <p className="text-center text-sm text-muted-foreground">
+          By creating an account, you agree to our{" "}
+          <Link
+            href="/terms"
+            target="_blank"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            target="_blank"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Privacy Policy
+          </Link>
+          .
+        </p>
 
         {/* Submit Button (AC5 - disabled until valid) */}
         <Button type="submit" className="w-full" disabled={!isValid || isSubmitting}>

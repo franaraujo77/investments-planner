@@ -838,7 +838,7 @@ export const overnightJobRuns = pgTable(
 // RELATIONS
 // =============================================================================
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   refreshTokens: many(refreshTokens),
   calculationEvents: many(calculationEvents),
   verificationTokens: many(verificationTokens),
@@ -850,6 +850,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   assetScores: many(assetScores),
   scoreHistory: many(scoreHistory),
   recommendations: many(recommendations),
+  alerts: many(alerts),
+  alertPreferences: one(alertPreferences),
 }));
 
 export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
@@ -1042,3 +1044,157 @@ export type NewRecommendationItem = typeof recommendationItems.$inferInsert;
 
 export type OvernightJobRun = typeof overnightJobRuns.$inferSelect;
 export type NewOvernightJobRun = typeof overnightJobRuns.$inferInsert;
+
+// =============================================================================
+// ALERT METADATA INTERFACES (Epic 9)
+// =============================================================================
+
+/**
+ * OpportunityAlertMetadata - metadata for opportunity alerts
+ *
+ * Story 9.1: Opportunity Alert (Better Asset Exists)
+ * AC-9.1.1: Alert metadata includes all required fields for asset comparison
+ * AC-9.1.3: Contains assetIds for deep linking to score breakdowns
+ */
+export interface OpportunityAlertMetadata {
+  currentAssetId: string;
+  currentAssetSymbol: string;
+  currentScore: string;
+  betterAssetId: string;
+  betterAssetSymbol: string;
+  betterScore: string;
+  scoreDifference: string;
+  assetClassId: string;
+  assetClassName: string;
+}
+
+/**
+ * DriftAlertMetadata - metadata for allocation drift alerts
+ *
+ * Story 9.2: Allocation Drift Alert (future story)
+ */
+export interface DriftAlertMetadata {
+  assetClassId: string;
+  assetClassName: string;
+  currentAllocation: string;
+  targetMin: string;
+  targetMax: string;
+  driftAmount: string;
+  direction: "over" | "under";
+}
+
+/**
+ * AlertMetadata union type - all possible alert metadata types
+ */
+export type AlertMetadata = OpportunityAlertMetadata | DriftAlertMetadata | Record<string, unknown>;
+
+// =============================================================================
+// ALERTS TABLE (Epic 9)
+// =============================================================================
+
+/**
+ * Alerts table - user notifications for portfolio events
+ *
+ * Story 9.1: Opportunity Alert (Better Asset Exists)
+ * Story 9.2: Allocation Drift Alert
+ *
+ * Key design decisions:
+ * - JSONB metadata for flexible alert-specific data
+ * - Soft delete via is_dismissed flag
+ * - expires_at for time-sensitive alerts
+ * - Multi-tenant isolation via user_id
+ *
+ * AC-9.1.1: Alert triggered when better asset exists
+ * AC-9.1.2: Alert includes both asset details
+ * AC-9.1.4: Deduplication via unique constraint check in service layer
+ * AC-9.1.5: Auto-clear via isDismissed flag
+ */
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 50 }).notNull(), // 'opportunity', 'allocation_drift', 'system'
+    title: varchar("title", { length: 200 }).notNull(),
+    message: varchar("message", { length: 2000 }).notNull(),
+    severity: varchar("severity", { length: 20 }).notNull().default("info"), // 'info', 'warning', 'critical'
+    metadata: jsonb("metadata").notNull().$type<AlertMetadata>(),
+    isRead: boolean("is_read").notNull().default(false),
+    isDismissed: boolean("is_dismissed").notNull().default(false),
+    expiresAt: timestamp("expires_at"),
+    readAt: timestamp("read_at"),
+    dismissedAt: timestamp("dismissed_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("alerts_user_id_idx").on(table.userId),
+    index("alerts_type_idx").on(table.type),
+    index("alerts_created_at_idx").on(table.createdAt),
+  ]
+);
+
+// =============================================================================
+// ALERT PREFERENCES TABLE (Epic 9)
+// =============================================================================
+
+/**
+ * Alert preferences table - user notification settings
+ *
+ * Story 9.3: Alert Preferences
+ * Story 9.1: AC-9.1.6 - Alert respects user preferences (opportunityAlertsEnabled)
+ *
+ * Key design decisions:
+ * - One record per user (unique constraint on userId)
+ * - Default preferences created when first accessed
+ * - All alert types enabled by default
+ */
+export const alertPreferences = pgTable(
+  "alert_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    opportunityAlertsEnabled: boolean("opportunity_alerts_enabled").notNull().default(true),
+    driftAlertsEnabled: boolean("drift_alerts_enabled").notNull().default(true),
+    driftThreshold: numeric("drift_threshold", { precision: 5, scale: 2 })
+      .notNull()
+      .default("5.00"),
+    alertFrequency: varchar("alert_frequency", { length: 20 }).notNull().default("daily"), // 'realtime', 'daily', 'weekly'
+    emailNotifications: boolean("email_notifications").notNull().default(false),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [index("alert_preferences_user_id_idx").on(table.userId)]
+);
+
+// =============================================================================
+// ALERT RELATIONS
+// =============================================================================
+
+export const alertsRelations = relations(alerts, ({ one }) => ({
+  user: one(users, {
+    fields: [alerts.userId],
+    references: [users.id],
+  }),
+}));
+
+export const alertPreferencesRelations = relations(alertPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [alertPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+// =============================================================================
+// ALERT TYPE EXPORTS
+// =============================================================================
+
+export type Alert = typeof alerts.$inferSelect;
+export type NewAlert = typeof alerts.$inferInsert;
+
+export type AlertPreference = typeof alertPreferences.$inferSelect;
+export type NewAlertPreference = typeof alertPreferences.$inferInsert;

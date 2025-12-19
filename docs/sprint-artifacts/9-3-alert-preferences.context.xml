@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context for: 9-3-alert-preferences
+  Generated: 2025-12-18
+  Epic: 9 - Alerts & Polish
+  Story: Alert Preferences
+-->
+<story-context version="1.0">
+  <metadata>
+    <story-id>9.3</story-id>
+    <story-key>9-3-alert-preferences</story-key>
+    <story-title>Alert Preferences</story-title>
+    <epic-id>9</epic-id>
+    <epic-name>Alerts & Polish</epic-name>
+    <status>drafted</status>
+    <generated-date>2025-12-18</generated-date>
+  </metadata>
+
+  <!-- =================================================================== -->
+  <!-- STORY DEFINITION                                                    -->
+  <!-- =================================================================== -->
+  <story-definition>
+    <user-story>
+      <as-a>user</as-a>
+      <i-want>to configure my alert preferences</i-want>
+      <so-that>I only receive alerts that are relevant to me and can control how I'm notified</so-that>
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC-9.3.1" title="View Current Alert Preferences">
+        <given>I am on the Settings page</given>
+        <when>I navigate to the Alert Preferences section</when>
+        <then>I see my current alert preference settings:
+          - Opportunity alerts toggle (enabled/disabled)
+          - Drift alerts toggle (enabled/disabled)
+          - Drift threshold percentage input
+          - Alert frequency selection (realtime/daily/weekly)
+          - Email notifications toggle</then>
+      </criterion>
+
+      <criterion id="AC-9.3.2" title="Toggle Opportunity Alerts">
+        <given>I am viewing alert preferences</given>
+        <when>I toggle the opportunity alerts switch</when>
+        <then>My preference is saved immediately</then>
+        <and>Future opportunity alert detection respects this setting</and>
+      </criterion>
+
+      <criterion id="AC-9.3.3" title="Toggle Drift Alerts">
+        <given>I am viewing alert preferences</given>
+        <when>I toggle the drift alerts switch</when>
+        <then>My preference is saved immediately</then>
+        <and>Future drift alert detection respects this setting</and>
+      </criterion>
+
+      <criterion id="AC-9.3.4" title="Configure Drift Threshold">
+        <given>I am viewing alert preferences</given>
+        <when>I change the drift threshold value</when>
+        <then>The value is validated (1-50%, default 5%)</then>
+        <and>My preference is saved</and>
+        <and>Future drift alerts use this threshold</and>
+      </criterion>
+
+      <criterion id="AC-9.3.5" title="Select Alert Frequency">
+        <given>I am viewing alert preferences</given>
+        <when>I select an alert frequency (realtime/daily/weekly)</when>
+        <then>My preference is saved</then>
+        <note>Alert frequency affects batch vs immediate notifications (future feature)</note>
+      </criterion>
+
+      <criterion id="AC-9.3.6" title="Toggle Email Notifications">
+        <given>I am viewing alert preferences</given>
+        <when>I toggle email notifications</when>
+        <then>My preference is saved</then>
+        <note>Email delivery is a future feature - toggle is stored for when implemented</note>
+      </criterion>
+
+      <criterion id="AC-9.3.7" title="Default Preferences for New Users">
+        <given>I am a new user without saved preferences</given>
+        <when>I access the alert preferences section</when>
+        <then>Default preferences are shown:
+          - Opportunity alerts: enabled
+          - Drift alerts: enabled
+          - Drift threshold: 5.00%
+          - Alert frequency: daily
+          - Email notifications: disabled</then>
+      </criterion>
+    </acceptance-criteria>
+  </story-definition>
+
+  <!-- =================================================================== -->
+  <!-- EXISTING INFRASTRUCTURE                                             -->
+  <!-- =================================================================== -->
+  <existing-infrastructure critical="true">
+    <warning>DO NOT recreate these existing components - EXTEND or REUSE them</warning>
+
+    <component name="AlertPreferencesService" status="COMPLETE">
+      <location>src/lib/services/alert-preferences-service.ts</location>
+      <description>Full CRUD service for alert preferences - already fully implemented</description>
+      <methods>
+        <method name="getPreferences(userId)">Returns user preferences, creates defaults if none exist</method>
+        <method name="createDefaultPreferences(userId)">Creates preferences with default values</method>
+        <method name="updatePreferences(userId, updates)">Updates specified preference fields</method>
+        <method name="isOpportunityAlertsEnabled(userId)">Quick check helper</method>
+        <method name="isDriftAlertsEnabled(userId)">Quick check helper</method>
+        <method name="getDriftThreshold(userId)">Returns drift threshold</method>
+      </methods>
+      <interface name="AlertPreferencesUpdate">
+        <field name="opportunityAlertsEnabled" type="boolean" optional="true"/>
+        <field name="driftAlertsEnabled" type="boolean" optional="true"/>
+        <field name="driftThreshold" type="string" optional="true"/>
+        <field name="alertFrequency" type="realtime|daily|weekly" optional="true"/>
+        <field name="emailNotifications" type="boolean" optional="true"/>
+      </interface>
+      <defaults>
+        <default field="opportunityAlertsEnabled" value="true"/>
+        <default field="driftAlertsEnabled" value="true"/>
+        <default field="driftThreshold" value="5.00"/>
+        <default field="alertFrequency" value="daily"/>
+        <default field="emailNotifications" value="false"/>
+      </defaults>
+    </component>
+
+    <component name="Database Schema" status="COMPLETE">
+      <location>src/lib/db/schema.ts</location>
+      <table name="alertPreferences">
+        <column name="id" type="uuid" primary-key="true"/>
+        <column name="userId" type="uuid" unique="true" references="users.id"/>
+        <column name="opportunityAlertsEnabled" type="boolean" default="true"/>
+        <column name="driftAlertsEnabled" type="boolean" default="true"/>
+        <column name="driftThreshold" type="numeric(5,2)" default="5.00"/>
+        <column name="alertFrequency" type="varchar(20)" default="daily"/>
+        <column name="emailNotifications" type="boolean" default="false"/>
+        <column name="createdAt" type="timestamp"/>
+        <column name="updatedAt" type="timestamp"/>
+      </table>
+    </component>
+
+    <component name="Settings Page" status="EXISTS">
+      <location>src/app/(dashboard)/settings/page.tsx</location>
+      <description>Existing settings page - extend with alert preferences section</description>
+      <current-sections>
+        <section>ProfileSettingsForm (name, base currency)</section>
+        <section>ExportDataSection (data export)</section>
+        <section>DeleteAccountDialog (account deletion)</section>
+      </current-sections>
+      <action>ADD AlertPreferencesSection component</action>
+    </component>
+
+    <component name="User Settings API" status="EXISTS">
+      <location>src/app/api/user/settings/route.ts</location>
+      <description>Existing user settings API - consider extending OR create separate alert-preferences route</description>
+      <recommendation>Create new route at /api/user/alert-preferences for separation of concerns</recommendation>
+    </component>
+
+    <component name="withAuth Middleware" status="REUSE">
+      <location>src/lib/auth/middleware.ts</location>
+      <description>Authentication middleware for API routes</description>
+    </component>
+
+    <component name="API Responses" status="REUSE">
+      <location>src/lib/api/responses.ts</location>
+      <functions>
+        <function>successResponse(data, status?, meta?)</function>
+        <function>errorResponse(message, code, status?, details?)</function>
+        <function>validationError(issues)</function>
+        <function>withErrorHandling(handler, context?)</function>
+      </functions>
+    </component>
+
+    <component name="Error Codes" status="REUSE">
+      <location>src/lib/api/error-codes.ts</location>
+      <codes>
+        <code>VALIDATION_ERRORS.INVALID_INPUT</code>
+        <code>VALIDATION_ERRORS.OUT_OF_RANGE</code>
+        <code>NOT_FOUND_ERRORS.USER_NOT_FOUND</code>
+      </codes>
+    </component>
+
+    <component name="Existing Tests" status="COMPLETE">
+      <location>tests/unit/services/alert-preferences-service.test.ts</location>
+      <description>20 comprehensive tests for AlertPreferencesService - already passing</description>
+      <test-coverage>
+        <test-group>getPreferences - returns existing, creates defaults</test-group>
+        <test-group>createDefaultPreferences - correct default values</test-group>
+        <test-group>updatePreferences - updates specified fields</test-group>
+        <test-group>isOpportunityAlertsEnabled - true/false scenarios</test-group>
+        <test-group>isDriftAlertsEnabled - true/false scenarios</test-group>
+        <test-group>getDriftThreshold - default and custom values</test-group>
+        <test-group>DEFAULT_ALERT_PREFERENCES - all defaults correct</test-group>
+      </test-coverage>
+    </component>
+  </existing-infrastructure>
+
+  <!-- =================================================================== -->
+  <!-- TECHNICAL ARCHITECTURE                                              -->
+  <!-- =================================================================== -->
+  <technical-architecture>
+    <patterns>
+      <pattern name="Multi-Tenant Isolation">
+        <rule>All queries MUST filter by userId</rule>
+        <rule>Service methods require userId as first parameter</rule>
+      </pattern>
+
+      <pattern name="Decimal Precision">
+        <rule>Use numeric database types for threshold values</rule>
+        <rule>Store as strings in TypeScript, parse with Decimal.js when comparing</rule>
+      </pattern>
+
+      <pattern name="Service Layer">
+        <rule>Business logic in services, not API routes</rule>
+        <rule>API routes handle HTTP concerns only</rule>
+      </pattern>
+
+      <pattern name="Structured Logging">
+        <rule>Use logger from @/lib/telemetry/logger (not console)</rule>
+        <rule>Include userId in log context</rule>
+      </pattern>
+    </patterns>
+
+    <api-design>
+      <route method="GET" path="/api/user/alert-preferences">
+        <description>Get current alert preferences</description>
+        <auth>Required (withAuth)</auth>
+        <response status="200">{ data: AlertPreference }</response>
+        <response status="401">Not authenticated</response>
+      </route>
+
+      <route method="PATCH" path="/api/user/alert-preferences">
+        <description>Update alert preferences</description>
+        <auth>Required (withAuth)</auth>
+        <request-body>
+          <field name="opportunityAlertsEnabled" type="boolean" optional="true"/>
+          <field name="driftAlertsEnabled" type="boolean" optional="true"/>
+          <field name="driftThreshold" type="string" optional="true" validation="1.00-50.00"/>
+          <field name="alertFrequency" type="enum" values="realtime|daily|weekly" optional="true"/>
+          <field name="emailNotifications" type="boolean" optional="true"/>
+        </request-body>
+        <response status="200">{ data: AlertPreference }</response>
+        <response status="400">Validation error</response>
+        <response status="401">Not authenticated</response>
+      </route>
+    </api-design>
+
+    <ui-components>
+      <component name="AlertPreferencesSection">
+        <location>src/components/settings/alert-preferences-section.tsx</location>
+        <type>Client Component ("use client")</type>
+        <features>
+          <feature>Fetch preferences on mount</feature>
+          <feature>Optimistic UI updates</feature>
+          <feature>Toast notifications for save success/failure</feature>
+          <feature>Form validation</feature>
+        </features>
+        <ui-elements>
+          <element type="Switch" name="opportunityAlertsEnabled" label="Opportunity Alerts"/>
+          <element type="Switch" name="driftAlertsEnabled" label="Drift Alerts"/>
+          <element type="Input" name="driftThreshold" label="Drift Threshold %" type="number" min="1" max="50" step="0.5"/>
+          <element type="Select" name="alertFrequency" label="Alert Frequency" options="realtime|daily|weekly"/>
+          <element type="Switch" name="emailNotifications" label="Email Notifications"/>
+        </ui-elements>
+        <dependencies>
+          <dependency>@radix-ui/react-switch</dependency>
+          <dependency>@radix-ui/react-select</dependency>
+          <dependency>sonner (toast notifications)</dependency>
+          <dependency>react-hook-form + zod</dependency>
+        </dependencies>
+      </component>
+    </ui-components>
+  </technical-architecture>
+
+  <!-- =================================================================== -->
+  <!-- RELATED STORIES                                                     -->
+  <!-- =================================================================== -->
+  <related-stories>
+    <story id="9.1" status="review">
+      <title>Opportunity Alert (Better Asset Exists)</title>
+      <relevance>Uses AlertPreferencesService.isOpportunityAlertsEnabled() to respect user preferences</relevance>
+      <reference>docs/sprint-artifacts/9-1-opportunity-alert-better-asset-exists.md</reference>
+    </story>
+
+    <story id="9.2" status="done">
+      <title>Allocation Drift Alert</title>
+      <relevance>Uses AlertPreferencesService.isDriftAlertsEnabled() and getDriftThreshold() to respect user preferences</relevance>
+      <reference>docs/sprint-artifacts/9-2-allocation-drift-alert.md</reference>
+    </story>
+
+    <story id="2.6" status="done">
+      <title>Profile Settings &amp; Base Currency</title>
+      <relevance>Settings page pattern to follow</relevance>
+      <reference>src/app/(dashboard)/settings/page.tsx</reference>
+    </story>
+  </related-stories>
+
+  <!-- =================================================================== -->
+  <!-- IMPLEMENTATION TASKS                                                -->
+  <!-- =================================================================== -->
+  <implementation-tasks>
+    <task id="1" title="Create Alert Preferences API Routes">
+      <files>
+        <file action="create">src/app/api/user/alert-preferences/route.ts</file>
+      </files>
+      <subtasks>
+        <subtask>GET handler - return current preferences</subtask>
+        <subtask>PATCH handler - update preferences with validation</subtask>
+        <subtask>Use withAuth middleware</subtask>
+        <subtask>Use existing AlertPreferencesService</subtask>
+        <subtask>Zod validation for PATCH body</subtask>
+        <subtask>Standardized responses</subtask>
+      </subtasks>
+    </task>
+
+    <task id="2" title="Create AlertPreferencesSection UI Component">
+      <files>
+        <file action="create">src/components/settings/alert-preferences-section.tsx</file>
+      </files>
+      <subtasks>
+        <subtask>Client component with "use client"</subtask>
+        <subtask>Fetch preferences on mount using SWR or useEffect</subtask>
+        <subtask>Switch toggles for opportunityAlertsEnabled, driftAlertsEnabled, emailNotifications</subtask>
+        <subtask>Number input for driftThreshold (1-50%)</subtask>
+        <subtask>Select dropdown for alertFrequency</subtask>
+        <subtask>Optimistic UI updates with toast notifications</subtask>
+        <subtask>Loading state and error handling</subtask>
+      </subtasks>
+    </task>
+
+    <task id="3" title="Integrate into Settings Page">
+      <files>
+        <file action="modify">src/app/(dashboard)/settings/page.tsx</file>
+      </files>
+      <subtasks>
+        <subtask>Import AlertPreferencesSection</subtask>
+        <subtask>Add section between ProfileSettingsForm and ExportDataSection</subtask>
+        <subtask>Add section header "Alert Preferences"</subtask>
+      </subtasks>
+    </task>
+
+    <task id="4" title="Write Unit Tests - API Routes">
+      <files>
+        <file action="create">tests/unit/api/user-alert-preferences.test.ts</file>
+      </files>
+      <subtasks>
+        <subtask>Test GET returns current preferences</subtask>
+        <subtask>Test GET creates defaults for new user</subtask>
+        <subtask>Test PATCH updates individual fields</subtask>
+        <subtask>Test PATCH validates driftThreshold range</subtask>
+        <subtask>Test PATCH validates alertFrequency enum</subtask>
+        <subtask>Test 401 without auth</subtask>
+        <subtask>Test 400 for invalid input</subtask>
+      </subtasks>
+    </task>
+
+    <task id="5" title="Run Verification">
+      <subtasks>
+        <subtask>TypeScript: pnpm exec tsc --noEmit</subtask>
+        <subtask>ESLint: pnpm lint</subtask>
+        <subtask>Tests: pnpm test</subtask>
+        <subtask>Build: pnpm build</subtask>
+      </subtasks>
+    </task>
+  </implementation-tasks>
+
+  <!-- =================================================================== -->
+  <!-- CODE SNIPPETS                                                       -->
+  <!-- =================================================================== -->
+  <code-snippets>
+    <snippet name="AlertPreferencesService Usage" language="typescript">
+<![CDATA[
+import { alertPreferencesService } from "@/lib/services/alert-preferences-service";
+
+// Get preferences (creates defaults if none exist)
+const prefs = await alertPreferencesService.getPreferences(userId);
+
+// Update preferences
+const updated = await alertPreferencesService.updatePreferences(userId, {
+  opportunityAlertsEnabled: false,
+  driftThreshold: "10.00",
+});
+
+// Quick checks
+const opportunityEnabled = await alertPreferencesService.isOpportunityAlertsEnabled(userId);
+const driftEnabled = await alertPreferencesService.isDriftAlertsEnabled(userId);
+const threshold = await alertPreferencesService.getDriftThreshold(userId);
+]]>
+    </snippet>
+
+    <snippet name="API Route Pattern" language="typescript">
+<![CDATA[
+import { withAuth } from "@/lib/auth/middleware";
+import { successResponse, validationError, handleDbError, databaseError } from "@/lib/api/responses";
+import { alertPreferencesService } from "@/lib/services/alert-preferences-service";
+import { z } from "zod";
+
+const updateSchema = z.object({
+  opportunityAlertsEnabled: z.boolean().optional(),
+  driftAlertsEnabled: z.boolean().optional(),
+  driftThreshold: z.string()
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num >= 1 && num <= 50;
+    }, "Drift threshold must be between 1% and 50%")
+    .optional(),
+  alertFrequency: z.enum(["realtime", "daily", "weekly"]).optional(),
+  emailNotifications: z.boolean().optional(),
+}).refine(
+  (data) => Object.keys(data).length > 0,
+  "At least one field must be provided"
+);
+
+export const GET = withAuth(async (_request, session) => {
+  try {
+    const preferences = await alertPreferencesService.getPreferences(session.userId);
+    return successResponse(preferences);
+  } catch (error) {
+    const dbError = handleDbError(error, "fetch alert preferences");
+    return databaseError(dbError);
+  }
+});
+
+export const PATCH = withAuth(async (request, session) => {
+  try {
+    const body = await request.json();
+    const result = updateSchema.safeParse(body);
+
+    if (!result.success) {
+      return validationError(result.error.issues);
+    }
+
+    const updated = await alertPreferencesService.updatePreferences(session.userId, result.data);
+    return successResponse(updated);
+  } catch (error) {
+    const dbError = handleDbError(error, "update alert preferences");
+    return databaseError(dbError);
+  }
+});
+]]>
+    </snippet>
+
+    <snippet name="UI Component Pattern" language="typescript">
+<![CDATA[
+"use client";
+
+import { useState, useEffect } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+
+interface AlertPreferences {
+  opportunityAlertsEnabled: boolean;
+  driftAlertsEnabled: boolean;
+  driftThreshold: string;
+  alertFrequency: "realtime" | "daily" | "weekly";
+  emailNotifications: boolean;
+}
+
+export function AlertPreferencesSection() {
+  const [preferences, setPreferences] = useState<AlertPreferences | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPreferences();
+  }, []);
+
+  const fetchPreferences = async () => {
+    try {
+      const res = await fetch("/api/user/alert-preferences");
+      if (res.ok) {
+        const { data } = await res.json();
+        setPreferences(data);
+      }
+    } catch (error) {
+      toast.error("Failed to load alert preferences");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updatePreference = async (updates: Partial<AlertPreferences>) => {
+    try {
+      // Optimistic update
+      setPreferences((prev) => prev ? { ...prev, ...updates } : null);
+
+      const res = await fetch("/api/user/alert-preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to save");
+      }
+
+      toast.success("Preferences saved");
+    } catch (error) {
+      // Revert on error
+      fetchPreferences();
+      toast.error("Failed to save preferences");
+    }
+  };
+
+  // ... render with Switch, Select, Input components
+}
+]]>
+    </snippet>
+  </code-snippets>
+
+  <!-- =================================================================== -->
+  <!-- VALIDATION CHECKLIST                                                -->
+  <!-- =================================================================== -->
+  <validation-checklist>
+    <category name="Acceptance Criteria">
+      <check ac="9.3.1">Settings page shows all preference fields</check>
+      <check ac="9.3.2">Opportunity alerts toggle saves immediately</check>
+      <check ac="9.3.3">Drift alerts toggle saves immediately</check>
+      <check ac="9.3.4">Drift threshold validates 1-50% range</check>
+      <check ac="9.3.5">Alert frequency select saves correctly</check>
+      <check ac="9.3.6">Email notifications toggle saves</check>
+      <check ac="9.3.7">New users see default values</check>
+    </category>
+
+    <category name="Code Quality">
+      <check>No console.log/console.error (use logger)</check>
+      <check>All API routes use withAuth middleware</check>
+      <check>All service methods filter by userId (tenant isolation)</check>
+      <check>Zod validation for all API inputs</check>
+      <check>Standardized API responses</check>
+      <check>TypeScript strict mode passes</check>
+      <check>ESLint passes with no new errors</check>
+    </category>
+
+    <category name="Testing">
+      <check>Unit tests for API routes (GET, PATCH)</check>
+      <check>Validation error scenarios tested</check>
+      <check>Authentication required tests</check>
+      <check>All existing tests still pass</check>
+    </category>
+
+    <category name="UI/UX">
+      <check>Optimistic updates with loading states</check>
+      <check>Toast notifications for save success/failure</check>
+      <check>Accessible form elements with labels</check>
+      <check>Input validation feedback</check>
+    </category>
+  </validation-checklist>
+
+  <!-- =================================================================== -->
+  <!-- KEY FILES REFERENCE                                                 -->
+  <!-- =================================================================== -->
+  <key-files>
+    <file path="src/lib/services/alert-preferences-service.ts" action="REUSE">Complete service - use as-is</file>
+    <file path="src/lib/db/schema.ts" action="REFERENCE">alertPreferences table definition</file>
+    <file path="src/app/(dashboard)/settings/page.tsx" action="MODIFY">Add AlertPreferencesSection</file>
+    <file path="src/app/api/user/settings/route.ts" action="REFERENCE">Pattern for user settings API</file>
+    <file path="src/lib/api/responses.ts" action="IMPORT">API response utilities</file>
+    <file path="src/lib/api/error-codes.ts" action="IMPORT">Standardized error codes</file>
+    <file path="src/lib/auth/middleware.ts" action="IMPORT">withAuth middleware</file>
+    <file path="tests/unit/services/alert-preferences-service.test.ts" action="REFERENCE">Existing tests (20 passing)</file>
+  </key-files>
+</story-context>

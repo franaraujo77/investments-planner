@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { getSafeUserById } from "@/lib/auth/service";
 import { ProfileSettingsForm } from "@/components/settings/profile-settings-form";
+import { AlertPreferencesSection } from "@/components/settings/alert-preferences-section";
 import { ExportDataSection } from "@/components/settings/export-data-section";
 import { DeleteAccountDialog } from "@/components/settings/delete-account-dialog";
 
@@ -62,6 +63,9 @@ export default async function SettingsPage() {
           baseCurrency: user.baseCurrency,
         }}
       />
+
+      {/* Story 9.3: Alert Preferences */}
+      <AlertPreferencesSection />
 
       {/* Story 2.7: Data Export */}
       <ExportDataSection />

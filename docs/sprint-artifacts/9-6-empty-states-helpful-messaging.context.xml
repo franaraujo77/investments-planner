@@ -1,0 +1,335 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>6</storyId>
+    <title>Empty States &amp; Helpful Messaging</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-19</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-6-empty-states-helpful-messaging.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>helpful empty states throughout the app</iWant>
+    <soThat>I know what to do next when sections are empty</soThat>
+    <tasks>
+      <task id="1" name="Create Base EmptyState Component" acs="9.6.6, 9.6.7">
+        <file>src/components/empty-states/empty-state.tsx</file>
+        <items>
+          <item>Create src/components/empty-states/ directory</item>
+          <item>Create base EmptyState component with props: icon, title, message, primaryCta?, secondaryCta?</item>
+          <item>Use shadcn/ui Card as container</item>
+          <item>Style with centered content, muted colors for message</item>
+          <item>Support both button onClick and Link href patterns for CTAs</item>
+          <item>Export component and types</item>
+        </items>
+      </task>
+      <task id="2" name="Create Empty Portfolio State" acs="9.6.1">
+        <file>src/components/empty-states/empty-portfolio.tsx</file>
+        <items>
+          <item>Create EmptyPortfolio component using base EmptyState</item>
+          <item>Use FolderPlus or similar icon from Lucide</item>
+          <item>Title: "Welcome to Investments Planner"</item>
+          <item>Message: "Create your first portfolio to start tracking your investments."</item>
+          <item>Primary CTA: "Create Portfolio"</item>
+          <item>Accept onCreatePortfolio prop for CTA action</item>
+        </items>
+      </task>
+      <task id="3" name="Create Empty Assets State" acs="9.6.2">
+        <file>src/components/empty-states/empty-assets.tsx</file>
+        <items>
+          <item>Create EmptyAssets component using base EmptyState</item>
+          <item>Use PlusCircle or similar icon from Lucide</item>
+          <item>Title: "Your portfolio is empty"</item>
+          <item>Message: "Add assets to get personalized investment recommendations."</item>
+          <item>Primary CTA: "Add Asset"</item>
+          <item>Accept onAddAsset prop for CTA action</item>
+        </items>
+      </task>
+      <task id="4" name="Create Empty Recommendations State" acs="9.6.3">
+        <file>src/components/empty-states/empty-recommendations.tsx</file>
+        <items>
+          <item>Create EmptyRecommendations component using base EmptyState</item>
+          <item>Use CheckCircle2 or similar positive icon from Lucide</item>
+          <item>Title: "You're all set!"</item>
+          <item>Message: "Your portfolio is balanced. Check back next month for new recommendations."</item>
+          <item>Secondary CTA: "View Portfolio" linking to /portfolio</item>
+        </items>
+      </task>
+      <task id="5" name="Create Empty Alerts State" acs="9.6.4">
+        <file>src/components/empty-states/empty-alerts.tsx</file>
+        <items>
+          <item>Create EmptyAlerts component using base EmptyState</item>
+          <item>Use Bell or BellOff icon from Lucide</item>
+          <item>Title: "All clear!"</item>
+          <item>Message: "No alerts right now. We'll notify you if anything needs your attention."</item>
+          <item>No CTA needed (informational only)</item>
+        </items>
+      </task>
+      <task id="6" name="Create Empty History State" acs="9.6.5">
+        <file>src/components/empty-states/empty-history.tsx</file>
+        <items>
+          <item>Create EmptyHistory component using base EmptyState</item>
+          <item>Use History or Clock icon from Lucide</item>
+          <item>Title: "No investment history yet"</item>
+          <item>Message: "Your investment history will appear here after you confirm your first recommendations."</item>
+          <item>Secondary CTA: "View Dashboard" linking to /</item>
+        </items>
+      </task>
+      <task id="7" name="Integrate Empty States into Pages" acs="9.6.1-9.6.5">
+        <items>
+          <item>Integrate EmptyPortfolio into portfolio page when no portfolios exist</item>
+          <item>Integrate EmptyAssets into portfolio detail view when portfolio has no assets</item>
+          <item>Integrate EmptyRecommendations into dashboard when no recommendations</item>
+          <item>Integrate EmptyAlerts into alert dropdown when no alerts</item>
+          <item>Integrate EmptyHistory into history page when no history records</item>
+          <item>Ensure conditional rendering logic is correct</item>
+        </items>
+      </task>
+      <task id="8" name="Write Unit Tests" acs="9.6.1-9.6.7">
+        <file>tests/unit/components/empty-states.test.ts</file>
+        <items>
+          <item>Test base EmptyState component renders all props correctly</item>
+          <item>Test EmptyPortfolio renders with correct content</item>
+          <item>Test EmptyAssets renders with correct content</item>
+          <item>Test EmptyRecommendations renders with correct content</item>
+          <item>Test EmptyAlerts renders with correct content (no CTA)</item>
+          <item>Test EmptyHistory renders with correct content</item>
+          <item>Test CTA buttons/links have correct behavior</item>
+          <item>Test conditional rendering in page integrations</item>
+        </items>
+      </task>
+      <task id="9" name="Create Index Export File">
+        <file>src/components/empty-states/index.ts</file>
+        <items>
+          <item>Create barrel export file for all empty state components</item>
+          <item>Export base EmptyState component</item>
+          <item>Export all specific empty state components</item>
+        </items>
+      </task>
+      <task id="10" name="Run Verification">
+        <items>
+          <item>TypeScript compilation successful (pnpm exec tsc --noEmit)</item>
+          <item>ESLint passes with no errors (pnpm lint)</item>
+          <item>All tests pass (pnpm exec vitest run)</item>
+          <item>Build verification passed (pnpm build)</item>
+          <item>Manual verification: Check all empty states in UI</item>
+        </items>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-9.6.1" title="Empty Portfolio State Shows 'Create Your First Portfolio' CTA">
+      <given>I have no portfolios</given>
+      <when>I view the Portfolio page</when>
+      <then>
+        <item>I see an empty state with title: "Welcome to Investments Planner" or similar welcoming message</item>
+        <item>Message: "Create your first portfolio to start tracking your investments."</item>
+        <item>Primary CTA button: "Create Portfolio"</item>
+        <item>The CTA button triggers the portfolio creation flow</item>
+        <item>An optional illustration or icon is displayed</item>
+      </then>
+    </criterion>
+    <criterion id="AC-9.6.2" title="Empty Assets State Shows 'Add Your First Asset' CTA">
+      <given>I have a portfolio with no assets</given>
+      <when>I view that portfolio</when>
+      <then>
+        <item>I see an empty state with title: "Your portfolio is empty"</item>
+        <item>Message: "Add assets to get personalized investment recommendations."</item>
+        <item>Primary CTA button: "Add Asset"</item>
+        <item>The CTA button opens the add asset modal/dialog</item>
+        <item>The message explains the value of adding assets</item>
+      </then>
+    </criterion>
+    <criterion id="AC-9.6.3" title="Empty Recommendations State Shows Encouraging Message">
+      <given>my portfolio is balanced (no recommendations needed)</given>
+      <when>I view the Dashboard</when>
+      <then>
+        <item>I see an empty state with title: "You're all set!" or similar positive message</item>
+        <item>Message: "Your portfolio is balanced. Check back next month for new recommendations."</item>
+        <item>Secondary CTA: "View Portfolio" (to see current allocations)</item>
+        <item>The message is encouraging, not confusing (user should not think something is broken)</item>
+      </then>
+    </criterion>
+    <criterion id="AC-9.6.4" title="Empty Alerts State Shows 'All Clear' Message">
+      <given>I have no alerts</given>
+      <when>I view the alerts section/dropdown</when>
+      <then>
+        <item>I see an empty state with title: "All clear!"</item>
+        <item>Message: "No alerts right now. We'll notify you if anything needs your attention."</item>
+        <item>No CTA is necessary (informational only)</item>
+        <item>The message reassures the user that the system is working</item>
+      </then>
+    </criterion>
+    <criterion id="AC-9.6.5" title="Empty History State Shows Helpful Onboarding Message">
+      <given>I have no investment history</given>
+      <when>I view the History page</when>
+      <then>
+        <item>I see an empty state with title: "No investment history yet"</item>
+        <item>Message: "Your investment history will appear here after you confirm your first recommendations."</item>
+        <item>Secondary CTA: "View Dashboard" (to see recommendations)</item>
+        <item>The message guides the user to the next logical step</item>
+      </then>
+    </criterion>
+    <criterion id="AC-9.6.6" title="All Empty States Include Relevant Illustration">
+      <given>any empty state is displayed</given>
+      <when>I view the empty state component</when>
+      <then>
+        <item>An appropriate icon or illustration is visible</item>
+        <item>The visual is consistent with the app's design system</item>
+        <item>The visual supports (not distracts from) the message</item>
+      </then>
+    </criterion>
+    <criterion id="AC-9.6.7" title="Empty States Provide Context-Appropriate Next Action">
+      <given>any empty state is displayed</given>
+      <when>I view the empty state</when>
+      <then>
+        <item>The CTA (if any) is appropriate for the context:
+          - Empty portfolio → Create Portfolio
+          - Empty assets → Add Asset
+          - Empty recommendations → View Portfolio (or no CTA if truly balanced)
+          - Empty alerts → No CTA needed
+          - Empty history → View Dashboard
+        </item>
+        <item>The action takes me to the correct destination</item>
+      </then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-9.md</path>
+        <title>Epic 9: Alerts &amp; Polish - Technical Specification</title>
+        <section>Story 9.6: Empty States &amp; Helpful Messaging</section>
+        <snippet>Empty state messages defined: No Portfolios ("Welcome to Investments Planner"), No Assets ("Your portfolio is empty"), No Recommendations ("You're all set!"), No Alerts ("All clear!"), No History ("No investment history yet"). Technical notes specify consistent empty state component with customizable content.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture</title>
+        <section>Project Structure - Components</section>
+        <snippet>Component structure follows: src/components/ with subdirectories for ui/ (shadcn components), fintech/ (custom fintech components), portfolio/, recommendations/, etc. Custom components like RecommendationCard, AllocationGauge built on shadcn/ui primitives.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>Empty States Pattern</section>
+        <snippet>Empty States pattern: Illustration + CTA, persistent, centered in content area. Scenarios defined: No recommendations ("Your portfolio is perfectly balanced this month!"), No Assets ("Add your first asset to get started"), No History ("Complete your first investment cycle to see history").</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/components/portfolio/portfolio-empty-state.tsx</path>
+        <kind>component</kind>
+        <symbol>PortfolioEmptyState</symbol>
+        <lines>1-41</lines>
+        <reason>Existing empty state for portfolios (Story 3.1). Pattern to follow: centered layout, icon in rounded background, h2 title, muted paragraph, Button CTA. May need updating to match Story 9.6 messaging.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/recommendations/balanced-portfolio-state.tsx</path>
+        <kind>component</kind>
+        <symbol>BalancedPortfolioState</symbol>
+        <lines>1-109</lines>
+        <reason>Existing empty state for balanced recommendations (Story 7.5). Pattern to follow: centered layout, celebration icon with colored background, h3 title, muted subtitle, optional link. This already satisfies AC-9.6.3 - may just need review/alignment.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/card.tsx</path>
+        <kind>component</kind>
+        <symbol>Card, CardHeader, CardContent, CardFooter</symbol>
+        <lines>1-75</lines>
+        <reason>shadcn/ui Card component - use as container base for new EmptyState component per tech spec.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui/button.tsx</path>
+        <kind>component</kind>
+        <symbol>Button</symbol>
+        <lines>1-59</lines>
+        <reason>shadcn/ui Button - use for CTAs in empty states. Supports variants (default, outline, ghost, link) and asChild for Link components.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/(dashboard)/page.tsx</path>
+        <kind>page</kind>
+        <symbol>DashboardPage, FocusModeSection</symbol>
+        <lines>200-210</lines>
+        <reason>Dashboard page already uses BalancedPortfolioState for empty recommendations. Line 203: "if (isEmpty || !data) return &lt;BalancedPortfolioState /&gt;". Integration point for EmptyRecommendations is already handled.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/(dashboard)/portfolio/page.tsx</path>
+        <kind>page</kind>
+        <symbol>PortfolioPage</symbol>
+        <lines>43-77</lines>
+        <reason>Portfolio page server component. Passes initialPortfolios and canCreate to PortfolioPageClient. Integration point for EmptyPortfolio state.</reason>
+      </artifact>
+      <artifact>
+        <path>src/app/(dashboard)/history/page.tsx</path>
+        <kind>page</kind>
+        <symbol>HistoryPage</symbol>
+        <lines>38-58</lines>
+        <reason>History page server component. Passes initialHistory to HistoryPageClient. Integration point for EmptyHistory state (AC-3.9.6 already specifies empty state).</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/components/legal-links.test.ts</path>
+        <kind>test</kind>
+        <symbol>describe("Legal Links Configuration")</symbol>
+        <lines>1-103</lines>
+        <reason>Testing pattern from Story 9.5. Simple unit tests verifying configuration/content without DOM rendering. Follow similar pattern for empty state tests.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="lucide-react" version="^0.555.0">Icon library for empty state illustrations (FolderPlus, PlusCircle, CheckCircle2, Bell, History, Clock)</package>
+        <package name="next" version="16.0.10">Next.js framework with Link component for CTA navigation</package>
+        <package name="react" version="19.2.0">React for component creation</package>
+        <package name="class-variance-authority" version="^0.7.1">For variant-based component styling (Button variants)</package>
+        <package name="clsx" version="^2.1.1">For conditional className handling</package>
+        <package name="tailwind-merge" version="^3.4.0">For merging Tailwind classes (via cn utility)</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint source="architecture.md">Use shadcn/ui components (Card, Button) as base for empty states</constraint>
+    <constraint source="architecture.md">Follow existing component patterns: centered content, muted colors for secondary text</constraint>
+    <constraint source="tech-spec-epic-9.md">Empty state component must support: icon, title, message, optional primary/secondary CTAs</constraint>
+    <constraint source="CLAUDE.md">Every code change must include appropriate test coverage</constraint>
+    <constraint source="CLAUDE.md">No console.log/console.error - use structured logger</constraint>
+    <constraint source="CLAUDE.md">Unused variables must be prefixed with underscore (_)</constraint>
+    <constraint source="story">Reuse existing components (Card, Button) - do NOT recreate</constraint>
+    <constraint source="story">Follow patterns from PortfolioEmptyState and BalancedPortfolioState</constraint>
+    <constraint source="story">Use Lucide icons from lucide-react (already installed)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="EmptyStateProps" kind="interface" signature="interface EmptyStateProps { icon: LucideIcon; title: string; message: string; primaryCta?: { label: string; onClick?: () => void; href?: string }; secondaryCta?: { label: string; onClick?: () => void; href?: string }; className?: string; }" path="src/components/empty-states/empty-state.tsx">
+      Base props interface for reusable EmptyState component
+    </interface>
+    <interface name="PortfolioEmptyStateProps" kind="interface" signature="interface PortfolioEmptyStateProps { onCreateClick: () => void; canCreate?: boolean; }" path="src/components/portfolio/portfolio-empty-state.tsx">
+      Existing interface for portfolio empty state - new EmptyPortfolio should follow similar pattern
+    </interface>
+    <interface name="BalancedPortfolioStateProps" kind="interface" signature="interface BalancedPortfolioStateProps { className?: string; showAllocationSummary?: boolean; onViewPortfolio?: () => void; }" path="src/components/recommendations/balanced-portfolio-state.tsx">
+      Existing interface for balanced portfolio state - EmptyRecommendations can extend or replace this
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Per CLAUDE.md and project standards: All new components require unit tests covering rendering of all props, CTA behavior (onClick/navigation), and conditional rendering. Tests use Vitest with @testing-library/react patterns. Test file location: tests/unit/components/. Tests verify component behavior without requiring full DOM rendering where possible (configuration/content tests).
+    </standards>
+    <locations>
+      <location>tests/unit/components/*.test.ts</location>
+      <location>tests/unit/components/empty-states.test.ts (new)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-9.6.1">Test EmptyPortfolio renders "Welcome to Investments Planner" title and "Create Portfolio" CTA button</idea>
+      <idea ac="AC-9.6.2">Test EmptyAssets renders "Your portfolio is empty" title and "Add Asset" CTA button</idea>
+      <idea ac="AC-9.6.3">Test EmptyRecommendations renders "You're all set!" title with encouraging message</idea>
+      <idea ac="AC-9.6.4">Test EmptyAlerts renders "All clear!" title with NO CTA button</idea>
+      <idea ac="AC-9.6.5">Test EmptyHistory renders "No investment history yet" title with "View Dashboard" CTA</idea>
+      <idea ac="AC-9.6.6">Test all empty states render an icon element</idea>
+      <idea ac="AC-9.6.7">Test CTA hrefs/onClick handlers are correctly connected</idea>
+      <idea ac="all">Test base EmptyState component renders all optional/required props correctly</idea>
+    </ideas>
+  </tests>
+</story-context>

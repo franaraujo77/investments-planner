@@ -20,6 +20,7 @@ export interface User {
   name: string | null;
   baseCurrency: string;
   emailVerified: boolean;
+  disclaimerAcknowledgedAt: string | null;
   createdAt: string;
 }
 
@@ -37,6 +38,8 @@ interface UserContextValue {
   setIsLoading: (loading: boolean) => void;
   /** Clear user data (called on logout) */
   clearUser: () => void;
+  /** Update disclaimer acknowledged timestamp (called when user acknowledges) */
+  setDisclaimerAcknowledged: (acknowledgedAt: string) => void;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
@@ -63,6 +66,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUserState(null);
   }, []);
 
+  const setDisclaimerAcknowledged = useCallback((acknowledgedAt: string) => {
+    setUserState((prev) =>
+      prev
+        ? {
+            ...prev,
+            disclaimerAcknowledgedAt: acknowledgedAt,
+          }
+        : null
+    );
+  }, []);
+
   return (
     <UserContext.Provider
       value={{
@@ -71,6 +85,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser,
         setIsLoading,
         clearUser,
+        setDisclaimerAcknowledged,
       }}
     >
       {children}

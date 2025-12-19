@@ -95,6 +95,8 @@ export const NOT_FOUND_ERRORS = {
   NO_ASSETS: "NOT_FOUND_NO_ASSETS",
   /** No recommendations available for user */
   RECOMMENDATIONS_NOT_FOUND: "NOT_FOUND_RECOMMENDATIONS",
+  /** Alert not found (Story 9.1) */
+  ALERT_NOT_FOUND: "NOT_FOUND_ALERT",
 } as const;
 
 // =============================================================================

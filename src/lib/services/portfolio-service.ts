@@ -43,6 +43,8 @@ import {
   type AddAssetInput,
   type UpdateAssetInput,
 } from "@/lib/validations/portfolio";
+import { alertService } from "./alert-service";
+import { logger } from "@/lib/telemetry/logger";
 
 /**
  * Custom error for portfolio limit exceeded
@@ -256,7 +258,56 @@ export async function addAsset(
       throw new Error("Failed to create asset");
     }
 
-    return result[0];
+    const createdAsset = result[0];
+
+    // Story 9.1, AC-9.1.5: Auto-dismiss opportunity alerts when better asset is added
+    // If user adds the "better" asset from an opportunity alert, dismiss those alerts
+    try {
+      const dismissedCount = await alertService.autoDismissForAddedAsset(userId, createdAsset.id);
+      if (dismissedCount > 0) {
+        logger.info("Auto-dismissed opportunity alerts for added asset", {
+          userId,
+          assetId: createdAsset.id,
+          symbol: createdAsset.symbol,
+          dismissedCount,
+        });
+      }
+    } catch (alertError) {
+      // Don't fail asset creation if alert dismissal fails
+      logger.warn("Failed to auto-dismiss alerts for added asset", {
+        userId,
+        assetId: createdAsset.id,
+        error: alertError instanceof Error ? alertError.message : String(alertError),
+      });
+    }
+
+    // Story 9.2, AC-9.2.6: Auto-dismiss drift alerts when allocation returns to target range
+    // Adding an asset may bring the allocation back into range
+    try {
+      const driftDismissedCount = await alertService.autoDismissResolvedDriftAlerts(
+        userId,
+        portfolioId
+      );
+      if (driftDismissedCount > 0) {
+        logger.info("Auto-dismissed drift alerts after asset addition", {
+          userId,
+          portfolioId,
+          assetId: createdAsset.id,
+          symbol: createdAsset.symbol,
+          driftDismissedCount,
+        });
+      }
+    } catch (driftAlertError) {
+      // Don't fail asset creation if drift alert check fails
+      logger.warn("Failed to check drift alerts after asset addition", {
+        userId,
+        portfolioId,
+        assetId: createdAsset.id,
+        error: driftAlertError instanceof Error ? driftAlertError.message : String(driftAlertError),
+      });
+    }
+
+    return createdAsset;
   } catch (error) {
     // Handle PostgreSQL unique constraint violation
     // Error code 23505 = unique_violation

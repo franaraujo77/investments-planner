@@ -1,0 +1,243 @@
+<story-context id="9-2-allocation-drift-alert" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>2</storyId>
+    <title>Allocation Drift Alert</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-2-allocation-drift-alert.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to be alerted when my portfolio allocation drifts outside my configured target ranges</iWant>
+    <soThat>I can take corrective action through contributions to maintain my investment strategy</soThat>
+    <tasks>
+      <task id="1" ac="9.2.1,9.2.2,9.2.3,9.2.7">Extend AlertService with Drift Alert Methods</task>
+      <task id="2" ac="9.2.1,9.2.4,9.2.5,9.2.6,9.2.7">Extend AlertDetectionService with Drift Detection</task>
+      <task id="3" ac="9.2.1">Integrate Drift Detection into Overnight Processing</task>
+      <task id="4" ac="9.2.6">Integrate Drift Check After Investment Confirmation</task>
+      <task id="5" ac="9.2.1,9.2.2,9.2.3,9.2.7">Write Unit Tests - AlertService Drift Methods</task>
+      <task id="6" ac="9.2.1,9.2.4,9.2.5,9.2.6,9.2.7">Write Unit Tests - AlertDetectionService Drift Detection</task>
+      <task id="7" ac="9.2.1,9.2.4,9.2.5,9.2.6,9.2.7">Write Integration Tests - Drift Detection Flow</task>
+      <task id="8">Run Verification (tsc, lint, tests, build)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="9.2.1" title="Drift Alert Triggered When Allocation Exceeds Threshold">
+      When any asset class allocation drifts outside its target range by more than the threshold,
+      an allocation drift alert is created with type='allocation_drift', userId, severity='warning',
+      and metadata containing: assetClassId, assetClassName, currentAllocation, targetMin, targetMax,
+      driftAmount, direction ('over' or 'under').
+    </ac>
+    <ac id="9.2.2" title="Alert Shows Current vs Target Allocation">
+      Alert includes: current allocation %, target range (min-max), drift amount, direction indicator.
+      Message format: "[CLASS_NAME] at [CURRENT]%, target is [MIN]-[MAX]%"
+    </ac>
+    <ac id="9.2.3" title="Alert Categorizes Drift Direction">
+      If current > targetMax: direction='over' with "Consider not adding to this class".
+      If current < targetMin: direction='under' with "Increase contributions here".
+      Severity: 'warning' if drift > threshold but < 2x threshold, 'critical' if >= 2x threshold.
+    </ac>
+    <ac id="9.2.4" title="Drift Threshold is Configurable">
+      User's driftThreshold from alert_preferences (default 5.00%) is used.
+      Alert only created if |currentAllocation - targetEdge| > threshold.
+    </ac>
+    <ac id="9.2.5" title="Alert Respects User Preferences">
+      If driftAlertsEnabled=false in alert_preferences, no drift alerts are created.
+    </ac>
+    <ac id="9.2.6" title="Alert Auto-Clears When Allocation Returns to Range">
+      When allocation returns to target range, drift alert is automatically dismissed
+      (isDismissed=true, dismissedAt=timestamp).
+    </ac>
+    <ac id="9.2.7" title="Drift Alert Deduplication">
+      No duplicate alert for same (userId, assetClassId) pair.
+      Existing alert updated if drift amount changes >2%.
+    </ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-9.md" title="Epic 9 Tech Spec" section="Story 9.2 Allocation Drift Alert">
+        Defines drift detection algorithm, severity levels, deduplication strategy, and integration points.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture" section="Security Architecture, Implementation Patterns">
+        Multi-tenant isolation (all queries MUST include userId), decimal precision for financial calculations.
+      </doc>
+      <doc path="docs/epics.md" title="Epics" section="Epic 9 Story 9.2">
+        User story and high-level acceptance criteria for allocation drift alerts.
+      </doc>
+      <doc path="docs/sprint-artifacts/9-1-opportunity-alert-better-asset-exists.md" title="Previous Story" section="Dev Agent Record">
+        AlertService patterns, test structure, deduplication approach, TypeScript patterns for Drizzle mocks.
+      </doc>
+      <doc path="CLAUDE.md" title="Project Standards" section="Test Requirements">
+        All code changes require tests. Unit tests for service methods, integration tests for flows.
+      </doc>
+    </docs>
+
+    <code>
+      <file path="src/lib/services/alert-service.ts" kind="service" lines="1-594" reason="EXTEND: Add createDriftAlert, findExistingDriftAlert, updateDriftAlertIfChanged, autoDismissResolvedDriftAlerts">
+        <symbols>
+          <symbol name="AlertService" type="class">Main service class to extend with drift alert methods</symbol>
+          <symbol name="ALERT_TYPES" type="const">Contains ALLOCATION_DRIFT type already defined</symbol>
+          <symbol name="ALERT_SEVERITIES" type="const">INFO, WARNING, CRITICAL severity levels</symbol>
+          <symbol name="createOpportunityAlert" type="method">Pattern to follow for createDriftAlert</symbol>
+          <symbol name="findExistingAlert" type="method">Pattern for findExistingDriftAlert (different key)</symbol>
+          <symbol name="updateAlertIfChanged" type="method">Pattern for updateDriftAlertIfChanged</symbol>
+          <symbol name="autoDismissForAddedAsset" type="method">Pattern for autoDismissResolvedDriftAlerts</symbol>
+          <symbol name="SCORE_UPDATE_THRESHOLD" type="const">5 points - use similar DRIFT_UPDATE_THRESHOLD of 2%</symbol>
+        </symbols>
+      </file>
+      <file path="src/lib/services/alert-detection-service.ts" kind="service" lines="1-455" reason="EXTEND: Add detectDriftAlerts method following detectOpportunityAlerts pattern">
+        <symbols>
+          <symbol name="AlertDetectionService" type="class">Extend with detectDriftAlerts method</symbol>
+          <symbol name="detectOpportunityAlerts" type="method">Pattern for drift detection loop</symbol>
+          <symbol name="getUserPortfolioAssets" type="method">Reuse for getting assets by class</symbol>
+          <symbol name="OpportunityDetectionResult" type="interface">Model for DriftDetectionResult</symbol>
+        </symbols>
+      </file>
+      <file path="src/lib/services/alert-preferences-service.ts" kind="service" lines="1-226" reason="USE: isDriftAlertsEnabled, getDriftThreshold methods already exist">
+        <symbols>
+          <symbol name="isDriftAlertsEnabled" type="method">Check before creating drift alerts</symbol>
+          <symbol name="getDriftThreshold" type="method">Get user's threshold (default 5%)</symbol>
+          <symbol name="DEFAULT_ALERT_PREFERENCES" type="const">driftAlertsEnabled: true, driftThreshold: "5.00"</symbol>
+        </symbols>
+      </file>
+      <file path="src/lib/inngest/functions/overnight-scoring.ts" kind="function" lines="551-646" reason="EXTEND: Add drift detection step after opportunity detection (Step 5c)">
+        <symbols>
+          <symbol name="AlertDetectionResult" type="interface">Add drift metrics: driftAlertsCreated, driftAlertsDismissed</symbol>
+          <symbol name="detect-alerts step" type="step">Add detectDriftAlerts call after detectOpportunityAlerts</symbol>
+        </symbols>
+      </file>
+      <file path="src/lib/services/portfolio-service.ts" kind="service" reason="EXTEND: Call drift detection after investment confirmation">
+        <symbols>
+          <symbol name="confirmInvestment" type="method">Trigger point for drift recheck</symbol>
+        </symbols>
+      </file>
+      <file path="src/lib/db/schema.ts" kind="schema" lines="1076-1084" reason="USE: DriftAlertMetadata interface already defined">
+        <symbols>
+          <symbol name="DriftAlertMetadata" type="interface">assetClassId, assetClassName, currentAllocation, targetMin, targetMax, driftAmount, direction</symbol>
+          <symbol name="alerts" type="table">Already supports drift alerts via type='allocation_drift'</symbol>
+          <symbol name="alertPreferences" type="table">driftAlertsEnabled, driftThreshold fields exist</symbol>
+          <symbol name="assetClasses" type="table">targetMin, targetMax fields for allocation ranges</symbol>
+        </symbols>
+      </file>
+      <file path="tests/unit/services/alert-service.test.ts" kind="test" reason="EXTEND: Add drift alert test suite">
+        <symbols>
+          <symbol name="describe AlertService" type="suite">Add nested describe for drift alert methods</symbol>
+        </symbols>
+      </file>
+      <file path="tests/unit/services/alert-detection-service.test.ts" kind="test" reason="EXTEND: Add drift detection test suite">
+        <symbols>
+          <symbol name="describe AlertDetectionService" type="suite">Add describe for detectDriftAlerts</symbol>
+        </symbols>
+      </file>
+      <file path="tests/integration/alert-detection-flow.test.ts" kind="test" reason="EXTEND: Add drift detection integration tests">
+        <symbols>
+          <symbol name="describe Alert Detection Flow" type="suite">Add drift detection scenarios</symbol>
+        </symbols>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="decimal.js" version="^10.6.0">Precise decimal arithmetic for allocation calculations</package>
+        <package name="drizzle-orm" version="^0.44.7">Database ORM - eq, and, sql for JSONB queries</package>
+        <package name="vitest" version="^4.0.14" dev="true">Unit testing framework</package>
+        <package name="inngest" version="^3.46.0">Background job framework for overnight processing</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">All alert queries MUST include userId filter for tenant isolation</constraint>
+    <constraint type="precision">Use decimal.js for all allocation percentage calculations</constraint>
+    <constraint type="logging">Use structured logger from @/lib/telemetry/logger, NOT console.error</constraint>
+    <constraint type="responses">Use standardized API responses from @/lib/api/responses.ts</constraint>
+    <constraint type="pattern">Follow existing service patterns from Story 9.1 alert services</constraint>
+    <constraint type="dedup">Drift alert deduplication key: {userId}-{assetClassId}</constraint>
+    <constraint type="update">Only update existing drift alert if drift change > 2%</constraint>
+    <constraint type="severity">Warning: drift > threshold but < 2x; Critical: drift >= 2x threshold</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="createDriftAlert" kind="method" path="src/lib/services/alert-service.ts">
+      async createDriftAlert(
+        userId: string,
+        assetClass: { id: string; name: string },
+        currentAllocation: Decimal,
+        targetMin: Decimal,
+        targetMax: Decimal
+      ): Promise&lt;Alert&gt;
+    </interface>
+    <interface name="findExistingDriftAlert" kind="method" path="src/lib/services/alert-service.ts">
+      async findExistingDriftAlert(
+        userId: string,
+        assetClassId: string
+      ): Promise&lt;Alert | null&gt;
+    </interface>
+    <interface name="updateDriftAlertIfChanged" kind="method" path="src/lib/services/alert-service.ts">
+      async updateDriftAlertIfChanged(
+        alertId: string,
+        newDriftAmount: Decimal,
+        newCurrentAllocation: Decimal
+      ): Promise&lt;Alert | null&gt;
+    </interface>
+    <interface name="autoDismissResolvedDriftAlerts" kind="method" path="src/lib/services/alert-service.ts">
+      async autoDismissResolvedDriftAlerts(
+        userId: string,
+        portfolioId: string
+      ): Promise&lt;number&gt;
+    </interface>
+    <interface name="detectDriftAlerts" kind="method" path="src/lib/services/alert-detection-service.ts">
+      async detectDriftAlerts(
+        userId: string,
+        portfolioId: string
+      ): Promise&lt;DriftDetectionResult&gt;
+    </interface>
+    <interface name="DriftDetectionResult" kind="interface" path="src/lib/services/alert-detection-service.ts">
+      interface DriftDetectionResult {
+        userId: string;
+        portfolioId: string;
+        classesAnalyzed: number;
+        alertsCreated: number;
+        alertsUpdated: number;
+        alertsDismissed: number;
+        durationMs: number;
+        error?: string;
+      }
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests use Vitest framework with vi.mock for mocking. Follow existing patterns in
+      tests/unit/services/alert-*.test.ts. All service methods need unit tests with mocked
+      database. Integration tests verify end-to-end flows. Tests must cover success cases,
+      error cases, edge cases, and tenant isolation. Use decimal.js for allocation comparisons.
+    </standards>
+    <locations>
+      <location>tests/unit/services/alert-service.test.ts</location>
+      <location>tests/unit/services/alert-detection-service.test.ts</location>
+      <location>tests/integration/alert-detection-flow.test.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="9.2.1">Test createDriftAlert creates record with correct DriftAlertMetadata fields</idea>
+      <idea ac="9.2.2">Test message format matches "[CLASS_NAME] at [CURRENT]%, target is [MIN]-[MAX]%"</idea>
+      <idea ac="9.2.3">Test direction='over' when current > targetMax, direction='under' when current < targetMin</idea>
+      <idea ac="9.2.3">Test severity='warning' for moderate drift, severity='critical' for 2x threshold</idea>
+      <idea ac="9.2.4">Test uses user's configured driftThreshold from preferences</idea>
+      <idea ac="9.2.4">Test no alert created when drift <= threshold</idea>
+      <idea ac="9.2.5">Test no alerts created when driftAlertsEnabled=false</idea>
+      <idea ac="9.2.6">Test auto-dismiss when allocation returns to target range</idea>
+      <idea ac="9.2.7">Test no duplicate alert for same (userId, assetClassId)</idea>
+      <idea ac="9.2.7">Test existing alert updated when drift changes > 2%</idea>
+      <idea ac="9.2.7">Test existing alert NOT updated when drift changes <= 2%</idea>
+      <idea ac="tenant">Test cannot access other user's drift alerts (tenant isolation)</idea>
+      <idea ac="integration">Test end-to-end: allocation change -> detection -> alert creation</idea>
+      <idea ac="integration">Test overnight job calls drift detection after opportunity detection</idea>
+    </ideas>
+  </tests>
+</story-context>

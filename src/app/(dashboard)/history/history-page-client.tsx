@@ -4,21 +4,22 @@
  * History Page Client Component
  *
  * Story 3.9: Investment History View
+ * Story 9.6: Empty States & Helpful Messaging
  *
  * Handles client-side interactivity for history page:
  * - Date range filtering (AC-3.9.5)
  * - Timeline display (AC-3.9.1, AC-3.9.2)
  * - CSV export (AC-3.9.4)
- * - Empty state (AC-3.9.6)
+ * - Empty state (AC-3.9.6, AC-9.6.5)
  */
 
 import { useState, useCallback, useMemo } from "react";
-import Link from "next/link";
-import { History, FileSpreadsheet, Calendar } from "lucide-react";
+import { FileSpreadsheet, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvestmentTimeline } from "@/components/portfolio/investment-timeline";
 import { DateRangeFilter, type DateRange } from "@/components/portfolio/date-range-filter";
+import { EmptyHistory } from "@/components/empty-states";
 import { useInvestmentHistory } from "@/hooks/use-investments";
 import type { Investment } from "@/lib/db/schema";
 import { exportInvestmentsToCSV, downloadCSV } from "@/lib/services/csv-export";
@@ -64,22 +65,12 @@ export function HistoryPageClient({ initialHistory }: HistoryPageClientProps) {
     downloadCSV(csvContent, filename);
   }, [investments]);
 
-  // Empty state - AC-3.9.6
+  // Empty state - AC-3.9.6, AC-9.6.5
   if (initialHistory.length === 0 && !isLoading) {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center justify-center py-16">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <History className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-          </div>
-          <h2 className="mt-6 text-xl font-semibold">No investments recorded yet</h2>
-          <p className="mt-2 text-center text-muted-foreground max-w-md">
-            Your investment history will appear here after you record your first investment in your
-            portfolio.
-          </p>
-          <Button asChild className="mt-6">
-            <Link href="/portfolio">Record your first investment</Link>
-          </Button>
+        <CardContent>
+          <EmptyHistory />
         </CardContent>
       </Card>
     );

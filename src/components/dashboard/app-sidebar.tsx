@@ -7,6 +7,8 @@
  *
  * Story 2.3: User Login - Display user name and email in footer
  * Story 2.4: User Logout - Added LogoutButton to footer
+ * Story 9.4: Financial Disclaimers - Added disclaimer link to footer (AC-9.4.5)
+ * Story 9.5: Terms of Service & Privacy Policy - Added ToS and Privacy links to footer (AC-9.5.4)
  */
 
 import Link from "next/link";
@@ -18,6 +20,9 @@ import {
   History,
   Settings,
   Target,
+  AlertTriangle,
+  FileText,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 
@@ -96,6 +101,30 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t">
+        {/* Legal Links - Story 9.4: Disclaimer (AC-9.4.5), Story 9.5: ToS & Privacy (AC-9.5.4) */}
+        <div className="px-2 pt-2 flex flex-wrap gap-x-3 gap-y-1 group-data-[collapsible=icon]:hidden">
+          <Link
+            href="/disclaimer"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            <span>Disclaimer</span>
+          </Link>
+          <Link
+            href="/terms"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <FileText className="h-3 w-3" aria-hidden="true" />
+            <span>Terms</span>
+          </Link>
+          <Link
+            href="/privacy"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Shield className="h-3 w-3" aria-hidden="true" />
+            <span>Privacy</span>
+          </Link>
+        </div>
         <div className="flex items-center justify-between gap-2 p-2">
           <div className="flex items-center gap-2">
             {/* User Avatar */}

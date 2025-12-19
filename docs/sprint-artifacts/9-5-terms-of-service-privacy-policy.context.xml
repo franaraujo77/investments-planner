@@ -1,0 +1,288 @@
+<story-context id="bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>5</storyId>
+    <title>Terms of Service &amp; Privacy Policy</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-19</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-5-terms-of-service-privacy-policy.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform</asA>
+    <iWant>to provide Terms of Service and Privacy Policy pages</iWant>
+    <soThat>users understand their rights and our responsibilities, and legal compliance requirements are met</soThat>
+    <tasks>
+      <task id="1" status="pending">Create Legal Route Group Layout - Create src/app/(legal)/layout.tsx with centered layout pattern (no sidebar, responsive design similar to auth layout)</task>
+      <task id="2" status="pending">Create Terms of Service Page - Create src/app/(legal)/terms/page.tsx with static legal content covering: usage terms, disclaimers, liability, intellectual property, termination</task>
+      <task id="3" status="pending">Create Privacy Policy Page - Create src/app/(legal)/privacy/page.tsx with static content covering: data collection, storage, user rights (GDPR/CCPA), third-party services, cookies</task>
+      <task id="4" status="pending">Add ToS Acceptance Field to Users Table - Add tosAcceptedAt timestamp and tosVersion fields to users schema (if not already present)</task>
+      <task id="5" status="pending">Update Registration Form - Add ToS checkbox with link to /terms, require acceptance before registration</task>
+      <task id="6" status="pending">Update Registration API - Store tosAcceptedAt timestamp and version on successful registration</task>
+      <task id="7" status="pending">Add Footer Links - Add Terms of Service and Privacy Policy links to app sidebar footer and/or legal pages footer</task>
+      <task id="8" status="pending">Write Unit Tests - Test for ToS acceptance validation in registration flow</task>
+      <task id="9" status="pending">Run Verification - TypeScript compilation, ESLint, unit tests, build</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-9.5.1" title="Terms of Service Page Available">
+      <given>the platform is live</given>
+      <when>users navigate to /terms</when>
+      <then>they can view the Terms of Service including usage terms, disclaimers, liability limitations</then>
+      <source>docs/epics.md#Story-9.5</source>
+    </criterion>
+    <criterion id="AC-9.5.2" title="Privacy Policy Page Available">
+      <given>the platform is live</given>
+      <when>users navigate to /privacy</when>
+      <then>they can view the Privacy Policy including data collection practices, storage, user rights</then>
+      <source>docs/epics.md#Story-9.5</source>
+    </criterion>
+    <criterion id="AC-9.5.3" title="Links in Footer and Registration Flow">
+      <given>I am on any page or registering</given>
+      <when>I look at the footer or registration form</when>
+      <then>I see links to Terms of Service and Privacy Policy</then>
+      <source>docs/epics.md#Story-9.5</source>
+    </criterion>
+    <criterion id="AC-9.5.4" title="ToS Acceptance Required During Registration">
+      <given>I am registering for an account</given>
+      <when>I try to submit without accepting ToS</when>
+      <then>the form shows a validation error requiring ToS acceptance</then>
+      <source>docs/epics.md#Story-9.5</source>
+    </criterion>
+    <criterion id="AC-9.5.5" title="ToS Version Tracking">
+      <given>I accept the Terms of Service</given>
+      <when>my registration completes</when>
+      <then>the system stores which version of ToS I accepted and when</then>
+      <source>docs/epics.md#Story-9.5</source>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" relevance="high">
+        <summary>Epic 9 Story 9.5 definition - Terms of Service &amp; Privacy Policy requirements</summary>
+        <key-points>
+          - Static pages at /terms and /privacy
+          - Links in footer and registration flow
+          - Must accept ToS during registration
+          - Version tracking for ToS updates
+          - Notify users on ToS updates (future enhancement)
+        </key-points>
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-9.md" relevance="high">
+        <summary>Epic 9 Technical Specification with implementation patterns</summary>
+        <key-points>
+          - Route group (legal) for legal pages
+          - Static content pages (no database queries needed)
+          - Registration flow ToS integration pattern
+          - Version tracking in users table
+        </key-points>
+      </doc>
+      <doc path="docs/architecture.md" relevance="medium">
+        <summary>System architecture with security and implementation patterns</summary>
+        <key-points>
+          - Multi-tenant isolation via user_id
+          - API response standards from @/lib/api/responses.ts
+          - Structured logging via @/lib/telemetry/logger.ts
+        </key-points>
+      </doc>
+      <doc path="docs/sprint-artifacts/9-4-financial-disclaimers.md" relevance="high">
+        <summary>Previous story (9.4) - patterns for legal/disclaimer pages, already created (legal) route group</summary>
+        <key-points>
+          - Legal route group already exists at src/app/(legal)
+          - Disclaimer page pattern at src/app/(legal)/disclaimer/page.tsx
+          - Footer link pattern in app-sidebar.tsx
+          - No layout.tsx created yet for (legal) group - pages use standalone layouts
+        </key-points>
+      </doc>
+    </docs>
+    <code>
+      <file path="src/app/(legal)/disclaimer/page.tsx" relevance="critical">
+        <summary>Existing disclaimer page - PRIMARY PATTERN TO FOLLOW for Terms and Privacy pages</summary>
+        <patterns>
+          - Standalone page with own responsive layout (no layout.tsx needed)
+          - Uses min-h-screen bg-background
+          - max-w-3xl centered container with px-4 py-12
+          - Back to Dashboard button
+          - Metadata export for SEO
+          - Section-based content with prose styling
+          - lucide-react icons for visual appeal
+          - Rounded cards with border for content sections
+        </patterns>
+      </file>
+      <file path="src/components/auth/registration-form.tsx" relevance="critical">
+        <summary>Registration form with disclaimer checkbox - EXTEND for ToS acceptance</summary>
+        <patterns>
+          - FormField with Checkbox for boolean acknowledgment
+          - Required field validation with Zod
+          - Inline validation errors
+          - Link within checkbox label (extend for ToS link)
+          - disclaimerAcknowledged field already exists
+        </patterns>
+        <note>Registration already has disclaimerAcknowledged - may need to add separate tosAccepted field OR rename existing field if ToS replaces disclaimer</note>
+      </file>
+      <file path="src/lib/db/schema.ts" relevance="critical">
+        <summary>Database schema - users table already has disclaimerAcknowledgedAt, may need tosAcceptedAt and tosVersion</summary>
+        <existing-fields>
+          - disclaimerAcknowledgedAt: timestamp (line 43)
+        </existing-fields>
+        <fields-to-add>
+          - tosAcceptedAt: timestamp (when user accepted ToS)
+          - tosVersion: varchar (which version was accepted, e.g., "1.0")
+        </fields-to-add>
+      </file>
+      <file path="src/lib/api/responses.ts" relevance="medium">
+        <summary>API response utilities - use standardized responses</summary>
+        <patterns>
+          - successResponse() for success
+          - errorResponse() for errors
+          - validationError() for Zod issues
+          - withErrorHandling() wrapper
+        </patterns>
+      </file>
+      <file path="src/lib/api/error-codes.ts" relevance="medium">
+        <summary>Standardized error codes</summary>
+        <patterns>
+          - VALIDATION_ERRORS for input validation
+          - Use existing codes, add new if needed
+        </patterns>
+      </file>
+      <file path="src/components/dashboard/app-sidebar.tsx" relevance="medium">
+        <summary>Dashboard sidebar with footer - already has Disclaimer link, add ToS and Privacy links</summary>
+        <existing-links>
+          - Disclaimer link at lines 101-110
+        </existing-links>
+        <pattern>
+          - Link with icon in footer section
+          - Hidden when sidebar collapsed
+        </pattern>
+      </file>
+      <file path="src/app/(auth)/layout.tsx" relevance="low">
+        <summary>Auth layout - centered responsive pattern for reference</summary>
+        <pattern>
+          - flex min-h-screen flex-col items-center justify-center
+          - max-w-md container
+        </pattern>
+      </file>
+      <file path="src/app/api/auth/register/route.ts" relevance="high">
+        <summary>Registration API - extend to store ToS acceptance timestamp and version</summary>
+        <pattern>
+          - Store user data with timestamps
+          - Validate required fields
+          - Return user data on success
+        </pattern>
+      </file>
+      <file path="src/lib/auth/validation.ts" relevance="high">
+        <summary>Auth validation schemas - extend registerFormSchema for ToS acceptance</summary>
+        <pattern>
+          - Zod schemas for form validation
+          - Boolean fields for checkboxes
+          - refine() for custom validation
+        </pattern>
+      </file>
+    </code>
+    <dependencies>
+      <dependency type="npm" name="lucide-react" version="^0.555.0">Icons for page decorations</dependency>
+      <dependency type="npm" name="react-hook-form" version="^7.67.0">Form management</dependency>
+      <dependency type="npm" name="zod" version="^4.1.13">Schema validation</dependency>
+      <dependency type="internal" path="@/components/ui/button">Button component</dependency>
+      <dependency type="internal" path="@/components/ui/checkbox">Checkbox component</dependency>
+      <dependency type="internal" path="@/components/ui/form">Form components</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" type="architecture">All user queries MUST include userId filter for tenant isolation</constraint>
+    <constraint id="C2" type="standards">Use standardized API responses from @/lib/api/responses.ts</constraint>
+    <constraint id="C3" type="standards">Use structured logger from @/lib/telemetry/logger.ts, never console.error</constraint>
+    <constraint id="C4" type="pattern">Follow existing disclaimer page pattern for Terms and Privacy pages</constraint>
+    <constraint id="C5" type="legal">ToS version must be tracked so users can be notified of updates</constraint>
+    <constraint id="C6" type="ui">Links must be accessible and visible in footer and registration flow</constraint>
+    <constraint id="C7" type="testing">All new code must have corresponding unit tests per CLAUDE.md</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface type="page" path="/terms">
+      <description>Terms of Service static page</description>
+      <access>Public (no auth required)</access>
+      <content>
+        - Usage terms and conditions
+        - User responsibilities
+        - Liability limitations
+        - Intellectual property rights
+        - Account termination conditions
+        - Governing law and jurisdiction
+      </content>
+    </interface>
+    <interface type="page" path="/privacy">
+      <description>Privacy Policy static page</description>
+      <access>Public (no auth required)</access>
+      <content>
+        - Data collection practices
+        - How data is stored and protected
+        - User rights (access, deletion, portability)
+        - Third-party services and data sharing
+        - Cookie policy
+        - Contact information for privacy concerns
+      </content>
+    </interface>
+    <interface type="schema" name="users">
+      <fields-to-add>
+        - tosAcceptedAt: timestamp (nullable) - When ToS was accepted
+        - tosVersion: varchar(20) (nullable) - Version of ToS accepted (e.g., "1.0")
+      </fields-to-add>
+      <note>If disclaimerAcknowledged is meant to cover ToS, consider renaming or using same field</note>
+    </interface>
+    <interface type="form" name="registration">
+      <existing>disclaimerAcknowledged checkbox</existing>
+      <add>ToS acceptance checkbox with link to /terms</add>
+      <note>May combine with existing disclaimer or keep separate - decide based on legal requirements</note>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Unit tests for all new code (services, API routes)</standard>
+      <standard>Test coverage for success and error cases</standard>
+      <standard>Use vitest for unit tests</standard>
+      <standard>Follow existing test patterns in tests/unit/</standard>
+    </standards>
+    <locations>
+      <location>tests/unit/api/register.test.ts - Extend for ToS validation</location>
+      <location>tests/unit/pages/terms.test.ts - New file for Terms page rendering</location>
+      <location>tests/unit/pages/privacy.test.ts - New file for Privacy page rendering</location>
+    </locations>
+    <ideas>
+      <idea>Test Terms page renders all required sections</idea>
+      <idea>Test Privacy page renders all required sections</idea>
+      <idea>Test registration fails without ToS acceptance</idea>
+      <idea>Test registration stores tosAcceptedAt and tosVersion</idea>
+      <idea>Test footer links are present and navigate correctly</idea>
+      <idea>Test ToS version is recorded correctly</idea>
+    </ideas>
+  </tests>
+
+  <implementation-notes>
+    <note priority="high">
+      The (legal) route group already exists with /disclaimer page. Follow the same pattern for /terms and /privacy pages.
+      Each page should be standalone with its own responsive layout (no shared layout.tsx needed).
+    </note>
+    <note priority="high">
+      Registration form already has disclaimerAcknowledged. Decide whether to:
+      A) Add separate tosAccepted field for explicit ToS acceptance
+      B) Rename disclaimerAcknowledged to include ToS (breaking change)
+      C) Keep disclaimer for financial disclaimer, add ToS separately
+
+      Recommendation: Option C - Keep both separate. Disclaimer is financial, ToS is legal terms.
+    </note>
+    <note priority="medium">
+      ToS version tracking enables future notification when ToS changes. Store version string (e.g., "1.0", "1.1")
+      with acceptance timestamp. When ToS version changes, users without matching version can be prompted to re-accept.
+    </note>
+    <note priority="low">
+      Consider using MDX for legal pages to allow easier content updates, but static TSX is fine for MVP.
+    </note>
+  </implementation-notes>
+</story-context>

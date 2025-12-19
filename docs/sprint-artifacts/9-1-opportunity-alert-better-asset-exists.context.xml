@@ -1,0 +1,422 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>9</epicId>
+    <storyId>1</storyId>
+    <title>Opportunity Alert (Better Asset Exists)</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/9-1-opportunity-alert-better-asset-exists.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to be alerted when higher-scoring assets exist outside my portfolio</iWant>
+    <soThat>I can consider better investment opportunities without manually reviewing all available assets</soThat>
+    <tasks>
+      <task id="1" title="Add Alerts and Alert Preferences Tables to Schema" acs="9.1.1, 9.1.6">
+        <files>src/lib/db/schema.ts, drizzle/migrations/</files>
+        <items>
+          <item>Add `alerts` table with all columns from tech spec</item>
+          <item>Add `alertPreferences` table with all columns from tech spec</item>
+          <item>Define OpportunityAlertMetadata and DriftAlertMetadata interfaces</item>
+          <item>Define AlertMetadata union type</item>
+          <item>Add indexes: alerts_user_id_idx, alerts_type_idx, alerts_created_at_idx</item>
+          <item>Add unique index on alertPreferences.userId</item>
+          <item>Generate migration: pnpm db:generate</item>
+          <item>Apply migration: pnpm db:migrate</item>
+        </items>
+      </task>
+      <task id="2" title="Create AlertService for Alert CRUD Operations" acs="9.1.1, 9.1.2, 9.1.4, 9.1.5">
+        <files>src/lib/services/alert-service.ts</files>
+        <items>
+          <item>Create AlertService class</item>
+          <item>Implement createOpportunityAlert(userId, currentAsset, betterAsset, assetClass)</item>
+          <item>Implement getUnreadAlerts(userId)</item>
+          <item>Implement getAlerts(userId, options) with pagination</item>
+          <item>Implement markAsRead(userId, alertId)</item>
+          <item>Implement dismissAlert(userId, alertId)</item>
+          <item>Implement dismissAllAlerts(userId, type?)</item>
+          <item>Implement findExistingAlert(userId, currentAssetId, betterAssetId) for deduplication</item>
+          <item>Implement updateAlertIfChanged(alertId, newScoreDifference)</item>
+          <item>All queries MUST include userId filter (tenant isolation)</item>
+          <item>Use logger for structured logging</item>
+        </items>
+      </task>
+      <task id="3" title="Create AlertDetectionService" acs="9.1.1, 9.1.4, 9.1.6">
+        <files>src/lib/services/alert-detection-service.ts</files>
+        <items>
+          <item>Create AlertDetectionService class</item>
+          <item>Implement detectOpportunityAlerts(userId, portfolioId)</item>
+          <item>Load user alert preferences - check opportunityAlertsEnabled</item>
+          <item>Get asset classes with 2+ assets for comparison</item>
+          <item>Compare scores - identify assets scoring 10+ points higher</item>
+          <item>Check for existing alert (deduplication)</item>
+          <item>Create new or update existing alerts</item>
+          <item>Use decimal.js for score comparisons</item>
+          <item>Log detection results with structured logging</item>
+        </items>
+      </task>
+      <task id="4" title="Create AlertPreferencesService" acs="9.1.6">
+        <files>src/lib/services/alert-preferences-service.ts</files>
+        <items>
+          <item>Create AlertPreferencesService class</item>
+          <item>Implement getPreferences(userId)</item>
+          <item>Implement createDefaultPreferences(userId)</item>
+          <item>Implement updatePreferences(userId, updates)</item>
+          <item>Implement isOpportunityAlertsEnabled(userId) helper</item>
+          <item>Handle case where preferences don't exist (create defaults)</item>
+        </items>
+      </task>
+      <task id="5" title="Integrate Alert Detection into Overnight Scoring" acs="9.1.1">
+        <files>src/lib/inngest/functions/overnight-scoring.ts</files>
+        <items>
+          <item>Import AlertDetectionService</item>
+          <item>Call alertDetectionService.detectOpportunityAlerts after scoring</item>
+          <item>Add try/catch - detection failures should not fail entire job</item>
+          <item>Log alert detection metrics</item>
+          <item>Add timing metric for alert detection phase</item>
+        </items>
+      </task>
+      <task id="6" title="Implement Alert Auto-Clear on Portfolio Change" acs="9.1.5">
+        <files>src/lib/services/portfolio-service.ts</files>
+        <items>
+          <item>When user adds asset to portfolio, query alerts where metadata.betterAssetId matches</item>
+          <item>Auto-dismiss matching alerts</item>
+          <item>Use AlertService.dismissAlert for each matched alert</item>
+          <item>Log auto-dismissals</item>
+        </items>
+      </task>
+      <task id="7" title="Create Alerts API Routes" acs="9.1.2, 9.1.3">
+        <files>src/app/api/alerts/route.ts, src/app/api/alerts/[id]/read/route.ts, src/app/api/alerts/[id]/dismiss/route.ts</files>
+        <items>
+          <item>GET /api/alerts - List user's alerts with pagination</item>
+          <item>PATCH /api/alerts/[id]/read - Mark alert as read</item>
+          <item>PATCH /api/alerts/[id]/dismiss - Dismiss alert</item>
+          <item>DELETE /api/alerts/dismiss-all - Dismiss all alerts</item>
+          <item>Zod validation, withAuth middleware, standardized responses</item>
+        </items>
+      </task>
+      <task id="8" title="Create Unread Count API Route" acs="9.1.2">
+        <files>src/app/api/alerts/unread/count/route.ts</files>
+        <items>
+          <item>GET /api/alerts/unread/count - Get unread alert count</item>
+          <item>withAuth middleware</item>
+          <item>Return { count: number }</item>
+          <item>Efficient query: COUNT(*) WHERE is_read = false AND is_dismissed = false</item>
+        </items>
+      </task>
+      <task id="9" title="Write Unit Tests - AlertService" acs="9.1.1-9.1.5">
+        <files>tests/unit/services/alert-service.test.ts</files>
+        <items>
+          <item>Test createOpportunityAlert creates record with correct fields</item>
+          <item>Test message format matches AC-9.1.2 specification</item>
+          <item>Test metadata includes all required fields</item>
+          <item>Test getUnreadAlerts returns only unread, non-dismissed</item>
+          <item>Test getAlerts with pagination</item>
+          <item>Test markAsRead sets isRead and readAt</item>
+          <item>Test dismissAlert sets isDismissed and dismissedAt</item>
+          <item>Test findExistingAlert deduplication logic</item>
+          <item>Test tenant isolation</item>
+        </items>
+      </task>
+      <task id="10" title="Write Unit Tests - AlertDetectionService" acs="9.1.1, 9.1.4, 9.1.6">
+        <files>tests/unit/services/alert-detection-service.test.ts</files>
+        <items>
+          <item>Test creates alerts for 10+ point difference</item>
+          <item>Test no alert for less than 10 point difference</item>
+          <item>Test deduplication - no duplicate for same asset pair</item>
+          <item>Test alert update when score difference changes &gt;5 points</item>
+          <item>Test respects opportunityAlertsEnabled=false</item>
+          <item>Test handles empty portfolio gracefully</item>
+          <item>Test uses decimal.js for score comparisons</item>
+        </items>
+      </task>
+      <task id="11" title="Write Unit Tests - AlertPreferencesService" acs="9.1.6">
+        <files>tests/unit/services/alert-preferences-service.test.ts</files>
+        <items>
+          <item>Test getPreferences returns user preferences</item>
+          <item>Test getPreferences creates defaults if none exist</item>
+          <item>Test createDefaultPreferences sets correct defaults</item>
+          <item>Test updatePreferences updates specified fields</item>
+          <item>Test isOpportunityAlertsEnabled returns correct boolean</item>
+        </items>
+      </task>
+      <task id="12" title="Write Unit Tests - Alerts API Routes" acs="9.1.2, 9.1.3">
+        <files>tests/unit/api/alerts.test.ts</files>
+        <items>
+          <item>Test GET /api/alerts returns paginated alerts</item>
+          <item>Test GET /api/alerts filters by type</item>
+          <item>Test PATCH /api/alerts/[id]/read marks alert as read</item>
+          <item>Test PATCH /api/alerts/[id]/dismiss dismisses alert</item>
+          <item>Test DELETE /api/alerts/dismiss-all dismisses all</item>
+          <item>Test GET /api/alerts/unread/count returns count</item>
+          <item>Test authentication required (401 without auth)</item>
+          <item>Test validation errors for bad params</item>
+        </items>
+      </task>
+      <task id="13" title="Write Integration Tests - Alert Detection Flow" acs="9.1.1, 9.1.4, 9.1.5">
+        <files>tests/integration/alert-detection.test.ts</files>
+        <items>
+          <item>Test end-to-end: scoring -&gt; detection -&gt; alert creation</item>
+          <item>Test alert contains correct asset comparison data</item>
+          <item>Test deduplication across multiple scoring runs</item>
+          <item>Test auto-dismiss when better asset added to portfolio</item>
+          <item>Test preference enforcement in detection flow</item>
+        </items>
+      </task>
+      <task id="14" title="Run Verification">
+        <items>
+          <item>TypeScript compilation successful (pnpm exec tsc --noEmit)</item>
+          <item>ESLint passes with no new errors (pnpm lint)</item>
+          <item>All unit tests pass</item>
+          <item>All integration tests pass</item>
+          <item>Database migration applied successfully</item>
+          <item>Manual verification: Create test data, trigger detection, verify alert created</item>
+        </items>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-9.1.1" title="Alert Triggered When Better Asset Exists">
+      <given>a user's portfolio contains an asset in a class AND another asset in the same class scores 10+ points higher</given>
+      <when>overnight scoring job completes</when>
+      <then>an opportunity alert is created in the alerts table with type='opportunity', userId matching portfolio owner, severity='info', and metadata containing: currentAssetId, currentAssetSymbol, currentScore, betterAssetId, betterAssetSymbol, betterScore, scoreDifference, assetClassId, assetClassName</then>
+      <source>docs/sprint-artifacts/tech-spec-epic-9.md#Story-9.1-Opportunity-Alert</source>
+    </criterion>
+    <criterion id="AC-9.1.2" title="Alert Includes Both Asset Details">
+      <given>an opportunity alert is created</given>
+      <when>the alert is retrieved</when>
+      <then>it includes: current asset symbol and score, better asset symbol and score, score difference (10+ points), asset class name for context. Message format: "[BETTER_SYMBOL] scores [BETTER_SCORE] vs your [CURRENT_SYMBOL] ([CURRENT_SCORE]). Consider swapping?"</then>
+      <source>docs/sprint-artifacts/tech-spec-epic-9.md#AC-9.1.2</source>
+    </criterion>
+    <criterion id="AC-9.1.3" title="Alert Links to Score Breakdown">
+      <given>an opportunity alert exists</given>
+      <when>the user clicks the alert</when>
+      <then>they can navigate to the score breakdown for both assets AND alert metadata contains assetIds for both assets to enable deep linking</then>
+      <source>docs/sprint-artifacts/tech-spec-epic-9.md#AC-9.1.3</source>
+    </criterion>
+    <criterion id="AC-9.1.4" title="Alert Deduplication">
+      <given>an opportunity alert already exists for a specific asset pair</given>
+      <when>overnight scoring runs again</when>
+      <then>no duplicate alert is created for same (currentAssetId, betterAssetId) pair. Deduplication uses key: {userId}-{currentAssetId}-{betterAssetId}. Existing alert is updated if score difference changes significantly (&gt;5 point change)</then>
+      <source>docs/sprint-artifacts/tech-spec-epic-9.md#AC-9.1.4</source>
+    </criterion>
+    <criterion id="AC-9.1.5" title="Alert Auto-Clears When Resolved">
+      <given>an opportunity alert exists</given>
+      <when>the user adds the better-scored asset to their portfolio</when>
+      <then>the opportunity alert is automatically dismissed with isDismissed=true and dismissedAt timestamp</then>
+      <source>docs/sprint-artifacts/tech-spec-epic-9.md#AC-9.1.5</source>
+    </criterion>
+    <criterion id="AC-9.1.6" title="Alert Respects User Preferences">
+      <given>a user has opportunityAlertsEnabled=false in alert_preferences</given>
+      <when>the opportunity detection runs</when>
+      <then>no opportunity alerts are created for that user AND existing preferences are checked before alert creation</then>
+      <source>docs/sprint-artifacts/tech-spec-epic-9.md#AC-9.1.6</source>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc id="tech-spec-epic-9" path="docs/sprint-artifacts/tech-spec-epic-9.md" relevance="critical">
+        Technical specification for Epic 9 including database schema for alerts and alert_preferences tables,
+        API contracts for alert endpoints, and integration points with overnight scoring.
+        Contains detailed acceptance criteria and implementation requirements.
+      </doc>
+      <doc id="architecture" path="docs/architecture.md" relevance="high">
+        System architecture decisions including:
+        - ADR-002: Event-sourced calculations
+        - ADR-003: Background jobs with Inngest
+        - Multi-tenant isolation patterns
+        - numeric(19,4) for monetary values, decimal.js for calculations
+      </doc>
+      <doc id="prd" path="docs/prd.md" relevance="medium">
+        Product requirements covering FR65-FR67 (Alerts and Notifications):
+        - FR65: Alert when better-scoring assets discovered
+        - FR66: Alert when allocation drifts outside ranges
+        - FR67: Configure alert preferences
+      </doc>
+      <doc id="epics" path="docs/epics.md" relevance="medium">
+        Epic breakdown with story specifications. Epic 9 covers alerts and polish features.
+      </doc>
+    </docs>
+    <code>
+      <file id="schema" path="src/lib/db/schema.ts" relevance="critical">
+        Database schema reference. New tables (alerts, alertPreferences) follow existing patterns:
+        - UUID primary keys with defaultRandom()
+        - Multi-tenant isolation via userId foreign key with CASCADE delete
+        - Indexes on userId and frequently queried columns
+        - JSONB for flexible metadata storage
+        - timestamp columns with defaultNow()
+        Existing related tables: assetScores, portfolioAssets, assetClasses
+      </file>
+      <file id="overnight-scoring" path="src/lib/inngest/functions/overnight-scoring.ts" relevance="critical">
+        Integration point for alert detection. Current flow:
+        1. Setup (correlationId, job run)
+        2. Fetch exchange rates
+        3. Get active users
+        4. Fetch asset prices
+        5. Score portfolios (batches of 50)
+        6. Generate recommendations
+        7. Warm cache
+        8. Finalize
+        NEW: Add Step 5b or 6b for alert detection after scoring completes.
+        Must NOT fail entire job if detection fails (try/catch required).
+      </file>
+      <file id="portfolio-service" path="src/lib/services/portfolio-service.ts" relevance="high">
+        Integration point for auto-dismiss on portfolio change.
+        When adding asset via addAssetToPortfolio(), check for alerts with matching betterAssetId.
+        Follow existing patterns: error classes, db queries with eq(), tenant isolation.
+      </file>
+      <file id="audit-service" path="src/lib/services/audit-service.ts" relevance="medium">
+        Reference pattern for service structure:
+        - TypeScript interfaces for all types
+        - Drizzle ORM queries with proper tenant isolation
+        - Structured logging with logger
+        - Clear JSDoc documentation referencing story/AC
+      </file>
+      <file id="responses" path="src/lib/api/responses.ts" relevance="high">
+        Standardized API responses. Use:
+        - successResponse() for successful responses
+        - errorResponse() with error codes from error-codes.ts
+        - validationError() for Zod validation failures
+        - withErrorHandling() wrapper for auto error logging
+        - notFoundError() for 404 responses
+      </file>
+      <file id="middleware" path="src/lib/auth/middleware.ts" relevance="high">
+        Authentication middleware. Use withAuth() wrapper for all authenticated routes.
+        Session provides: { userId: string, email: string }
+      </file>
+    </code>
+    <dependencies>
+      <dependency id="drizzle" version="0.44.7">Drizzle ORM for database operations</dependency>
+      <dependency id="decimal.js" version="10.6.0">Decimal math for score comparisons - REQUIRED for 10+ point threshold</dependency>
+      <dependency id="inngest" version="3.46.0">Background job framework - alert detection runs in overnight job</dependency>
+      <dependency id="zod" version="4.1.13">Schema validation for API inputs</dependency>
+      <dependency id="vercel-kv" version="3.0.0">KV store for caching (not directly used but available)</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="tenant-isolation" severity="critical">
+      ALL database queries MUST include userId filter. Alerts are user-scoped.
+      Pattern: eq(alerts.userId, userId) in all WHERE clauses
+    </constraint>
+    <constraint id="decimal-precision" severity="critical">
+      Score comparisons MUST use decimal.js, not native JS numbers.
+      Pattern: new Decimal(score1).minus(score2).gte('10') for threshold checks
+    </constraint>
+    <constraint id="no-job-failure" severity="high">
+      Alert detection failures MUST NOT fail overnight scoring job.
+      Pattern: wrap in try/catch, log error, continue execution
+    </constraint>
+    <constraint id="message-format" severity="high">
+      Alert message MUST follow format: "[BETTER_SYMBOL] scores [BETTER_SCORE] vs your [CURRENT_SYMBOL] ([CURRENT_SCORE]). Consider swapping?"
+    </constraint>
+    <constraint id="deduplication" severity="high">
+      No duplicate alerts for same asset pair. Check existing before create.
+      Update existing alert if score difference changes by >5 points.
+    </constraint>
+    <constraint id="logging-standard" severity="medium">
+      Use structured logger from @/lib/telemetry/logger - NO console.log/console.error
+    </constraint>
+    <constraint id="api-patterns" severity="medium">
+      API routes must use: withAuth middleware, Zod validation, standardized responses from responses.ts
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface id="alerts-table">
+      <schema>
+        id: uuid PK
+        userId: uuid FK(users.id) CASCADE
+        type: varchar(50) ['opportunity', 'drift']
+        severity: varchar(20) ['info', 'warning', 'critical']
+        message: varchar(500)
+        metadata: jsonb (OpportunityAlertMetadata | DriftAlertMetadata)
+        isRead: boolean default false
+        readAt: timestamp nullable
+        isDismissed: boolean default false
+        dismissedAt: timestamp nullable
+        createdAt: timestamp defaultNow()
+      </schema>
+      <indexes>
+        alerts_user_id_idx ON (userId)
+        alerts_type_idx ON (type)
+        alerts_created_at_idx ON (createdAt)
+      </indexes>
+    </interface>
+    <interface id="alert-preferences-table">
+      <schema>
+        id: uuid PK
+        userId: uuid FK(users.id) CASCADE UNIQUE
+        opportunityAlertsEnabled: boolean default true
+        driftAlertsEnabled: boolean default true
+        emailNotifications: boolean default false
+        createdAt: timestamp defaultNow()
+        updatedAt: timestamp defaultNow()
+      </schema>
+    </interface>
+    <interface id="opportunity-metadata">
+      <schema>
+        currentAssetId: uuid
+        currentAssetSymbol: string
+        currentScore: string (decimal)
+        betterAssetId: uuid
+        betterAssetSymbol: string
+        betterScore: string (decimal)
+        scoreDifference: string (decimal)
+        assetClassId: uuid
+        assetClassName: string
+      </schema>
+    </interface>
+    <interface id="api-endpoints">
+      <endpoint method="GET" path="/api/alerts">
+        List alerts with pagination. Query: ?page=1&amp;limit=20&amp;type=opportunity
+        Response: { data: Alert[], meta: { page, limit, total } }
+      </endpoint>
+      <endpoint method="GET" path="/api/alerts/unread/count">
+        Get unread alert count. Response: { data: { count: number } }
+      </endpoint>
+      <endpoint method="PATCH" path="/api/alerts/[id]/read">
+        Mark alert as read. Response: { data: { success: true } }
+      </endpoint>
+      <endpoint method="PATCH" path="/api/alerts/[id]/dismiss">
+        Dismiss alert. Response: { data: { success: true } }
+      </endpoint>
+      <endpoint method="DELETE" path="/api/alerts/dismiss-all">
+        Dismiss all alerts. Query: ?type=opportunity (optional filter)
+        Response: { data: { dismissed: number } }
+      </endpoint>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard id="vitest">Vitest for unit/integration tests - run with pnpm test</standard>
+      <standard id="mocking">Use vi.mock() for module mocking, vi.hoisted() for mock variables</standard>
+      <standard id="db-mocking">Mock @/lib/db with chainable query builders (mockDbSelect, mockDbFrom, mockDbWhere, etc.)</standard>
+      <standard id="coverage">Aim for comprehensive coverage of all code paths, especially error cases</standard>
+      <standard id="naming">Test file: {service-name}.test.ts, describe blocks match class/function names</standard>
+    </standards>
+    <locations>
+      <location path="tests/unit/services/alert-service.test.ts">AlertService unit tests</location>
+      <location path="tests/unit/services/alert-detection-service.test.ts">AlertDetectionService unit tests</location>
+      <location path="tests/unit/services/alert-preferences-service.test.ts">AlertPreferencesService unit tests</location>
+      <location path="tests/unit/api/alerts.test.ts">Alert API route tests</location>
+      <location path="tests/integration/alert-detection.test.ts">End-to-end alert detection flow</location>
+    </locations>
+    <ideas>
+      <idea id="boundary-testing">Test 10-point threshold boundary: 9.99 points = no alert, 10.00 points = alert</idea>
+      <idea id="dedup-edge-case">Test alert update when score difference changes from 15 to 21 (>5 change, should update)</idea>
+      <idea id="dedup-no-update">Test alert NOT updated when score difference changes from 15 to 18 (&lt;5 change)</idea>
+      <idea id="auto-dismiss-timing">Test auto-dismiss happens synchronously when asset added, not on next scoring run</idea>
+      <idea id="preference-toggle">Test toggling opportunityAlertsEnabled mid-detection doesn't cause race condition</idea>
+      <idea id="empty-portfolio">Test graceful handling when user has no assets in any class</idea>
+      <idea id="single-asset-class">Test no alert when class has only 1 asset (nothing to compare)</idea>
+      <idea id="message-format">Verify message format exactly matches AC-9.1.2 specification</idea>
+      <idea id="metadata-completeness">Verify all 9 metadata fields present for every opportunity alert</idea>
+    </ideas>
+  </tests>
+</story-context>
