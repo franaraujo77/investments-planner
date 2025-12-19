@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { Briefcase, Plus, ChevronDown, ChevronUp, Wallet } from "lucide-react";
 
 import { PortfolioEmptyState } from "@/components/portfolio/portfolio-empty-state";
+import { parseDatesInObject, parseDatesInArray } from "@/lib/utils/date-parser";
 import { CreatePortfolioModal } from "@/components/portfolio/create-portfolio-modal";
 import { PortfolioTableWithValues } from "@/components/portfolio/portfolio-table";
 import { AddAssetModal } from "@/components/portfolio/add-asset-modal";
@@ -34,7 +35,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MAX_PORTFOLIOS_PER_USER } from "@/lib/validations/portfolio";
-import type { Portfolio, AssetWithValue, PortfolioWithValues } from "@/types/portfolio";
+import type { Portfolio, PortfolioWithValues } from "@/types/portfolio";
 
 interface PortfolioPageClientProps {
   initialPortfolios: Portfolio[];
@@ -239,16 +240,10 @@ function PortfolioCardWithValues({
         throw new Error(result.error || "Failed to fetch portfolio values");
       }
 
-      // Parse dates that come as strings from JSON
+      // Parse dates that come as strings from JSON using centralized utility
       const data: PortfolioWithValues = {
-        ...result.data,
-        dataFreshness: new Date(result.data.dataFreshness),
-        assets: result.data.assets.map((asset: AssetWithValue & { priceUpdatedAt: string }) => ({
-          ...asset,
-          priceUpdatedAt: new Date(asset.priceUpdatedAt),
-          createdAt: asset.createdAt ? new Date(asset.createdAt) : null,
-          updatedAt: asset.updatedAt ? new Date(asset.updatedAt) : null,
-        })),
+        ...parseDatesInObject(result.data),
+        assets: parseDatesInArray(result.data.assets),
       };
 
       setPortfolioWithValues(data);
@@ -273,11 +268,8 @@ function PortfolioCardWithValues({
         throw new Error(result.error || "Failed to fetch allocation data");
       }
 
-      // Parse date that comes as string from JSON
-      const data: AllocationBreakdown = {
-        ...result,
-        dataFreshness: new Date(result.dataFreshness),
-      };
+      // Parse date that comes as string from JSON using centralized utility
+      const data: AllocationBreakdown = parseDatesInObject(result);
 
       setAllocationData(data);
     } catch (err) {
@@ -289,10 +281,11 @@ function PortfolioCardWithValues({
     }
   };
 
-  const handleAssetAdded = () => {
-    // Refetch portfolio values and allocation after adding a new asset
-    fetchPortfolioWithValues();
-    setAllocationData(null); // Reset to trigger refetch
+  const handleAssetAdded = async () => {
+    // Reset allocation data first to trigger refetch after values are loaded
+    setAllocationData(null);
+    // Await portfolio values fetch to prevent race condition with router refresh
+    await fetchPortfolioWithValues();
     router.refresh();
   };
 
