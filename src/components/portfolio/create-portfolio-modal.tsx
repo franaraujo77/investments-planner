@@ -33,16 +33,94 @@ import {
   type CreatePortfolioInput,
   PORTFOLIO_NAME_MAX_LENGTH,
 } from "@/lib/validations/portfolio";
+import { postWithRetry } from "@/lib/utils/fetch-with-retry";
 
-interface CreatePortfolioModalProps {
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Base props shared by both controlled and uncontrolled modes
+ */
+interface CreatePortfolioModalBaseProps {
+  /**
+   * Optional trigger element that opens the modal when clicked.
+   *
+   * **Uncontrolled mode:** Required - clicking the trigger opens the modal.
+   * **Controlled mode:** Optional - the modal is controlled by the `open` prop,
+   * so the trigger may not be needed if you're opening the modal externally
+   * (e.g., from a separate button like in the empty state).
+   *
+   * @default Button with "Create Portfolio" text
+   */
   trigger?: React.ReactNode;
+  /** Callback fired after successful portfolio creation */
   onSuccess?: () => void;
 }
 
-export function CreatePortfolioModal({ trigger, onSuccess }: CreatePortfolioModalProps) {
+/**
+ * Props for uncontrolled mode (default) - modal manages its own open state
+ */
+interface CreatePortfolioModalUncontrolledProps extends CreatePortfolioModalBaseProps {
+  open?: never;
+  onOpenChange?: never;
+}
+
+/**
+ * Props for controlled mode - parent manages the open state
+ *
+ * Both `open` and `onOpenChange` must be provided together to ensure
+ * the modal can be opened and closed properly.
+ */
+interface CreatePortfolioModalControlledProps extends CreatePortfolioModalBaseProps {
+  /** Whether the modal is open (controlled mode) */
+  open: boolean;
+  /** Callback fired when the modal open state should change (controlled mode) */
+  onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * CreatePortfolioModal props - supports both controlled and uncontrolled modes
+ *
+ * @example Uncontrolled mode (default)
+ * ```tsx
+ * <CreatePortfolioModal onSuccess={() => router.refresh()} />
+ * ```
+ *
+ * @example Controlled mode (for external state management)
+ * ```tsx
+ * const [isOpen, setIsOpen] = useState(false);
+ * <Button onClick={() => setIsOpen(true)}>Create Portfolio</Button>
+ * <CreatePortfolioModal
+ *   open={isOpen}
+ *   onOpenChange={setIsOpen}
+ *   onSuccess={() => router.refresh()}
+ * />
+ * ```
+ */
+export type CreatePortfolioModalProps =
+  | CreatePortfolioModalUncontrolledProps
+  | CreatePortfolioModalControlledProps;
+
+// =============================================================================
+// COMPONENT
+// =============================================================================
+
+export function CreatePortfolioModal({
+  trigger,
+  onSuccess,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
+}: CreatePortfolioModalProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  // Use internal state if external control is not provided
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Determine if we're using external or internal control
+  const isControlled = externalOpen !== undefined;
+  const open = isControlled ? externalOpen : internalOpen;
+  const setOpen = isControlled ? (externalOnOpenChange ?? (() => {})) : setInternalOpen;
 
   const {
     register,
@@ -65,29 +143,23 @@ export function CreatePortfolioModal({ trigger, onSuccess }: CreatePortfolioModa
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/portfolios", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+      // Use postWithRetry for automatic rate limit handling with exponential backoff
+      // Generic type matches SuccessResponseBody<T> structure from @/lib/api/responses.ts
+      const result = await postWithRetry<{ id: string; name: string }>("/api/portfolios", data);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Handle specific error codes
-        if (result.code === "LIMIT_EXCEEDED") {
-          toast.error(result.error);
-        } else if (result.code === "VALIDATION_ERROR") {
+      if (!result.ok) {
+        // Handle specific error codes using errorCode from FetchRetryResult
+        if (result.errorCode === "LIMIT_EXCEEDED") {
+          toast.error(result.error ?? "Portfolio limit exceeded");
+        } else if (result.errorCode === "VALIDATION_ERROR") {
           toast.error("Please check your input and try again");
         } else {
-          toast.error("Failed to create portfolio");
+          toast.error(result.error ?? "Failed to create portfolio");
         }
         return;
       }
 
-      // Success
+      // Success - result.data is properly typed as { id: string; name: string }
       toast.success("Portfolio created successfully");
       setOpen(false);
       reset();
@@ -112,14 +184,17 @@ export function CreatePortfolioModal({ trigger, onSuccess }: CreatePortfolioModa
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button>
-            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-            Create Portfolio
-          </Button>
-        )}
-      </DialogTrigger>
+      {/* Only render trigger in uncontrolled mode to avoid conflicts with external state */}
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button>
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+              Create Portfolio
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
