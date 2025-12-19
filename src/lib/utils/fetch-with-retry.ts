@@ -7,6 +7,8 @@
  * @module @/lib/utils/fetch-with-retry
  */
 
+import { logger } from "@/lib/telemetry/logger";
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -147,13 +149,13 @@ export async function fetchWithRetry<T = unknown>(
           retryAfter
         );
 
-        // Log retry in development
-        if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console -- Dev-only logging for debugging retries
-          console.warn(
-            `[fetchWithRetry] ${response.status} response, retrying in ${delay}ms (attempt ${attempt}/${config.maxRetries})`
-          );
-        }
+        // Log retry attempt for debugging
+        logger.debug("Fetch retry attempt", {
+          status: response.status,
+          attempt,
+          maxRetries: config.maxRetries,
+          delayMs: delay,
+        });
 
         await sleep(delay);
         continue;
@@ -189,13 +191,13 @@ export async function fetchWithRetry<T = unknown>(
           config.maxDelayMs
         );
 
-        if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console -- Dev-only logging for debugging retries
-          console.warn(
-            `[fetchWithRetry] Network error, retrying in ${delay}ms (attempt ${attempt}/${config.maxRetries}):`,
-            lastError
-          );
-        }
+        // Log network error retry for debugging
+        logger.debug("Fetch network error retry", {
+          attempt,
+          maxRetries: config.maxRetries,
+          delayMs: delay,
+          error: lastError,
+        });
 
         await sleep(delay);
         continue;

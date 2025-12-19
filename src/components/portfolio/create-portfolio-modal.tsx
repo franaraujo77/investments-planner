@@ -33,6 +33,7 @@ import {
   type CreatePortfolioInput,
   PORTFOLIO_NAME_MAX_LENGTH,
 } from "@/lib/validations/portfolio";
+import { postWithRetry } from "@/lib/utils/fetch-with-retry";
 
 // =============================================================================
 // TYPES
@@ -142,24 +143,23 @@ export function CreatePortfolioModal({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/portfolios", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+      // Use postWithRetry for automatic rate limit handling with exponential backoff
+      const result = await postWithRetry<{
+        id: string;
+        name: string;
+        code?: string;
+        error?: string;
+      }>("/api/portfolios", data);
 
-      const result = await response.json();
-
-      if (!response.ok) {
+      if (!result.ok) {
         // Handle specific error codes
-        if (result.code === "LIMIT_EXCEEDED") {
-          toast.error(result.error);
-        } else if (result.code === "VALIDATION_ERROR") {
+        const errorData = result.data as { code?: string; error?: string } | undefined;
+        if (errorData?.code === "LIMIT_EXCEEDED") {
+          toast.error(errorData.error ?? "Portfolio limit exceeded");
+        } else if (errorData?.code === "VALIDATION_ERROR") {
           toast.error("Please check your input and try again");
         } else {
-          toast.error("Failed to create portfolio");
+          toast.error(result.error ?? "Failed to create portfolio");
         }
         return;
       }
