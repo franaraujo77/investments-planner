@@ -1127,11 +1127,14 @@ export const alerts = pgTable(
     readAt: timestamp("read_at"),
     dismissedAt: timestamp("dismissed_at"),
     createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
     index("alerts_user_id_idx").on(table.userId),
     index("alerts_type_idx").on(table.type),
     index("alerts_created_at_idx").on(table.createdAt),
+    // GIN index for JSONB metadata queries added via migration 0014
+    // (drizzle-orm doesn't directly support GIN indexes, added via raw SQL)
   ]
 );
 

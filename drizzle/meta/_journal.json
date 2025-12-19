@@ -99,6 +99,13 @@
       "when": 1766058293115,
       "tag": "0013_lean_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1766144693115,
+      "tag": "0014_alerts_metadata_gin_index",
+      "breakpoints": true
     }
   ]
 }

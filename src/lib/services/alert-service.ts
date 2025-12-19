@@ -24,7 +24,7 @@ import {
   type OpportunityAlertMetadata,
   type DriftAlertMetadata,
 } from "@/lib/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "@/lib/telemetry/logger";
 import Decimal from "decimal.js";
 
@@ -340,11 +340,13 @@ export class AlertService {
    * @returns Updated alert or null if not found
    */
   async markAsRead(userId: string, alertId: string): Promise<Alert | null> {
+    const now = new Date();
     const [updated] = await this.database
       .update(alerts)
       .set({
         isRead: true,
-        readAt: new Date(),
+        readAt: now,
+        updatedAt: now,
       })
       .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)))
       .returning();
@@ -368,11 +370,13 @@ export class AlertService {
    * @returns Updated alert or null if not found
    */
   async dismissAlert(userId: string, alertId: string): Promise<Alert | null> {
+    const now = new Date();
     const [updated] = await this.database
       .update(alerts)
       .set({
         isDismissed: true,
-        dismissedAt: new Date(),
+        dismissedAt: now,
+        updatedAt: now,
       })
       .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)))
       .returning();
@@ -396,6 +400,7 @@ export class AlertService {
    * @returns Count of dismissed alerts
    */
   async dismissAllAlerts(userId: string, type?: AlertType): Promise<number> {
+    const now = new Date();
     const conditions: ReturnType<typeof eq>[] = [
       eq(alerts.userId, userId),
       eq(alerts.isDismissed, false),
@@ -409,7 +414,8 @@ export class AlertService {
       .update(alerts)
       .set({
         isDismissed: true,
-        dismissedAt: new Date(),
+        dismissedAt: now,
+        updatedAt: now,
       })
       .where(and(...conditions))
       .returning({ id: alerts.id });
@@ -518,6 +524,7 @@ export class AlertService {
       .set({
         message,
         metadata: updatedMetadata,
+        updatedAt: new Date(),
       })
       .where(eq(alerts.id, alertId))
       .returning();
@@ -550,6 +557,7 @@ export class AlertService {
       .set({
         isDismissed: true,
         dismissedAt: now,
+        updatedAt: now,
       })
       .where(
         and(
@@ -781,6 +789,7 @@ export class AlertService {
         message,
         metadata: updatedMetadata,
         severity: newSeverity,
+        updatedAt: new Date(),
       })
       .where(eq(alerts.id, alertId))
       .returning();
@@ -806,7 +815,6 @@ export class AlertService {
    */
   async autoDismissResolvedDriftAlerts(userId: string, portfolioId: string): Promise<number> {
     const now = new Date();
-    let dismissedCount = 0;
 
     // Get all non-dismissed drift alerts for this user
     const driftAlerts = await this.database
@@ -850,7 +858,14 @@ export class AlertService {
       }
     }
 
-    // For each drift alert, check if allocation is back in range
+    // Collect IDs of alerts to dismiss (batch approach for performance)
+    const alertsToDismiss: {
+      id: string;
+      assetClassName: string;
+      currentAllocation: string;
+      targetRange: string;
+    }[] = [];
+
     for (const alert of driftAlerts) {
       const metadata = alert.metadata as DriftAlertMetadata;
       const classValue = classValues.get(metadata.assetClassId) ?? new Decimal(0);
@@ -865,36 +880,46 @@ export class AlertService {
 
       // Check if allocation is back within range
       if (currentAllocation.gte(targetMin) && currentAllocation.lte(targetMax)) {
-        // Auto-dismiss this alert
-        await this.database
-          .update(alerts)
-          .set({
-            isDismissed: true,
-            dismissedAt: now,
-          })
-          .where(eq(alerts.id, alert.id));
-
-        dismissedCount++;
-
-        logger.info("Auto-dismissed resolved drift alert", {
-          alertId: alert.id,
-          userId,
-          assetClass: metadata.assetClassName,
+        alertsToDismiss.push({
+          id: alert.id,
+          assetClassName: metadata.assetClassName,
           currentAllocation: currentAllocation.toString(),
           targetRange: `${targetMin}-${targetMax}`,
         });
       }
     }
 
-    if (dismissedCount > 0) {
+    // Batch update: dismiss all resolved alerts in a single query
+    if (alertsToDismiss.length > 0) {
+      const idsToUpdate = alertsToDismiss.map((a) => a.id);
+      await this.database
+        .update(alerts)
+        .set({
+          isDismissed: true,
+          dismissedAt: now,
+          updatedAt: now,
+        })
+        .where(inArray(alerts.id, idsToUpdate));
+
+      // Log individual dismissals for audit trail
+      for (const dismissed of alertsToDismiss) {
+        logger.info("Auto-dismissed resolved drift alert", {
+          alertId: dismissed.id,
+          userId,
+          assetClass: dismissed.assetClassName,
+          currentAllocation: dismissed.currentAllocation,
+          targetRange: dismissed.targetRange,
+        });
+      }
+
       logger.info("Auto-dismissed drift alerts for resolved allocations", {
         userId,
         portfolioId,
-        dismissedCount,
+        dismissedCount: alertsToDismiss.length,
       });
     }
 
-    return dismissedCount;
+    return alertsToDismiss.length;
   }
 }
 
