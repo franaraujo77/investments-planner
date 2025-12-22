@@ -54,3 +54,6 @@ jobs:
 
       - name: Run unit tests
         run: pnpm test
+
+      - name: Security check - RLS coverage
+        run: pnpm security:check-rls

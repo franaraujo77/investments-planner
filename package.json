@@ -20,7 +20,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "prepare": "husky"
+    "prepare": "husky",
+    "security:check-rls": "npx tsx scripts/check-rls-coverage.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
