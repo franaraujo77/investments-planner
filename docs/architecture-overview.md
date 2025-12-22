@@ -497,5 +497,3 @@ Critical indexes defined in schema:
 | Overnight scoring         | < 5min for 1000 users | Batch   |
 
 ---
-
-_For detailed API documentation, see [API Reference](./api-reference.md)._
