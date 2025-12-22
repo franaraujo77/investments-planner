@@ -1,0 +1,124 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": { "started": "2025-12-20T12:00:00Z", "completed": "2025-12-20T12:35:00Z" },
+  "mode": "initial_scan",
+  "scan_level": "exhaustive",
+  "project_root": "/Users/francisaraujo/repos/investments-planner",
+  "output_folder": "/Users/francisaraujo/repos/investments-planner/docs",
+  "completed_steps": [
+    {
+      "step": "step_1",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:00:00Z",
+      "summary": "Classified as monolith web app"
+    },
+    {
+      "step": "step_2",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:05:00Z",
+      "summary": "Found 100+ existing docs"
+    },
+    {
+      "step": "step_3",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:10:00Z",
+      "summary": "Next.js 16 + React 19 + PostgreSQL/Drizzle stack"
+    },
+    {
+      "step": "step_4",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:15:00Z",
+      "summary": "Web app with API, data models, UI components"
+    },
+    {
+      "step": "step_5",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:20:00Z",
+      "summary": "Generated source-tree.md with 300+ files"
+    },
+    {
+      "step": "step_6",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:22:00Z",
+      "summary": "Generated development-setup.md"
+    },
+    {
+      "step": "step_7",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:23:00Z",
+      "summary": "Single-part monolith confirmed"
+    },
+    {
+      "step": "step_8",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:25:00Z",
+      "summary": "Generated architecture-overview.md"
+    },
+    {
+      "step": "step_9",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:28:00Z",
+      "summary": "Generated database-schema.md"
+    },
+    {
+      "step": "step_10",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:30:00Z",
+      "summary": "Generated index.md master entry"
+    },
+    {
+      "step": "step_11",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:33:00Z",
+      "summary": "Validation passed - all checklist items satisfied"
+    },
+    {
+      "step": "step_12",
+      "status": "completed",
+      "timestamp": "2025-12-20T12:35:00Z",
+      "summary": "Workflow finalized"
+    }
+  ],
+  "current_step": "completed",
+  "project_classification": {
+    "repository_type": "monolith",
+    "parts_count": 1,
+    "primary_tech": "Next.js 16 + React 19 + TypeScript + PostgreSQL + Drizzle ORM"
+  },
+  "project_types": [
+    { "part_id": "main", "project_type_id": "web", "display_name": "Full-Stack Web Application" }
+  ],
+  "findings": {
+    "technology_stack": {
+      "framework": "Next.js 16 (App Router)",
+      "ui": "React 19 + Radix UI + Tailwind CSS",
+      "language": "TypeScript 5.x",
+      "database": "PostgreSQL with Drizzle ORM",
+      "cache": "Vercel KV (Redis)",
+      "auth": "JWT (jose) + bcrypt",
+      "jobs": "Inngest",
+      "testing": "Vitest + Playwright",
+      "observability": "OpenTelemetry"
+    },
+    "codebase_stats": {
+      "api_endpoints": 59,
+      "react_components": 116,
+      "custom_hooks": 21,
+      "services": 26,
+      "db_tables": 17,
+      "validation_schemas": 12,
+      "migrations": 15
+    },
+    "epics_completed": 9,
+    "stories_completed": "65+"
+  },
+  "outputs_generated": [
+    "project-scan-report.json",
+    "index.md",
+    "architecture-overview.md",
+    "source-tree.md",
+    "database-schema.md",
+    "development-setup.md"
+  ],
+  "resume_instructions": "Workflow complete. Documentation ready for brownfield PRD workflow."
+}

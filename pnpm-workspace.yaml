@@ -4,6 +4,15 @@
 packages:
   - '.'
 
-# Only allow bcrypt to run install scripts (for native compilation)
+# Allow these dependencies to run install scripts (for native compilation)
+# - bcrypt: Password hashing (native bindings)
+# - esbuild: JavaScript bundler (native binaries)
+# - protobufjs: Protocol buffers (may need native compilation)
+# - sharp: Image processing (native binaries for libvips)
+# - unrs-resolver: Module resolver (native bindings)
 onlyBuiltDependencies:
   - bcrypt
+  - esbuild
+  - protobufjs
+  - sharp
+  - unrs-resolver
