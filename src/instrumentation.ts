@@ -31,5 +31,10 @@ export async function register(): Promise<void> {
     // Dynamic import to ensure this only loads on server
     const { setupTelemetry } = await import("@/lib/telemetry/setup");
     setupTelemetry();
+
+    // Validate provider configuration and log warnings
+    // This helps operators identify missing API keys in production
+    const { logProviderConfigStatus } = await import("@/lib/providers/validate-config");
+    logProviderConfigStatus();
   }
 }

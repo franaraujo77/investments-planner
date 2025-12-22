@@ -485,6 +485,13 @@ describe("withErrorHandling", () => {
   - `no action` - Only for non-critical relationships
 - [ ] **Indexes for frequently queried columns:** Add to schema if needed
 
+### Database Security Checks (Supabase RLS)
+
+- [ ] **New tables have RLS enabled:** Create migration with `ALTER TABLE "table_name" ENABLE ROW LEVEL SECURITY;`
+- [ ] **Auth token tables have REVOKE:** Add `REVOKE ALL ON "table_name" FROM anon, authenticated;`
+- [ ] **Run security check:** Execute `pnpm security:check-rls` before committing
+- [ ] **See full checklist:** Review `docs/security-checklist.md` for detailed guidance
+
 ### Client-Side Code Checks
 
 - [ ] **No console.error in client components:** Errors display via UI state, server logs via API
@@ -510,6 +517,9 @@ pnpm lint
 
 # Run tests
 pnpm test
+
+# Security check (RLS coverage)
+pnpm security:check-rls
 
 # Build verification
 pnpm build
