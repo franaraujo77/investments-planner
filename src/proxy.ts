@@ -43,7 +43,7 @@ function matchesRoute(path: string, routes: string[]): boolean {
 /**
  * Proxy function (Next.js 16+)
  */
-export default async function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip proxy for static files and API routes (except auth)
