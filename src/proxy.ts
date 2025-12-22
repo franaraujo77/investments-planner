@@ -1,10 +1,14 @@
 /**
- * Next.js Middleware
+ * Next.js Proxy (formerly Middleware)
  *
  * Story 2.2: Email Verification
  * AC-2.2.4: Unverified users accessing dashboard routes redirect to verify-pending
  *
  * Route protection and authentication handling.
+ *
+ * Note: Renamed from middleware.ts to proxy.ts for Next.js 16 compatibility.
+ * The proxy runs on Node.js runtime (not Edge).
+ * See: https://nextjs.org/docs/messages/middleware-to-proxy
  */
 
 import { NextResponse } from "next/server";
@@ -37,12 +41,12 @@ function matchesRoute(path: string, routes: string[]): boolean {
 }
 
 /**
- * Middleware function
+ * Proxy function (Next.js 16+)
  */
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for static files and API routes (except auth)
+  // Skip proxy for static files and API routes (except auth)
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname.includes(".")) {
     return NextResponse.next();
   }
@@ -106,7 +110,7 @@ export async function middleware(request: NextRequest) {
 }
 
 /**
- * Middleware configuration
+ * Proxy configuration
  */
 export const config = {
   matcher: [
