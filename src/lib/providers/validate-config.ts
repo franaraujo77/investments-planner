@@ -30,6 +30,17 @@ interface ValidationResult {
   warnings: string[];
 }
 
+/**
+ * Summary of provider configuration status
+ * Maps environment variable names to their configured status
+ */
+export interface ProviderConfigSummary {
+  GEMINI_API_KEY: boolean;
+  EXCHANGE_RATE_API_KEY: boolean;
+  YAHOO_FINANCE_API_KEY: boolean;
+  OPEN_EXCHANGE_RATES_APP_ID: boolean;
+}
+
 // =============================================================================
 // PROVIDER REQUIREMENTS
 // =============================================================================
@@ -174,9 +185,12 @@ export function isUsingMockProviders(): boolean {
 /**
  * Get a summary of provider configuration for health checks
  *
- * @returns Object with provider names and their configured status
+ * @returns Object with provider environment variable names and their configured status
  */
-export function getProviderConfigSummary(): Record<string, boolean> {
+export function getProviderConfigSummary(): ProviderConfigSummary {
   const result = validateProviderConfig();
-  return Object.fromEntries(result.providers.map((p) => [p.envVar, p.configured]));
+  // Type assertion is safe because PROVIDER_REQUIREMENTS defines exactly these keys
+  return Object.fromEntries(
+    result.providers.map((p) => [p.envVar, p.configured])
+  ) as unknown as ProviderConfigSummary;
 }
