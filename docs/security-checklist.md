@@ -12,6 +12,8 @@ This checklist must be followed for any PR that modifies the database schema or 
 
 ### 2. Table Classification
 
+- [ ] **Classify new table** - Determine the category (User-owned, Auth tokens, Shared data, or System) using the reference table below
+
 Classify your new table and apply appropriate security:
 
 | Category        | Description           | RLS Policy                                       | Example Tables                            |
@@ -87,3 +89,62 @@ If a security advisory is found in production:
 2. **Investigate**: Check logs for unauthorized access attempts
 3. **Rotate**: If tokens were exposed, rotate affected credentials
 4. **Document**: Add to this checklist to prevent recurrence
+
+---
+
+## Table Classification Reference
+
+All tables in the schema must be classified. This reference documents the classification for every table.
+
+### User-Owned Tables
+
+Tables containing user-specific data with `user_id` foreign key. Access controlled via service role only.
+
+| Table                  | Description                               | RLS Migration                  |
+| ---------------------- | ----------------------------------------- | ------------------------------ |
+| `users`                | Core user identity and preferences        | `0015_enable_rls_security.sql` |
+| `portfolios`           | User investment portfolios                | `0015_enable_rls_security.sql` |
+| `portfolio_assets`     | Individual asset holdings (via portfolio) | `0015_enable_rls_security.sql` |
+| `asset_classes`        | User-defined asset categories             | `0015_enable_rls_security.sql` |
+| `asset_subclasses`     | Subdivisions within asset classes         | `0015_enable_rls_security.sql` |
+| `criteria_versions`    | Immutable scoring criteria sets           | `0015_enable_rls_security.sql` |
+| `asset_scores`         | Calculated scores for assets              | `0015_enable_rls_security.sql` |
+| `score_history`        | Historical score records (append-only)    | `0015_enable_rls_security.sql` |
+| `investments`          | Investment transaction records            | `0015_enable_rls_security.sql` |
+| `recommendations`      | Recommendation generation sessions        | `0015_enable_rls_security.sql` |
+| `recommendation_items` | Individual asset recommendations          | `0015_enable_rls_security.sql` |
+| `calculation_events`   | Event sourcing audit trail                | `0015_enable_rls_security.sql` |
+| `alerts`               | User notifications for portfolio events   | `0015_enable_rls_security.sql` |
+| `alert_preferences`    | User notification settings                | `0015_enable_rls_security.sql` |
+
+### Auth Token Tables
+
+Sensitive authentication data. RLS enabled with REVOKE from anon/authenticated roles.
+
+| Table                   | Description               | RLS Migration                  | Additional Security             |
+| ----------------------- | ------------------------- | ------------------------------ | ------------------------------- |
+| `refresh_tokens`        | JWT refresh token storage | `0015_enable_rls_security.sql` | REVOKE from anon, authenticated |
+| `verification_tokens`   | Email verification tokens | `0015_enable_rls_security.sql` | REVOKE from anon, authenticated |
+| `password_reset_tokens` | Password reset tokens     | `0015_enable_rls_security.sql` | REVOKE from anon, authenticated |
+
+### Shared Data Tables
+
+Market/reference data shared across all users. RLS enabled with read-only policy for authenticated users.
+
+| Table                | Description                           | RLS Migration                  | Policy                      |
+| -------------------- | ------------------------------------- | ------------------------------ | --------------------------- |
+| `asset_fundamentals` | External fundamental data (P/E, etc.) | `0015_enable_rls_security.sql` | Read-only for authenticated |
+| `asset_prices`       | External daily price data (OHLCV)     | `0015_enable_rls_security.sql` | Read-only for authenticated |
+| `exchange_rates`     | Currency exchange rate data           | `0015_enable_rls_security.sql` | Read-only for authenticated |
+
+### System Tables
+
+Admin/job tracking tables. RLS enabled with service role only access.
+
+| Table                | Description                       | RLS Migration                  |
+| -------------------- | --------------------------------- | ------------------------------ |
+| `overnight_job_runs` | Job execution history and metrics | `0015_enable_rls_security.sql` |
+
+---
+
+**Total Tables: 21** | All tables have RLS enabled as of migration `0015_enable_rls_security.sql`
