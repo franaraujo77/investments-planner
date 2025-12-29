@@ -1,4 +1,4 @@
-# generated: 2025-12-27
+# generated: 2025-12-29
 # project: investments-planner
 # project_key: investments-planner
 # tracking_system: file-system
@@ -12,8 +12,8 @@
 #   - done: All stories in epic completed
 #
 # Epic Status Transitions:
-#   - backlog → in-progress: Automatically when first story is created (via create-story)
-#   - in-progress → done: Manually when all stories reach 'done' status
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
 #
 # Story Status:
 #   - backlog: Story only exists in epic file
@@ -33,7 +33,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2025-12-27
+generated: 2025-12-29
 project: investments-planner
 project_key: investments-planner
 tracking_system: file-system
@@ -41,22 +41,22 @@ story_location: "_bmad-output/implementation-artifacts"
 
 development_status:
   # Epic 1: User Authentication & Account Foundation
-  epic-1: done  # Completed 2025-12-29
+  epic-1: done
   1-1-user-registration-with-email: done
   1-2-user-login-and-session-management: done
   1-3-password-reset-flow: done
   1-4-profile-management: done
   1-5-regional-preferences-and-i18n-infrastructure: done
   1-6-gdpr-compliance-data-export-and-deletion: done
-  1-7-enable-all-skipped-tests: done  # Enable all ~27 skipped tests
+  1-7-enable-all-skipped-tests: done
   1-8-github-actions-integration-tests-pipeline: done
-  1-9-supabase-splinter-database-linter: done  # Database schema linting with Supabase Splinter
-  epic-1-retrospective: done  # Completed 2025-12-29
+  1-9-supabase-splinter-database-linter: done
+  epic-1-retrospective: done
 
   # Epic 2: Portfolio Management Foundation
-  epic-2: backlog
-  2-1-create-portfolio: backlog
-  2-2-view-portfolio-and-holdings: backlog
+  epic-2: in-progress
+  2-1-create-portfolio: done
+  2-2-view-portfolio-and-holdings: done
   2-3-edit-portfolio: backlog
   2-4-delete-portfolio: backlog
   2-5-add-holdings-to-portfolio: backlog

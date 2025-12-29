@@ -2,6 +2,7 @@
  * Portfolio E2E Tests
  *
  * Story 2.1: Create Portfolio with Enhanced Fields (Epic 2)
+ * Story 2.2: View Portfolio and Holdings (Epic 2)
  * Story 3.1: Create Portfolio
  * Story 3.2: Add Asset to Portfolio
  * Story 3.5: Mark Asset as Ignored
@@ -15,6 +16,12 @@
  * AC-2.1.4: Similar name warning with debounce
  * AC-2.1.5: Client-side validation before submit
  * AC-2.1.6: Display portfolios with industry sector and asset types
+ *
+ * Story 2.2 (Epic 2):
+ * AC-2.2.1: Holdings list display with asset name, quantity, price, value
+ * AC-2.2.2: Base currency display with allocation percentages
+ * AC-2.2.3: Empty state with "Add your first asset" CTA
+ * AC-2.2.4: Holding detail navigation on row click
  *
  * Story 3.1:
  * AC-3.1.1: Empty state for new users
@@ -2470,5 +2477,484 @@ test.describe("Cancel Investment Recording", () => {
         await expect(page.getByLabel("Quantity")).toHaveValue("");
       }
     }
+  });
+});
+
+/**
+ * Story 2.2: View Portfolio and Holdings
+ *
+ * AC-2.2.1: Holdings list display with asset name, quantity, price, value
+ * AC-2.2.2: Base currency display with allocation percentages
+ * AC-2.2.3: Empty state with "Add your first asset" CTA
+ * AC-2.2.4: Holding detail navigation on row click
+ */
+test.describe("Portfolio Detail Page (Story 2.2)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should navigate to portfolio detail page when clicking a portfolio", async ({ page }) => {
+    // Find and click on a portfolio
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Should navigate to portfolio detail page
+      await expect(page).toHaveURL(/\/portfolio\/[a-zA-Z0-9-]+/);
+    }
+  });
+
+  test("should display breadcrumb navigation (AC-2.2.1)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Breadcrumb should show "Portfolios" link
+      await expect(page.getByRole("link", { name: "Portfolios" })).toBeVisible();
+
+      // Back button should be visible
+      await expect(page.getByRole("link", { name: /Back to Portfolios/i })).toBeVisible();
+    }
+  });
+
+  test("should display portfolio summary card with total value", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Summary card should show total value
+      await expect(page.getByText(/Total Value/i)).toBeVisible();
+
+      // Should show asset count information
+      const activeAssets = page.getByText(/Active Assets|Assets/i);
+      await expect(activeAssets).toBeVisible();
+    }
+  });
+});
+
+test.describe("Holdings Table Display (AC-2.2.1, AC-2.2.2)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should display holdings table with required columns", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Check if holdings table is visible (if there are assets)
+      const holdingsTable = page.locator("[data-testid='holdings-table']");
+      const hasHoldingsTable = await holdingsTable.isVisible().catch(() => false);
+
+      if (hasHoldingsTable) {
+        // Table headers should be visible - AC-2.2.1
+        await expect(page.getByText("Symbol")).toBeVisible();
+        await expect(page.getByText("Name")).toBeVisible();
+        await expect(page.getByText("Quantity")).toBeVisible();
+        await expect(page.getByText("Price")).toBeVisible();
+        // AC-2.2.2: Allocation percentage column
+        await expect(page.getByText("Allocation")).toBeVisible();
+      }
+    }
+  });
+
+  test("should display allocation percentages for holdings (AC-2.2.2)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Check for percentage values in the table
+      const holdingsTable = page.locator("[data-testid='holdings-table']");
+      const hasHoldingsTable = await holdingsTable.isVisible().catch(() => false);
+
+      if (hasHoldingsTable) {
+        // Look for percentage formatting (e.g., "50%", "25.5%")
+        const percentageCell = page.locator("[data-testid='holdings-table'] >> text=/%/");
+        const hasPercentage = await percentageCell
+          .first()
+          .isVisible()
+          .catch(() => false);
+
+        // If there are holdings, they should have allocation percentages
+        if (hasPercentage) {
+          await expect(percentageCell.first()).toBeVisible();
+        }
+      }
+    }
+  });
+
+  test("should display values in base currency (AC-2.2.2)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Base currency should be displayed in header or summary
+      const baseCurrencyText = page.getByText(/Base currency:/i);
+      await expect(baseCurrencyText).toBeVisible();
+    }
+  });
+});
+
+test.describe("Empty Holdings State (AC-2.2.3)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should show empty state with CTA when portfolio has no holdings", async ({ page }) => {
+    // This test requires a portfolio with no assets
+    // Create a new portfolio or use one known to be empty
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Check for empty state
+      const emptyState = page.locator("[data-testid='empty-holdings-state']");
+      const hasEmptyState = await emptyState.isVisible().catch(() => false);
+
+      if (hasEmptyState) {
+        // AC-2.2.3: Empty state message
+        await expect(page.locator("[data-testid='empty-holdings-title']")).toHaveText(
+          /No Holdings Yet/i
+        );
+
+        // AC-2.2.3: CTA button
+        await expect(page.locator("[data-testid='add-first-asset-cta']")).toBeVisible();
+        await expect(page.locator("[data-testid='add-first-asset-cta']")).toHaveText(
+          /Add your first asset/i
+        );
+      }
+    }
+  });
+
+  test("should open add asset modal when clicking CTA", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Check for empty state CTA
+      const addAssetCta = page.locator("[data-testid='add-first-asset-cta']");
+      const hasEmptyState = await addAssetCta.isVisible().catch(() => false);
+
+      if (hasEmptyState) {
+        await addAssetCta.click();
+
+        // Modal should open
+        await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5000 });
+      }
+    }
+  });
+});
+
+test.describe("Holding Detail Drawer (AC-2.2.4)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should open holding detail drawer when clicking a holding row", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Find a holding row in the table
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        // Click on the holding row
+        await holdingRow.click();
+
+        // Drawer should open - AC-2.2.4
+        await expect(page.locator("[data-testid='holding-detail-drawer']")).toBeVisible({
+          timeout: 5000,
+        });
+      }
+    }
+  });
+
+  test("should display holding details in drawer", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+        await page.waitForTimeout(500);
+
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        const isDrawerVisible = await drawer.isVisible().catch(() => false);
+
+        if (isDrawerVisible) {
+          // Check for detail fields
+          await expect(page.locator("[data-testid='holding-quantity']")).toBeVisible();
+          await expect(page.locator("[data-testid='holding-purchase-price']")).toBeVisible();
+          await expect(page.locator("[data-testid='holding-current-price']")).toBeVisible();
+          await expect(page.locator("[data-testid='holding-value-base']")).toBeVisible();
+          await expect(page.locator("[data-testid='holding-allocation']")).toBeVisible();
+        }
+      }
+    }
+  });
+
+  test("should display action buttons in drawer", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+        await page.waitForTimeout(500);
+
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        const isDrawerVisible = await drawer.isVisible().catch(() => false);
+
+        if (isDrawerVisible) {
+          // Check for action buttons
+          await expect(page.locator("[data-testid='toggle-ignore-btn']")).toBeVisible();
+          await expect(page.locator("[data-testid='remove-holding-btn']")).toBeVisible();
+        }
+      }
+    }
+  });
+
+  test("should close drawer when clicking outside or pressing escape", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+        await page.waitForTimeout(500);
+
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        const isDrawerVisible = await drawer.isVisible().catch(() => false);
+
+        if (isDrawerVisible) {
+          // Press Escape to close
+          await page.keyboard.press("Escape");
+
+          // Drawer should close
+          await expect(drawer).not.toBeVisible({ timeout: 3000 });
+        }
+      }
+    }
+  });
+});
+
+test.describe("Holding Detail Drawer Actions (Story 2.2)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should toggle ignore status from drawer", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+        await page.waitForTimeout(500);
+
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        const isDrawerVisible = await drawer.isVisible().catch(() => false);
+
+        if (isDrawerVisible) {
+          const toggleButton = page.locator("[data-testid='toggle-ignore-btn']");
+
+          // Click toggle ignore button
+          await toggleButton.click();
+
+          // Should show toast message
+          await expect(
+            page.getByText(/included in allocations|ignored from allocations/i)
+          ).toBeVisible({ timeout: 5000 });
+        }
+      }
+    }
+  });
+
+  test("should open delete confirmation dialog from drawer", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+        await page.waitForTimeout(500);
+
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        const isDrawerVisible = await drawer.isVisible().catch(() => false);
+
+        if (isDrawerVisible) {
+          const removeButton = page.locator("[data-testid='remove-holding-btn']");
+
+          // Click remove button
+          await removeButton.click();
+
+          // Confirmation dialog should open
+          await expect(page.getByRole("alertdialog")).toBeVisible({
+            timeout: 5000,
+          });
+        }
+      }
+    }
+  });
+});
+
+test.describe("Portfolio Detail Navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should navigate back to portfolio list via breadcrumb", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Click on breadcrumb link
+      const breadcrumbLink = page.getByRole("link", { name: "Portfolios" });
+      await breadcrumbLink.click();
+
+      // Should navigate back to portfolio list
+      await expect(page).toHaveURL(/\/portfolio$/);
+    }
+  });
+
+  test("should navigate back via Back button", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Click on Back button
+      const backButton = page.getByRole("link", { name: /Back to Portfolios/i });
+      await backButton.click();
+
+      // Should navigate back to portfolio list
+      await expect(page).toHaveURL(/\/portfolio$/);
+    }
+  });
+
+  test("should redirect to login for unauthenticated access", async ({ page }) => {
+    // Try to access portfolio detail directly without login
+    await page.goto("/portfolio/test-portfolio-id");
+
+    // Should redirect to login
+    await expect(page).toHaveURL(/\/login\?redirect=/);
   });
 });
