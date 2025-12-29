@@ -63,7 +63,7 @@ development_status:
   2-6-update-and-remove-holdings: done
   2-7-multi-currency-portfolio-display: done
   2-8-investment-history: done
-  2-9-fix-rls-migration-integration-db: ready-for-dev
+  2-9-fix-rls-migration-integration-db: done
   epic-2-retrospective: optional
 
   # Epic 3: Visual Allocation Feedback
