@@ -5,6 +5,7 @@
  * Story 2.2: View Portfolio and Holdings (Epic 2)
  * Story 2.3: Edit Portfolio (Epic 2)
  * Story 2.4: Delete Portfolio (Epic 2)
+ * Story 2.5: Add Holdings to Portfolio (Epic 2)
  * Story 3.1: Create Portfolio
  * Story 3.2: Add Asset to Portfolio
  * Story 3.5: Mark Asset as Ignored
@@ -32,6 +33,15 @@
  * AC-2.4.4: Successful deletion with redirect to list
  * AC-2.4.6: Cancel closes dialog without changes
  * AC-2.4.7: Multi-tenant isolation (only owner can delete)
+ *
+ * Story 2.5 (Epic 2):
+ * AC-2.5.1: Add Asset button prominently displayed on portfolio detail
+ * AC-2.5.3: Autocomplete suggestions after 2+ characters
+ * AC-2.5.4: Auto-populate symbol and name on selection
+ * AC-2.5.5: Form validation (quantity > 0, price > 0, valid currency)
+ * AC-2.5.6: Success toast and portfolio refresh
+ * AC-2.5.7: Allocation percentages update after addition
+ * AC-2.5.8: Duplicate asset error handling
  *
  * Story 3.1:
  * AC-3.1.1: Empty state for new users
@@ -3590,4 +3600,269 @@ test.describe("Delete Portfolio Flow (Story 2.4)", () => {
     const deletedPortfolio = page.locator("button").filter({ hasText: uniqueName });
     await expect(deletedPortfolio).toHaveCount(0);
   });
+});
+
+// =============================================================================
+// Story 2.5: Add Holdings to Portfolio (Epic 2)
+// =============================================================================
+
+test.describe("Add Asset Button on Portfolio Detail (AC-2.5.1)", () => {
+  /**
+   * @data-setup: Requires at least one portfolio to exist
+   */
+  test(
+    "should show Add Asset button on portfolio detail page",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least one portfolio to exist"
+      );
+
+      await loginUser(page);
+      await page.goto("/portfolio");
+
+      // Click on a portfolio card to go to detail page
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+
+        // Wait for detail page to load
+        await page.waitForURL(/\/portfolio\/[a-z0-9-]+$/);
+
+        // AC-2.5.1: Add Asset button should be visible and prominent
+        const addAssetButton = page.locator("[data-testid='add-asset-button']");
+        await expect(addAssetButton).toBeVisible();
+      }
+    }
+  );
+});
+
+test.describe("Asset Search Autocomplete (AC-2.5.3, AC-2.5.4)", () => {
+  /**
+   * @data-setup: Requires at least one portfolio to exist
+   */
+  test(
+    "should show autocomplete suggestions after typing 2+ characters",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least one portfolio to exist"
+      );
+
+      await loginUser(page);
+      await page.goto("/portfolio");
+
+      // Navigate to portfolio detail
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-z0-9-]+$/);
+
+        // Open Add Asset modal
+        const addAssetButton = page.locator("[data-testid='add-asset-button']");
+        await addAssetButton.click();
+
+        // Wait for modal
+        await expect(page.getByRole("dialog")).toBeVisible();
+
+        // Type 2+ characters in the search input
+        const searchInput = page.locator("[data-testid='asset-search-input']");
+        await searchInput.fill("AA");
+
+        // Wait for debounce and suggestions
+        await page.waitForTimeout(400);
+
+        // AC-2.5.3: Autocomplete suggestions should appear
+        const suggestions = page.locator("[data-testid='asset-suggestions']");
+        await expect(suggestions).toBeVisible({ timeout: 2000 });
+
+        // Should show AAPL in suggestions
+        await expect(page.locator("[data-testid='asset-suggestion-AAPL']")).toBeVisible();
+      }
+    }
+  );
+
+  /**
+   * @data-setup: Requires at least one portfolio to exist
+   */
+  test(
+    "should auto-populate symbol and name on selection",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least one portfolio to exist"
+      );
+
+      await loginUser(page);
+      await page.goto("/portfolio");
+
+      // Navigate to portfolio detail
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-z0-9-]+$/);
+
+        // Open Add Asset modal
+        const addAssetButton = page.locator("[data-testid='add-asset-button']");
+        await addAssetButton.click();
+
+        // Wait for modal
+        await expect(page.getByRole("dialog")).toBeVisible();
+
+        // Type to trigger autocomplete
+        const searchInput = page.locator("[data-testid='asset-search-input']");
+        await searchInput.fill("AAPL");
+
+        // Wait for debounce and suggestions
+        await page.waitForTimeout(400);
+
+        // Click on AAPL suggestion
+        const aaplSuggestion = page.locator("[data-testid='asset-suggestion-AAPL']");
+        await aaplSuggestion.click();
+
+        // AC-2.5.4: Symbol should be auto-populated
+        await expect(searchInput).toHaveValue("AAPL");
+
+        // AC-2.5.4: Name should be auto-populated
+        const nameInput = page.getByLabel(/Name/);
+        await expect(nameInput).toHaveValue("Apple Inc.");
+      }
+    }
+  );
+
+  /**
+   * @data-setup: Requires at least one portfolio to exist
+   */
+  test(
+    "should show no-suggestions message for unknown symbols",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least one portfolio to exist"
+      );
+
+      await loginUser(page);
+      await page.goto("/portfolio");
+
+      // Navigate to portfolio detail
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-z0-9-]+$/);
+
+        // Open Add Asset modal
+        const addAssetButton = page.locator("[data-testid='add-asset-button']");
+        await addAssetButton.click();
+
+        // Wait for modal
+        await expect(page.getByRole("dialog")).toBeVisible();
+
+        // Type something that won't match
+        const searchInput = page.locator("[data-testid='asset-search-input']");
+        await searchInput.fill("ZZZXXX123");
+
+        // Wait for debounce
+        await page.waitForTimeout(400);
+
+        // Should show no-suggestions message
+        const noSuggestions = page.locator("[data-testid='no-suggestions']");
+        await expect(noSuggestions).toBeVisible({ timeout: 2000 });
+        await expect(noSuggestions).toContainText("No matching assets found");
+      }
+    }
+  );
+});
+
+test.describe("Add Asset from Portfolio Detail (AC-2.5.6, AC-2.5.7)", () => {
+  /**
+   * @data-setup: Requires at least one portfolio to exist
+   */
+  test(
+    "should add asset successfully from portfolio detail page",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least one portfolio to exist"
+      );
+
+      await loginUser(page);
+      await page.goto("/portfolio");
+
+      // Navigate to portfolio detail
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-z0-9-]+$/);
+
+        // Open Add Asset modal
+        const addAssetButton = page.locator("[data-testid='add-asset-button']");
+        await addAssetButton.click();
+
+        // Wait for modal
+        await expect(page.getByRole("dialog")).toBeVisible();
+
+        // Fill in asset details
+        const uniqueSymbol = `E2E${Date.now().toString().slice(-4)}`.substring(0, 8);
+        const searchInput = page.locator("[data-testid='asset-search-input']");
+        await searchInput.fill(uniqueSymbol);
+
+        await page.getByLabel("Quantity").fill("10");
+        await page.getByLabel(/Price/).fill("100");
+
+        // Submit
+        await page.getByRole("dialog").getByRole("button", { name: "Add" }).click();
+
+        // AC-2.5.6: Should show success toast
+        await expect(page.getByText("Asset added successfully")).toBeVisible({
+          timeout: 10000,
+        });
+
+        // Modal should close
+        await expect(page.getByRole("dialog")).not.toBeVisible();
+
+        // AC-2.5.7: Asset should appear in holdings table (page refreshed)
+        await expect(page.getByText(uniqueSymbol)).toBeVisible({ timeout: 5000 });
+      }
+    }
+  );
 });

@@ -5,6 +5,7 @@
  *
  * Story 2.2: View Portfolio and Holdings
  * Story 2.4: Delete Portfolio
+ * Story 2.5: Add Holdings to Portfolio
  *
  * AC-2.2.1: Holdings list display with asset name, quantity, price, value
  * AC-2.2.2: Base currency display with allocation percentages
@@ -12,12 +13,14 @@
  * AC-2.2.4: Holding detail navigation on row click
  * AC-2.4.1: Delete button styled as destructive action
  * AC-2.4.4: Successful deletion redirects to portfolio list
+ * AC-2.5.1: Add Asset button prominently displayed
+ * AC-2.5.7: Allocation recalculation after addition
  */
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, ArrowLeft, Pencil, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,7 @@ import { PortfolioSummaryCard } from "@/components/portfolio/portfolio-summary-c
 import { EmptyHoldingsState } from "@/components/portfolio/empty-holdings-state";
 import { HoldingDetailDrawer } from "@/components/portfolio/holding-detail-drawer";
 import { DeletePortfolioDialog } from "@/components/portfolio/delete-portfolio-dialog";
+import { AddAssetModal } from "@/components/portfolio/add-asset-modal";
 import type { PortfolioWithValues, AssetWithValue } from "@/lib/services/portfolio-service";
 import type { AssetType } from "@/lib/validations/portfolio";
 
@@ -83,6 +87,15 @@ export function PortfolioDetailClient({
     router.push("/portfolio");
   }, [router]);
 
+  /**
+   * Handle successful asset addition
+   * AC-2.5.6: Success toast shown by AddAssetModal
+   * AC-2.5.7: Allocation percentages refresh via router.refresh() in modal
+   */
+  const handleAssetAdded = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
   // Determine if we should show empty state
   const hasNoHoldings = assets.length === 0;
 
@@ -115,6 +128,18 @@ export function PortfolioDetailClient({
             </p>
           </div>
           <div className="flex gap-2">
+            {/* Story 2.5: Add Asset - AC-2.5.1: Add Asset button prominently displayed */}
+            <AddAssetModal
+              portfolioId={portfolio.id}
+              defaultCurrency={baseCurrency}
+              onSuccess={handleAssetAdded}
+              trigger={
+                <Button data-testid="add-asset-button">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Asset
+                </Button>
+              }
+            />
             {/* Story 2.3: Edit Portfolio - AC-2.3.1: Edit button link */}
             <Button asChild variant="outline" data-testid="portfolio-edit-button">
               <Link href={`/portfolio/${portfolio.id}/edit`}>

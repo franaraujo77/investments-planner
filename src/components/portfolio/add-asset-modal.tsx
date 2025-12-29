@@ -3,14 +3,24 @@
 /**
  * Add Asset Modal Component
  *
- * Story 3.2: Add Asset to Portfolio
+ * Story 2.5: Add Holdings to Portfolio (Epic 2)
+ * Story 3.2: Add Asset to Portfolio (Legacy)
+ *
+ * AC-2.5.1: Add Asset button prominently displayed
+ * AC-2.5.2: Form with symbol search, quantity, purchase price, currency
+ * AC-2.5.3: Autocomplete suggestions after 2+ characters
+ * AC-2.5.4: Auto-populate symbol and name on selection
+ * AC-2.5.5: Form validation (quantity > 0, price > 0, valid currency)
+ * AC-2.5.6: Success toast and portfolio refresh
+ * AC-2.5.8: Duplicate asset error handling
+ *
  * AC-3.2.2: Form with symbol, name, quantity, price, currency fields
  * AC-3.2.3: Positive value validation
  * AC-3.2.4: Duplicate asset error handling
  * AC-3.2.6: Success toast and portfolio refresh after creation
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,10 +46,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AssetSearchInput, type AssetSuggestion } from "./asset-search-input";
 import {
   addAssetSchema,
   type AddAssetInput,
-  ASSET_SYMBOL_MAX_LENGTH,
   ASSET_NAME_MAX_LENGTH,
   SUPPORTED_CURRENCIES,
 } from "@/lib/validations/portfolio";
@@ -77,6 +87,7 @@ export function AddAssetModal({
     watch,
     reset,
     control,
+    setValue,
     formState: { errors, isValid },
   } = useForm<AddAssetFormValues>({
     resolver: zodResolver(addAssetSchema) as Resolver<AddAssetFormValues>,
@@ -92,6 +103,28 @@ export function AddAssetModal({
 
   const symbolValue = watch("symbol") || "";
   const nameValue = watch("name") || "";
+
+  /**
+   * Handle asset selection from autocomplete
+   * AC-2.5.4: Auto-populate symbol and name
+   */
+  const handleAssetSelect = useCallback(
+    (asset: AssetSuggestion) => {
+      setValue("symbol", asset.symbol, { shouldValidate: true });
+      setValue("name", asset.name, { shouldValidate: true });
+    },
+    [setValue]
+  );
+
+  /**
+   * Handle symbol input change (for Controller)
+   */
+  const handleSymbolChange = useCallback(
+    (value: string) => {
+      setValue("symbol", value, { shouldValidate: true });
+    },
+    [setValue]
+  );
 
   const onSubmit = async (data: AddAssetFormValues) => {
     setIsSubmitting(true);
@@ -117,12 +150,12 @@ export function AddAssetModal({
       const result = await response.json();
 
       if (!response.ok) {
-        // Handle specific error codes
-        if (result.code === "ASSET_EXISTS") {
+        // Handle specific error codes (using standardized codes from @/lib/api/error-codes.ts)
+        if (result.code === "CONFLICT_ASSET_EXISTS") {
           toast.error(result.error);
-        } else if (result.code === "NOT_FOUND") {
+        } else if (result.code === "NOT_FOUND_PORTFOLIO") {
           toast.error("Portfolio not found");
-        } else if (result.code === "VALIDATION_ERROR") {
+        } else if (result.code === "VALIDATION_INVALID_INPUT") {
           toast.error("Please check your input and try again");
         } else {
           toast.error("Failed to add asset");
@@ -171,28 +204,27 @@ export function AddAssetModal({
           </DialogHeader>
 
           <div className="py-4 space-y-4">
-            {/* Symbol Field */}
+            {/* Symbol Field with Autocomplete - AC-2.5.3, AC-2.5.4 */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="symbol">Symbol *</Label>
-                <span className="text-xs text-muted-foreground">
-                  {ASSET_SYMBOL_MAX_LENGTH - symbolValue.length} chars remaining
-                </span>
-              </div>
-              <Input
+              <Label htmlFor="symbol">Symbol *</Label>
+              <AssetSearchInput
                 id="symbol"
-                placeholder="e.g., AAPL, BTC, PETR4"
-                maxLength={ASSET_SYMBOL_MAX_LENGTH}
+                value={symbolValue}
+                onChange={handleSymbolChange}
+                onSelect={handleAssetSelect}
+                placeholder="Search by symbol or name..."
+                disabled={isSubmitting}
                 aria-invalid={!!errors.symbol}
                 aria-describedby={errors.symbol ? "symbol-error" : undefined}
-                className="uppercase"
-                {...register("symbol")}
               />
               {errors.symbol && (
                 <p id="symbol-error" className="text-sm text-destructive">
                   {errors.symbol.message}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                Type 2+ characters to see suggestions, or enter a custom symbol
+              </p>
             </div>
 
             {/* Name Field (Optional) */}

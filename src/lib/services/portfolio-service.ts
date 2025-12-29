@@ -717,6 +717,17 @@ export async function addAsset(
 
     const createdAsset = result[0];
 
+    // Story 2.5, AC-2.5.9: Audit trail logging for asset addition
+    logger.info("Asset added to portfolio", {
+      userId,
+      portfolioId,
+      assetId: createdAsset.id,
+      symbol: createdAsset.symbol,
+      name: createdAsset.name,
+      quantity: createdAsset.quantity,
+      currency: createdAsset.currency,
+    });
+
     // Story 9.1, AC-9.1.5: Auto-dismiss opportunity alerts when better asset is added
     // If user adds the "better" asset from an opportunity alert, dismiss those alerts
     try {

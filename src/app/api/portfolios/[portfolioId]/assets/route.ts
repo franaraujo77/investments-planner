@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { handleDbError, databaseError } from "@/lib/api/responses";
+import { NOT_FOUND_ERRORS, CONFLICT_ERRORS, VALIDATION_ERRORS } from "@/lib/api/error-codes";
 import {
   getPortfolioAssets,
   addAsset,
@@ -84,7 +85,7 @@ export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
         return NextResponse.json<ValidationError>(
           {
             error: "Portfolio not found",
-            code: "NOT_FOUND",
+            code: NOT_FOUND_ERRORS.PORTFOLIO_NOT_FOUND,
           },
           { status: 404 }
         );
@@ -135,7 +136,7 @@ export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
         return NextResponse.json<ValidationError>(
           {
             error: "Validation failed",
-            code: "VALIDATION_ERROR",
+            code: VALIDATION_ERRORS.INVALID_INPUT,
             details: validationResult.error.flatten().fieldErrors,
           },
           { status: 400 }
@@ -152,7 +153,7 @@ export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
         return NextResponse.json<ValidationError>(
           {
             error: "Portfolio not found",
-            code: "NOT_FOUND",
+            code: NOT_FOUND_ERRORS.PORTFOLIO_NOT_FOUND,
           },
           { status: 404 }
         );
@@ -163,7 +164,7 @@ export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
         return NextResponse.json<ValidationError>(
           {
             error: error.message,
-            code: "ASSET_EXISTS",
+            code: CONFLICT_ERRORS.ASSET_EXISTS,
           },
           { status: 409 }
         );
