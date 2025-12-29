@@ -13,7 +13,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronRight, ArrowLeft, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HoldingsTable } from "@/components/portfolio/holdings-table";
@@ -93,12 +93,21 @@ export function PortfolioDetailClient({
               {portfolio.industrySector && ` • ${portfolio.industrySector}`}
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link href="/portfolio">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Portfolios
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            {/* Story 2.3: Edit Portfolio - AC-2.3.1: Edit button link */}
+            <Button asChild variant="outline" data-testid="portfolio-edit-button">
+              <Link href={`/portfolio/${portfolio.id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/portfolio">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Portfolios
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Asset Types Badges */}

@@ -3,8 +3,8 @@
  *
  * Story 3.2: Add Asset to Portfolio
  *
- * GET /api/portfolios/:id/assets - List all assets in a portfolio
- * POST /api/portfolios/:id/assets - Add a new asset to a portfolio
+ * GET /api/portfolios/:portfolioId/assets - List all assets in a portfolio
+ * POST /api/portfolios/:portfolioId/assets - Add a new asset to a portfolio
  *
  * Returns:
  * - 200: List of assets (GET)
@@ -50,11 +50,11 @@ interface ValidationError {
 }
 
 interface RouteParams {
-  params: Promise<{ id: string }>;
+  params: Promise<{ portfolioId: string }>;
 }
 
 /**
- * GET /api/portfolios/:id/assets
+ * GET /api/portfolios/:portfolioId/assets
  *
  * Lists all assets for a portfolio.
  * Requires authentication via withAuth middleware.
@@ -68,7 +68,7 @@ interface RouteParams {
 export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
   async (_request, session, context) => {
     try {
-      const { id: portfolioId } = await (context as RouteParams).params;
+      const { portfolioId } = await (context as RouteParams).params;
 
       const assets = await getPortfolioAssets(session.userId, portfolioId);
 
@@ -97,7 +97,7 @@ export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
 );
 
 /**
- * POST /api/portfolios/:id/assets
+ * POST /api/portfolios/:portfolioId/assets
  *
  * Adds a new asset to a portfolio.
  * Requires authentication via withAuth middleware.
@@ -125,7 +125,7 @@ export const GET = withAuth<AssetListResponse | ValidationError | AuthError>(
 export const POST = withAuth<AssetResponse | ValidationError | AuthError>(
   async (request, session, context) => {
     try {
-      const { id: portfolioId } = await (context as RouteParams).params;
+      const { portfolioId } = await (context as RouteParams).params;
 
       // Parse and validate request body
       const body = await request.json();

@@ -36,12 +36,13 @@ import {
   type NewPortfolioAsset,
   type NewPortfolioAcceptedAssetType,
 } from "@/lib/db/schema";
-import { eq, count, and, ne } from "drizzle-orm";
+import { eq, count, and, ne, inArray } from "drizzle-orm";
 import {
   MAX_PORTFOLIOS_PER_USER,
   PORTFOLIO_MESSAGES,
   ASSET_MESSAGES,
   type CreatePortfolioInput,
+  type UpdatePortfolioInput,
   type AddAssetInput,
   type UpdateAssetInput,
   type AssetType,
@@ -218,6 +219,220 @@ export async function createPortfolio(
     return {
       ...createdPortfolio,
       acceptedAssetTypes: input.assetTypes,
+    };
+  });
+
+  return result;
+}
+
+// =============================================================================
+// UPDATE PORTFOLIO FUNCTIONS
+// Story 2.3: Edit Portfolio
+// =============================================================================
+
+/**
+ * Impact analysis result for portfolio updates
+ * Story 2.3: Edit Portfolio - AC-2.3.3, AC-2.3.4
+ */
+export interface ImpactAnalysisResult {
+  assetsToRemove: Array<{
+    id: string;
+    symbol: string;
+    name: string | null;
+    assetType: string;
+  }>;
+  removedAssetCount: number;
+  hasImpact: boolean;
+}
+
+/**
+ * Analyze impact of proposed portfolio changes
+ *
+ * Story 2.3: Edit Portfolio - AC-2.3.3, AC-2.3.4
+ *
+ * Currently, the portfolio_assets table does NOT have an asset_type column,
+ * so we cannot determine which assets would be impacted by asset type changes.
+ *
+ * For now, this function returns an empty impact since:
+ * - Industry sector is metadata-only (Option A from Dev Notes)
+ * - Asset type filtering requires an asset_type column on portfolio_assets
+ *
+ * If the schema is updated to include asset_type on portfolio_assets,
+ * this function should be updated to query impacted assets.
+ *
+ * @param userId - User ID for ownership verification
+ * @param portfolioId - Portfolio ID to analyze
+ * @param newAssetTypes - Optional new asset types to check against
+ * @returns Impact analysis result
+ * @throws PortfolioNotFoundError if portfolio doesn't exist or user doesn't own it
+ */
+export async function getImpactedAssets(
+  userId: string,
+  portfolioId: string,
+  newAssetTypes?: AssetType[]
+): Promise<ImpactAnalysisResult> {
+  // Verify portfolio exists and belongs to user
+  const portfolio = await getPortfolioById(userId, portfolioId);
+  if (!portfolio) {
+    throw new PortfolioNotFoundError();
+  }
+
+  // Currently, we cannot determine asset type impact without asset_type column on portfolio_assets
+  // This is documented in Dev Notes - a follow-up story should add this field if needed
+  if (newAssetTypes) {
+    logger.info("Impact analysis requested but asset_type column not present on portfolio_assets", {
+      userId,
+      portfolioId,
+      newAssetTypesCount: newAssetTypes.length,
+    });
+  }
+
+  // Return no impact since we cannot query by asset type
+  return {
+    assetsToRemove: [],
+    removedAssetCount: 0,
+    hasImpact: false,
+  };
+}
+
+/**
+ * Update portfolio result
+ * Story 2.3: Edit Portfolio
+ */
+export interface UpdatePortfolioResult {
+  portfolio: PortfolioWithAssetTypes;
+  removedAssetCount: number;
+}
+
+/**
+ * Update a portfolio
+ *
+ * Story 2.3: Edit Portfolio
+ * AC-2.3.2: Update name with success toast
+ * AC-2.3.5: Remove incompatible assets if confirmed
+ * AC-2.3.7: Currency change recalculates values
+ *
+ * Uses a transaction for atomic update + asset removal.
+ *
+ * @param userId - User ID for ownership verification
+ * @param portfolioId - Portfolio ID to update
+ * @param input - Update data (all fields optional, at least one required)
+ * @param assetIdsToRemove - Optional array of asset IDs to remove (from impact confirmation)
+ * @returns Updated portfolio with asset types
+ * @throws PortfolioNotFoundError if portfolio doesn't exist or user doesn't own it
+ */
+export async function updatePortfolio(
+  userId: string,
+  portfolioId: string,
+  input: UpdatePortfolioInput,
+  assetIdsToRemove?: string[]
+): Promise<UpdatePortfolioResult> {
+  // Verify portfolio exists and belongs to user
+  const existingPortfolio = await getPortfolioById(userId, portfolioId);
+  if (!existingPortfolio) {
+    throw new PortfolioNotFoundError();
+  }
+
+  const result = await db.transaction(async (tx) => {
+    let removedAssetCount = 0;
+
+    // Step 1: Delete impacted assets if any
+    if (assetIdsToRemove && assetIdsToRemove.length > 0) {
+      const deleteResult = await tx
+        .delete(portfolioAssets)
+        .where(
+          and(
+            eq(portfolioAssets.portfolioId, portfolioId),
+            inArray(portfolioAssets.id, assetIdsToRemove)
+          )
+        )
+        .returning({ id: portfolioAssets.id });
+
+      removedAssetCount = deleteResult.length;
+
+      logger.info("Removed assets from portfolio during update", {
+        userId,
+        portfolioId,
+        removedAssetCount,
+        assetIdsCount: assetIdsToRemove.length,
+      });
+    }
+
+    // Step 2: Update portfolio fields
+    const updateData: Partial<{
+      name: string;
+      baseCurrency: string;
+      industrySector: string;
+      updatedAt: Date;
+    }> = {
+      updatedAt: new Date(),
+    };
+
+    if (input.name !== undefined) {
+      updateData.name = input.name;
+    }
+    if (input.baseCurrency !== undefined) {
+      updateData.baseCurrency = input.baseCurrency;
+    }
+    if (input.industrySector !== undefined) {
+      updateData.industrySector = input.industrySector;
+    }
+
+    const portfolioResult = await tx
+      .update(portfolios)
+      .set(updateData)
+      .where(eq(portfolios.id, portfolioId))
+      .returning();
+
+    const updatedPortfolio = portfolioResult[0];
+    if (!updatedPortfolio) {
+      throw new Error("Failed to update portfolio");
+    }
+
+    // Step 3: Update asset types if provided
+    let acceptedAssetTypes: AssetType[];
+
+    if (input.assetTypes !== undefined) {
+      // Delete existing asset types
+      await tx
+        .delete(portfolioAcceptedAssetTypes)
+        .where(eq(portfolioAcceptedAssetTypes.portfolioId, portfolioId));
+
+      // Insert new asset types
+      const assetTypeRecords: NewPortfolioAcceptedAssetType[] = input.assetTypes.map(
+        (assetType) => ({
+          portfolioId,
+          assetType,
+        })
+      );
+
+      await tx.insert(portfolioAcceptedAssetTypes).values(assetTypeRecords);
+
+      acceptedAssetTypes = input.assetTypes;
+    } else {
+      // Fetch current asset types if not updating
+      const currentAssetTypes = await tx.query.portfolioAcceptedAssetTypes.findMany({
+        where: eq(portfolioAcceptedAssetTypes.portfolioId, portfolioId),
+      });
+      acceptedAssetTypes = currentAssetTypes.map((at) => at.assetType as AssetType);
+    }
+
+    logger.info("Portfolio updated", {
+      userId,
+      portfolioId,
+      name: updatedPortfolio.name,
+      baseCurrency: updatedPortfolio.baseCurrency,
+      industrySector: updatedPortfolio.industrySector,
+      assetTypesCount: acceptedAssetTypes.length,
+      removedAssetCount,
+    });
+
+    return {
+      portfolio: {
+        ...updatedPortfolio,
+        acceptedAssetTypes,
+      },
+      removedAssetCount,
     };
   });
 

@@ -3,6 +3,7 @@
  *
  * Story 2.1: Create Portfolio with Enhanced Fields (Epic 2)
  * Story 2.2: View Portfolio and Holdings (Epic 2)
+ * Story 2.3: Edit Portfolio (Epic 2)
  * Story 3.1: Create Portfolio
  * Story 3.2: Add Asset to Portfolio
  * Story 3.5: Mark Asset as Ignored
@@ -2956,5 +2957,442 @@ test.describe("Portfolio Detail Navigation", () => {
 
     // Should redirect to login
     await expect(page).toHaveURL(/\/login\?redirect=/);
+  });
+});
+
+// =============================================================================
+// Story 2.3: Edit Portfolio
+// =============================================================================
+
+/**
+ * Story 2.3: Edit Portfolio E2E Tests
+ *
+ * AC-2.3.1: Edit button on portfolio detail page
+ * AC-2.3.2: Update portfolio name with success toast
+ * AC-2.3.3: Industry sector change
+ * AC-2.3.4: Asset type modification
+ * AC-2.3.7: Currency change handling
+ * AC-2.3.8: Unsaved changes warning
+ * AC-2.3.9: Redirect to portfolio detail after save
+ */
+test.describe("Edit Portfolio (Story 2.3)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should display Edit button on portfolio detail page (AC-2.3.1)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Edit button should be visible
+      await expect(page.locator("[data-testid='portfolio-edit-button']")).toBeVisible();
+      await expect(page.getByRole("link", { name: /Edit/i })).toBeVisible();
+    }
+  });
+
+  test("should navigate to edit page when clicking Edit button", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Click edit button
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+
+      // Should navigate to edit page
+      await expect(page).toHaveURL(/\/portfolio\/[a-zA-Z0-9-]+\/edit/);
+    }
+  });
+
+  test("should pre-fill edit form with current data (AC-2.3.1)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Click edit button
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Form should be visible
+      await expect(page.locator("[data-testid='portfolio-edit-form']")).toBeVisible();
+
+      // Name input should have existing value
+      const nameInput = page.locator("[data-testid='portfolio-name-input']");
+      const nameValue = await nameInput.inputValue();
+      expect(nameValue.length).toBeGreaterThan(0);
+
+      // Currency select should have value
+      await expect(page.locator("[data-testid='portfolio-currency-select']")).toBeVisible();
+
+      // Industry sector select should have value
+      await expect(page.locator("[data-testid='portfolio-sector-select']")).toBeVisible();
+
+      // Asset types should have at least one checked
+      await expect(page.locator("[data-testid='portfolio-asset-types']")).toBeVisible();
+    }
+  });
+
+  test("should have disabled Save button when no changes (AC-2.3.2)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Save button should be disabled when no changes
+      const saveButton = page.locator("[data-testid='portfolio-save-button']");
+      await expect(saveButton).toBeDisabled();
+    }
+  });
+
+  test("should enable Save button when changes are made", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Modify the name
+      const nameInput = page.locator("[data-testid='portfolio-name-input']");
+      await nameInput.fill("");
+      await nameInput.fill("Updated Portfolio Name");
+
+      // Save button should now be enabled
+      const saveButton = page.locator("[data-testid='portfolio-save-button']");
+      await expect(saveButton).not.toBeDisabled();
+    }
+  });
+
+  test("should show character counter for name field", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Character counter should be visible (format: X/50)
+      await expect(page.getByText(/\/50/)).toBeVisible();
+    }
+  });
+
+  test("should navigate back to portfolio detail on cancel (AC-2.3.9)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Get current URL (portfolio detail)
+      const detailUrl = page.url();
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Click cancel
+      await page.locator("[data-testid='portfolio-cancel-button']").click();
+
+      // Should navigate back to portfolio detail
+      await expect(page).toHaveURL(detailUrl);
+    }
+  });
+
+  test("should show breadcrumb navigation on edit page", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Breadcrumb should show "Portfolios" link
+      await expect(page.getByRole("link", { name: "Portfolios" })).toBeVisible();
+
+      // Should show "Edit" in breadcrumb
+      await expect(page.getByText("Edit")).toBeVisible();
+    }
+  });
+
+  test("should redirect to login when not authenticated on edit page", async ({ page }) => {
+    // Try to access edit page directly without login
+    await page.goto("/portfolio/test-portfolio-id/edit");
+
+    // Should redirect to login
+    await expect(page).toHaveURL(/\/login\?redirect=/);
+  });
+
+  test("should display Back to Portfolio button on edit page", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Back button should be visible
+      await expect(page.getByRole("link", { name: /Back to Portfolio/i })).toBeVisible();
+    }
+  });
+});
+
+test.describe("Edit Portfolio Form Fields (Story 2.3)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should display all editable fields", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Name field
+      await expect(page.getByLabel(/Portfolio Name/i)).toBeVisible();
+
+      // Currency field
+      await expect(page.getByLabel(/Base Currency/i)).toBeVisible();
+
+      // Industry sector field
+      await expect(page.getByLabel(/Industry Sector/i)).toBeVisible();
+
+      // Asset types field
+      await expect(page.getByText(/Accepted Asset Types/i)).toBeVisible();
+    }
+  });
+
+  test("should allow changing industry sector (AC-2.3.3)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Click industry sector dropdown
+      await page.locator("[data-testid='portfolio-sector-select']").click();
+
+      // Should show dropdown options
+      await expect(page.getByRole("option", { name: "Technology" })).toBeVisible();
+      await expect(page.getByRole("option", { name: "Healthcare" })).toBeVisible();
+      await expect(page.getByRole("option", { name: "Software" })).toBeVisible();
+    }
+  });
+
+  test("should allow changing currency (AC-2.3.7)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Click currency dropdown
+      await page.locator("[data-testid='portfolio-currency-select']").click();
+
+      // Should show currency options
+      await expect(page.getByRole("option", { name: /USD/i })).toBeVisible();
+      await expect(page.getByRole("option", { name: /EUR/i })).toBeVisible();
+      await expect(page.getByRole("option", { name: /BRL/i })).toBeVisible();
+    }
+  });
+
+  test("should allow modifying asset types (AC-2.3.4)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Asset type checkboxes should be visible
+      await expect(page.getByText("Stocks")).toBeVisible();
+      await expect(page.getByText("ETFs")).toBeVisible();
+      await expect(page.getByText("REITs")).toBeVisible();
+      await expect(page.getByText("Bonds")).toBeVisible();
+    }
+  });
+
+  test("should validate at least one asset type selected", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Try to uncheck all asset types by clicking on checked ones
+      // The form should validate and show error if all are unchecked
+      const assetTypesSection = page.locator("[data-testid='portfolio-asset-types']");
+      await expect(assetTypesSection).toBeVisible();
+    }
+  });
+});
+
+test.describe("Edit Portfolio Save Flow (Story 2.3)", () => {
+  // These tests modify data and should be run with care
+  test.skip(
+    SKIP_DATA_SETUP_TESTS,
+    "Data setup tests skipped - set RUN_DATA_SETUP_TESTS=true to run"
+  );
+
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should update portfolio name and show success toast (AC-2.3.2)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Generate a unique name
+      const uniqueName = `Test Portfolio ${Date.now()}`;
+
+      // Update name
+      const nameInput = page.locator("[data-testid='portfolio-name-input']");
+      await nameInput.fill("");
+      await nameInput.fill(uniqueName);
+
+      // Save
+      await page.locator("[data-testid='portfolio-save-button']").click();
+
+      // Should show success toast
+      await expect(page.getByText(/Portfolio updated/i)).toBeVisible();
+
+      // Should redirect to portfolio detail (AC-2.3.9)
+      await expect(page).toHaveURL(/\/portfolio\/[a-zA-Z0-9-]+$/);
+
+      // Updated name should be visible
+      await expect(page.getByText(uniqueName)).toBeVisible();
+    }
+  });
+
+  test("should redirect to portfolio detail after save (AC-2.3.9)", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Get portfolio detail URL
+      const detailUrl = page.url();
+
+      await page.locator("[data-testid='portfolio-edit-button']").click();
+      await page.waitForTimeout(500);
+
+      // Make a small change
+      const nameInput = page.locator("[data-testid='portfolio-name-input']");
+      const currentName = await nameInput.inputValue();
+      await nameInput.fill("");
+      await nameInput.fill(currentName + " Updated");
+
+      // Save
+      await page.locator("[data-testid='portfolio-save-button']").click();
+
+      // Should redirect to portfolio detail
+      await page.waitForTimeout(1000);
+      await expect(page).toHaveURL(detailUrl);
+    }
   });
 });

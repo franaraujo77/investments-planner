@@ -373,9 +373,67 @@ export const getInvestmentsQuerySchema = z.object({
 });
 
 /**
+ * Update portfolio schema
+ * Story 2.3: Edit Portfolio
+ * Used for PUT /api/portfolios/:id
+ *
+ * AC-2.3.1: All fields optional
+ * AC-2.3.2: At least one field required
+ * AC-2.3.3, AC-2.3.4: Impact analysis handled separately
+ */
+export const updatePortfolioSchema = z
+  .object({
+    name: z
+      .string()
+      .transform((name) => name.trim())
+      .pipe(
+        z
+          .string()
+          .min(PORTFOLIO_NAME_MIN_LENGTH, PORTFOLIO_MESSAGES.NAME_REQUIRED)
+          .max(PORTFOLIO_NAME_MAX_LENGTH, PORTFOLIO_MESSAGES.NAME_TOO_LONG)
+      )
+      .optional(),
+    baseCurrency: supportedCurrencySchema.optional(),
+    industrySector: industrySectorSchema.optional(),
+    assetTypes: z.array(assetTypeSchema).min(1, PORTFOLIO_MESSAGES.ASSET_TYPES_REQUIRED).optional(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.baseCurrency !== undefined ||
+      data.industrySector !== undefined ||
+      data.assetTypes !== undefined,
+    {
+      message: "At least one field must be provided for update",
+    }
+  );
+
+/**
+ * Update portfolio messages
+ * Story 2.3: Edit Portfolio
+ */
+export const UPDATE_PORTFOLIO_MESSAGES = {
+  AT_LEAST_ONE_FIELD: "At least one field must be provided for update",
+  SUCCESS: "Portfolio updated",
+  SUCCESS_WITH_REMOVAL: "Portfolio updated. {count} assets removed.",
+  NO_CHANGES: "No changes to save",
+} as const;
+
+/**
+ * Impact analysis schema for checking destructive changes
+ * Story 2.3: Edit Portfolio - AC-2.3.3, AC-2.3.4
+ */
+export const impactAnalysisSchema = z.object({
+  industrySector: industrySectorSchema.optional(),
+  assetTypes: z.array(assetTypeSchema).optional(),
+});
+
+/**
  * Type exports inferred from schemas
  */
 export type CreatePortfolioInput = z.infer<typeof createPortfolioSchema>;
+export type UpdatePortfolioInput = z.infer<typeof updatePortfolioSchema>;
+export type ImpactAnalysisInput = z.infer<typeof impactAnalysisSchema>;
 export type AddAssetInput = z.infer<typeof addAssetSchema>;
 export type UpdateAssetInput = z.infer<typeof updateAssetSchema>;
 export type InvestmentItemInput = z.infer<typeof investmentItemSchema>;

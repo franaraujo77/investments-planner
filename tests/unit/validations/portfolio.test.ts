@@ -2,6 +2,7 @@
  * Portfolio Validation Unit Tests
  *
  * Story 2.1: Create Portfolio (Epic 2)
+ * Story 2.3: Edit Portfolio (Epic 2)
  * Story 3.1: Create Portfolio (Legacy)
  *
  * Tests for portfolio validation schemas:
@@ -10,6 +11,9 @@
  * - AC-2.1.3: Asset types validation
  * - AC-2.1.4: Duplicate name check
  * - AC-2.1.5: Required field validation
+ * - AC-2.3.1: Update portfolio fields (all optional)
+ * - AC-2.3.2: At least one field required for update
+ * - AC-2.3.3: Impact analysis schema
  * - AC-3.1.2: Name validation (1-50 characters)
  */
 
@@ -17,6 +21,9 @@ import { describe, it, expect } from "vitest";
 import {
   createPortfolioSchema,
   checkPortfolioNameSchema,
+  updatePortfolioSchema,
+  impactAnalysisSchema,
+  UPDATE_PORTFOLIO_MESSAGES,
   MAX_PORTFOLIOS_PER_USER,
   PORTFOLIO_NAME_MIN_LENGTH,
   PORTFOLIO_NAME_MAX_LENGTH,
@@ -343,6 +350,274 @@ describe("Portfolio Validation", () => {
 
     it("should have BASE_CURRENCY_REQUIRED message", () => {
       expect(PORTFOLIO_MESSAGES.BASE_CURRENCY_REQUIRED).toBe("Base currency is required");
+    });
+  });
+});
+
+// =============================================================================
+// Story 2.3: Edit Portfolio Validation Tests
+// =============================================================================
+
+describe("Update Portfolio Validation (Story 2.3)", () => {
+  describe("updatePortfolioSchema (AC-2.3.1)", () => {
+    describe("Valid updates", () => {
+      it("should accept updating name only", () => {
+        const result = updatePortfolioSchema.safeParse({ name: "Updated Portfolio" });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.name).toBe("Updated Portfolio");
+        }
+      });
+
+      it("should accept updating baseCurrency only", () => {
+        const result = updatePortfolioSchema.safeParse({ baseCurrency: "EUR" });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.baseCurrency).toBe("EUR");
+        }
+      });
+
+      it("should accept updating industrySector only", () => {
+        const result = updatePortfolioSchema.safeParse({ industrySector: "Healthcare" });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.industrySector).toBe("Healthcare");
+        }
+      });
+
+      it("should accept updating assetTypes only", () => {
+        const result = updatePortfolioSchema.safeParse({ assetTypes: ["Stocks", "Bonds"] });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.assetTypes).toEqual(["Stocks", "Bonds"]);
+        }
+      });
+
+      it("should accept updating multiple fields", () => {
+        const result = updatePortfolioSchema.safeParse({
+          name: "New Name",
+          baseCurrency: "GBP",
+          industrySector: "Banking",
+          assetTypes: ["ETFs", "Crypto"],
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.name).toBe("New Name");
+          expect(result.data.baseCurrency).toBe("GBP");
+          expect(result.data.industrySector).toBe("Banking");
+          expect(result.data.assetTypes).toEqual(["ETFs", "Crypto"]);
+        }
+      });
+    });
+
+    describe("At least one field required (AC-2.3.2)", () => {
+      it("should reject empty object", () => {
+        const result = updatePortfolioSchema.safeParse({});
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.flatten().formErrors).toContain(
+            "At least one field must be provided for update"
+          );
+        }
+      });
+
+      it("should reject object with only undefined values", () => {
+        const result = updatePortfolioSchema.safeParse({
+          name: undefined,
+          baseCurrency: undefined,
+        });
+
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("Name validation", () => {
+      it("should reject empty name when provided", () => {
+        const result = updatePortfolioSchema.safeParse({ name: "" });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.flatten().fieldErrors.name).toContain(
+            PORTFOLIO_MESSAGES.NAME_REQUIRED
+          );
+        }
+      });
+
+      it("should reject name over 50 characters", () => {
+        const longName = "a".repeat(51);
+        const result = updatePortfolioSchema.safeParse({ name: longName });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.flatten().fieldErrors.name).toContain(
+            PORTFOLIO_MESSAGES.NAME_TOO_LONG
+          );
+        }
+      });
+
+      it("should accept name with exactly 50 characters", () => {
+        const name50 = "a".repeat(50);
+        const result = updatePortfolioSchema.safeParse({ name: name50 });
+
+        expect(result.success).toBe(true);
+      });
+
+      it("should trim whitespace from name", () => {
+        const result = updatePortfolioSchema.safeParse({ name: "  Updated  " });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.name).toBe("Updated");
+        }
+      });
+
+      it("should reject whitespace-only name", () => {
+        const result = updatePortfolioSchema.safeParse({ name: "   " });
+
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("Industry sector validation", () => {
+      it("should accept all valid industry sectors", () => {
+        for (const sector of INDUSTRY_SECTORS) {
+          const result = updatePortfolioSchema.safeParse({ industrySector: sector });
+          expect(result.success).toBe(true);
+        }
+      });
+
+      it("should reject invalid industry sector", () => {
+        const result = updatePortfolioSchema.safeParse({ industrySector: "Invalid" });
+
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("Asset types validation", () => {
+      it("should accept all valid asset types", () => {
+        for (const assetType of ASSET_TYPES) {
+          const result = updatePortfolioSchema.safeParse({ assetTypes: [assetType] });
+          expect(result.success).toBe(true);
+        }
+      });
+
+      it("should reject empty asset types array", () => {
+        const result = updatePortfolioSchema.safeParse({ assetTypes: [] });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.flatten().fieldErrors.assetTypes).toContain(
+            PORTFOLIO_MESSAGES.ASSET_TYPES_REQUIRED
+          );
+        }
+      });
+
+      it("should reject invalid asset type", () => {
+        const result = updatePortfolioSchema.safeParse({ assetTypes: ["Invalid Type"] });
+
+        expect(result.success).toBe(false);
+      });
+
+      it("should accept multiple valid asset types", () => {
+        const result = updatePortfolioSchema.safeParse({
+          assetTypes: ["Stocks", "ETFs", "Bonds", "REITs"],
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.assetTypes).toHaveLength(4);
+        }
+      });
+    });
+
+    describe("Base currency validation", () => {
+      it("should accept all supported currencies", () => {
+        for (const currency of SUPPORTED_CURRENCIES) {
+          const result = updatePortfolioSchema.safeParse({ baseCurrency: currency.code });
+          expect(result.success).toBe(true);
+        }
+      });
+
+      it("should reject invalid currency", () => {
+        const result = updatePortfolioSchema.safeParse({ baseCurrency: "XXX" });
+
+        expect(result.success).toBe(false);
+      });
+    });
+  });
+
+  describe("impactAnalysisSchema (AC-2.3.3, AC-2.3.4)", () => {
+    it("should accept empty object", () => {
+      const result = impactAnalysisSchema.safeParse({});
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should accept industrySector only", () => {
+      const result = impactAnalysisSchema.safeParse({ industrySector: "Technology" });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.industrySector).toBe("Technology");
+      }
+    });
+
+    it("should accept assetTypes only", () => {
+      const result = impactAnalysisSchema.safeParse({ assetTypes: ["Stocks", "ETFs"] });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.assetTypes).toEqual(["Stocks", "ETFs"]);
+      }
+    });
+
+    it("should accept both industrySector and assetTypes", () => {
+      const result = impactAnalysisSchema.safeParse({
+        industrySector: "Banking",
+        assetTypes: ["Bonds"],
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should reject invalid industry sector", () => {
+      const result = impactAnalysisSchema.safeParse({ industrySector: "Invalid" });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("should reject invalid asset type", () => {
+      const result = impactAnalysisSchema.safeParse({ assetTypes: ["Invalid"] });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("UPDATE_PORTFOLIO_MESSAGES", () => {
+    it("should have AT_LEAST_ONE_FIELD message", () => {
+      expect(UPDATE_PORTFOLIO_MESSAGES.AT_LEAST_ONE_FIELD).toBe(
+        "At least one field must be provided for update"
+      );
+    });
+
+    it("should have SUCCESS message", () => {
+      expect(UPDATE_PORTFOLIO_MESSAGES.SUCCESS).toBe("Portfolio updated");
+    });
+
+    it("should have SUCCESS_WITH_REMOVAL message", () => {
+      expect(UPDATE_PORTFOLIO_MESSAGES.SUCCESS_WITH_REMOVAL).toBe(
+        "Portfolio updated. {count} assets removed."
+      );
+    });
+
+    it("should have NO_CHANGES message", () => {
+      expect(UPDATE_PORTFOLIO_MESSAGES.NO_CHANGES).toBe("No changes to save");
     });
   });
 });

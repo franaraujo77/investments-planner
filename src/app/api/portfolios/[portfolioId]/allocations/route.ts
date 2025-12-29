@@ -4,7 +4,7 @@
  * Story 3.7: Allocation Percentage View
  * AC-3.7.1 - AC-3.7.7: Allocation breakdown endpoint
  *
- * GET /api/portfolios/[id]/allocations
+ * GET /api/portfolios/[portfolioId]/allocations
  * Returns allocation breakdown by asset class and subclass.
  */
 
@@ -16,7 +16,7 @@ import { PortfolioNotFoundError } from "@/lib/services/portfolio-service";
 import type { AuthError } from "@/lib/auth/types";
 
 interface RouteParams {
-  params: Promise<{ id: string }>;
+  params: Promise<{ portfolioId: string }>;
 }
 
 interface AllocationResponse {
@@ -55,7 +55,7 @@ interface ValidationError {
 }
 
 /**
- * GET /api/portfolios/[id]/allocations
+ * GET /api/portfolios/[portfolioId]/allocations
  *
  * Returns the allocation breakdown for a portfolio, including:
  * - Class allocations with percentages and status
@@ -67,7 +67,7 @@ export const GET = withAuth<AllocationResponse | ValidationError | AuthError>(
   async (_request, session, context) => {
     try {
       // Get portfolio ID from params
-      const { id: portfolioId } = await (context as RouteParams).params;
+      const { portfolioId } = await (context as RouteParams).params;
 
       if (!portfolioId) {
         return NextResponse.json<ValidationError>(

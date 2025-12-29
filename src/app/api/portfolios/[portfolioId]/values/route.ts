@@ -3,7 +3,7 @@
  *
  * Story 3.6: Portfolio Overview with Values
  *
- * GET /api/portfolios/:id/values - Get portfolio with calculated values
+ * GET /api/portfolios/:portfolioId/values - Get portfolio with calculated values
  *
  * Returns portfolio data with:
  * - Assets with calculated native/base values
@@ -42,11 +42,11 @@ interface ValidationError {
 }
 
 interface RouteParams {
-  params: Promise<{ id: string }>;
+  params: Promise<{ portfolioId: string }>;
 }
 
 /**
- * GET /api/portfolios/:id/values
+ * GET /api/portfolios/:portfolioId/values
  *
  * Gets portfolio with calculated values for all assets.
  * Requires authentication via withAuth middleware.
@@ -72,7 +72,7 @@ interface RouteParams {
 export const GET = withAuth<PortfolioValuesResponse | ValidationError | AuthError>(
   async (_request, session, context) => {
     try {
-      const { id: portfolioId } = await (context as RouteParams).params;
+      const { portfolioId } = await (context as RouteParams).params;
 
       const portfolioWithValues = await getPortfolioWithValues(session.userId, portfolioId);
 
