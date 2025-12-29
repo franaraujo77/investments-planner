@@ -120,6 +120,9 @@ export function InvestmentForm({
     },
   });
 
+  // React Hook Form's watch() is a standard pattern for reactive form values.
+  // The incompatible-library warning is a false positive from React Compiler.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const quantity = watch("quantity");
   const pricePerUnit = watch("pricePerUnit");
   const currency = watch("currency");
