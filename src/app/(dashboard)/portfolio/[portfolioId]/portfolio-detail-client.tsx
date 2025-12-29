@@ -4,22 +4,28 @@
  * Portfolio Detail Client Component
  *
  * Story 2.2: View Portfolio and Holdings
+ * Story 2.4: Delete Portfolio
  *
  * AC-2.2.1: Holdings list display with asset name, quantity, price, value
  * AC-2.2.2: Base currency display with allocation percentages
  * AC-2.2.3: Empty state with "Add your first asset" CTA
  * AC-2.2.4: Holding detail navigation on row click
+ * AC-2.4.1: Delete button styled as destructive action
+ * AC-2.4.4: Successful deletion redirects to portfolio list
  */
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, ArrowLeft, Pencil } from "lucide-react";
+import { ChevronRight, ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HoldingsTable } from "@/components/portfolio/holdings-table";
 import { PortfolioSummaryCard } from "@/components/portfolio/portfolio-summary-card";
 import { EmptyHoldingsState } from "@/components/portfolio/empty-holdings-state";
 import { HoldingDetailDrawer } from "@/components/portfolio/holding-detail-drawer";
+import { DeletePortfolioDialog } from "@/components/portfolio/delete-portfolio-dialog";
 import type { PortfolioWithValues, AssetWithValue } from "@/lib/services/portfolio-service";
 import type { AssetType } from "@/lib/validations/portfolio";
 
@@ -43,9 +49,14 @@ export function PortfolioDetailClient({
     totalValueBase,
   } = portfolioWithValues;
 
+  const router = useRouter();
+
   // State for holding detail drawer
   const [selectedHolding, setSelectedHolding] = useState<AssetWithValue | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Story 2.4: State for delete dialog
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Handle holding row click - AC-2.2.4
   const handleHoldingClick = useCallback((holding: AssetWithValue) => {
@@ -61,6 +72,16 @@ export function PortfolioDetailClient({
       setTimeout(() => setSelectedHolding(null), 300);
     }
   }, []);
+
+  /**
+   * Handle successful portfolio deletion
+   * AC-2.4.4: Redirect to portfolio list with success toast
+   */
+  const handleDeleteSuccess = useCallback(() => {
+    setIsDeleteDialogOpen(false);
+    toast.success("Portfolio deleted");
+    router.push("/portfolio");
+  }, [router]);
 
   // Determine if we should show empty state
   const hasNoHoldings = assets.length === 0;
@@ -100,6 +121,16 @@ export function PortfolioDetailClient({
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </Link>
+            </Button>
+            {/* Story 2.4: Delete Portfolio - AC-2.4.1: Delete button */}
+            <Button
+              variant="outline"
+              className="text-destructive border-destructive/50 hover:bg-destructive/10"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              data-testid="portfolio-delete-button"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
             </Button>
             <Button asChild variant="outline">
               <Link href="/portfolio">
@@ -151,6 +182,15 @@ export function PortfolioDetailClient({
         baseCurrency={baseCurrency}
         open={isDrawerOpen}
         onOpenChange={handleDrawerClose}
+      />
+
+      {/* Story 2.4: Delete Portfolio Dialog - AC-2.4.2, AC-2.4.3, AC-2.4.6 */}
+      <DeletePortfolioDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        portfolioId={portfolio.id}
+        portfolioName={portfolio.name}
+        onDeleteSuccess={handleDeleteSuccess}
       />
     </div>
   );

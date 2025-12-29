@@ -2,14 +2,19 @@
  * Portfolio API Route
  *
  * Story 2.3: Edit Portfolio
+ * Story 2.4: Delete Portfolio
  *
- * PUT /api/portfolios/:portfolioId - Update portfolio
  * GET /api/portfolios/:portfolioId - Get portfolio details
+ * PUT /api/portfolios/:portfolioId - Update portfolio
+ * DELETE /api/portfolios/:portfolioId - Delete portfolio
  *
  * AC-2.3.1: Edit form access with pre-filled data
  * AC-2.3.2: Update portfolio name with success response
  * AC-2.3.5: Remove incompatible assets when confirmed
  * AC-2.3.7: Currency change handling
+ * AC-2.4.4: Successful deletion with cascade
+ * AC-2.4.5: Cache invalidation
+ * AC-2.4.7: Multi-tenant isolation
  */
 
 import { NextRequest } from "next/server";
@@ -25,6 +30,7 @@ import { NOT_FOUND_ERRORS } from "@/lib/api/error-codes";
 import {
   getPortfolioWithAssetTypes,
   updatePortfolio,
+  deletePortfolio,
   PortfolioNotFoundError,
   type PortfolioWithAssetTypes,
   type UpdatePortfolioResult,
@@ -158,5 +164,60 @@ export const PUT = withAuth<
 
     const dbError = handleDbError(error, "update portfolio", { userId: session.userId });
     return databaseError(dbError, "portfolio update");
+  }
+});
+
+/**
+ * DELETE response type
+ */
+interface DeletePortfolioResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * DELETE /api/portfolios/:portfolioId
+ *
+ * Deletes a portfolio and all its holdings (via cascade).
+ * Requires authentication via withAuth middleware.
+ *
+ * Story 2.4: Delete Portfolio
+ * AC-2.4.4: Successful deletion with cascade
+ * AC-2.4.5: Cache invalidation (future: when caching is implemented)
+ * AC-2.4.7: Multi-tenant isolation - only owner can delete
+ */
+export const DELETE = withAuth<
+  SuccessResponseBody<DeletePortfolioResponse> | ErrorResponseBody | AuthError
+>(async (_request, session, context) => {
+  try {
+    const { portfolioId } = await (context as RouteParams).params;
+
+    // AC-2.4.7: deletePortfolio includes ownership verification
+    const deleted = await deletePortfolio(session.userId, portfolioId);
+
+    if (!deleted) {
+      logger.warn("Portfolio not found for deletion", {
+        userId: session.userId,
+        portfolioId,
+      });
+      return notFoundError("Portfolio", NOT_FOUND_ERRORS.PORTFOLIO_NOT_FOUND);
+    }
+
+    // AC-2.4.5: Cache invalidation
+    // TODO(epic-5): Invalidate cached recommendations when caching is implemented
+    // For now, no caching exists so no invalidation needed
+
+    logger.info("Portfolio deleted via API", {
+      userId: session.userId,
+      portfolioId,
+    });
+
+    return successResponse({
+      success: true,
+      message: "Portfolio deleted successfully",
+    });
+  } catch (error) {
+    const dbError = handleDbError(error, "delete portfolio", { userId: session.userId });
+    return databaseError(dbError, "portfolio deletion");
   }
 });

@@ -442,21 +442,36 @@ export async function updatePortfolio(
 /**
  * Delete a portfolio
  *
- * Multi-tenant isolation: Only deletes if portfolio belongs to the userId
+ * Story 2.4: Delete Portfolio
+ * AC-2.4.7: Multi-tenant isolation - Only deletes if portfolio belongs to the userId
+ * AC-2.4.4: Cascade deletes holdings via FK constraint
  *
  * @param userId - User ID (for ownership verification)
  * @param portfolioId - Portfolio ID to delete
- * @returns true if deleted, false if not found
+ * @returns true if deleted, false if not found or not owned by user
  */
 export async function deletePortfolio(userId: string, portfolioId: string): Promise<boolean> {
+  // AC-2.4.7: Verify ownership in WHERE clause
   const result = await db
     .delete(portfolios)
-    .where(eq(portfolios.id, portfolioId))
+    .where(and(eq(portfolios.id, portfolioId), eq(portfolios.userId, userId)))
     .returning({ id: portfolios.id });
 
-  // Verify the deleted portfolio belonged to the user
-  // (the where clause ensures this, but we check result for confirmation)
-  return result.length > 0;
+  const deleted = result.length > 0;
+
+  if (deleted) {
+    logger.info("Portfolio deleted", {
+      userId,
+      portfolioId,
+    });
+  } else {
+    logger.warn("Portfolio deletion failed - not found or not owned", {
+      userId,
+      portfolioId,
+    });
+  }
+
+  return deleted;
 }
 
 /**

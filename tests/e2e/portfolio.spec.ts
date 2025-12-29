@@ -4,6 +4,7 @@
  * Story 2.1: Create Portfolio with Enhanced Fields (Epic 2)
  * Story 2.2: View Portfolio and Holdings (Epic 2)
  * Story 2.3: Edit Portfolio (Epic 2)
+ * Story 2.4: Delete Portfolio (Epic 2)
  * Story 3.1: Create Portfolio
  * Story 3.2: Add Asset to Portfolio
  * Story 3.5: Mark Asset as Ignored
@@ -23,6 +24,14 @@
  * AC-2.2.2: Base currency display with allocation percentages
  * AC-2.2.3: Empty state with "Add your first asset" CTA
  * AC-2.2.4: Holding detail navigation on row click
+ *
+ * Story 2.4 (Epic 2):
+ * AC-2.4.1: Delete button on portfolio detail page
+ * AC-2.4.2: Confirmation dialog with permanent deletion warning
+ * AC-2.4.3: Exact name typing required to enable delete
+ * AC-2.4.4: Successful deletion with redirect to list
+ * AC-2.4.6: Cancel closes dialog without changes
+ * AC-2.4.7: Multi-tenant isolation (only owner can delete)
  *
  * Story 3.1:
  * AC-3.1.1: Empty state for new users
@@ -3394,5 +3403,191 @@ test.describe("Edit Portfolio Save Flow (Story 2.3)", () => {
       await page.waitForTimeout(1000);
       await expect(page).toHaveURL(detailUrl);
     }
+  });
+});
+
+// =============================================================================
+// Delete Portfolio Tests (Story 2.4)
+// =============================================================================
+
+test.describe("Delete Portfolio Button (Story 2.4)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should show delete button on portfolio detail page (AC-2.4.1)", async ({ page }) => {
+    // Look for any existing portfolio
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // AC-2.4.1: Delete button should be visible
+      const deleteButton = page.locator("[data-testid='portfolio-delete-button']");
+      await expect(deleteButton).toBeVisible();
+
+      // Button should have destructive styling (red text)
+      await expect(deleteButton).toHaveClass(/text-destructive/);
+    }
+  });
+
+  test("should open delete confirmation dialog when clicking delete (AC-2.4.2)", async ({
+    page,
+  }) => {
+    // Look for any existing portfolio
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Click delete button
+      await page.locator("[data-testid='portfolio-delete-button']").click();
+      await page.waitForTimeout(500);
+
+      // AC-2.4.2: Dialog should open with warning
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+
+      // Should have warning about permanent deletion
+      await expect(dialog.getByText(/cannot be undone/i)).toBeVisible();
+      await expect(dialog.getByText(/permanently delete/i)).toBeVisible();
+    }
+  });
+
+  test("should disable delete button until exact name is typed (AC-2.4.3)", async ({ page }) => {
+    // Look for any existing portfolio
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Get portfolio name from page
+      const portfolioName = await page.locator("h1").first().textContent();
+
+      // Click delete button
+      await page.locator("[data-testid='portfolio-delete-button']").click();
+      await page.waitForTimeout(500);
+
+      // AC-2.4.3: Delete button should be disabled initially
+      const confirmButton = page.locator("[data-testid='delete-portfolio-confirm-button']");
+      await expect(confirmButton).toBeDisabled();
+
+      // Type partial name - button should still be disabled
+      const confirmInput = page.locator("[data-testid='delete-portfolio-confirmation-input']");
+      await confirmInput.fill("partial");
+      await expect(confirmButton).toBeDisabled();
+
+      // Type exact name - button should be enabled
+      if (portfolioName) {
+        await confirmInput.fill(portfolioName.trim());
+        await expect(confirmButton).toBeEnabled();
+      }
+    }
+  });
+
+  test("should close dialog when cancel is clicked (AC-2.4.6)", async ({ page }) => {
+    // Look for any existing portfolio
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForTimeout(1000);
+
+      // Click delete button
+      await page.locator("[data-testid='portfolio-delete-button']").click();
+      await page.waitForTimeout(500);
+
+      // Dialog should be visible
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+
+      // Click cancel
+      await page.locator("[data-testid='delete-portfolio-cancel-button']").click();
+      await page.waitForTimeout(500);
+
+      // AC-2.4.6: Dialog should close
+      await expect(dialog).not.toBeVisible();
+    }
+  });
+});
+
+test.describe("Delete Portfolio Flow (Story 2.4)", () => {
+  // These tests actually delete data and should be run with care
+  test.skip(
+    SKIP_DATA_SETUP_TESTS,
+    "Data setup tests skipped - set RUN_DATA_SETUP_TESTS=true to run"
+  );
+
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should delete portfolio and redirect to list (AC-2.4.4)", async ({ page }) => {
+    // First create a portfolio to delete
+    await page
+      .getByRole("button", { name: /Create Portfolio/i })
+      .first()
+      .click();
+    await page.waitForTimeout(500);
+
+    // Fill in portfolio details
+    const uniqueName = `Delete Test ${Date.now()}`;
+    await page.getByPlaceholder("e.g., Retirement Fund").fill(uniqueName);
+    await page.getByLabel("USD").check();
+    await page.locator("[data-testid='asset-type-checkbox-Stocks']").check();
+
+    // Create portfolio
+    await page.getByRole("button", { name: "Create" }).click();
+    await page.waitForTimeout(1000);
+
+    // Navigate to the newly created portfolio
+    await page.goto("/portfolio");
+    await page.waitForTimeout(500);
+
+    const newPortfolioCard = page.locator("button").filter({ hasText: uniqueName }).first();
+    await newPortfolioCard.click();
+    await page.waitForTimeout(1000);
+
+    // Click delete button
+    await page.locator("[data-testid='portfolio-delete-button']").click();
+    await page.waitForTimeout(500);
+
+    // Type confirmation
+    await page.locator("[data-testid='delete-portfolio-confirmation-input']").fill(uniqueName);
+
+    // Confirm deletion
+    await page.locator("[data-testid='delete-portfolio-confirm-button']").click();
+    await page.waitForTimeout(1000);
+
+    // AC-2.4.4: Should redirect to portfolio list
+    await expect(page).toHaveURL(/\/portfolio$/);
+
+    // Should show success toast
+    await expect(page.getByText(/Portfolio deleted/i)).toBeVisible();
+
+    // Portfolio should no longer exist in list
+    const deletedPortfolio = page.locator("button").filter({ hasText: uniqueName });
+    await expect(deletedPortfolio).toHaveCount(0);
   });
 });
