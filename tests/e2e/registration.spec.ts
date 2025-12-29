@@ -17,7 +17,10 @@ test.describe("Registration Flow", () => {
       await expect(page.getByLabel(/email/i)).toBeVisible();
 
       // Password field
-      await expect(page.getByLabel(/password/i)).toBeVisible();
+      await expect(page.locator('input[name="password"]')).toBeVisible();
+
+      // Confirm Password field (AC-1.1.5)
+      await expect(page.locator('input[name="confirmPassword"]')).toBeVisible();
 
       // Name field
       await expect(page.getByLabel(/name/i)).toBeVisible();
@@ -59,113 +62,134 @@ test.describe("Registration Flow", () => {
 
   test.describe("AC2 & AC4: Password complexity validation", () => {
     test("should show error for password missing uppercase", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter password without uppercase
       await passwordInput.fill("lowercase1@");
       await passwordInput.blur();
 
-      // Should show uppercase error
-      await expect(page.getByText(/uppercase/i)).toBeVisible();
+      // Should show uppercase error (target form message specifically)
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /uppercase/i })
+      ).toBeVisible();
     });
 
     test("should show error for password missing number", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter password without number
       await passwordInput.fill("NoNumbers@!");
       await passwordInput.blur();
 
-      // Should show number error
-      await expect(page.getByText(/number/i)).toBeVisible();
+      // Should show number error (target form message specifically)
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /number/i })
+      ).toBeVisible();
     });
 
     test("should show error for password missing special character", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter password without special char
       await passwordInput.fill("NoSpecial123");
       await passwordInput.blur();
 
-      // Should show special character error
-      await expect(page.getByText(/special character/i)).toBeVisible();
+      // Should show special character error (target form message specifically)
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /special character/i })
+      ).toBeVisible();
     });
 
     test("should show error for password too short", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter short password
       await passwordInput.fill("Sh0rt@");
       await passwordInput.blur();
 
-      // Should show length error
-      await expect(page.getByText(/at least 8 characters/i)).toBeVisible();
+      // Should show length error (target form message specifically)
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /at least 8 characters/i })
+      ).toBeVisible();
     });
 
     test("should accept valid complex password", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter valid password
       await passwordInput.fill("ValidP@ss123");
       await passwordInput.blur();
 
-      // Should not show any password errors
-      await expect(page.getByText(/uppercase/i)).not.toBeVisible();
-      await expect(page.getByText(/lowercase/i)).not.toBeVisible();
-      await expect(page.getByText(/number/i)).not.toBeVisible();
-      await expect(page.getByText(/special character/i)).not.toBeVisible();
+      // Should not show any password errors (check form messages are not present)
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /uppercase/i })
+      ).not.toBeVisible();
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /lowercase/i })
+      ).not.toBeVisible();
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /number/i })
+      ).not.toBeVisible();
+      await expect(
+        page.locator('[data-slot="form-message"]').filter({ hasText: /special character/i })
+      ).not.toBeVisible();
     });
   });
 
   test.describe("AC3: Password strength meter", () => {
+    // Helper to get the strength label (excludes aria-labels by targeting <p> element)
+    const getStrengthLabel = (page: import("@playwright/test").Page) =>
+      page.locator("p.text-xs").filter({ hasText: /^(Weak|Medium|Strong)$/ });
+
     test("should show 'Weak' for short password", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter weak password (short)
       await passwordInput.fill("weak");
 
       // Should show weak indicator
-      await expect(page.getByText(/^weak$/i)).toBeVisible();
+      await expect(getStrengthLabel(page)).toHaveText("Weak");
     });
 
     test("should show 'Medium' for medium complexity password", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter medium password
       await passwordInput.fill("Medium@12");
 
       // Should show medium indicator
-      await expect(page.getByText(/^medium$/i)).toBeVisible();
+      await expect(getStrengthLabel(page)).toHaveText("Medium");
     });
 
     test("should show 'Strong' for complex password", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
 
       // Enter strong password (16+ chars with all types)
       await passwordInput.fill("VeryStr0ngP@ssword!");
 
       // Should show strong indicator
-      await expect(page.getByText(/^strong$/i)).toBeVisible();
+      await expect(getStrengthLabel(page)).toHaveText("Strong");
     });
 
     test("should update strength in real-time as user types", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
+      const passwordInput = page.locator('input[name="password"]');
+      const strengthLabel = getStrengthLabel(page);
 
-      // Start typing - should show weak
+      // Start typing - should show weak (score 1: only lowercase)
       await passwordInput.fill("a");
-      await expect(page.getByText(/^weak$/i)).toBeVisible();
+      await expect(strengthLabel).toHaveText("Weak");
 
-      // Add more characters
+      // Add variety - becomes medium (score 4: lowercase + uppercase + number + special)
       await passwordInput.fill("aB1@");
-      await expect(page.getByText(/^weak$/i)).toBeVisible();
+      await expect(strengthLabel).toHaveText("Medium");
 
-      // Make it 8+ chars
+      // Still medium with 8+ chars (score 5: 8+ length + variety)
       await passwordInput.fill("aB1@cdef");
-      await expect(page.getByText(/^medium$/i)).toBeVisible();
+      await expect(strengthLabel).toHaveText("Medium");
 
-      // Make it strong
+      // Make it strong (16+ chars or 12+ with variety = score 6+)
       await passwordInput.fill("VeryStr0ngP@ss!");
-      await expect(page.getByText(/^strong$/i)).toBeVisible();
+      await expect(strengthLabel).toHaveText("Strong");
     });
   });
 
@@ -180,7 +204,8 @@ test.describe("Registration Flow", () => {
     test("should disable submit button without disclaimer checked", async ({ page }) => {
       // Fill in valid data but don't check disclaimer
       await page.getByLabel(/email/i).fill("test@example.com");
-      await page.getByLabel(/password/i).fill("ValidP@ss123");
+      await page.locator('input[name="password"]').fill("ValidP@ss123");
+      await page.locator('input[name="confirmPassword"]').fill("ValidP@ss123");
 
       const submitButton = page.getByRole("button", { name: /create account/i });
 
@@ -188,21 +213,73 @@ test.describe("Registration Flow", () => {
       await expect(submitButton).toBeDisabled();
     });
 
-    test("should enable submit button with valid form and disclaimer", async ({ page }) => {
-      // Fill in valid data
+    test("should disable submit button without confirmPassword", async ({ page }) => {
+      // Fill in valid data but no confirmPassword
       await page.getByLabel(/email/i).fill("test@example.com");
-      await page.getByLabel(/password/i).fill("ValidP@ss123");
+      await page.locator('input[name="password"]').fill("ValidP@ss123");
+      await page.getByRole("checkbox").check();
+
+      const submitButton = page.getByRole("button", { name: /create account/i });
+
+      // Button should still be disabled (missing confirmPassword)
+      // Playwright auto-waits for the assertion
+      await expect(submitButton).toBeDisabled();
+    });
+
+    test("should enable submit button with valid form and disclaimer", async ({ page }) => {
+      // Fill in valid data including confirmPassword
+      await page.getByLabel(/email/i).fill("test@example.com");
+      await page.locator('input[name="password"]').fill("ValidP@ss123");
+      await page.locator('input[name="confirmPassword"]').fill("ValidP@ss123");
 
       // Check disclaimer
       await page.getByRole("checkbox").check();
 
-      // Need to wait for form validation
-      await page.waitForTimeout(100);
-
       const submitButton = page.getByRole("button", { name: /create account/i });
 
-      // Button should be enabled
+      // Button should be enabled - Playwright auto-waits for the assertion
       await expect(submitButton).toBeEnabled();
+    });
+  });
+
+  test.describe("AC-1.1.5: Confirm Password validation", () => {
+    test("should show error when passwords do not match", async ({ page }) => {
+      // Fill password
+      await page.locator('input[name="password"]').fill("ValidP@ss123");
+
+      // Fill different confirmPassword
+      const confirmInput = page.locator('input[name="confirmPassword"]');
+      await confirmInput.fill("DifferentP@ss123");
+      await confirmInput.blur();
+
+      // Should show mismatch error
+      await expect(page.getByText(/passwords do not match/i)).toBeVisible();
+    });
+
+    test("should not show error when passwords match", async ({ page }) => {
+      // Fill password
+      await page.locator('input[name="password"]').fill("ValidP@ss123");
+
+      // Fill matching confirmPassword
+      const confirmInput = page.locator('input[name="confirmPassword"]');
+      await confirmInput.fill("ValidP@ss123");
+      await confirmInput.blur();
+
+      // Should not show mismatch error
+      await expect(page.getByText(/passwords do not match/i)).not.toBeVisible();
+    });
+
+    test("should show error for empty confirm password", async ({ page }) => {
+      // Fill password
+      await page.locator('input[name="password"]').fill("ValidP@ss123");
+
+      // Leave confirmPassword empty but trigger validation
+      const confirmInput = page.locator('input[name="confirmPassword"]');
+      await confirmInput.focus();
+      await confirmInput.blur();
+
+      // Should show required error
+      await expect(page.getByText(/confirm your password/i)).toBeVisible();
     });
   });
 
@@ -225,27 +302,33 @@ test.describe("Registration Flow", () => {
   });
 
   test.describe("Password visibility toggle", () => {
-    test("should toggle password visibility", async ({ page }) => {
-      const passwordInput = page.getByLabel(/password/i);
-      const toggleButton = page.getByRole("button", { name: /show password|hide password/i });
+    test("should toggle password visibility for both password fields", async ({ page }) => {
+      const passwordInput = page.locator('input[name="password"]');
+      const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+      // Get the first toggle button (associated with password field)
+      const toggleButtons = page.getByRole("button", { name: /toggle visibility/i });
 
-      // Enter password
+      // Enter passwords
       await passwordInput.fill("TestPassword123!");
+      await confirmPasswordInput.fill("TestPassword123!");
 
-      // Initially password type
+      // Initially both are password type
       await expect(passwordInput).toHaveAttribute("type", "password");
+      await expect(confirmPasswordInput).toHaveAttribute("type", "password");
 
-      // Click toggle
-      await toggleButton.click();
+      // Click first toggle - should toggle both fields (shared state)
+      await toggleButtons.first().click();
 
-      // Now text type
+      // Both should now be text type
       await expect(passwordInput).toHaveAttribute("type", "text");
+      await expect(confirmPasswordInput).toHaveAttribute("type", "text");
 
       // Click again
-      await toggleButton.click();
+      await toggleButtons.first().click();
 
-      // Back to password
+      // Both back to password
       await expect(passwordInput).toHaveAttribute("type", "password");
+      await expect(confirmPasswordInput).toHaveAttribute("type", "password");
     });
   });
 
@@ -266,7 +349,7 @@ test.describe("Registration Flow", () => {
       // Form should be visible and centered
       await expect(page.getByRole("heading", { name: "Create an account" })).toBeVisible();
       await expect(page.getByLabel(/email/i)).toBeVisible();
-      await expect(page.getByLabel(/password/i)).toBeVisible();
+      await expect(page.locator('input[name="password"]')).toBeVisible();
     });
 
     test("should display properly on tablet viewport", async ({ page }) => {

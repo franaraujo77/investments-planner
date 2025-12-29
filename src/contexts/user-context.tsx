@@ -19,6 +19,7 @@ export interface User {
   email: string;
   name: string | null;
   baseCurrency: string;
+  locale: string;
   emailVerified: boolean;
   disclaimerAcknowledgedAt: string | null;
   createdAt: string;
@@ -40,6 +41,8 @@ interface UserContextValue {
   clearUser: () => void;
   /** Update disclaimer acknowledged timestamp (called when user acknowledges) */
   setDisclaimerAcknowledged: (acknowledgedAt: string) => void;
+  /** Update user locale (called when user changes locale in settings) */
+  setLocale: (locale: string) => void;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
@@ -77,6 +80,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const setLocale = useCallback((locale: string) => {
+    setUserState((prev) =>
+      prev
+        ? {
+            ...prev,
+            locale,
+          }
+        : null
+    );
+  }, []);
+
   return (
     <UserContext.Provider
       value={{
@@ -86,6 +100,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setIsLoading,
         clearUser,
         setDisclaimerAcknowledged,
+        setLocale,
       }}
     >
       {children}

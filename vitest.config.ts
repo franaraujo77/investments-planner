@@ -5,8 +5,9 @@ export default defineConfig({
   test: {
     globals: false,
     environment: "node",
-    include: ["tests/unit/**/*.test.{ts,tsx}", "tests/integration/**/*.test.{ts,tsx}"],
-    exclude: ["**/node_modules/**", "**/dist/**"],
+    // Unit tests only - integration tests have their own config (vitest.config.integration.ts)
+    include: ["tests/unit/**/*.test.{ts,tsx}"],
+    exclude: ["**/node_modules/**", "**/dist/**", "tests/integration/**"],
     env: {
       // Dummy values for tests that import modules requiring env vars
       DATABASE_URL: "postgresql://test:test@localhost:5432/test",

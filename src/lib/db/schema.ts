@@ -41,6 +41,7 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").default(false),
   emailVerifiedAt: timestamp("email_verified_at"),
   disclaimerAcknowledgedAt: timestamp("disclaimer_acknowledged_at"),
+  locale: varchar("locale", { length: 10 }).notNull().default("en-US"),
   deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

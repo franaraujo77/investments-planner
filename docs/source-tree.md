@@ -1,6 +1,7 @@
 # Source Tree - Annotated Directory Structure
 
 > Complete file inventory with purpose annotations
+> Last Updated: 2025-12-26 (Exhaustive Scan)
 
 ## Root Directory
 
@@ -599,14 +600,15 @@ drizzle/
 
 | Category               | Count |
 | ---------------------- | ----- |
-| React Components       | 116   |
+| React Components       | 107   |
 | Custom Hooks           | 21    |
-| API Route Handlers     | 59    |
+| API Route Handlers     | 62    |
 | Service Modules        | 26    |
 | Zod Validation Schemas | 12    |
 | Database Tables        | 17    |
-| Database Migrations    | 15    |
-| Test Files             | ~50+  |
+| Database Migrations    | 17    |
+| Inngest Functions      | 4     |
+| Test Files             | 162   |
 
 ---
 

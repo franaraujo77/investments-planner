@@ -2,9 +2,10 @@
  * Export Service Unit Tests
  *
  * Story 2.7: Data Export
+ * Story 1.6: GDPR Compliance - AC-1.6.2 (profile.json included)
  *
  * Tests for export service functions:
- * - AC-2.7.2: ZIP contains portfolio.json, criteria.json, history.json, README.txt
+ * - AC-2.7.2: ZIP contains profile.json, portfolio.json, criteria.json, history.json, README.txt
  * - AC-2.7.4: Data is formatted/indented JSON (human-readable)
  * - AC-2.7.4: Includes schema version for future compatibility
  */
@@ -45,11 +46,39 @@ vi.mock("archiver", async () => {
   };
 });
 
+// Mock database for getProfileData
+vi.mock("@/lib/db", () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(() =>
+            Promise.resolve([
+              {
+                email: "test@example.com",
+                name: "Test User",
+                baseCurrency: "USD",
+                locale: "en-US",
+                defaultContribution: null,
+                emailVerified: true,
+                emailVerifiedAt: new Date("2025-01-01T00:00:00.000Z"),
+                disclaimerAcknowledgedAt: new Date("2025-01-01T00:00:00.000Z"),
+                createdAt: new Date("2025-01-01T00:00:00.000Z"),
+              },
+            ])
+          ),
+        })),
+      })),
+    })),
+  },
+}));
+
 // Import after mocks are set up
 import {
   generateUserExport,
   createZipArchive,
   generateReadme,
+  getProfileData,
   getPortfolioData,
   getCriteriaData,
   getHistoryData,
@@ -91,9 +120,17 @@ describe("Export Service", () => {
     it("should include file descriptions", () => {
       const readme = generateReadme("2025-12-02T12:00:00.000Z");
 
+      expect(readme).toContain("profile.json");
       expect(readme).toContain("portfolio.json");
       expect(readme).toContain("criteria.json");
       expect(readme).toContain("history.json");
+    });
+
+    it("should include GDPR compliance note (AC-1.6.2)", () => {
+      const readme = generateReadme("2025-12-02T12:00:00.000Z");
+
+      expect(readme).toContain("GDPR");
+      expect(readme).toContain("personal data");
     });
 
     it("should include data format information", () => {
@@ -101,6 +138,26 @@ describe("Export Service", () => {
 
       expect(readme).toContain("ISO 8601");
       expect(readme).toContain("numeric strings");
+    });
+  });
+
+  describe("getProfileData", () => {
+    it("should return user profile data (AC-1.6.2 GDPR)", async () => {
+      const result = await getProfileData(mockUserId);
+
+      expect(result.email).toBe("test@example.com");
+      expect(result.name).toBe("Test User");
+      expect(result.baseCurrency).toBe("USD");
+      expect(result.locale).toBe("en-US");
+      expect(result.emailVerified).toBe(true);
+    });
+
+    it("should return ISO date strings for date fields", async () => {
+      const result = await getProfileData(mockUserId);
+
+      expect(result.emailVerifiedAt).toBe("2025-01-01T00:00:00.000Z");
+      expect(result.disclaimerAcknowledgedAt).toBe("2025-01-01T00:00:00.000Z");
+      expect(result.createdAt).toBe("2025-01-01T00:00:00.000Z");
     });
   });
 
@@ -132,7 +189,20 @@ describe("Export Service", () => {
   });
 
   describe("createZipArchive", () => {
+    const mockProfileData = {
+      email: "test@example.com",
+      name: "Test User",
+      baseCurrency: "USD",
+      locale: "en-US",
+      defaultContribution: null,
+      emailVerified: true,
+      emailVerifiedAt: "2025-01-01T00:00:00.000Z",
+      disclaimerAcknowledgedAt: "2025-01-01T00:00:00.000Z",
+      createdAt: "2025-01-01T00:00:00.000Z",
+    };
+
     const mockExportData: ExportData = {
+      profile: mockProfileData,
       portfolio: [],
       criteria: [],
       history: [],
@@ -146,12 +216,27 @@ describe("Export Service", () => {
       expect(Buffer.isBuffer(result)).toBe(true);
     });
 
-    it("should create a valid ZIP file (AC-2.7.2)", async () => {
+    it("should create a valid ZIP file (AC-2.7.2, AC-1.6.2)", async () => {
       const result = await createZipArchive(mockExportData);
       const zip = new AdmZip(result);
       const entries = zip.getEntries();
 
-      expect(entries.length).toBe(4);
+      // Now includes profile.json (5 files total)
+      expect(entries.length).toBe(5);
+    });
+
+    it("should include profile.json (AC-1.6.2 GDPR)", async () => {
+      const result = await createZipArchive(mockExportData);
+      const zip = new AdmZip(result);
+
+      const entry = zip.getEntry("profile.json");
+      expect(entry).toBeDefined();
+
+      const content = entry!.getData().toString("utf8");
+      const parsed = JSON.parse(content);
+      expect(parsed.email).toBe("test@example.com");
+      expect(parsed.name).toBe("Test User");
+      expect(parsed.baseCurrency).toBe("USD");
     });
 
     it("should include portfolio.json (AC-2.7.2)", async () => {
@@ -201,6 +286,7 @@ describe("Export Service", () => {
 
     it("should format JSON with 2-space indentation (AC-2.7.4)", async () => {
       const dataWithContent: ExportData = {
+        profile: mockProfileData,
         portfolio: [
           {
             id: "p1",
@@ -238,12 +324,13 @@ describe("Export Service", () => {
       expect(Buffer.isBuffer(result)).toBe(true);
     });
 
-    it("should create a ZIP with all 4 files (AC-2.7.2)", async () => {
+    it("should create a ZIP with all 5 files (AC-2.7.2, AC-1.6.2)", async () => {
       const result = await generateUserExport(mockUserId);
       const zip = new AdmZip(result);
       const entries = zip.getEntries();
       const fileNames = entries.map((e) => e.entryName);
 
+      expect(fileNames).toContain("profile.json");
       expect(fileNames).toContain("portfolio.json");
       expect(fileNames).toContain("criteria.json");
       expect(fileNames).toContain("history.json");

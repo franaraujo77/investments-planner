@@ -2,9 +2,10 @@
  * User Profile API Routes
  *
  * Story 2.6: Profile Settings & Base Currency
+ * Story 1.5: Regional Preferences and i18n Infrastructure
  *
  * GET /api/user/profile - Get current user profile
- * PATCH /api/user/profile - Update user profile (name, baseCurrency)
+ * PATCH /api/user/profile - Update user profile (name, baseCurrency, locale)
  */
 
 import { NextResponse } from "next/server";
@@ -14,6 +15,7 @@ import { handleDbError, databaseError } from "@/lib/api/responses";
 import { getSafeUserById } from "@/lib/auth/service";
 import { updateUserProfile } from "@/lib/services/user-service";
 import type { AuthError } from "@/lib/auth/types";
+import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n";
 
 /**
  * Supported currencies for base currency setting
@@ -22,13 +24,21 @@ import type { AuthError } from "@/lib/auth/types";
 const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "BRL", "CAD", "AUD", "JPY", "CHF"] as const;
 
 /**
+ * Locale values array for Zod validation
+ * Derived from canonical SUPPORTED_LOCALES in @/lib/i18n (AC-1.5.5)
+ */
+const LOCALE_VALUES = SUPPORTED_LOCALES.map((l) => l.value) as [Locale, ...Locale[]];
+
+/**
  * Zod schema for profile update validation
  * AC-2.6.5: Name max 100 characters
  * AC-2.6.2: Base currency from allowed list
+ * AC-1.5.1: Locale from allowed list
  */
 const updateProfileSchema = z.object({
   name: z.string().max(100, "Name must be 100 characters or less").optional(),
   baseCurrency: z.enum(SUPPORTED_CURRENCIES).optional(),
+  locale: z.enum(LOCALE_VALUES).optional(),
 });
 
 /**
@@ -40,6 +50,7 @@ interface ProfileResponse {
     email: string;
     name: string | null;
     baseCurrency: string;
+    locale: string;
     emailVerified: boolean;
     createdAt: Date;
   };
@@ -52,7 +63,7 @@ interface ProfileResponse {
  * Requires authentication.
  *
  * Response:
- * - 200: { user: { id, email, name, baseCurrency, emailVerified, createdAt } }
+ * - 200: { user: { id, email, name, baseCurrency, locale, emailVerified, createdAt } }
  * - 401: Not authenticated
  */
 export const GET = withAuth<ProfileResponse>(async (_request, session) => {
@@ -76,6 +87,7 @@ export const GET = withAuth<ProfileResponse>(async (_request, session) => {
           email: user.email,
           name: user.name,
           baseCurrency: user.baseCurrency,
+          locale: user.locale,
           emailVerified: user.emailVerified ?? false,
           createdAt: user.createdAt ?? new Date(),
         },
@@ -97,6 +109,7 @@ export const GET = withAuth<ProfileResponse>(async (_request, session) => {
  * Request body:
  * - name?: string (max 100 chars)
  * - baseCurrency?: "USD" | "EUR" | "GBP" | "BRL" | "CAD" | "AUD" | "JPY" | "CHF"
+ * - locale?: "en-US" | "pt-BR" | "de-DE" | "fr-FR" | "es-ES"
  *
  * Response:
  * - 200: { user } with updated data
@@ -124,10 +137,10 @@ export const PATCH = withAuth<ProfileResponse>(async (request, session) => {
       );
     }
 
-    const { name, baseCurrency } = parseResult.data;
+    const { name, baseCurrency, locale } = parseResult.data;
 
     // Check if there's anything to update
-    if (name === undefined && baseCurrency === undefined) {
+    if (name === undefined && baseCurrency === undefined && locale === undefined) {
       return NextResponse.json<AuthError>(
         {
           error: "No fields to update",
@@ -138,12 +151,15 @@ export const PATCH = withAuth<ProfileResponse>(async (request, session) => {
     }
 
     // Build update data with only defined fields
-    const updateData: { name?: string; baseCurrency?: string } = {};
+    const updateData: { name?: string; baseCurrency?: string; locale?: string } = {};
     if (name !== undefined) {
       updateData.name = name;
     }
     if (baseCurrency !== undefined) {
       updateData.baseCurrency = baseCurrency;
+    }
+    if (locale !== undefined) {
+      updateData.locale = locale;
     }
 
     // Update user profile (handles cache invalidation internally)
@@ -156,6 +172,7 @@ export const PATCH = withAuth<ProfileResponse>(async (request, session) => {
           email: updatedUser.email,
           name: updatedUser.name,
           baseCurrency: updatedUser.baseCurrency,
+          locale: updatedUser.locale,
           emailVerified: updatedUser.emailVerified ?? false,
           createdAt: updatedUser.createdAt ?? new Date(),
         },

@@ -32,8 +32,8 @@ test.describe("Verification Page (/verify)", () => {
       // Wait for verification to complete
       await page.waitForTimeout(1000);
 
-      // Should show invalid error
-      await expect(page.getByText(/invalid|no verification token/i)).toBeVisible();
+      // Should show invalid error (use first() to handle multiple matches)
+      await expect(page.getByText(/invalid|no verification token/i).first()).toBeVisible();
 
       // Should have link to login
       await expect(page.getByRole("link", { name: /login/i })).toBeVisible();
@@ -45,8 +45,8 @@ test.describe("Verification Page (/verify)", () => {
       // Wait for verification to complete
       await page.waitForTimeout(1000);
 
-      // Should show invalid error
-      await expect(page.getByText(/invalid|no verification token/i)).toBeVisible();
+      // Should show invalid error (use first() to handle multiple matches)
+      await expect(page.getByText(/invalid|no verification token/i).first()).toBeVisible();
     });
   });
 
@@ -63,8 +63,13 @@ test.describe("Verification Page (/verify)", () => {
       const errorOrInvalid = page.getByText(/expired|invalid|error/i);
       await expect(errorOrInvalid.first()).toBeVisible();
 
-      // Should have resend option
-      await expect(page.getByRole("link").filter({ hasText: /verification|login/i })).toBeVisible();
+      // Should have resend option (use first() to handle multiple matches)
+      await expect(
+        page
+          .getByRole("link")
+          .filter({ hasText: /verification|login/i })
+          .first()
+      ).toBeVisible();
     });
   });
 
@@ -92,8 +97,8 @@ test.describe("Verification Pending Page (/verify-pending)", () => {
       // Branding
       await expect(page.getByRole("heading", { name: "Investments Planner" })).toBeVisible();
 
-      // Page title
-      await expect(page.getByRole("heading", { name: /verify.*email/i })).toBeVisible();
+      // Page title (CardTitle renders as div, not heading)
+      await expect(page.getByText("Verify Your Email", { exact: true })).toBeVisible();
 
       // Email input (if no email in params)
       await expect(page.getByLabel(/email/i)).toBeVisible();
@@ -213,7 +218,7 @@ test.describe("Login Page - Verification Links", () => {
 
       // Form elements (placeholder for Story 2.3)
       await expect(page.getByLabel(/email/i)).toBeVisible();
-      await expect(page.getByLabel(/password/i)).toBeVisible();
+      await expect(page.locator('input[name="password"]')).toBeVisible();
     });
 
     test("should have link to create account", async ({ page }) => {
@@ -235,8 +240,8 @@ test.describe("Responsive Design", () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/verify-pending");
 
-    // Page should be visible and centered
-    await expect(page.getByRole("heading", { name: /verify/i })).toBeVisible();
+    // Page should be visible and centered (CardTitle is div, not heading)
+    await expect(page.getByText("Verify Your Email", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /send/i })).toBeVisible();
   });
 

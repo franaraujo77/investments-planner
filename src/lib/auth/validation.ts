@@ -80,30 +80,38 @@ export type LoginInput = z.infer<typeof loginSchema>;
 /**
  * Client-side registration form schema (slightly different for form state)
  * disclaimerAcknowledged is a boolean here for checkbox binding
+ *
+ * Story 1.1: Added confirmPassword field (AC-1.1.5)
  */
-export const registerFormSchema = z.object({
-  email: z.string().min(1, "Email is required").email(AUTH_MESSAGES.INVALID_EMAIL),
-  password: z
-    .string()
-    .min(PASSWORD_RULES.MIN_LENGTH, AUTH_MESSAGES.PASSWORD_TOO_SHORT)
-    .max(PASSWORD_RULES.MAX_LENGTH, AUTH_MESSAGES.PASSWORD_TOO_LONG)
-    .refine((password) => /[a-z]/.test(password), {
-      message: AUTH_MESSAGES.PASSWORD_MISSING_LOWERCASE,
-    })
-    .refine((password) => /[A-Z]/.test(password), {
-      message: AUTH_MESSAGES.PASSWORD_MISSING_UPPERCASE,
-    })
-    .refine((password) => /\d/.test(password), {
-      message: AUTH_MESSAGES.PASSWORD_MISSING_NUMBER,
-    })
-    .refine((password) => /[@$!%*?&]/.test(password), {
-      message: AUTH_MESSAGES.PASSWORD_MISSING_SPECIAL,
+export const registerFormSchema = z
+  .object({
+    email: z.string().min(1, "Email is required").email(AUTH_MESSAGES.INVALID_EMAIL),
+    password: z
+      .string()
+      .min(PASSWORD_RULES.MIN_LENGTH, AUTH_MESSAGES.PASSWORD_TOO_SHORT)
+      .max(PASSWORD_RULES.MAX_LENGTH, AUTH_MESSAGES.PASSWORD_TOO_LONG)
+      .refine((password) => /[a-z]/.test(password), {
+        message: AUTH_MESSAGES.PASSWORD_MISSING_LOWERCASE,
+      })
+      .refine((password) => /[A-Z]/.test(password), {
+        message: AUTH_MESSAGES.PASSWORD_MISSING_UPPERCASE,
+      })
+      .refine((password) => /\d/.test(password), {
+        message: AUTH_MESSAGES.PASSWORD_MISSING_NUMBER,
+      })
+      .refine((password) => /[@$!%*?&]/.test(password), {
+        message: AUTH_MESSAGES.PASSWORD_MISSING_SPECIAL,
+      }),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+    name: z.string().max(100, "Name must be at most 100 characters").optional(),
+    disclaimerAcknowledged: z.boolean().refine((val) => val === true, {
+      message: AUTH_MESSAGES.DISCLAIMER_REQUIRED,
     }),
-  name: z.string().max(100, "Name must be at most 100 characters").optional(),
-  disclaimerAcknowledged: z.boolean().refine((val) => val === true, {
-    message: AUTH_MESSAGES.DISCLAIMER_REQUIRED,
-  }),
-});
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export type RegisterFormInput = z.infer<typeof registerFormSchema>;
 

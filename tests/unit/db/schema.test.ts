@@ -259,23 +259,20 @@ describe("Multi-tenant Isolation (AC: 5)", () => {
   });
 });
 
-// NOTE: Integration tests requiring actual database connection
-// These would run against a test database in CI/CD
-describe.skip("Database Integration (requires DATABASE_URL)", () => {
-  it("should run migrations successfully", async () => {
-    // Would use drizzle-kit migrate programmatically
-    // or verify tables exist via SQL query
-  });
-
-  it("should enforce foreign key cascade on refresh_tokens", async () => {
-    // Would insert user, insert token, delete user, verify token is gone
-  });
-
-  it("should maintain referential integrity on calculation_events", async () => {
-    // Would verify calculation events cannot be created without valid user
-  });
-
-  it("should have indexes on correlation_id and user_id", async () => {
-    // Would query pg_indexes to verify indexes exist
-  });
-});
+/**
+ * DATABASE INTEGRATION TESTS
+ *
+ * These tests have been moved to tests/integration/db/schema.test.ts
+ * because they require a real database connection.
+ *
+ * Story 1.7 Task 3: Integration tests now verify:
+ * - Migration success (all expected tables exist)
+ * - Foreign key cascade on refresh_tokens
+ * - Referential integrity on calculation_events
+ * - Indexes on correlation_id and user_id
+ * - Numeric precision for monetary fields
+ *
+ * To run: DATABASE_URL="..." pnpm test:integration
+ *
+ * @see tests/integration/db/schema.test.ts
+ */

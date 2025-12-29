@@ -39,6 +39,8 @@ interface RateLimitConfig {
   maxAttempts: number;
   /** Window duration in milliseconds */
   windowMs: number;
+  /** Lockout duration in milliseconds (defaults to windowMs if not specified) */
+  lockoutMs?: number;
 }
 
 // =============================================================================
@@ -47,10 +49,12 @@ interface RateLimitConfig {
 
 /**
  * Default rate limit config for login attempts (IP-based)
+ * AC-1.2.5: 5 attempts tracked per hour, but lockout is only 15 minutes
  */
 const IP_RATE_LIMIT_CONFIG: RateLimitConfig = {
   maxAttempts: AUTH_CONSTANTS.RATE_LIMIT_MAX_ATTEMPTS,
   windowMs: AUTH_CONSTANTS.RATE_LIMIT_WINDOW_MS,
+  lockoutMs: AUTH_CONSTANTS.RATE_LIMIT_LOCKOUT_MS,
 };
 
 /**
@@ -160,8 +164,10 @@ async function checkRateLimitByKey(key: string, config: RateLimitConfig): Promis
 
   // Window still active, check attempts
   if (entry.attempts >= config.maxAttempts) {
-    // Rate limited
-    const retryAfter = Math.ceil((entry.windowStart + config.windowMs - now) / 1000);
+    // Rate limited - use lockout duration if specified, otherwise window duration
+    const lockoutDuration = config.lockoutMs ?? config.windowMs;
+    const lockoutEnd = entry.windowStart + lockoutDuration;
+    const retryAfter = Math.ceil(Math.max(0, lockoutEnd - now) / 1000);
     return {
       allowed: false,
       retryAfter,

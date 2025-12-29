@@ -37,13 +37,22 @@ const TEST_USER = {
 };
 
 /**
+ * Check if @data-setup tests should run
+ * Set RUN_DATA_SETUP_TESTS=true to enable these tests
+ *
+ * Story 1.7: Enable All Skipped Tests
+ * AC-1.7.4: Tests with @data-setup tag run when data is seeded
+ */
+const SKIP_DATA_SETUP_TESTS = !process.env.RUN_DATA_SETUP_TESTS;
+
+/**
  * Helper to login before each test
  */
 async function loginUser(page: import("@playwright/test").Page) {
   await page.goto("/login");
 
   await page.getByLabel("Email").fill(TEST_USER.email);
-  await page.getByLabel("Password").fill(TEST_USER.password);
+  await page.locator('input[name="password"]').fill(TEST_USER.password);
   await page.getByRole("button", { name: "Login" }).click();
 
   // Wait for redirect to dashboard
@@ -441,44 +450,71 @@ test.describe("Delete Asset Class (AC-4.1.4, AC-4.1.5)", () => {
 });
 
 test.describe("Asset Class Limit", () => {
-  // Note: This test requires 10 asset classes to already exist
-  // It's marked as skip by default - enable when you have test data setup
+  /**
+   * @data-setup: Requires exactly 10 asset classes to exist
+   * Run with: pnpm test:e2e --grep @data-setup (after setting up test data)
+   */
+  test(
+    "should show error when trying to create 11th asset class",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and 10 asset classes to be set up"
+      );
 
-  test.skip("should show error when trying to create 11th asset class", async ({ page }) => {
-    await loginUser(page);
-    await page.goto("/strategy");
+      await loginUser(page);
+      await page.goto("/strategy");
 
-    const addButton = page.getByRole("button", { name: /Add Class/i });
+      const addButton = page.getByRole("button", { name: /Add Class/i });
 
-    // If button is disabled or not visible, we're at limit
-    const isVisible = await addButton.isVisible().catch(() => false);
+      // If button is disabled or not visible, we're at limit
+      const isVisible = await addButton.isVisible().catch(() => false);
 
-    if (isVisible) {
-      await addButton.click();
+      if (isVisible) {
+        await addButton.click();
 
-      const nameInput = page.getByPlaceholder("Asset class name");
-      await nameInput.fill("Eleventh Class");
+        const nameInput = page.getByPlaceholder("Asset class name");
+        await nameInput.fill("Eleventh Class");
 
-      await page
-        .locator('button:has-text("Save")')
-        .or(page.locator("button svg.text-green-600").locator(".."))
-        .click();
+        await page
+          .locator('button:has-text("Save")')
+          .or(page.locator("button svg.text-green-600").locator(".."))
+          .click();
 
-      // Should show error toast
-      await expect(page.getByText("Maximum asset classes reached")).toBeVisible();
+        // Should show error toast
+        await expect(page.getByText("Maximum asset classes reached")).toBeVisible();
+      }
     }
-  });
+  );
 
-  test.skip("should hide Add Class button when at limit", async ({ page }) => {
-    await loginUser(page);
-    await page.goto("/strategy");
+  /**
+   * @data-setup: Requires exactly 10 asset classes to exist
+   * Run with: pnpm test:e2e --grep @data-setup (after setting up test data)
+   */
+  test(
+    "should hide Add Class button when at limit",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and 10 asset classes to be set up"
+      );
 
-    // When at 10 asset classes, the Add Class button should not be visible
-    // This test assumes the user has exactly 10 asset classes
+      await loginUser(page);
+      await page.goto("/strategy");
 
-    const addButton = page.getByRole("button", { name: /Add Class/i });
-    await expect(addButton).not.toBeVisible();
-  });
+      // When at 10 asset classes, the Add Class button should not be visible
+      // This test assumes the user has exactly 10 asset classes
+
+      const addButton = page.getByRole("button", { name: /Add Class/i });
+      await expect(addButton).not.toBeVisible();
+    }
+  );
 });
 
 test.describe("Navigation Integration", () => {
@@ -967,31 +1003,59 @@ test.describe("Allocation Warning Banner (AC-4.3.3)", () => {
     await page.goto("/strategy");
   });
 
-  test.skip("should show warning when total minimums exceed 100%", async ({ page }) => {
-    // This test requires setting up multiple asset classes with minimums
-    // totaling more than 100%
+  /**
+   * @data-setup: Requires multiple asset classes with total minimums > 100%
+   */
+  test(
+    "should show warning when total minimums exceed 100%",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and asset classes with total minimums > 100%"
+      );
 
-    // First, set high minimums on multiple asset classes
-    // Then verify the warning banner appears
+      // This test requires setting up multiple asset classes with minimums
+      // totaling more than 100%
 
-    // Look for warning banner
-    const warningBanner = page.getByTestId("allocation-warning-banner");
-    await expect(warningBanner).toBeVisible();
-    await expect(page.getByText(/Total minimums.*exceed 100%/)).toBeVisible();
-  });
+      // First, set high minimums on multiple asset classes
+      // Then verify the warning banner appears
 
-  test.skip("should allow dismissing the warning banner", async ({ page }) => {
-    const warningBanner = page.getByTestId("allocation-warning-banner");
-    const isVisible = await warningBanner.isVisible().catch(() => false);
-
-    if (isVisible) {
-      // Click dismiss button
-      await page.getByLabel("Dismiss warning").click();
-
-      // Banner should disappear
-      await expect(warningBanner).not.toBeVisible();
+      // Look for warning banner
+      const warningBanner = page.getByTestId("allocation-warning-banner");
+      await expect(warningBanner).toBeVisible();
+      await expect(page.getByText(/Total minimums.*exceed 100%/)).toBeVisible();
     }
-  });
+  );
+
+  /**
+   * @data-setup: Requires warning banner to be visible first
+   */
+  test(
+    "should allow dismissing the warning banner",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and allocation warning banner to be visible"
+      );
+
+      const warningBanner = page.getByTestId("allocation-warning-banner");
+      const isVisible = await warningBanner.isVisible().catch(() => false);
+
+      if (isVisible) {
+        // Click dismiss button
+        await page.getByLabel("Dismiss warning").click();
+
+        // Banner should disappear
+        await expect(warningBanner).not.toBeVisible();
+      }
+    }
+  );
 });
 
 // =============================================================================
@@ -1137,54 +1201,96 @@ test.describe("Subclass Allocation Warning Banner (AC-4.4.2, AC-4.4.3)", () => {
     await page.goto("/strategy");
   });
 
-  test.skip("should show warning when subclass max exceeds parent class max", async ({ page }) => {
-    // This test requires:
-    // 1. Asset class with targetMax set (e.g., 50%)
-    // 2. Subclass with targetMax > parent max (e.g., 60%)
+  /**
+   * @data-setup: Requires asset class with subclass where subclass max > parent max
+   */
+  test(
+    "should show warning when subclass max exceeds parent class max",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and subclass with max > parent class max"
+      );
 
-    // Expand asset class
-    const toggleButton = page.locator("[aria-label='Toggle subclasses']").first();
-    await toggleButton.click();
+      // This test requires:
+      // 1. Asset class with targetMax set (e.g., 50%)
+      // 2. Subclass with targetMax > parent max (e.g., 60%)
 
-    // Look for warning banner
-    const warningBanner = page.getByTestId("subclass-exceeds-warning");
-    await expect(warningBanner).toBeVisible();
-    await expect(page.getByText(/exceeds parent maximum/)).toBeVisible();
-  });
+      // Expand asset class
+      const toggleButton = page.locator("[aria-label='Toggle subclasses']").first();
+      await toggleButton.click();
 
-  test.skip("should show warning when sum of subclass minimums exceeds parent max", async ({
-    page,
-  }) => {
-    // This test requires:
-    // 1. Asset class with targetMax set (e.g., 50%)
-    // 2. Multiple subclasses with minimums summing > parent max (e.g., 30% + 25% = 55%)
-
-    // Expand asset class
-    const toggleButton = page.locator("[aria-label='Toggle subclasses']").first();
-    await toggleButton.click();
-
-    // Look for warning banner
-    const warningBanner = page.getByTestId("subclass-sum-warning");
-    await expect(warningBanner).toBeVisible();
-    await expect(page.getByText(/Sum of subclass minimums.*exceeds parent maximum/)).toBeVisible();
-  });
-
-  test.skip("should allow dismissing subclass allocation warning", async ({ page }) => {
-    // Expand asset class
-    const toggleButton = page.locator("[aria-label='Toggle subclasses']").first();
-    await toggleButton.click();
-
-    const warningBanner = page
-      .getByTestId("subclass-exceeds-warning")
-      .or(page.getByTestId("subclass-sum-warning"));
-    const isVisible = await warningBanner.isVisible().catch(() => false);
-
-    if (isVisible) {
-      // Click dismiss button
-      await page.getByLabel("Dismiss warning").click();
-
-      // Banner should disappear
-      await expect(warningBanner).not.toBeVisible();
+      // Look for warning banner
+      const warningBanner = page.getByTestId("subclass-exceeds-warning");
+      await expect(warningBanner).toBeVisible();
+      await expect(page.getByText(/exceeds parent maximum/)).toBeVisible();
     }
-  });
+  );
+
+  /**
+   * @data-setup: Requires subclasses with sum of minimums > parent max
+   */
+  test(
+    "should show warning when sum of subclass minimums exceeds parent max",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and subclass minimums summing > parent max"
+      );
+
+      // This test requires:
+      // 1. Asset class with targetMax set (e.g., 50%)
+      // 2. Multiple subclasses with minimums summing > parent max (e.g., 30% + 25% = 55%)
+
+      // Expand asset class
+      const toggleButton = page.locator("[aria-label='Toggle subclasses']").first();
+      await toggleButton.click();
+
+      // Look for warning banner
+      const warningBanner = page.getByTestId("subclass-sum-warning");
+      await expect(warningBanner).toBeVisible();
+      await expect(
+        page.getByText(/Sum of subclass minimums.*exceeds parent maximum/)
+      ).toBeVisible();
+    }
+  );
+
+  /**
+   * @data-setup: Requires subclass warning banner to be visible
+   */
+  test(
+    "should allow dismissing subclass allocation warning",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and subclass warning banner to be visible"
+      );
+
+      // Expand asset class
+      const toggleButton = page.locator("[aria-label='Toggle subclasses']").first();
+      await toggleButton.click();
+
+      const warningBanner = page
+        .getByTestId("subclass-exceeds-warning")
+        .or(page.getByTestId("subclass-sum-warning"));
+      const isVisible = await warningBanner.isVisible().catch(() => false);
+
+      if (isVisible) {
+        // Click dismiss button
+        await page.getByLabel("Dismiss warning").click();
+
+        // Banner should disappear
+        await expect(warningBanner).not.toBeVisible();
+      }
+    }
+  );
 });

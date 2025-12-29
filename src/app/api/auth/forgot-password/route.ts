@@ -1,12 +1,13 @@
 /**
  * Forgot Password API Route
  *
- * Story 2.5: Password Reset Flow
+ * Story 1.3: Password Reset Flow
  *
  * POST /api/auth/forgot-password
  * - Accepts email address
  * - Always returns same message (no email enumeration)
  * - If user exists: generates reset token and sends email
+ * - Rate limited by IP (5/hour) and email (3/hour)
  */
 
 import { NextResponse } from "next/server";
@@ -17,6 +18,14 @@ import {
   invalidateUserPasswordResetTokens,
 } from "@/lib/auth/service";
 import { inngest } from "@/lib/inngest";
+import {
+  checkRateLimit,
+  recordFailedAttempt,
+  checkEmailRateLimit,
+  recordEmailResendAttempt,
+  getClientIp,
+} from "@/lib/auth/rate-limit";
+import { AUTH_MESSAGES } from "@/lib/auth/constants";
 
 /**
  * Request validation schema
@@ -39,10 +48,33 @@ const STANDARD_RESPONSE = {
 /**
  * POST /api/auth/forgot-password
  *
- * AC-2.5.2: No Email Enumeration
+ * AC-1.3.2: No Email Enumeration
  * Always returns the same message regardless of whether the email exists
+ *
+ * Security: Rate limited by IP (5/hour) and email (3/hour)
  */
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+
+  // Check IP-based rate limit first (prevents spray attacks)
+  const ipRateLimitResult = await checkRateLimit(ip);
+  if (!ipRateLimitResult.allowed) {
+    const retryAfter = ipRateLimitResult.retryAfter ?? 3600;
+    return NextResponse.json(
+      {
+        error: AUTH_MESSAGES.RATE_LIMITED,
+        code: "RATE_LIMITED",
+        retryAfter,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(retryAfter),
+        },
+      }
+    );
+  }
+
   try {
     const body = await request.json();
 
@@ -56,6 +88,17 @@ export async function POST(request: Request) {
     }
 
     const { email } = result.data;
+
+    // Check email-based rate limit (prevents targeting specific users)
+    const emailRateLimitResult = await checkEmailRateLimit(email);
+    if (!emailRateLimitResult.allowed) {
+      // Still return standard response to prevent enumeration
+      // But don't actually send an email
+      return NextResponse.json(STANDARD_RESPONSE);
+    }
+
+    // Record the attempt for email rate limiting
+    await recordEmailResendAttempt(email);
 
     // Look up user by email
     const user = await findUserByEmail(email);
@@ -83,9 +126,13 @@ export async function POST(request: Request) {
         // Silently fail to prevent enumeration - Inngest handles retries
         // Still return success response
       }
+    } else {
+      // User doesn't exist - record IP failure for rate limiting
+      // This helps prevent email enumeration via timing attacks
+      await recordFailedAttempt(ip);
     }
 
-    // Always return the same response (AC-2.5.2)
+    // Always return the same response (AC-1.3.2)
     return NextResponse.json(STANDARD_RESPONSE);
   } catch {
     // Even on error, return same message to prevent information leakage

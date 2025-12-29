@@ -2,29 +2,36 @@
  * OpenTelemetry Setup Tests
  *
  * Story 1.5: OpenTelemetry Instrumentation
+ * Story 1.7: Enable All Skipped Tests (AC 1.7.1)
+ *
  * AC4: Traces export to OTLP HTTP endpoint (configurable via OTEL_EXPORTER_OTLP_ENDPOINT)
  *
  * Tests the SDK initialization and configuration handling.
- * NOTE: Tests will be executable after Vitest is installed in Story 1-7.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Use vi.hoisted to ensure mocks are available when vi.mock is hoisted
-const { mockStart, mockShutdown, mockNodeSDKInstances } = vi.hoisted(() => ({
-  mockStart: vi.fn(),
-  mockShutdown: vi.fn().mockResolvedValue(undefined),
-  mockNodeSDKInstances: [] as object[],
-}));
+// _mockStart and _mockShutdown are created for the mock class but not directly used in tests
+const { _mockStart, _mockShutdown, mockNodeSDKInstances, MockNodeSDK } = vi.hoisted(() => {
+  const _mockStart = vi.fn();
+  const _mockShutdown = vi.fn().mockResolvedValue(undefined);
+  const mockNodeSDKInstances: object[] = [];
 
-vi.mock("@opentelemetry/sdk-node", () => ({
-  NodeSDK: class MockNodeSDK {
-    start = mockStart;
-    shutdown = mockShutdown;
+  // Create a named class for proper constructor tracking
+  class MockNodeSDK {
+    start = _mockStart;
+    shutdown = _mockShutdown;
     constructor() {
       mockNodeSDKInstances.push(this);
     }
-  },
+  }
+
+  return { _mockStart, _mockShutdown, mockNodeSDKInstances, MockNodeSDK };
+});
+
+vi.mock("@opentelemetry/sdk-node", () => ({
+  NodeSDK: MockNodeSDK,
 }));
 
 vi.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
@@ -167,11 +174,9 @@ describe("setupTelemetry", () => {
   });
 
   describe("singleton behavior", () => {
-    // TODO: Fix constructor mocking for Vitest 4.x compatibility
-    it.skip("should only initialize once when called multiple times", async () => {
+    it("should only initialize once when called multiple times", async () => {
       // Arrange
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
-      const { NodeSDK } = await import("@opentelemetry/sdk-node");
 
       // Act
       const { setupTelemetry } = await import("@/lib/telemetry/setup");
@@ -179,8 +184,8 @@ describe("setupTelemetry", () => {
       setupTelemetry();
       setupTelemetry();
 
-      // Assert
-      expect(NodeSDK).toHaveBeenCalledTimes(1);
+      // Assert - only 1 SDK instance should be created despite 3 calls
+      expect(mockNodeSDKInstances.length).toBe(1);
     });
   });
 });

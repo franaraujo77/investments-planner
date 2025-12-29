@@ -15,9 +15,9 @@ import {
   verifyRefreshToken,
 } from "@/lib/auth/jwt";
 
-// Mock AUTH_SECRET environment variable
+// Mock JWT_SECRET environment variable (code uses JWT_SECRET, not AUTH_SECRET)
 beforeEach(() => {
-  vi.stubEnv("AUTH_SECRET", "test-secret-key-at-least-32-characters-long");
+  vi.stubEnv("JWT_SECRET", "test-secret-key-at-least-32-characters-long");
 });
 
 describe("Access Token Signing (AC: 1)", () => {
@@ -191,16 +191,16 @@ describe("Refresh Token Verification", () => {
 });
 
 describe("Environment Configuration", () => {
-  it("should throw if AUTH_SECRET is not set", async () => {
-    vi.stubEnv("AUTH_SECRET", "");
+  it("should throw if JWT_SECRET is not set", async () => {
+    vi.stubEnv("JWT_SECRET", "");
 
     await expect(
       signAccessToken({ userId: "user-123", email: "test@example.com" })
-    ).rejects.toThrow("AUTH_SECRET");
+    ).rejects.toThrow("JWT_SECRET");
   });
 
-  it("should throw if AUTH_SECRET is too short", async () => {
-    vi.stubEnv("AUTH_SECRET", "short-secret");
+  it("should throw if JWT_SECRET is too short", async () => {
+    vi.stubEnv("JWT_SECRET", "short-secret");
 
     await expect(
       signAccessToken({ userId: "user-123", email: "test@example.com" })

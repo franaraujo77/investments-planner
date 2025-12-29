@@ -534,3 +534,141 @@ pnpm build
 | Error Response | `{ error: "msg", code: "X" }` | `errorResponse("msg", ERROR_CODES.X)` |
 | Unused Var     | `const data = ...` (unused)   | `const _data = ...` or remove         |
 | Mock Data      | Function in API route         | Import from `@/lib/mocks/`            |
+
+# Architecture Patterns (PRD v2.0)
+
+## i18n & Number Formatting
+
+**Number Display Rules:**
+
+- ALWAYS use `useNumberFormat()` hook for displaying numbers in UI
+- NEVER use `toFixed()` or `toLocaleString()` directly
+- Import from `@/lib/i18n/useNumberFormat`
+
+**Patterns:**
+
+```typescript
+// ✅ CORRECT: Use the hook
+const { formatNumber, formatCurrency, formatPercent } = useNumberFormat();
+<span>{formatPercent(holding.percentage)}</span>
+
+// ❌ WRONG: Direct formatting
+<span>{holding.percentage.toFixed(2)}%</span>
+```
+
+**Provider Requirement:**
+
+- `NumberFormatProvider` must wrap the app in `layout.tsx`
+- Locale comes from user preferences
+
+## Chart Components
+
+**AllocationPieChart Usage:**
+
+```typescript
+<AllocationPieChart
+  data={holdings}           // Array of { name, value, color? }
+  showLabels={true}         // Show percentage labels
+  showLegend={true}         // Show legend below
+  size="md"                 // sm | md | lg
+  interactive={true}        // Hover tooltips
+/>
+```
+
+**Location:** `src/components/charts/AllocationPieChart.tsx`
+
+**Props Naming:** Use descriptive boolean props with `show` prefix for visibility toggles
+
+## Real-Time Form Feedback
+
+**Live Allocation Pattern:**
+
+```typescript
+const allocations = watch('holdings');
+const total = allocations?.reduce((sum, h) => sum + (h.percentage || 0), 0) ?? 0;
+const remaining = 100 - total;
+
+<AllocationIndicator
+  allocated={total}
+  remaining={remaining}
+  valid={remaining === 0}
+/>
+```
+
+**Validation UX:**
+
+- Block save button until allocation = 100%
+- Show inline validation errors immediately
+- Use `border-destructive` for error states
+- Use `border-green-500` for valid touched fields
+
+## Cache Key Conventions
+
+| Pattern      | Format                          | Example                    |
+| ------------ | ------------------------------- | -------------------------- |
+| User-scoped  | `user:{userId}:{resource}`      | `user:123:recommendations` |
+| Global       | `global:{resource}`             | `global:market-quotes`     |
+| With version | `{scope}:{resource}:v{version}` | `user:123:dashboard:v2`    |
+
+**TTL Standards:**
+
+- User recommendations: 24h (86400s)
+- Market quotes: 1h (3600s)
+- Dashboard data: 15m (900s)
+
+## Inngest Event Naming
+
+**Event Format:** `{domain}.{action}`
+
+| Event Type    | Format              | Example                                    |
+| ------------- | ------------------- | ------------------------------------------ |
+| Domain events | `{domain}.{action}` | `portfolio.updated`, `scores.recalculated` |
+| System events | `system.{action}`   | `system.overnight-job-started`             |
+| User events   | `user.{action}`     | `user.force-refresh-requested`             |
+
+**Payload Structure:**
+
+```typescript
+{
+  name: "portfolio.updated",
+  data: {
+    userId: string,
+    portfolioId: string,
+    changes: { ... },
+    timestamp: string // ISO 8601
+  }
+}
+```
+
+## New Component Locations (PRD v2.0)
+
+| Component              | Location                                           |
+| ---------------------- | -------------------------------------------------- |
+| i18n Provider          | `src/lib/i18n/NumberFormatProvider.tsx`            |
+| Number formatting hook | `src/lib/i18n/useNumberFormat.ts`                  |
+| Pie chart              | `src/components/charts/AllocationPieChart.tsx`     |
+| Allocation indicator   | `src/components/forms/AllocationIndicator.tsx`     |
+| Asset autocomplete     | `src/components/forms/AssetAutocomplete.tsx`       |
+| Recalculation service  | `src/lib/services/scoring/recalculationService.ts` |
+
+## Recalculation Pattern
+
+**Synchronous Recalculation on Portfolio CRUD:**
+
+```
+User edits/deletes portfolio
+    ↓
+Server Action validates change
+    ↓
+Database update (Drizzle)
+    ↓
+Synchronous score recalculation (<100ms per asset)
+    ↓
+Recommendation regeneration
+    ↓
+Cache invalidation (KV)
+    ↓
+Response with updated data
+```
+
+**Key Rule:** Recalculation is synchronous, not queued. Keep it fast (<100ms).

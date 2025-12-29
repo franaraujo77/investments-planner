@@ -3,19 +3,20 @@
  *
  * Business logic for user data export operations.
  * Story 2.7: Data Export
+ * Story 1.6: GDPR Compliance - AC-1.6.2 (complete data export)
  *
  * Generates a ZIP file containing:
+ * - profile.json (user's profile and preferences)
  * - portfolio.json (user's portfolio holdings)
  * - criteria.json (user's scoring criteria)
  * - history.json (user's investment history)
  * - README.txt (data format documentation)
- *
- * Note: Portfolio, criteria, and history tables are not yet implemented.
- * This service returns empty arrays for those data types until
- * their respective epics are complete.
  */
 
 import archiver from "archiver";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * Export schema version for forward compatibility
@@ -27,11 +28,28 @@ export const EXPORT_SCHEMA_VERSION = "1.0.0";
  * Export data types
  */
 export interface ExportData {
+  profile: ProfileExport;
   portfolio: PortfolioExport[];
   criteria: CriteriaExport[];
   history: InvestmentHistoryExport[];
   exportedAt: string;
   schemaVersion: string;
+}
+
+/**
+ * Profile export data
+ * Story 1.6: GDPR Compliance - AC-1.6.2
+ */
+export interface ProfileExport {
+  email: string;
+  name: string | null;
+  baseCurrency: string;
+  locale: string;
+  defaultContribution: string | null;
+  emailVerified: boolean;
+  emailVerifiedAt: string | null;
+  disclaimerAcknowledgedAt: string | null;
+  createdAt: string | null;
 }
 
 export interface PortfolioExport {
@@ -70,6 +88,7 @@ export interface InvestmentHistoryExport {
  *
  * AC-2.7.2: README.txt (data format documentation)
  * AC-2.7.4: Includes schema version for future compatibility
+ * Story 1.6: GDPR Compliance - Updated to include profile
  *
  * @param exportDate - ISO date string of export
  * @returns README content as string
@@ -81,6 +100,7 @@ Exported: ${exportDate}
 Schema Version: ${EXPORT_SCHEMA_VERSION}
 
 Files Included:
+- profile.json: Your account profile and preferences
 - portfolio.json: Your portfolio holdings and asset values
 - criteria.json: Your scoring criteria configurations
 - history.json: Your investment history records
@@ -89,8 +109,53 @@ Data Format:
 All JSON files use ISO 8601 date formats and numeric strings
 for monetary values to preserve precision.
 
+GDPR Compliance:
+This export contains all personal data we store about you.
 For questions or re-import assistance, contact support.
 `;
+}
+
+/**
+ * Fetches profile data for a user
+ *
+ * Story 1.6: GDPR Compliance - AC-1.6.2
+ *
+ * @param userId - User ID to fetch profile for
+ * @returns Profile export data
+ * @throws Error if user not found
+ */
+export async function getProfileData(userId: string): Promise<ProfileExport> {
+  const [user] = await db
+    .select({
+      email: users.email,
+      name: users.name,
+      baseCurrency: users.baseCurrency,
+      locale: users.locale,
+      defaultContribution: users.defaultContribution,
+      emailVerified: users.emailVerified,
+      emailVerifiedAt: users.emailVerifiedAt,
+      disclaimerAcknowledgedAt: users.disclaimerAcknowledgedAt,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  return {
+    email: user.email,
+    name: user.name,
+    baseCurrency: user.baseCurrency,
+    locale: user.locale,
+    defaultContribution: user.defaultContribution,
+    emailVerified: user.emailVerified ?? false,
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+    disclaimerAcknowledgedAt: user.disclaimerAcknowledgedAt?.toISOString() ?? null,
+    createdAt: user.createdAt?.toISOString() ?? null,
+  };
 }
 
 /**
@@ -154,8 +219,9 @@ export async function getHistoryData(_userId: string): Promise<InvestmentHistory
 /**
  * Creates a ZIP archive buffer from export data
  *
- * AC-2.7.2: ZIP contains portfolio.json, criteria.json, history.json, README.txt
+ * AC-2.7.2: ZIP contains profile.json, portfolio.json, criteria.json, history.json, README.txt
  * AC-2.7.4: Data is formatted/indented JSON (human-readable)
+ * Story 1.6: GDPR Compliance - includes profile.json
  *
  * @param data - Export data to archive
  * @returns Promise resolving to ZIP buffer
@@ -170,6 +236,9 @@ export async function createZipArchive(data: ExportData): Promise<Buffer> {
     archive.on("error", (err) => reject(err));
 
     // Add files with formatted JSON (2 space indent for human readability)
+    archive.append(JSON.stringify(data.profile, null, 2), {
+      name: "profile.json",
+    });
     archive.append(JSON.stringify(data.portfolio, null, 2), {
       name: "portfolio.json",
     });
@@ -189,6 +258,7 @@ export async function createZipArchive(data: ExportData): Promise<Buffer> {
  * Main export function - generates complete user data export as ZIP buffer
  *
  * Story 2.7: Data Export
+ * Story 1.6: GDPR Compliance - AC-1.6.2 (complete data export)
  * AC-2.7.2: ZIP file downloads containing all user data
  * AC-2.7.3: Export completes within 30 seconds
  * AC-2.7.4: Human-readable JSON with schema version
@@ -199,7 +269,8 @@ export async function createZipArchive(data: ExportData): Promise<Buffer> {
  */
 export async function generateUserExport(userId: string): Promise<Buffer> {
   // Fetch all user data in parallel
-  const [portfolio, criteria, history] = await Promise.all([
+  const [profile, portfolio, criteria, history] = await Promise.all([
+    getProfileData(userId),
     getPortfolioData(userId),
     getCriteriaData(userId),
     getHistoryData(userId),
@@ -207,6 +278,7 @@ export async function generateUserExport(userId: string): Promise<Buffer> {
 
   // Build export data structure
   const exportData: ExportData = {
+    profile,
     portfolio,
     criteria,
     history,

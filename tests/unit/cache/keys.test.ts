@@ -93,10 +93,12 @@ describe("Cache Key Generation", () => {
     it("should return all cache keys for a user", () => {
       const keys = getAllUserCacheKeys(testUserId);
 
-      expect(keys).toHaveLength(3);
+      // Story 1.6: GDPR Compliance - includes export rate limit key for cleanup
+      expect(keys).toHaveLength(4);
       expect(keys).toContain(`recs:${testUserId}`);
       expect(keys).toContain(`portfolio:${testUserId}`);
       expect(keys).toContain(`allocation:${testUserId}`);
+      expect(keys).toContain(`rate-limit:export:${testUserId}`);
     });
 
     it("should ensure keys never share across users (AC2)", () => {

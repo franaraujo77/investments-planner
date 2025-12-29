@@ -92,6 +92,7 @@ export function LogoutButton({
         onClick={handleLogout}
         disabled={isLoading}
         tooltip="Logout"
+        aria-label={showLabel ? undefined : "Logout"}
         className={className}
       >
         {isLoading ? (

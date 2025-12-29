@@ -2,51 +2,70 @@
  * Tracer Utilities Tests
  *
  * Story 1.5: OpenTelemetry Instrumentation
+ * Story 1.7: Enable All Skipped Tests (AC 1.7.1)
+ *
  * AC1: Job execution creates a span with: job name, user_id, duration, asset_count
  * AC2: Span attributes capture timing breakdown
  *
  * Tests for span creation and attribute management.
- * NOTE: Tests will be executable after Vitest is installed in Story 1-7.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SpanStatusCode } from "@opentelemetry/api";
 
-// Mock span for testing - define inside vi.mock to avoid hoisting issues
-const mockSpan = {
-  setAttribute: vi.fn(),
-  setStatus: vi.fn(),
-  end: vi.fn(),
-  recordException: vi.fn(),
-};
-
-// Mock tracer - define inside vi.mock to avoid hoisting issues
-const mockTracer = {
-  startSpan: vi.fn().mockReturnValue(mockSpan),
-};
-
-// Mock trace API - use factory function pattern
-vi.mock("@opentelemetry/api", () => {
-  return {
-    trace: {
-      getTracer: vi.fn(() => ({
-        startSpan: vi.fn(() => ({
-          setAttribute: vi.fn(),
-          setStatus: vi.fn(),
-          end: vi.fn(),
-          recordException: vi.fn(),
-        })),
-      })),
-    },
-    SpanStatusCode: {
-      OK: 0,
-      ERROR: 2,
-    },
+// Use vi.hoisted() to ensure mocks are available before vi.mock() hoisting
+// The factory function must be self-contained (no external imports)
+const { mockSpan, mockTracer, getTracerMock } = vi.hoisted(() => {
+  const mockSpan = {
+    setAttribute: vi.fn(),
+    setStatus: vi.fn(),
+    end: vi.fn(),
+    recordException: vi.fn(),
+    spanContext: vi.fn().mockReturnValue({
+      traceId: "test-trace-id",
+      spanId: "test-span-id",
+    }),
+    isRecording: vi.fn().mockReturnValue(true),
+    updateName: vi.fn(),
+    addEvent: vi.fn(),
   };
+
+  const mockTracer = {
+    startSpan: vi.fn().mockReturnValue(mockSpan),
+    startActiveSpan: vi.fn(),
+  };
+
+  const getTracerMock = vi.fn().mockReturnValue(mockTracer);
+
+  return { mockSpan, mockTracer, getTracerMock };
 });
 
-// TODO: Refactor mocks for Vitest 4.x - the mock setup needs to share state across tests
-describe.skip("createJobSpan", () => {
+// Mock SpanStatusCode values
+const MockSpanStatusCode = {
+  OK: 0,
+  ERROR: 2,
+} as const;
+
+// Mock @opentelemetry/api using shared hoisted mocks
+vi.mock("@opentelemetry/api", () => ({
+  trace: {
+    getTracer: getTracerMock,
+  },
+  SpanStatusCode: {
+    OK: 0,
+    ERROR: 2,
+    UNSET: 1,
+  },
+  context: {
+    active: vi.fn(),
+    with: vi.fn((_ctx, fn) => fn()),
+  },
+  propagation: {
+    extract: vi.fn(),
+    inject: vi.fn(),
+  },
+}));
+
+describe("createJobSpan", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -150,8 +169,7 @@ describe.skip("createJobSpan", () => {
   });
 });
 
-// TODO: Refactor mocks for Vitest 4.x
-describe.skip("withSpan", () => {
+describe("withSpan", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -192,7 +210,7 @@ describe.skip("withSpan", () => {
 
     // Assert
     expect(mockSpan.setStatus).toHaveBeenCalledWith({
-      code: SpanStatusCode.OK,
+      code: MockSpanStatusCode.OK,
     });
   });
 
@@ -209,7 +227,7 @@ describe.skip("withSpan", () => {
     ).rejects.toThrow("Test error");
 
     expect(mockSpan.setStatus).toHaveBeenCalledWith({
-      code: SpanStatusCode.ERROR,
+      code: MockSpanStatusCode.ERROR,
       message: "Test error",
     });
     expect(mockSpan.end).toHaveBeenCalled();
@@ -230,33 +248,32 @@ describe.skip("withSpan", () => {
   });
 });
 
-// TODO: Refactor mocks for Vitest 4.x
-describe.skip("getTracer", () => {
+describe("getTracer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("should return a tracer with the specified name", async () => {
     // Arrange
-    const { trace } = await import("@opentelemetry/api");
     const { getTracer } = await import("@/lib/telemetry/tracer");
 
     // Act
     getTracer("custom-tracer");
 
     // Assert
-    expect(trace.getTracer).toHaveBeenCalledWith("custom-tracer");
+    expect(getTracerMock).toHaveBeenCalledWith("custom-tracer");
   });
 
   it("should use default service name when not specified", async () => {
     // Arrange
-    const { trace } = await import("@opentelemetry/api");
     const { getTracer } = await import("@/lib/telemetry/tracer");
-
-    // Import DEFAULT_SERVICE_NAME from config
     const { DEFAULT_SERVICE_NAME } = await import("@/lib/telemetry/config");
 
     // Act
     getTracer();
 
     // Assert
-    expect(trace.getTracer).toHaveBeenCalledWith(DEFAULT_SERVICE_NAME);
+    expect(getTracerMock).toHaveBeenCalledWith(DEFAULT_SERVICE_NAME);
   });
 });
 

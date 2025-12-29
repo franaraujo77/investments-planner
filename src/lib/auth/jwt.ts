@@ -13,19 +13,19 @@ import type { JwtPayload, RefreshTokenPayload, VerificationTokenPayload } from "
 
 /**
  * Get the JWT secret key as Uint8Array
- * Throws if AUTH_SECRET is not configured
+ * Throws if JWT_SECRET is not configured
  */
 function getSecretKey(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
+  const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error(
-      "AUTH_SECRET environment variable is not set. Generate one with: openssl rand -hex 32"
+      "JWT_SECRET environment variable is not set. Generate one with: openssl rand -hex 32"
     );
   }
 
   // Minimum 32 characters for HS256
   if (secret.length < 32) {
-    throw new Error("AUTH_SECRET must be at least 32 characters long");
+    throw new Error("JWT_SECRET must be at least 32 characters long");
   }
 
   return new TextEncoder().encode(secret);

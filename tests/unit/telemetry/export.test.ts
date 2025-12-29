@@ -2,10 +2,11 @@
  * Non-blocking Export Tests
  *
  * Story 1.5: OpenTelemetry Instrumentation
+ * Story 1.7: Enable All Skipped Tests (AC 1.7.1)
+ *
  * AC5: Export is non-blocking (doesn't slow down jobs)
  *
  * Tests for verifying export doesn't block job execution.
- * NOTE: Tests will be executable after Vitest is installed in Story 1-7.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -30,6 +31,51 @@ const createMockTracer = (span: ReturnType<typeof createMockSpan>) => ({
   startSpan: vi.fn().mockReturnValue(span),
 });
 
+// Use vi.hoisted() to track BatchSpanProcessor instantiation
+const {
+  mockBatchProcessorInstances,
+  MockBatchSpanProcessor,
+  MockResource,
+  MockOTLPTraceExporter,
+  MockNodeSDK,
+} = vi.hoisted(() => {
+  const mockBatchProcessorInstances: object[] = [];
+
+  class MockBatchSpanProcessor {
+    constructor() {
+      mockBatchProcessorInstances.push(this);
+    }
+  }
+
+  class MockResource {
+    constructor(_attrs: Record<string, unknown>) {
+      // Accept attributes but do nothing
+    }
+  }
+
+  class MockOTLPTraceExporter {
+    constructor(_config: unknown) {
+      // Accept config but do nothing
+    }
+  }
+
+  class MockNodeSDK {
+    start = vi.fn();
+    shutdown = vi.fn().mockResolvedValue(undefined);
+    constructor(_config: unknown) {
+      // Accept config but do nothing
+    }
+  }
+
+  return {
+    mockBatchProcessorInstances,
+    MockBatchSpanProcessor,
+    MockResource,
+    MockOTLPTraceExporter,
+    MockNodeSDK,
+  };
+});
+
 describe("Non-blocking export behavior", () => {
   let originalEnv: NodeJS.ProcessEnv;
 
@@ -44,29 +90,33 @@ describe("Non-blocking export behavior", () => {
   });
 
   describe("BatchSpanProcessor configuration", () => {
-    // TODO: Fix constructor mocking for Vitest 4.x compatibility
-    it.skip("should use BatchSpanProcessor for non-blocking export", async () => {
+    it("should use BatchSpanProcessor for non-blocking export", async () => {
       // Arrange
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
 
-      const mockBatchProcessor = vi.fn().mockImplementation(() => ({}));
+      // Clear the instance tracker before this test
+      mockBatchProcessorInstances.length = 0;
+
+      // Mock all OpenTelemetry SDK modules
       vi.doMock("@opentelemetry/sdk-trace-node", () => ({
-        BatchSpanProcessor: mockBatchProcessor,
+        BatchSpanProcessor: MockBatchSpanProcessor,
       }));
 
       vi.doMock("@opentelemetry/sdk-node", () => ({
-        NodeSDK: vi.fn().mockImplementation(() => ({
-          start: vi.fn(),
-          shutdown: vi.fn(),
-        })),
+        NodeSDK: MockNodeSDK,
       }));
 
       vi.doMock("@opentelemetry/exporter-trace-otlp-http", () => ({
-        OTLPTraceExporter: vi.fn().mockImplementation(() => ({})),
+        OTLPTraceExporter: MockOTLPTraceExporter,
       }));
 
       vi.doMock("@opentelemetry/resources", () => ({
-        Resource: vi.fn().mockImplementation(() => ({})),
+        Resource: MockResource,
+      }));
+
+      vi.doMock("@opentelemetry/semantic-conventions", () => ({
+        ATTR_SERVICE_NAME: "service.name",
+        ATTR_SERVICE_VERSION: "service.version",
       }));
 
       // Act
@@ -74,7 +124,7 @@ describe("Non-blocking export behavior", () => {
       setupTelemetry();
 
       // Assert - BatchSpanProcessor should be used, not SimpleSpanProcessor
-      expect(mockBatchProcessor).toHaveBeenCalled();
+      expect(mockBatchProcessorInstances.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -256,12 +306,16 @@ describe("Timing attribute accuracy", () => {
     // Act
     const startTime = Date.now();
     await new Promise((resolve) => setTimeout(resolve, 50));
-    addTimingAttribute(mockSpan as any, "test_ms", startTime);
+    addTimingAttribute(
+      mockSpan as unknown as import("@opentelemetry/api").Span,
+      "test_ms",
+      startTime
+    );
 
     // Assert
     expect(mockSpan.setAttribute).toHaveBeenCalledWith("test_ms", expect.any(Number));
 
-    const calledWith = mockSpan.setAttribute.mock.calls[0][1];
+    const calledWith = mockSpan.setAttribute.mock.calls[0]?.[1];
     expect(calledWith).toBeGreaterThanOrEqual(45); // Allow some variance
     expect(calledWith).toBeLessThan(100);
   });

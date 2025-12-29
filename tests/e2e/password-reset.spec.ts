@@ -1,17 +1,20 @@
 /**
  * Password Reset E2E Tests
  *
- * Story 2.5: Password Reset Flow
+ * Story 1.3: Password Reset Flow
  *
- * AC-2.5.1: Forgot password form shows email input
- * AC-2.5.2: Same message shown regardless of email existence
- * AC-2.5.4: Reset page shows new password form with complexity requirements
- * AC-2.5.6: Success redirect to login with toast
+ * AC-1.3.1: Forgot password form shows email input and sends reset link
+ * AC-1.3.2: Same message shown regardless of email existence (no enumeration)
+ * AC-1.3.3: Valid reset link updates password and invalidates sessions
+ * AC-1.3.4: Password requirements enforcement
+ * AC-1.3.5: Expired/invalid reset link error handling
+ * AC-1.3.6: Single-use token enforcement
+ * AC-1.3.7: Session invalidation after reset
  */
 
 import { test, expect } from "@playwright/test";
 
-test.describe("Forgot Password Page (AC-2.5.1)", () => {
+test.describe("Forgot Password Page (AC-1.3.1)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/forgot-password");
   });
@@ -70,7 +73,7 @@ test.describe("Forgot Password Page (AC-2.5.1)", () => {
   });
 });
 
-test.describe("Forgot Password Form Submission (AC-2.5.2)", () => {
+test.describe("Forgot Password Form Submission (AC-1.3.2)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/forgot-password");
   });
@@ -92,7 +95,7 @@ test.describe("Forgot Password Form Submission (AC-2.5.2)", () => {
     await expect(page.getByText("Sending...")).toBeVisible();
   });
 
-  test("should show success message for existing email (AC-2.5.2)", async ({ page }) => {
+  test("should show success message for existing email (AC-1.3.2)", async ({ page }) => {
     // Mock successful response
     await page.route("**/api/auth/forgot-password", async (route) => {
       await route.fulfill({
@@ -113,7 +116,7 @@ test.describe("Forgot Password Form Submission (AC-2.5.2)", () => {
     await expect(page.getByText("The link will expire in 1 hour.")).toBeVisible();
   });
 
-  test("should show same success message for non-existing email (AC-2.5.2)", async ({ page }) => {
+  test("should show same success message for non-existing email (AC-1.3.2)", async ({ page }) => {
     // Mock same response for non-existing email
     await page.route("**/api/auth/forgot-password", async (route) => {
       await route.fulfill({
@@ -155,7 +158,7 @@ test.describe("Forgot Password Form Submission (AC-2.5.2)", () => {
   });
 });
 
-test.describe("Reset Password Page (AC-2.5.4)", () => {
+test.describe("Reset Password Page (AC-1.3.4)", () => {
   test("should show invalid token error when no token provided", async ({ page }) => {
     await page.goto("/reset-password");
 
@@ -186,7 +189,7 @@ test.describe("Reset Password Page (AC-2.5.4)", () => {
     await expect(page.getByRole("button", { name: "Reset password" })).toBeVisible();
   });
 
-  test("should show password requirements (AC-2.5.4)", async ({ page }) => {
+  test("should show password requirements (AC-1.3.4)", async ({ page }) => {
     await page.goto("/reset-password?token=valid-test-token");
 
     // Check password requirements are displayed
@@ -201,14 +204,11 @@ test.describe("Reset Password Page (AC-2.5.4)", () => {
   test("should have password visibility toggle", async ({ page }) => {
     await page.goto("/reset-password?token=valid-test-token");
 
-    const passwordInput = page.getByLabel("New Password");
+    const passwordInput = page.locator('input[name="newPassword"]');
     await expect(passwordInput).toHaveAttribute("type", "password");
 
     // Click toggle
-    const toggleButton = page
-      .locator("div")
-      .filter({ has: page.getByLabel("New Password") })
-      .getByRole("button");
+    const toggleButton = page.getByRole("button", { name: /toggle visibility/i }).first();
     await toggleButton.click();
     await expect(passwordInput).toHaveAttribute("type", "text");
   });
@@ -216,27 +216,35 @@ test.describe("Reset Password Page (AC-2.5.4)", () => {
   test("should show validation error for weak password", async ({ page }) => {
     await page.goto("/reset-password?token=valid-test-token");
 
-    await page.getByLabel("New Password").fill("weak");
-    await page.getByLabel("Confirm Password").focus();
+    await page.locator('input[name="newPassword"]').fill("weak");
+    await page.locator('input[name="confirmPassword"]').focus();
 
-    await expect(page.getByText(/at least 8 characters/i)).toBeVisible();
+    await expect(
+      page.locator('[data-slot="form-message"]').filter({ hasText: /at least 8 characters/i })
+    ).toBeVisible();
   });
 
   test("should show validation error for password without uppercase", async ({ page }) => {
     await page.goto("/reset-password?token=valid-test-token");
 
-    await page.getByLabel("New Password").fill("lowercase123@");
-    await page.getByLabel("Confirm Password").focus();
+    await page.locator('input[name="newPassword"]').fill("lowercase123@");
+    await page.locator('input[name="confirmPassword"]').focus();
 
-    await expect(page.getByText(/uppercase/i)).toBeVisible();
+    await expect(
+      page.locator('[data-slot="form-message"]').filter({ hasText: /uppercase/i })
+    ).toBeVisible();
   });
 
   test("should show validation error for password mismatch", async ({ page }) => {
     await page.goto("/reset-password?token=valid-test-token");
 
-    await page.getByLabel("New Password").fill("ValidP@ss123");
-    await page.getByLabel("Confirm Password").fill("DifferentP@ss123");
-    await page.getByRole("button", { name: "Reset password" }).focus();
+    const newPasswordInput = page.locator('input[name="newPassword"]');
+    const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+
+    await newPasswordInput.fill("ValidP@ss123");
+    await newPasswordInput.blur();
+    await confirmPasswordInput.fill("DifferentP@ss123");
+    await confirmPasswordInput.blur();
 
     await expect(page.getByText("Passwords do not match")).toBeVisible();
   });
@@ -244,7 +252,7 @@ test.describe("Reset Password Page (AC-2.5.4)", () => {
   test("should show password strength meter when typing", async ({ page }) => {
     await page.goto("/reset-password?token=valid-test-token");
 
-    await page.getByLabel("New Password").fill("ValidP@ss123");
+    await page.locator('input[name="newPassword"]').fill("ValidP@ss123");
 
     // Should show strength meter (look for progress indicator)
     await expect(page.locator('[role="progressbar"]')).toBeVisible();
@@ -265,8 +273,16 @@ test.describe("Reset Password Form Submission", () => {
       });
     });
 
-    await page.getByLabel("New Password").fill("ValidP@ss123");
-    await page.getByLabel("Confirm Password").fill("ValidP@ss123");
+    const newPasswordInput = page.locator('input[name="newPassword"]');
+    const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+
+    await newPasswordInput.fill("ValidP@ss123");
+    await newPasswordInput.blur();
+    await confirmPasswordInput.fill("ValidP@ss123");
+    await confirmPasswordInput.blur();
+
+    // Wait for form to become valid
+    await expect(page.getByRole("button", { name: "Reset password" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset password" }).click();
 
     await expect(page.getByText("Resetting password...")).toBeVisible();
@@ -287,8 +303,16 @@ test.describe("Reset Password Form Submission", () => {
       });
     });
 
-    await page.getByLabel("New Password").fill("ValidP@ss123");
-    await page.getByLabel("Confirm Password").fill("ValidP@ss123");
+    const newPasswordInput = page.locator('input[name="newPassword"]');
+    const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+
+    await newPasswordInput.fill("ValidP@ss123");
+    await newPasswordInput.blur();
+    await confirmPasswordInput.fill("ValidP@ss123");
+    await confirmPasswordInput.blur();
+
+    // Wait for form to become valid
+    await expect(page.getByRole("button", { name: "Reset password" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset password" }).click();
 
     await expect(page.getByText("Invalid or expired reset link")).toBeVisible();
@@ -309,8 +333,16 @@ test.describe("Reset Password Form Submission", () => {
       });
     });
 
-    await page.getByLabel("New Password").fill("ValidP@ss123");
-    await page.getByLabel("Confirm Password").fill("ValidP@ss123");
+    const newPasswordInput = page.locator('input[name="newPassword"]');
+    const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+
+    await newPasswordInput.fill("ValidP@ss123");
+    await newPasswordInput.blur();
+    await confirmPasswordInput.fill("ValidP@ss123");
+    await confirmPasswordInput.blur();
+
+    // Wait for form to become valid
+    await expect(page.getByRole("button", { name: "Reset password" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset password" }).click();
 
     await expect(page.getByText("This reset link has expired")).toBeVisible();
@@ -332,14 +364,22 @@ test.describe("Reset Password Form Submission", () => {
       });
     });
 
-    await page.getByLabel("New Password").fill("ValidP@ss123");
-    await page.getByLabel("Confirm Password").fill("ValidP@ss123");
+    const newPasswordInput = page.locator('input[name="newPassword"]');
+    const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+
+    await newPasswordInput.fill("ValidP@ss123");
+    await newPasswordInput.blur();
+    await confirmPasswordInput.fill("ValidP@ss123");
+    await confirmPasswordInput.blur();
+
+    // Wait for form to become valid
+    await expect(page.getByRole("button", { name: "Reset password" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset password" }).click();
 
     await expect(page.getByText("This reset link has already been used")).toBeVisible();
   });
 
-  test("should redirect to login on successful reset (AC-2.5.6)", async ({ page }) => {
+  test("should redirect to login on successful reset (AC-1.3.3)", async ({ page }) => {
     await page.goto("/reset-password?token=valid-token");
 
     // Mock successful reset response
@@ -351,8 +391,16 @@ test.describe("Reset Password Form Submission", () => {
       });
     });
 
-    await page.getByLabel("New Password").fill("ValidP@ss123");
-    await page.getByLabel("Confirm Password").fill("ValidP@ss123");
+    const newPasswordInput = page.locator('input[name="newPassword"]');
+    const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
+
+    await newPasswordInput.fill("ValidP@ss123");
+    await newPasswordInput.blur();
+    await confirmPasswordInput.fill("ValidP@ss123");
+    await confirmPasswordInput.blur();
+
+    // Wait for form to become valid
+    await expect(page.getByRole("button", { name: "Reset password" })).toBeEnabled();
     await page.getByRole("button", { name: "Reset password" }).click();
 
     // Should redirect to login
@@ -361,7 +409,7 @@ test.describe("Reset Password Form Submission", () => {
 });
 
 test.describe("Login Page Integration", () => {
-  test("should have forgot password link pointing to /forgot-password (AC-2.5.1)", async ({
+  test("should have forgot password link pointing to /forgot-password (AC-1.3.1)", async ({
     page,
   }) => {
     await page.goto("/login");

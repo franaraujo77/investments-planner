@@ -53,7 +53,16 @@ export const CACHE_KEY_PREFIXES = {
   RATE_LIMIT_IP: "rate-limit:ip:",
   /** Rate limit by email prefix */
   RATE_LIMIT_EMAIL: "rate-limit:email:",
+  /** Rate limit for data export prefix (Story 1.6 GDPR) */
+  RATE_LIMIT_EXPORT: "rate-limit:export:",
 } as const;
+
+/**
+ * Rate limit window: 24 hours in seconds
+ * Used for data export rate limiting (1 request per 24 hours)
+ * Story 1.6: GDPR Compliance - AC-1.6.1
+ */
+export const EXPORT_RATE_LIMIT_WINDOW = 24 * 60 * 60; // 24 hours in seconds
 
 /**
  * Environment variable names

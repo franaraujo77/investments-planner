@@ -259,3 +259,208 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
   const template = generatePasswordResetEmailTemplate(email, token);
   await sendEmail(template);
 }
+
+/**
+ * Generates data export ready email content
+ *
+ * Story 1.6: GDPR Compliance - AC-1.6.1
+ *
+ * @param email - Recipient email address
+ * @param downloadUrl - URL to download the export ZIP file
+ * @returns Email template with HTML and text content
+ */
+function generateDataExportEmailTemplate(email: string, downloadUrl: string): EmailTemplate {
+  const subject = `Your ${EMAIL_CONFIG.appName} Data Export is Ready`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="color: #0f172a; margin-bottom: 24px;">Your Data Export is Ready</h1>
+
+  <p>Hi,</p>
+
+  <p>Your ${EMAIL_CONFIG.appName} data export has been generated and is ready for download.</p>
+
+  <p style="margin: 32px 0;">
+    <a href="${downloadUrl}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500;">Download Your Data</a>
+  </p>
+
+  <p>Or copy and paste this link into your browser:</p>
+  <p style="color: #3b82f6; word-break: break-all;">${downloadUrl}</p>
+
+  <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 24px 0;">
+    <p style="margin: 0; font-weight: 500; color: #92400e;">⏰ Important: This link expires in 24 hours</p>
+    <p style="margin: 8px 0 0 0; color: #92400e; font-size: 14px;">Please download your data before the link expires. You can request a new export from your account settings after the expiry period.</p>
+  </div>
+
+  <p style="color: #64748b; font-size: 14px; margin-top: 32px;">
+    Your export includes all your personal data in JSON format: profile information, portfolios, holdings, scoring criteria, and investment history.
+  </p>
+
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+
+  <p style="color: #94a3b8; font-size: 12px;">
+    ${EMAIL_CONFIG.appName} - Your trusted investment portfolio advisor
+  </p>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+Your Data Export is Ready
+
+Your ${EMAIL_CONFIG.appName} data export has been generated and is ready for download.
+
+Download your data: ${downloadUrl}
+
+⏰ IMPORTANT: This link expires in 24 hours.
+Please download your data before the link expires. You can request a new export from your account settings after the expiry period.
+
+Your export includes all your personal data in JSON format: profile information, portfolios, holdings, scoring criteria, and investment history.
+
+---
+${EMAIL_CONFIG.appName} - Your trusted investment portfolio advisor
+  `.trim();
+
+  return {
+    to: email,
+    subject,
+    html,
+    text,
+  };
+}
+
+/**
+ * Sends a data export ready email
+ *
+ * Story 1.6: GDPR Compliance - AC-1.6.1
+ *
+ * @param email - Recipient email address
+ * @param downloadUrl - URL to download the export ZIP file
+ */
+export async function sendDataExportEmail(email: string, downloadUrl: string): Promise<void> {
+  const template = generateDataExportEmailTemplate(email, downloadUrl);
+  await sendEmail(template);
+}
+
+/**
+ * Generates account deletion confirmation email content
+ *
+ * Story 1.6: GDPR Compliance - AC-1.6.4
+ *
+ * @param email - Recipient email address
+ * @param scheduledPurgeDate - Date when account will be permanently deleted
+ * @param gracePeriodDays - Number of days in grace period
+ * @returns Email template with HTML and text content
+ */
+function generateAccountDeletionEmailTemplate(
+  email: string,
+  scheduledPurgeDate: string,
+  gracePeriodDays: number
+): EmailTemplate {
+  const subject = `Your ${EMAIL_CONFIG.appName} Account Has Been Deleted`;
+  const purgeDate = new Date(scheduledPurgeDate).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="color: #0f172a; margin-bottom: 24px;">Account Deletion Confirmed</h1>
+
+  <p>Hi,</p>
+
+  <p>We're writing to confirm that your ${EMAIL_CONFIG.appName} account has been scheduled for deletion as requested.</p>
+
+  <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 24px 0;">
+    <p style="margin: 0; font-weight: 500; color: #92400e;">📅 ${gracePeriodDays}-Day Grace Period</p>
+    <p style="margin: 8px 0 0 0; color: #92400e; font-size: 14px;">Your data will be permanently deleted on <strong>${purgeDate}</strong>.</p>
+  </div>
+
+  <p>During this grace period:</p>
+  <ul style="color: #64748b; font-size: 14px;">
+    <li>Your account is immediately inaccessible</li>
+    <li>You cannot log in or access any data</li>
+    <li>Your data is retained but not visible to you</li>
+    <li>After ${purgeDate}, all data will be permanently and irreversibly deleted</li>
+  </ul>
+
+  <p style="color: #64748b; font-size: 14px; margin-top: 24px;">
+    If you did not request this deletion or wish to cancel it, please contact our support team immediately at <a href="mailto:support@investmentsplanner.app" style="color: #3b82f6;">support@investmentsplanner.app</a>.
+  </p>
+
+  <p style="color: #64748b; font-size: 14px;">
+    Thank you for using ${EMAIL_CONFIG.appName}. We're sorry to see you go.
+  </p>
+
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+
+  <p style="color: #94a3b8; font-size: 12px;">
+    ${EMAIL_CONFIG.appName} - Your trusted investment portfolio advisor
+  </p>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+Account Deletion Confirmed
+
+We're writing to confirm that your ${EMAIL_CONFIG.appName} account has been scheduled for deletion as requested.
+
+📅 ${gracePeriodDays}-Day Grace Period
+Your data will be permanently deleted on ${purgeDate}.
+
+During this grace period:
+- Your account is immediately inaccessible
+- You cannot log in or access any data
+- Your data is retained but not visible to you
+- After ${purgeDate}, all data will be permanently and irreversibly deleted
+
+If you did not request this deletion or wish to cancel it, please contact our support team immediately at support@investmentsplanner.app.
+
+Thank you for using ${EMAIL_CONFIG.appName}. We're sorry to see you go.
+
+---
+${EMAIL_CONFIG.appName} - Your trusted investment portfolio advisor
+  `.trim();
+
+  return {
+    to: email,
+    subject,
+    html,
+    text,
+  };
+}
+
+/**
+ * Sends an account deletion confirmation email
+ *
+ * Story 1.6: GDPR Compliance - AC-1.6.4
+ *
+ * @param email - Recipient email address
+ * @param scheduledPurgeDate - ISO date string when account will be permanently deleted
+ * @param gracePeriodDays - Number of days in grace period (default: 30)
+ */
+export async function sendAccountDeletionEmail(
+  email: string,
+  scheduledPurgeDate: string,
+  gracePeriodDays: number = 30
+): Promise<void> {
+  const template = generateAccountDeletionEmailTemplate(email, scheduledPurgeDate, gracePeriodDays);
+  await sendEmail(template);
+}

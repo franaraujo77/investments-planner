@@ -118,12 +118,18 @@ export function parseCacheKey(key: string): ParsedCacheKey {
  * Gets all cache key prefixes for a user
  *
  * Useful for invalidating all user cache data.
+ * Story 1.6: GDPR Compliance - includes export rate limit key for cleanup
  *
  * @param userId - User UUID
  * @returns Array of all cache keys for the user
  */
 export function getAllUserCacheKeys(userId: string): string[] {
-  return [createRecommendationKey(userId), createPortfolioKey(userId), createAllocationKey(userId)];
+  return [
+    createRecommendationKey(userId),
+    createPortfolioKey(userId),
+    createAllocationKey(userId),
+    createExportRateLimitKey(userId),
+  ];
 }
 
 // =============================================================================
@@ -148,4 +154,17 @@ export function createRateLimitIpKey(ip: string): string {
  */
 export function createRateLimitEmailKey(email: string): string {
   return `${CACHE_KEY_PREFIXES.RATE_LIMIT_EMAIL}${email.toLowerCase().trim()}`;
+}
+
+/**
+ * Creates a cache key for data export rate limiting
+ *
+ * Story 1.6: GDPR Compliance - AC-1.6.1
+ * Limits data export to 1 request per 24 hours per user
+ *
+ * @param userId - User UUID
+ * @returns Cache key in format `rate-limit:export:{userId}`
+ */
+export function createExportRateLimitKey(userId: string): string {
+  return `${CACHE_KEY_PREFIXES.RATE_LIMIT_EXPORT}${userId}`;
 }

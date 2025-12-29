@@ -25,17 +25,17 @@ workflow_path: "method-greenfield.yaml"
 
 workflow_status:
   # Phase 0: Discovery (Optional)
-  brainstorm-project: "docs/brainstorming-session-results-2025-11-23.md"
-  research: "optional"
-  product-brief: "optional"
+  brainstorm-project: "docs/brainstorming-session-results-2025-12-26.md"
+  research: "docs/research-*-2025-12-26.md"
+  product-brief: "docs/product-brief-investments-planner-2025-12-26.md"
 
   # Phase 1: Planning
-  prd: "docs/prd.md"
+  prd: "docs/prd-v2.md"
   validate-prd: "optional"
   create-ux-design: "docs/ux-design-specification.md"
 
   # Phase 2: Solutioning
-  create-architecture: "docs/architecture.md"
+  create-architecture: "_bmad-output/planning-artifacts/architecture.md"
   create-epics-and-stories: "docs/epics.md"
   test-design: "docs/test-design-system.md"
   validate-architecture: "optional"

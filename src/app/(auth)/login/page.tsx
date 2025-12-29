@@ -1,14 +1,13 @@
 /**
  * Login Page
  *
- * Story 2.2: Email Verification
- * AC-2.2.5: "Resend verification email" link available on login page
+ * Story 1.2: User Login and Session Management
  *
- * Story 2.3: User Login
- * AC-2.3.1: Valid credentials redirect to dashboard
- * AC-2.3.2: Login form has email, password, "Remember me" checkbox
- * AC-2.3.3: Failed login shows "Invalid credentials" (no hints)
- * AC-2.3.4: Rate limit countdown display
+ * AC-1.2.1: Login form has email, password, "Remember me" checkbox
+ * AC-1.2.2: Valid credentials redirect to dashboard with JWT tokens
+ * AC-1.2.3: Failed login shows "Invalid email or password" (no enumeration hints)
+ * AC-1.2.4: Unverified email shows "Please verify your email" with resend option
+ * AC-1.2.5: Rate limit countdown display (15min lockout after 5 attempts)
  */
 
 import Link from "next/link";

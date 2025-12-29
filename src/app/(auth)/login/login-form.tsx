@@ -3,12 +3,12 @@
 /**
  * Login Form Component
  *
- * Story 2.3: User Login
+ * Story 1.2: User Login and Session Management
  *
- * AC-2.3.1: Valid credentials redirect to dashboard
- * AC-2.3.2: Login form has email, password, "Remember me" checkbox
- * AC-2.3.3: Failed login shows "Invalid credentials" (no hints)
- * AC-2.3.4: Rate limit countdown display
+ * AC-1.2.1: Login form has email, password, "Remember me" checkbox
+ * AC-1.2.2: Valid credentials redirect to dashboard with JWT tokens
+ * AC-1.2.3: Failed login shows "Invalid credentials" (no enumeration hints)
+ * AC-1.2.5: Rate limit countdown display (15min lockout after 5 attempts)
  */
 
 import * as React from "react";
@@ -157,11 +157,13 @@ export function LoginForm() {
           </div>
         )}
 
-        {/* Lockout Countdown Display (AC-2.3.4) */}
+        {/* Lockout Countdown Display (AC-1.2.5) */}
         {isLocked && countdown > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
             <div className="font-medium">Account temporarily locked</div>
-            <div className="mt-1 text-lg font-mono">{formatCountdown(countdown)}</div>
+            <div className="mt-1 text-lg font-mono" data-testid="lockout-countdown">
+              {formatCountdown(countdown)}
+            </div>
           </div>
         )}
 
@@ -209,7 +211,7 @@ export function LoginForm() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                   tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label="Toggle visibility"
                   disabled={isLocked}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

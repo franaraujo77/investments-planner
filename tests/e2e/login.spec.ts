@@ -48,16 +48,15 @@ test.describe("Login Page", () => {
     await expect(passwordInput).toBeVisible();
     await expect(passwordInput).toHaveAttribute("type", "password");
 
-    // Find and click the show password button
-    const toggleButton = page.getByRole("button", { name: /show password/i });
+    // Find and click the toggle visibility button
+    const toggleButton = page.getByRole("button", { name: /toggle visibility/i });
     await expect(toggleButton).toBeVisible();
 
     await toggleButton.click();
     await expect(passwordInput).toHaveAttribute("type", "text");
 
-    // Button text changes to "Hide password"
-    const hideButton = page.getByRole("button", { name: /hide password/i });
-    await hideButton.click();
+    // Click toggle again to hide password
+    await toggleButton.click();
     await expect(passwordInput).toHaveAttribute("type", "password");
   });
 
@@ -261,8 +260,9 @@ test.describe("Login Rate Limiting (AC-2.3.4)", () => {
 
     // Should show lockout message with countdown
     await expect(page.getByText("Account temporarily locked")).toBeVisible();
-    // Countdown is displayed in a font-mono element with format MM:SS
-    await expect(page.locator(".font-mono").filter({ hasText: /^\d+:\d{2}$/ })).toBeVisible();
+    // Countdown is displayed with data-testid for reliable selection
+    await expect(page.getByTestId("lockout-countdown")).toBeVisible();
+    await expect(page.getByTestId("lockout-countdown")).toHaveText(/^\d+:\d{2}$/);
   });
 
   test("should disable form inputs during lockout", async ({ page }) => {

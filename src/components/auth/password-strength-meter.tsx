@@ -52,7 +52,7 @@ export function PasswordStrengthMeter({ password }: PasswordStrengthMeterProps) 
       <Progress
         value={config.value}
         className={`h-1.5 ${config.bgColor}`}
-        aria-label={`Password strength: ${config.label}`}
+        aria-label={`Strength: ${config.label}`}
       />
       <p className={`text-xs ${config.color}`}>{config.label}</p>
     </div>

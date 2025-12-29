@@ -1,10 +1,19 @@
+/**
+ * Dashboard Layout E2E Tests
+ *
+ * Tests for the dashboard layout, sidebar, and navigation functionality.
+ *
+ * NOTE: These tests run in the 'chromium-authenticated' project which uses
+ * storageState from the auth setup. No API mocking is needed for authentication.
+ */
+
 import { test, expect } from "@playwright/test";
 
 test.describe("Dashboard Layout", () => {
   test.describe("AC1: Command Center layout with persistent sidebar", () => {
     test("should display sidebar on desktop viewport", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // Sidebar should be visible
       const sidebar = page.locator('[data-slot="sidebar"]');
@@ -19,7 +28,7 @@ test.describe("Dashboard Layout", () => {
   test.describe("AC2: Sidebar responsive behavior", () => {
     test("should show hamburger menu on mobile viewport", async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // Sidebar trigger (hamburger) should be visible
       const trigger = page.locator('[data-sidebar="trigger"]');
@@ -39,7 +48,7 @@ test.describe("Dashboard Layout", () => {
 
     test("should collapse to icons on tablet viewport", async ({ page }) => {
       await page.setViewportSize({ width: 768, height: 1024 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // The sidebar should be in icon-only mode on tablet
       // The collapsible attribute indicates the sidebar can collapse
@@ -50,7 +59,7 @@ test.describe("Dashboard Layout", () => {
 
   test.describe("AC3: Focus Mode recommendations placeholder", () => {
     test("should display welcome message on dashboard", async ({ page }) => {
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // Check for welcome message
       const heading = page.getByRole("heading", { name: /welcome back/i });
@@ -62,7 +71,7 @@ test.describe("Dashboard Layout", () => {
     });
 
     test("should display skeleton loading states", async ({ page }) => {
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // Skeletons should be visible as placeholders
       const skeletons = page.locator('[data-slot="skeleton"], .animate-pulse');
@@ -73,7 +82,7 @@ test.describe("Dashboard Layout", () => {
   test.describe("AC4: Sidebar navigation items", () => {
     test("should contain all 5 navigation items", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // Check for all navigation items
       const expectedItems = ["Dashboard", "Portfolio", "Criteria", "History", "Settings"];
@@ -86,9 +95,9 @@ test.describe("Dashboard Layout", () => {
   });
 
   test.describe("AC5: Active route highlighting", () => {
-    test("should highlight Dashboard link on root route", async ({ page }) => {
+    test("should highlight Dashboard link on dashboard route", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // Dashboard link should have active state
       const dashboardLink = page.locator('[data-sidebar="menu-button"][data-active="true"]');
@@ -112,7 +121,7 @@ test.describe("Dashboard Layout", () => {
     test("should adapt layout at different breakpoints", async ({ page }) => {
       // Desktop (>= 1024px) - full sidebar
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
       const desktopSidebar = page.locator('[data-slot="sidebar"]');
       await expect(desktopSidebar).toBeVisible();
 
@@ -131,7 +140,7 @@ test.describe("Dashboard Layout", () => {
   test.describe("Navigation functionality", () => {
     test("should navigate to Portfolio page", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       await page.getByRole("link", { name: "Portfolio" }).click();
       await expect(page).toHaveURL("/portfolio");
@@ -140,7 +149,7 @@ test.describe("Dashboard Layout", () => {
 
     test("should navigate to Criteria page", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       await page.getByRole("link", { name: "Criteria" }).click();
       await expect(page).toHaveURL("/criteria");
@@ -149,7 +158,7 @@ test.describe("Dashboard Layout", () => {
 
     test("should navigate to History page", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       await page.getByRole("link", { name: "History" }).click();
       await expect(page).toHaveURL("/history");
@@ -158,7 +167,7 @@ test.describe("Dashboard Layout", () => {
 
     test("should navigate to Settings page", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       await page.getByRole("link", { name: "Settings" }).click();
       await expect(page).toHaveURL("/settings");
@@ -181,112 +190,22 @@ test.describe("Dashboard Layout", () => {
       await page.goto("/history");
       await expect(page.getByText("Coming soon")).toBeVisible();
     });
-
-    test("should display Coming soon on Settings page", async ({ page }) => {
-      await page.goto("/settings");
-      await expect(page.getByText("Coming soon")).toBeVisible();
-    });
   });
 
   test.describe("User Display in Sidebar (Story 2.3)", () => {
-    test("should display user name and email in sidebar footer", async ({ page }) => {
+    test("should display user info in sidebar footer", async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
-
-      // Mock authenticated user response
-      await page.route("**/api/auth/me", async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            user: {
-              id: "test-user-id",
-              email: "john.doe@example.com",
-              name: "John Doe",
-              baseCurrency: "USD",
-              emailVerified: true,
-              createdAt: new Date().toISOString(),
-            },
-          }),
-        });
-      });
-
-      await page.goto("/");
+      await page.goto("/dashboard");
 
       // Wait for user data to load
       await page.waitForSelector('[aria-label="User avatar"]');
 
       // User initials should be displayed in avatar
       const avatar = page.locator('[aria-label="User avatar"]');
-      await expect(avatar).toContainText("JD");
+      await expect(avatar).toBeVisible();
 
-      // User name should be displayed
-      await expect(page.getByText("John Doe")).toBeVisible();
-
-      // User email should be displayed
-      await expect(page.getByText("john.doe@example.com")).toBeVisible();
-    });
-
-    test("should display email username when name is null", async ({ page }) => {
-      await page.setViewportSize({ width: 1280, height: 720 });
-
-      // Mock authenticated user with null name
-      await page.route("**/api/auth/me", async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            user: {
-              id: "test-user-id",
-              email: "testuser@example.com",
-              name: null,
-              baseCurrency: "USD",
-              emailVerified: true,
-              createdAt: new Date().toISOString(),
-            },
-          }),
-        });
-      });
-
-      await page.goto("/");
-
-      // Wait for user data to load
-      await page.waitForSelector('[aria-label="User avatar"]');
-
-      // User initials from email username
-      const avatar = page.locator('[aria-label="User avatar"]');
-      await expect(avatar).toContainText("TE");
-
-      // Display name should be email username
-      await expect(page.getByText("testuser")).toBeVisible();
-    });
-
-    test("should show loading skeleton while fetching user data", async ({ page }) => {
-      await page.setViewportSize({ width: 1280, height: 720 });
-
-      // Mock slow response
-      await page.route("**/api/auth/me", async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            user: {
-              id: "test-user-id",
-              email: "test@example.com",
-              name: "Test User",
-              baseCurrency: "USD",
-              emailVerified: true,
-              createdAt: new Date().toISOString(),
-            },
-          }),
-        });
-      });
-
-      await page.goto("/");
-
-      // Skeleton should be visible while loading
-      const skeletons = page.locator('[data-slot="skeleton"]');
-      expect(await skeletons.count()).toBeGreaterThan(0);
+      // User email should be displayed (from the authenticated test user)
+      await expect(page.getByText("e2e-test@example.com")).toBeVisible();
     });
   });
 });

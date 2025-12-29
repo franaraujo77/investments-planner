@@ -61,7 +61,7 @@ const mockSourceCriteria = {
 
 // Mock storage for control
 let mockGetByIdResult: typeof mockSourceCriteria | null = mockSourceCriteria;
-let mockCriteriaCount = 0;
+let mockCriteriaCountArray: Array<{ id: string }> = []; // Array to simulate count via .length
 let mockExistingSets: { name: string; targetMarket: string }[] = [];
 let mockInsertResult: typeof mockSourceCriteria | null = null;
 
@@ -83,7 +83,8 @@ vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn().mockReturnThis(),
-      where: vi.fn(() => Promise.resolve([{ count: mockCriteriaCount }])),
+      // getCriteriaSetCount uses result.length, so return array of items
+      where: vi.fn(() => Promise.resolve(mockCriteriaCountArray)),
     })),
     query: {
       criteriaVersions: {
@@ -119,7 +120,8 @@ describe("Criteria Copy Service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetByIdResult = { ...mockSourceCriteria };
-    mockCriteriaCount = 5;
+    // Create array with 5 items to simulate count of 5 (well under the 50 limit)
+    mockCriteriaCountArray = Array.from({ length: 5 }, (_, i) => ({ id: `criteria-${i}` }));
     mockExistingSets = [];
     mockInsertResult = {
       ...mockSourceCriteria,
@@ -204,12 +206,10 @@ describe("Criteria Copy Service", () => {
       );
     });
 
-    // Note: This test is skipped because the actual limit check happens inside the
-    // copyCriteriaSet function which uses getCriteriaSetCount. Since we mock the whole
-    // db module, the count returned doesn't affect the mocked copyCriteriaSet behavior.
-    // The limit check is effectively tested via the API integration tests.
-    it.skip("should throw CriteriaSetLimitError when limit exceeded", async () => {
-      mockCriteriaCount = 50; // MAX_CRITERIA_SETS_PER_USER
+    it("should throw CriteriaSetLimitError when limit exceeded", async () => {
+      // MAX_CRITERIA_SETS_PER_USER is 50
+      // Create array with 50 items to simulate count at limit
+      mockCriteriaCountArray = Array.from({ length: 50 }, (_, i) => ({ id: `criteria-${i}` }));
 
       await expect(copyCriteriaSet(mockUserId, mockCriteriaId, {})).rejects.toThrow(
         CriteriaSetLimitError

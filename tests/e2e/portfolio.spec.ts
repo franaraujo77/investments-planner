@@ -28,13 +28,22 @@ const TEST_USER = {
 };
 
 /**
+ * Check if @data-setup tests should run
+ * Set RUN_DATA_SETUP_TESTS=true to enable these tests
+ *
+ * Story 1.7: Enable All Skipped Tests
+ * AC-1.7.4: Tests with @data-setup tag run when data is seeded
+ */
+const SKIP_DATA_SETUP_TESTS = !process.env.RUN_DATA_SETUP_TESTS;
+
+/**
  * Helper to login before each test
  */
 async function loginUser(page: import("@playwright/test").Page) {
   await page.goto("/login");
 
   await page.getByLabel("Email").fill(TEST_USER.email);
-  await page.getByLabel("Password").fill(TEST_USER.password);
+  await page.locator('input[name="password"]').fill(TEST_USER.password);
   await page.getByRole("button", { name: "Login" }).click();
 
   // Wait for redirect to dashboard or portfolio
@@ -236,28 +245,40 @@ test.describe("Portfolio Creation (AC-3.1.3)", () => {
 });
 
 test.describe("Portfolio Limit (AC-3.1.4)", () => {
-  // Note: This test requires 5 portfolios to already exist
-  // It's marked as skip by default - enable when you have test data setup
+  /**
+   * @data-setup: Requires exactly 5 portfolios to exist
+   * Run with: pnpm test:e2e --grep @data-setup (after setting up test data)
+   */
+  test(
+    "should show error when trying to create 6th portfolio",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and 5 portfolios to be set up"
+      );
 
-  test.skip("should show error when trying to create 6th portfolio", async ({ page }) => {
-    await loginUser(page);
-    await page.goto("/portfolio");
+      await loginUser(page);
+      await page.goto("/portfolio");
 
-    // Attempt to create when at limit
-    await page
-      .getByRole("button", { name: /Create Portfolio/i })
-      .first()
-      .click();
+      // Attempt to create when at limit
+      await page
+        .getByRole("button", { name: /Create Portfolio/i })
+        .first()
+        .click();
 
-    const nameInput = page.getByPlaceholder("e.g., Retirement Fund");
-    await nameInput.fill("Sixth Portfolio");
+      const nameInput = page.getByPlaceholder("e.g., Retirement Fund");
+      await nameInput.fill("Sixth Portfolio");
 
-    const createButton = page.getByRole("dialog").getByRole("button", { name: "Create" });
-    await createButton.click();
+      const createButton = page.getByRole("dialog").getByRole("button", { name: "Create" });
+      await createButton.click();
 
-    // Should show error
-    await expect(page.getByText("Maximum portfolios reached (5)")).toBeVisible();
-  });
+      // Should show error
+      await expect(page.getByText("Maximum portfolios reached (5)")).toBeVisible();
+    }
+  );
 });
 
 test.describe("Portfolio Cards", () => {
@@ -499,24 +520,37 @@ test.describe("Asset Creation (AC-3.2.6)", () => {
 });
 
 test.describe("Duplicate Asset (AC-3.2.4)", () => {
-  // This test requires an asset to already exist
-  test.skip("should show error when adding duplicate symbol", async ({ page }) => {
-    await loginUser(page);
-    await page.goto("/portfolio");
+  /**
+   * @data-setup: Requires an asset with symbol "AAPL" to already exist in a portfolio
+   */
+  test(
+    "should show error when adding duplicate symbol",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and AAPL asset to already exist in portfolio"
+      );
 
-    const addAssetButton = page.getByRole("button", { name: /Add Asset/i }).first();
-    await addAssetButton.click();
+      await loginUser(page);
+      await page.goto("/portfolio");
 
-    // Try to add an asset with a symbol that already exists
-    await page.getByLabel("Symbol").fill("AAPL");
-    await page.getByLabel("Quantity").fill("10");
-    await page.getByLabel(/Price/).fill("150");
+      const addAssetButton = page.getByRole("button", { name: /Add Asset/i }).first();
+      await addAssetButton.click();
 
-    await page.getByRole("dialog").getByRole("button", { name: "Add" }).click();
+      // Try to add an asset with a symbol that already exists
+      await page.getByLabel("Symbol").fill("AAPL");
+      await page.getByLabel("Quantity").fill("10");
+      await page.getByLabel(/Price/).fill("150");
 
-    // Should show error
-    await expect(page.getByText(/already exists|already in portfolio/i)).toBeVisible();
-  });
+      await page.getByRole("dialog").getByRole("button", { name: "Add" }).click();
+
+      // Should show error
+      await expect(page.getByText(/already exists|already in portfolio/i)).toBeVisible();
+    }
+  );
 });
 
 // =============================================================================

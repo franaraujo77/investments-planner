@@ -1,0 +1,241 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to test (leave empty for current branch)'
+        required: false
+        default: ''
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/integration/**'
+      - 'drizzle/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vitest.config.ts'
+      - 'vitest.config.integration.ts'
+
+# Cancel outdated runs when new commits are pushed
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Skip if secrets not configured (fork PRs don't have access to secrets)
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      # Required secrets - must be configured in GitHub repository settings
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_ACCESS_TOKEN_EXPIRY: ${{ secrets.JWT_ACCESS_TOKEN_EXPIRY }}
+      JWT_REFRESH_TOKEN_EXPIRY: ${{ secrets.JWT_REFRESH_TOKEN_EXPIRY }}
+      KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+      KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+      RUN_API_INTEGRATION_TESTS: ${{ secrets.RUN_API_INTEGRATION_TESTS }}
+      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+      EMAIL_FROM_ADDRESS: ${{ secrets.EMAIL_FROM_ADDRESS }}
+      # Optional secrets (can be empty - features will be disabled)
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
+      INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}
+      OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}
+      OPEN_EXCHANGE_RATES_API_KEY: ${{ secrets.OPEN_EXCHANGE_RATES_API_KEY }}
+      EXCHANGERATE_API_KEY: ${{ secrets.EXCHANGERATE_API_KEY }}
+      # Hardcoded values
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Validate required secrets
+        run: |
+          missing_secrets=""
+
+          if [ -z "$DATABASE_URL" ]; then
+            missing_secrets="${missing_secrets}DATABASE_URL "
+          fi
+          if [ -z "$JWT_SECRET" ]; then
+            missing_secrets="${missing_secrets}JWT_SECRET "
+          fi
+          if [ -z "$JWT_ACCESS_TOKEN_EXPIRY" ]; then
+            missing_secrets="${missing_secrets}JWT_ACCESS_TOKEN_EXPIRY "
+          fi
+          if [ -z "$JWT_REFRESH_TOKEN_EXPIRY" ]; then
+            missing_secrets="${missing_secrets}JWT_REFRESH_TOKEN_EXPIRY "
+          fi
+          if [ -z "$KV_REST_API_URL" ]; then
+            missing_secrets="${missing_secrets}KV_REST_API_URL "
+          fi
+          if [ -z "$KV_REST_API_TOKEN" ]; then
+            missing_secrets="${missing_secrets}KV_REST_API_TOKEN "
+          fi
+          if [ -z "$RUN_API_INTEGRATION_TESTS" ]; then
+            missing_secrets="${missing_secrets}RUN_API_INTEGRATION_TESTS "
+          fi
+          if [ -z "$NEXT_PUBLIC_APP_URL" ]; then
+            missing_secrets="${missing_secrets}NEXT_PUBLIC_APP_URL "
+          fi
+          if [ -z "$EMAIL_FROM_ADDRESS" ]; then
+            missing_secrets="${missing_secrets}EMAIL_FROM_ADDRESS "
+          fi
+
+          if [ -n "$missing_secrets" ]; then
+            echo "::error::Missing required secrets: $missing_secrets"
+            echo ""
+            echo "Please configure the following secrets in your repository settings:"
+            echo "Settings > Secrets and variables > Actions > New repository secret"
+            echo ""
+            echo "See docs/development-setup.md for setup instructions."
+            exit 1
+          fi
+
+          echo "✅ All required secrets are configured"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run integration tests
+        id: tests
+        run: |
+          # Run tests with multiple reporters:
+          # - default: Console output for logs
+          # - github-actions: Inline PR annotations for failed tests
+          # - json: Structured output for job summary parsing
+          pnpm test:integration --reporter=default --reporter=github-actions --reporter=json --outputFile=test-results.json 2>&1 | tee test-output.txt
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+          # Parse test results for summary
+          if [ -f test-results.json ]; then
+            PASSED=$(jq '.numPassedTests // 0' test-results.json)
+            FAILED=$(jq '.numFailedTests // 0' test-results.json)
+            SKIPPED=$(jq '.numPendingTests // 0' test-results.json)
+            TOTAL=$(jq '.numTotalTests // 0' test-results.json)
+            DURATION=$(jq '.testResults[0].endTime - .testResults[0].startTime // 0' test-results.json)
+
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+            echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          fi
+
+          exit $TEST_EXIT_CODE
+
+      - name: Run Splinter database lints
+        id: splinter
+        run: |
+          echo "🔍 Running Supabase Splinter database lints..."
+          pnpm security:splinter 2>&1 | tee splinter-output.txt
+          SPLINTER_EXIT_CODE=${PIPESTATUS[0]}
+
+          if [ $SPLINTER_EXIT_CODE -eq 0 ]; then
+            echo "splinter_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "splinter_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+          exit $SPLINTER_EXIT_CODE
+
+      - name: Create job summary
+        if: always()
+        run: |
+          echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f test-results.json ]; then
+            PASSED=$(jq '.numPassedTests // 0' test-results.json)
+            FAILED=$(jq '.numFailedTests // 0' test-results.json)
+            SKIPPED=$(jq '.numPendingTests // 0' test-results.json)
+            TOTAL=$(jq '.numTotalTests // 0' test-results.json)
+
+            echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📊 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Show failed tests if any (limit to first 20 to avoid huge summaries)
+            if [ "$FAILED" -gt 0 ]; then
+              echo "### ❌ Failed Tests" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              jq -r '.testResults[].assertionResults[] | select(.status == "failed") | "❌ \(.fullName)\n   \(.failureMessages[0] // "No message")"' test-results.json 2>/dev/null | head -60 >> $GITHUB_STEP_SUMMARY || echo "Could not parse failure details" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              if [ "$FAILED" -gt 20 ]; then
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "*Showing first 20 failures. See test artifacts for full details.*" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          else
+            echo "⚠️ Test results file not found. Check the test output above for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Splinter results
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 Splinter Database Lints" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f splinter-output.txt ]; then
+            if grep -q "SPLINTER CHECK PASSED" splinter-output.txt; then
+              echo "✅ **Splinter Check Passed**" >> $GITHUB_STEP_SUMMARY
+              # Extract warning count if present (using -E for portability)
+              WARNINGS=$(grep -oE '[0-9]+ warning' splinter-output.txt | grep -oE '[0-9]+' || echo "0")
+              if [ "$WARNINGS" != "0" ]; then
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "⚠️ $WARNINGS warning(s) should be reviewed" >> $GITHUB_STEP_SUMMARY
+              fi
+            elif grep -q "SPLINTER CHECK FAILED" splinter-output.txt; then
+              echo "❌ **Splinter Check Failed**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              grep -A 10 "ERRORS (must fix)" splinter-output.txt | head -20 >> $GITHUB_STEP_SUMMARY || echo "See splinter-output.txt for details" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ Splinter output not recognized" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ Splinter output file not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Triggered by: ${{ github.event_name }} on branch \`${{ github.ref_name }}\`*" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: |
+            test-results.json
+            test-output.txt
+            splinter-output.txt
+          retention-days: 7
+          if-no-files-found: ignore

@@ -10,49 +10,19 @@
  * - AC-3.9.4: CSV export functionality
  * - AC-3.9.5: Date range filtering
  * - AC-3.9.6: Empty state handling
+ *
+ * NOTE: This file runs in the "chromium-authenticated" project with stored auth state.
+ * Tests assume the user is already authenticated via the auth.setup.ts flow.
  */
 
 import { test, expect } from "@playwright/test";
 
-// Test data setup
-const TEST_USER = {
-  email: "test-history@example.com",
-  password: "TestPass123!",
-};
-
-/**
- * Helper to log in a test user
- */
-async function loginTestUser(page: import("@playwright/test").Page) {
-  await page.goto("/login");
-
-  // Wait for the login form to be visible
-  await page.waitForSelector('input[name="email"]');
-
-  await page.fill('input[name="email"]', TEST_USER.email);
-  await page.fill('input[name="password"]', TEST_USER.password);
-  await page.click('button[type="submit"]');
-
-  // Wait for redirect to dashboard or home
-  await page.waitForURL(/\/(portfolio|dashboard|history)?$/);
-}
-
 test.describe("Investment History Page", () => {
   test.describe("AC-3.9.6: Empty State Handling", () => {
     test("should show empty state when no investments exist", async ({ page }) => {
-      // Skip if we can't create a fresh user - check for empty state elements
       await page.goto("/history");
 
-      // If not logged in, we'll get redirected to login
-      const currentUrl = page.url();
-      if (currentUrl.includes("/login")) {
-        // For empty state test, we need a logged-in user with no investments
-        // This test requires a fresh user account
-        test.skip();
-        return;
-      }
-
-      // Check for empty state elements
+      // Check for empty state elements (may or may not be visible depending on data)
       const emptyState = page.getByText("No investments recorded yet");
       if (await emptyState.isVisible()) {
         await expect(emptyState).toBeVisible();
@@ -71,8 +41,10 @@ test.describe("Investment History Page", () => {
     test("should navigate to history page and display header", async ({ page }) => {
       await page.goto("/history");
 
-      // Check for page title
-      await expect(page.getByRole("heading", { name: /investment history/i })).toBeVisible();
+      // Check for page title (use exact match to avoid matching empty state heading)
+      await expect(
+        page.getByRole("heading", { name: "Investment History", exact: true })
+      ).toBeVisible();
 
       // Check for description
       await expect(page.getByText(/track your investment decisions/i)).toBeVisible();
@@ -80,12 +52,6 @@ test.describe("Investment History Page", () => {
 
     test("should display date range filter", async ({ page }) => {
       await page.goto("/history");
-
-      // Check if we're redirected to login
-      if (page.url().includes("/login")) {
-        test.skip();
-        return;
-      }
 
       // Look for the date filter button
       const dateFilter = page.getByRole("button", { name: /all time|last/i });
@@ -99,12 +65,6 @@ test.describe("Investment History Page", () => {
     test("should have export button visible", async ({ page }) => {
       await page.goto("/history");
 
-      // Check if we're redirected to login
-      if (page.url().includes("/login")) {
-        test.skip();
-        return;
-      }
-
       // Look for the export button
       const exportButton = page.getByRole("button", { name: /export csv/i });
       // Button may be disabled if no investments
@@ -115,12 +75,6 @@ test.describe("Investment History Page", () => {
   test.describe("AC-3.9.5: Date Range Filtering", () => {
     test("should show filter presets when clicking date filter", async ({ page }) => {
       await page.goto("/history");
-
-      // Check if we're redirected to login
-      if (page.url().includes("/login")) {
-        test.skip();
-        return;
-      }
 
       // Find and click the date filter button
       const dateFilter = page.getByRole("button", { name: /all time/i });
@@ -139,12 +93,6 @@ test.describe("Investment History Page", () => {
     test("should have History link in sidebar", async ({ page }) => {
       await page.goto("/portfolio");
 
-      // Check if we're redirected to login
-      if (page.url().includes("/login")) {
-        test.skip();
-        return;
-      }
-
       // Look for History link in sidebar
       const historyLink = page.getByRole("link", { name: /history/i });
       if (await historyLink.isVisible()) {
@@ -161,29 +109,30 @@ test.describe("Investment History Page", () => {
   });
 
   test.describe("Authentication", () => {
-    test("should redirect to login if not authenticated", async ({ page }) => {
+    test("should redirect to login if not authenticated", async ({ browser }) => {
+      // Create a fresh context without stored auth to test unauthenticated access
+      const context = await browser.newContext();
+      const page = await context.newPage();
+
       await page.goto("/history");
 
       // Check if redirected to login
       await expect(page).toHaveURL(/\/login/);
+
+      await context.close();
     });
   });
 });
 
 test.describe("Investment History with Data", () => {
   // These tests require a logged-in user with existing investments
-
-  test.beforeEach(async ({ page }) => {
-    // Try to log in - skip if auth fails
-    try {
-      await loginTestUser(page);
-    } catch {
-      test.skip();
-    }
-  });
+  // When running in the chromium-authenticated project, auth is handled via stored state
 
   test("should navigate to history from sidebar", async ({ page }) => {
-    // Assume we're on a dashboard page after login
+    // Navigate to dashboard first
+    await page.goto("/");
+
+    // Find and click history link in sidebar
     const historyLink = page.getByRole("link", { name: /history/i });
 
     if (await historyLink.isVisible({ timeout: 5000 })) {
