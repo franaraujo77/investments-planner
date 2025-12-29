@@ -266,10 +266,40 @@ From Epic 1 Retrospective:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+- Commit: ba38ea4 feat: implement Story 2.1 - Create Portfolio with enhanced fields
+
 ### Completion Notes List
 
+- All 9 tasks completed successfully
+- Schema enhanced with `base_currency`, `industry_sector` columns and junction table
+- RLS enabled on `portfolio_accepted_asset_types` table
+- Levenshtein distance algorithm implemented for fuzzy name matching (AC-2.1.4)
+- Transaction used for atomic portfolio + asset types creation
+- 36 unit tests for validation, 18+ unit tests for service layer
+- E2E tests cover all acceptance criteria
+
 ### File List
+
+**New Files:**
+
+- `src/app/api/portfolios/check-name/route.ts` - Similar name check API
+- `src/app/dashboard/portfolios/new/page.tsx` - Portfolio creation page
+- `src/components/portfolio/portfolio-create-form.tsx` - React form component
+- `drizzle/0017_romantic_redwing.sql` - Migration for new columns and junction table
+- `tests/unit/validations/portfolio.test.ts` - Validation unit tests
+
+**Modified Files:**
+
+- `src/lib/db/schema.ts` - Added columns and junction table definition
+- `src/lib/validations/portfolio.ts` - Enhanced with new schemas and constants
+- `src/lib/services/portfolio-service.ts` - Added createPortfolio, checkSimilarPortfolioName, getUserPortfoliosWithAssetTypes
+- `src/app/api/portfolios/route.ts` - Updated POST handler for new fields
+- `src/app/(dashboard)/portfolio/page.tsx` - Updated to display new fields
+- `src/app/(dashboard)/portfolio/portfolio-page-client.tsx` - Enhanced with badges
+- `src/types/portfolio.ts` - Added client-safe types
+- `tests/unit/services/portfolio-service.test.ts` - Added service tests
+- `tests/e2e/portfolio.spec.ts` - Added E2E tests for Story 2.1

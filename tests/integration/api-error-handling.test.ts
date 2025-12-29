@@ -53,9 +53,11 @@ vi.mock("@/lib/auth/middleware", () => ({
 // Mock the portfolio service
 vi.mock("@/lib/services/portfolio-service", () => ({
   getUserPortfolios: vi.fn(() => Promise.resolve([])),
+  getUserPortfoliosWithAssetTypes: vi.fn(() => Promise.resolve([])),
   createPortfolio: vi.fn(() => Promise.resolve({ id: "test-id", name: "Test" })),
   canCreatePortfolio: vi.fn(() => Promise.resolve(true)),
   getPortfolioById: vi.fn(() => Promise.resolve(null)),
+  checkSimilarPortfolioName: vi.fn(() => Promise.resolve([])),
   PortfolioLimitError: class PortfolioLimitError extends Error {
     constructor(message: string) {
       super(message);
@@ -290,8 +292,10 @@ describe("API Error Handling", () => {
     describe("Connection Errors (503)", () => {
       it("should return 503 with DATABASE_CONNECTION_ERROR for connection failures", async () => {
         // Mock service to throw connection error
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.CONNECTION_FAILURE, "Connection refused", "ECONNREFUSED")
         );
 
@@ -305,8 +309,10 @@ describe("API Error Handling", () => {
       });
 
       it("should return 503 for connection exception errors", async () => {
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.CONNECTION_EXCEPTION, "Connection exception")
         );
 
@@ -319,10 +325,12 @@ describe("API Error Handling", () => {
       });
 
       it("should return 503 for ECONNREFUSED errors without code", async () => {
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
         const error = new Error("connect ECONNREFUSED 127.0.0.1:5432") as Error & { cause?: Error };
         error.cause = new Error("ECONNREFUSED");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(error);
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(error);
 
         const request = new NextRequest("http://localhost/api/portfolios");
         const response = await GET(request);
@@ -337,8 +345,10 @@ describe("API Error Handling", () => {
       it("should return 503 for query cancellation (57xxx codes categorized as connection)", async () => {
         // Note: QUERY_CANCELED (57014) is categorized as "connection" in extractDbError
         // because 57xxx codes are operator intervention codes
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.QUERY_CANCELED, "Query was canceled")
         );
 
@@ -352,10 +362,12 @@ describe("API Error Handling", () => {
 
       it("should return 503 for ETIMEDOUT errors (connection category)", async () => {
         // Note: ETIMEDOUT errors are categorized as "connection" and isConnectionError=true
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
         const error = new Error("Connection timeout") as Error & { cause?: Error };
         error.cause = new Error("ETIMEDOUT");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(error);
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(error);
 
         const request = new NextRequest("http://localhost/api/portfolios");
         const response = await GET(request);
@@ -416,8 +428,10 @@ describe("API Error Handling", () => {
       it("should return 503 for too many connections (message contains 'connection')", async () => {
         // TOO_MANY_CONNECTIONS (53300) - categorized as "connection" because
         // the message "too many connections" contains "connection"
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.TOO_MANY_CONNECTIONS, "too many connections for role")
         );
 
@@ -431,8 +445,10 @@ describe("API Error Handling", () => {
 
       it("should return 503 for out of memory errors (resource exhaustion)", async () => {
         // OUT_OF_MEMORY (53200) is categorized as "resource" which returns 503
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.OUT_OF_MEMORY, "out of memory")
         );
 
@@ -448,8 +464,10 @@ describe("API Error Handling", () => {
     describe("Authentication/Permission Errors", () => {
       it("should return 500 DATABASE_ERROR for database authentication errors", async () => {
         // Auth errors (28xxx) go through databaseError() which returns DATABASE_ERROR
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.INVALID_PASSWORD, "password authentication failed")
         );
 
@@ -462,8 +480,10 @@ describe("API Error Handling", () => {
       });
 
       it("should return 500 DATABASE_ERROR for insufficient privilege errors", async () => {
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.INSUFFICIENT_PRIVILEGE, "permission denied for table")
         );
 
@@ -478,8 +498,10 @@ describe("API Error Handling", () => {
 
     describe("Error Response Security", () => {
       it("should not expose internal database details in error messages", async () => {
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(
             DbErrorCode.CONNECTION_FAILURE,
             "Failed query: SELECT * FROM users WHERE id = 'secret'"
@@ -497,8 +519,10 @@ describe("API Error Handling", () => {
       });
 
       it("should not expose database host information", async () => {
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(
             DbErrorCode.CONNECTION_FAILURE,
             "connect to db.internal.example.com:5432 failed"
@@ -518,9 +542,11 @@ describe("API Error Handling", () => {
     describe("Error Logging", () => {
       it("should log database errors with full context", async () => {
         const { logger } = await import("@/lib/telemetry/logger");
-        const { getUserPortfolios } = await import("@/lib/services/portfolio-service");
+        // Story 2.1: GET route now uses getUserPortfoliosWithAssetTypes
+        const { getUserPortfoliosWithAssetTypes } =
+          await import("@/lib/services/portfolio-service");
 
-        vi.mocked(getUserPortfolios).mockRejectedValueOnce(
+        vi.mocked(getUserPortfoliosWithAssetTypes).mockRejectedValueOnce(
           createDbError(DbErrorCode.CONNECTION_FAILURE, "Connection failed")
         );
 

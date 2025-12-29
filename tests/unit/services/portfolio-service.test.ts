@@ -1,9 +1,11 @@
 /**
  * Portfolio Service Unit Tests
  *
- * Story 3.1: Create Portfolio
+ * Story 2.1: Create Portfolio (Epic 2)
+ * Story 3.1: Create Portfolio (Legacy)
  *
  * Tests for portfolio service functions:
+ * - AC-2.1.4: checkSimilarPortfolioName fuzzy matching
  * - AC-3.1.3: createPortfolio creates with valid input
  * - AC-3.1.4: createPortfolio enforces 5 portfolio limit
  * - Multi-tenant isolation: getUserPortfolios returns only user's portfolios
@@ -97,6 +99,7 @@ import {
   getPortfolioCount,
   getPortfolioById,
   canCreatePortfolio,
+  checkSimilarPortfolioName,
   PortfolioLimitError,
 } from "@/lib/services/portfolio-service";
 import { MAX_PORTFOLIOS_PER_USER } from "@/lib/validations/portfolio";
@@ -320,6 +323,131 @@ describe("Portfolio Service", () => {
     it("should be instance of Error", () => {
       const error = new PortfolioLimitError();
       expect(error).toBeInstanceOf(Error);
+    });
+  });
+
+  describe("checkSimilarPortfolioName (AC-2.1.4)", () => {
+    it("should return empty array when no portfolios exist", async () => {
+      mockPortfoliosResult = [];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "My Portfolio");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should return empty array for empty name input", async () => {
+      mockPortfoliosResult = [{ id: "p1", name: "Existing" }];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should return empty array for whitespace-only name", async () => {
+      mockPortfoliosResult = [{ id: "p1", name: "Existing" }];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "   ");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should detect exact match (case-insensitive)", async () => {
+      mockPortfoliosResult = [
+        { id: "p1", name: "Tech Portfolio" },
+        { id: "p2", name: "Retirement Fund" },
+      ];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "TECH PORTFOLIO");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: "p1",
+        name: "Tech Portfolio",
+        similarity: "exact",
+      });
+    });
+
+    it("should detect substring match (input contains existing name)", async () => {
+      mockPortfoliosResult = [{ id: "p1", name: "Tech" }];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "Tech Portfolio");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: "p1",
+        name: "Tech",
+        similarity: "similar",
+      });
+    });
+
+    it("should detect substring match (existing contains input)", async () => {
+      mockPortfoliosResult = [{ id: "p1", name: "Tech Portfolio" }];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "Tech");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: "p1",
+        name: "Tech Portfolio",
+        similarity: "similar",
+      });
+    });
+
+    it("should detect Levenshtein similarity > 70%", async () => {
+      // "Retirement" vs "Retirment" - 1 char difference out of 10 = 90% similar
+      mockPortfoliosResult = [{ id: "p1", name: "Retirement" }];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "Retirment");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.similarity).toBe("similar");
+    });
+
+    it("should not match names with < 70% Levenshtein similarity", async () => {
+      // "Tech" vs "Bond" - completely different
+      mockPortfoliosResult = [{ id: "p1", name: "Technology Stocks" }];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "Bond Fund");
+
+      expect(result).toHaveLength(0);
+    });
+
+    it("should return multiple matches when applicable", async () => {
+      mockPortfoliosResult = [
+        { id: "p1", name: "Tech Portfolio" },
+        { id: "p2", name: "Tech Fund" },
+        { id: "p3", name: "Bond Portfolio" },
+      ];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "Tech");
+
+      expect(result).toHaveLength(2);
+      expect(result.map((r) => r.id)).toContain("p1");
+      expect(result.map((r) => r.id)).toContain("p2");
+    });
+
+    it("should prioritize exact match over similar", async () => {
+      mockPortfoliosResult = [
+        { id: "p1", name: "Tech" },
+        { id: "p2", name: "Tech Portfolio" },
+      ];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "Tech");
+
+      const exactMatch = result.find((r) => r.id === "p1");
+      const similarMatch = result.find((r) => r.id === "p2");
+
+      expect(exactMatch?.similarity).toBe("exact");
+      expect(similarMatch?.similarity).toBe("similar");
+    });
+
+    it("should trim input name before comparison", async () => {
+      mockPortfoliosResult = [{ id: "p1", name: "Tech Portfolio" }];
+
+      const result = await checkSimilarPortfolioName(mockUserId, "  Tech Portfolio  ");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.similarity).toBe("exact");
     });
   });
 });
