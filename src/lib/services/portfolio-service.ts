@@ -895,7 +895,19 @@ export async function updateAsset(
     throw new Error("Failed to update asset");
   }
 
-  return result[0];
+  const updatedAsset = result[0];
+
+  // Story 2.6, AC-2.6.2: Audit trail logging for asset updates
+  logger.info("Asset updated", {
+    userId,
+    assetId,
+    portfolioId: updatedAsset.portfolioId,
+    symbol: updatedAsset.symbol,
+    quantityUpdated: input.quantity !== undefined,
+    priceUpdated: input.purchasePrice !== undefined,
+  });
+
+  return updatedAsset;
 }
 
 /**

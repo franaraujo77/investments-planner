@@ -33,6 +33,7 @@ import { formatRelativeTime } from "@/lib/types/freshness";
 import { useToggleIgnore } from "@/hooks/use-toggle-ignore";
 import { useDeleteAsset } from "@/hooks/use-delete-asset";
 import { DeleteAssetDialog } from "./delete-asset-dialog";
+import { EditHoldingModal } from "./edit-holding-modal";
 import type { AssetWithValue } from "@/lib/services/portfolio-service";
 
 interface HoldingDetailDrawerProps {
@@ -52,6 +53,7 @@ export function HoldingDetailDrawer({
   const { toggleIgnore, isToggling } = useToggleIgnore();
   const { deleteAsset, isDeleting } = useDeleteAsset();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Handle toggle ignore
   // Note: useToggleIgnore hook handles toast and router.refresh() internally
@@ -223,18 +225,15 @@ export function HoldingDetailDrawer({
                 )}
               </Button>
 
-              {/* Edit - placeholder for future story */}
+              {/* Edit - Story 2.6: Update and Remove Holdings */}
               <Button
                 variant="outline"
                 className="justify-start"
-                disabled
+                onClick={() => setIsEditModalOpen(true)}
                 data-testid="edit-holding-btn"
               >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Holding
-                <Badge variant="secondary" className="ml-auto text-xs">
-                  Coming Soon
-                </Badge>
               </Button>
 
               {/* Remove */}
@@ -268,6 +267,15 @@ export function HoldingDetailDrawer({
         onConfirm={handleDelete}
         isLoading={isDeleting}
       />
+
+      {/* Edit holding modal - Story 2.6: Update and Remove Holdings */}
+      {holding && (
+        <EditHoldingModal
+          holding={holding}
+          open={isEditModalOpen}
+          onOpenChange={setIsEditModalOpen}
+        />
+      )}
     </Sheet>
   );
 }

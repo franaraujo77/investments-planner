@@ -6,6 +6,7 @@
  * Story 2.3: Edit Portfolio (Epic 2)
  * Story 2.4: Delete Portfolio (Epic 2)
  * Story 2.5: Add Holdings to Portfolio (Epic 2)
+ * Story 2.6: Update and Remove Holdings (Epic 2)
  * Story 3.1: Create Portfolio
  * Story 3.2: Add Asset to Portfolio
  * Story 3.5: Mark Asset as Ignored
@@ -42,6 +43,15 @@
  * AC-2.5.6: Success toast and portfolio refresh
  * AC-2.5.7: Allocation percentages update after addition
  * AC-2.5.8: Duplicate asset error handling
+ *
+ * Story 2.6 (Epic 2):
+ * AC-2.6.1: Edit Holding Action - Edit button opens modal with quantity/price fields
+ * AC-2.6.2: Update Holding Saves - Holding is updated and allocations recalculated
+ * AC-2.6.3: Remove Holding - Remove button shows confirmation dialog
+ * AC-2.6.4: Confirm Delete - Deletion only on confirmation
+ * AC-2.6.5: Delete Reallocates - Remaining holdings recalculate allocations
+ * AC-2.6.6: Ignore Holding - Toggle excludes from allocation calculations
+ * AC-2.6.7: Ignored Visual - Ignored holdings show visual distinction
  *
  * Story 3.1:
  * AC-3.1.1: Empty state for new users
@@ -3862,6 +3872,418 @@ test.describe("Add Asset from Portfolio Detail (AC-2.5.6, AC-2.5.7)", () => {
 
         // AC-2.5.7: Asset should appear in holdings table (page refreshed)
         await expect(page.getByText(uniqueSymbol)).toBeVisible({ timeout: 5000 });
+      }
+    }
+  );
+});
+
+// =============================================================================
+// Story 2.6: Update and Remove Holdings (Epic 2)
+// =============================================================================
+
+test.describe("Edit Holding Button (AC-2.6.1)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should show Edit Holding button in holding detail drawer", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer to open
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        const isDrawerVisible = await drawer.isVisible().catch(() => false);
+
+        if (isDrawerVisible) {
+          // Check for edit button (should be enabled, not disabled)
+          const editButton = page.locator("[data-testid='edit-holding-btn']");
+          await expect(editButton).toBeVisible();
+          await expect(editButton).toBeEnabled();
+        }
+      }
+    }
+  });
+
+  test("should open edit modal when clicking Edit Holding button", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Click edit button
+        const editButton = page.locator("[data-testid='edit-holding-btn']");
+        await editButton.click();
+
+        // Edit modal should open
+        const editModal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(editModal).toBeVisible({ timeout: 5000 });
+      }
+    }
+  });
+
+  test("should pre-populate form with current holding values", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Click edit button
+        const editButton = page.locator("[data-testid='edit-holding-btn']");
+        await editButton.click();
+
+        // Check form is pre-populated (inputs should have values)
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        const priceInput = page.locator("[data-testid='edit-price-input']");
+
+        await expect(quantityInput).toBeVisible();
+        await expect(priceInput).toBeVisible();
+
+        // Values should not be empty
+        const quantityValue = await quantityInput.inputValue();
+        const priceValue = await priceInput.inputValue();
+
+        expect(quantityValue.length).toBeGreaterThan(0);
+        expect(priceValue.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+test.describe("Update Holding (AC-2.6.2)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should validate quantity and price are positive", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Click edit button
+        const editButton = page.locator("[data-testid='edit-holding-btn']");
+        await editButton.click();
+
+        // Clear and enter invalid values
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await quantityInput.clear();
+        await quantityInput.fill("0");
+
+        // Check for validation error
+        await expect(page.getByText(/Quantity must be positive/i)).toBeVisible({
+          timeout: 5000,
+        });
+
+        // Save button should be disabled
+        const saveButton = page.locator("[data-testid='edit-save-btn']");
+        await expect(saveButton).toBeDisabled();
+      }
+    }
+  });
+
+  test("should update holding and show success toast", { tag: "@data-setup" }, async ({ page }) => {
+    test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Click edit button
+        const editButton = page.locator("[data-testid='edit-holding-btn']");
+        await editButton.click();
+
+        // Update quantity with a new value
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await quantityInput.clear();
+        await quantityInput.fill("999.5");
+
+        // Click save
+        const saveButton = page.locator("[data-testid='edit-save-btn']");
+        await saveButton.click();
+
+        // Should show success toast
+        await expect(page.getByText("Holding updated successfully")).toBeVisible({
+          timeout: 10000,
+        });
+
+        // Modal should close
+        await expect(page.locator("[data-testid='edit-holding-modal']")).not.toBeVisible();
+      }
+    }
+  });
+
+  test("should close modal on Cancel without changes", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Click edit button
+        const editButton = page.locator("[data-testid='edit-holding-btn']");
+        await editButton.click();
+
+        // Modal should be visible
+        await expect(page.locator("[data-testid='edit-holding-modal']")).toBeVisible();
+
+        // Click cancel
+        const cancelButton = page.locator("[data-testid='edit-cancel-btn']");
+        await cancelButton.click();
+
+        // Modal should close
+        await expect(page.locator("[data-testid='edit-holding-modal']")).not.toBeVisible();
+      }
+    }
+  });
+});
+
+test.describe("Remove Holding from Drawer (AC-2.6.3, AC-2.6.4, AC-2.6.5)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should show Remove button in holding detail drawer", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Check for remove button
+        const removeButton = page.locator("[data-testid='remove-holding-btn']");
+        await expect(removeButton).toBeVisible();
+      }
+    }
+  });
+
+  test("should show confirmation dialog when Remove is clicked", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Click remove button
+        const removeButton = page.locator("[data-testid='remove-holding-btn']");
+        await removeButton.click();
+
+        // Confirmation dialog should appear
+        await expect(page.getByText(/This cannot be undone/i)).toBeVisible({
+          timeout: 5000,
+        });
+      }
+    }
+  });
+});
+
+test.describe("Ignore Holding from Drawer (AC-2.6.6, AC-2.6.7)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should show Ignore toggle button in holding detail drawer", async ({ page }) => {
+    // Find a portfolio card
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      await portfolioCard.click();
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Find and click on a holding row
+      const holdingRow = page.locator("[data-testid='holding-row']").first();
+      const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+      if (hasHoldings) {
+        await holdingRow.click();
+
+        // Wait for drawer
+        const drawer = page.locator("[data-testid='holding-detail-drawer']");
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+        // Check for toggle ignore button
+        const toggleButton = page.locator("[data-testid='toggle-ignore-btn']");
+        await expect(toggleButton).toBeVisible();
+      }
+    }
+  });
+
+  test(
+    "should toggle ignore status and show success toast",
+    { tag: "@data-setup" },
+    async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Find a portfolio card
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+        // Find and click on a holding row
+        const holdingRow = page.locator("[data-testid='holding-row']").first();
+        const hasHoldings = await holdingRow.isVisible().catch(() => false);
+
+        if (hasHoldings) {
+          await holdingRow.click();
+
+          // Wait for drawer
+          const drawer = page.locator("[data-testid='holding-detail-drawer']");
+          await drawer.waitFor({ state: "visible", timeout: 5000 });
+
+          // Click toggle ignore button
+          const toggleButton = page.locator("[data-testid='toggle-ignore-btn']");
+          await toggleButton.click();
+
+          // Should show success toast
+          await expect(page.getByText(/Asset ignored|Asset restored/i)).toBeVisible({
+            timeout: 5000,
+          });
+        }
       }
     }
   );

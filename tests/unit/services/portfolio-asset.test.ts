@@ -80,6 +80,16 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+// Mock logger
+const mockLoggerInfo = vi.fn();
+vi.mock("@/lib/telemetry/logger", () => ({
+  logger: {
+    info: (...args: unknown[]) => mockLoggerInfo(...args),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 // Mock the schema
 vi.mock("@/lib/db/schema", () => ({
   portfolios: {
@@ -155,6 +165,8 @@ describe("Portfolio Asset Service", () => {
     mockInsertResult = [];
     mockInsertError = null;
     mockUpdateResult = [];
+    // Reset logger mock
+    mockLoggerInfo.mockClear();
   });
 
   afterEach(() => {
@@ -444,6 +456,76 @@ describe("Portfolio Asset Service", () => {
           purchasePrice: "300",
         })
       ).rejects.toThrow(AssetNotFoundError);
+    });
+
+    /**
+     * Story 2.6: Update and Remove Holdings
+     * AC-2.6.2: Audit trail logging for asset updates
+     */
+    it("should log audit trail when asset is updated (AC-2.6.2)", async () => {
+      mockAssetsResult = [mockAsset];
+      mockPortfoliosResult = [mockPortfolio];
+      const updatedAsset = { ...mockAsset, quantity: "50", updatedAt: new Date() };
+      mockUpdateResult = [updatedAsset];
+
+      await updateAsset(mockUserId, mockAssetId, {
+        quantity: "50",
+      });
+
+      expect(mockLoggerInfo).toHaveBeenCalledWith("Asset updated", {
+        userId: mockUserId,
+        assetId: mockAssetId,
+        portfolioId: mockPortfolioId,
+        symbol: "AAPL",
+        quantityUpdated: true,
+        priceUpdated: false,
+      });
+    });
+
+    it("should log correct fields when only price is updated", async () => {
+      mockAssetsResult = [mockAsset];
+      mockPortfoliosResult = [mockPortfolio];
+      const updatedAsset = { ...mockAsset, purchasePrice: "200.00", updatedAt: new Date() };
+      mockUpdateResult = [updatedAsset];
+
+      await updateAsset(mockUserId, mockAssetId, {
+        purchasePrice: "200.00",
+      });
+
+      expect(mockLoggerInfo).toHaveBeenCalledWith("Asset updated", {
+        userId: mockUserId,
+        assetId: mockAssetId,
+        portfolioId: mockPortfolioId,
+        symbol: "AAPL",
+        quantityUpdated: false,
+        priceUpdated: true,
+      });
+    });
+
+    it("should log correct fields when both quantity and price are updated", async () => {
+      mockAssetsResult = [mockAsset];
+      mockPortfoliosResult = [mockPortfolio];
+      const updatedAsset = {
+        ...mockAsset,
+        quantity: "75",
+        purchasePrice: "300.00",
+        updatedAt: new Date(),
+      };
+      mockUpdateResult = [updatedAsset];
+
+      await updateAsset(mockUserId, mockAssetId, {
+        quantity: "75",
+        purchasePrice: "300.00",
+      });
+
+      expect(mockLoggerInfo).toHaveBeenCalledWith("Asset updated", {
+        userId: mockUserId,
+        assetId: mockAssetId,
+        portfolioId: mockPortfolioId,
+        symbol: "AAPL",
+        quantityUpdated: true,
+        priceUpdated: true,
+      });
     });
   });
 
