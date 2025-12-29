@@ -240,4 +240,102 @@ describe("createNumberFormatter (non-React)", () => {
       expect(formatter.formatCurrency(100)).toBe("$100.00");
     });
   });
+
+  describe("formatDate (AC-2.8.6)", () => {
+    it("should format dates for en-US locale", () => {
+      const formatter = createNumberFormatter("en-US");
+      const date = new Date("2024-06-15T10:00:00Z");
+
+      const formatted = formatter.formatDate(date);
+      // en-US medium format: "Jun 15, 2024"
+      expect(formatted).toContain("Jun");
+      expect(formatted).toContain("15");
+      expect(formatted).toContain("2024");
+    });
+
+    it("should format dates for pt-BR locale", () => {
+      const formatter = createNumberFormatter("pt-BR");
+      const date = new Date("2024-06-15T10:00:00Z");
+
+      const formatted = formatter.formatDate(date);
+      // pt-BR medium format: "15 de jun. de 2024"
+      expect(formatted).toContain("15");
+      expect(formatted).toContain("2024");
+    });
+
+    it("should respect dateStyle option", () => {
+      const formatter = createNumberFormatter("en-US");
+      const date = new Date("2024-06-15T10:00:00Z");
+
+      const shortFormat = formatter.formatDate(date, { dateStyle: "short" });
+      const longFormat = formatter.formatDate(date, { dateStyle: "long" });
+
+      // Short format is more compact (e.g., "6/15/24")
+      expect(shortFormat.length).toBeLessThan(longFormat.length);
+    });
+
+    it("should handle invalid dates", () => {
+      const formatter = createNumberFormatter("en-US");
+      const invalidDate = new Date("invalid");
+
+      expect(formatter.formatDate(invalidDate)).toBe("-");
+    });
+
+    it("should handle non-Date values", () => {
+      const formatter = createNumberFormatter("en-US");
+
+      // @ts-expect-error Testing runtime behavior with invalid input
+      expect(formatter.formatDate("not a date")).toBe("-");
+      // @ts-expect-error Testing runtime behavior with invalid input
+      expect(formatter.formatDate(null)).toBe("-");
+    });
+  });
+
+  describe("formatDateTime (AC-2.8.6)", () => {
+    it("should format date with time for en-US locale", () => {
+      const formatter = createNumberFormatter("en-US");
+      const date = new Date("2024-06-15T14:30:00Z");
+
+      const formatted = formatter.formatDateTime(date);
+      // Should contain both date and time components
+      expect(formatted).toContain("Jun");
+      expect(formatted).toContain("15");
+      expect(formatted).toContain("2024");
+      // Time component (may vary by timezone)
+      expect(formatted.length).toBeGreaterThan(formatter.formatDate(date).length);
+    });
+
+    it("should format date with time for pt-BR locale", () => {
+      const formatter = createNumberFormatter("pt-BR");
+      const date = new Date("2024-06-15T14:30:00Z");
+
+      const formatted = formatter.formatDateTime(date);
+      // Should contain both date and time components
+      expect(formatted).toContain("15");
+      expect(formatted).toContain("2024");
+    });
+
+    it("should respect dateStyle and timeStyle options", () => {
+      const formatter = createNumberFormatter("en-US");
+      const date = new Date("2024-06-15T14:30:00Z");
+
+      const shortFormat = formatter.formatDateTime(date, {
+        dateStyle: "short",
+        timeStyle: "short",
+      });
+      const longFormat = formatter.formatDateTime(date, {
+        dateStyle: "long",
+        timeStyle: "long",
+      });
+
+      expect(shortFormat.length).toBeLessThan(longFormat.length);
+    });
+
+    it("should handle invalid dates", () => {
+      const formatter = createNumberFormatter("en-US");
+      const invalidDate = new Date("invalid");
+
+      expect(formatter.formatDateTime(invalidDate)).toBe("-");
+    });
+  });
 });

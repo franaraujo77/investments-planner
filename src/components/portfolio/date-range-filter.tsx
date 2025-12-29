@@ -12,6 +12,9 @@
  * - Last 12 Months
  * - This Year
  * - Custom date range picker
+ *
+ * AC-2.8.6: Regional Date Formatting
+ * - Dates display in user's locale format
  */
 
 import { useState } from "react";
@@ -24,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 
 export interface DateRange {
   from?: Date;
@@ -98,19 +102,12 @@ const DATE_PRESETS: DatePreset[] = [
 ];
 
 /**
- * Formats a date range for display
+ * Formats a date range for display using locale-aware formatting
  */
-function formatDateRange(range: DateRange): string {
+function formatDateRangeText(range: DateRange, formatDate: (date: Date) => string): string {
   if (!range.from && !range.to) {
     return "All Time";
   }
-
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
 
   if (range.from && range.to) {
     return `${formatDate(range.from)} – ${formatDate(range.to)}`;
@@ -153,13 +150,16 @@ function findPresetLabel(range: DateRange): string | null {
 }
 
 export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
+  // AC-2.8.6: Use locale-aware date formatting
+  const { formatDate } = useNumberFormat();
+
   const [isOpen, setIsOpen] = useState(false);
   const [customFromInput, setCustomFromInput] = useState("");
   const [customToInput, setCustomToInput] = useState("");
   const [showCustom, setShowCustom] = useState(false);
 
   const presetLabel = findPresetLabel(value);
-  const displayText = presetLabel ?? formatDateRange(value);
+  const displayText = presetLabel ?? formatDateRangeText(value, formatDate);
   const hasFilter = value.from || value.to;
 
   const handlePresetSelect = (preset: DatePreset) => {

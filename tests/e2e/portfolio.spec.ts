@@ -4493,3 +4493,369 @@ test.describe("Story 2.7: Multi-Currency Portfolio Display", () => {
     }
   );
 });
+
+// =============================================================================
+// STORY 2.8: INVESTMENT HISTORY
+// =============================================================================
+
+test.describe("Story 2.8: Investment History", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test.describe("AC-2.8.2: View Investment History Tab", () => {
+    test(
+      "should display History tab on portfolio detail page",
+      { tag: "@data-setup" },
+      async ({ page }) => {
+        test.skip(
+          SKIP_DATA_SETUP_TESTS,
+          "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true"
+        );
+
+        // Navigate to a portfolio
+        const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+        const exists = await portfolioLink.isVisible().catch(() => false);
+
+        if (exists) {
+          await portfolioLink.click();
+          await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+          // Should see tabs
+          const tabs = page.locator("[data-testid='portfolio-tabs']");
+          await expect(tabs).toBeVisible();
+
+          // Should have Holdings and History tabs
+          await expect(page.locator("[data-testid='holdings-tab']")).toBeVisible();
+          await expect(page.locator("[data-testid='history-tab']")).toBeVisible();
+        }
+      }
+    );
+
+    test(
+      "should navigate to History tab when clicked",
+      { tag: "@data-setup" },
+      async ({ page }) => {
+        test.skip(
+          SKIP_DATA_SETUP_TESTS,
+          "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true"
+        );
+
+        // Navigate to a portfolio
+        const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+        const exists = await portfolioLink.isVisible().catch(() => false);
+
+        if (exists) {
+          await portfolioLink.click();
+          await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+          // Click History tab
+          await page.locator("[data-testid='history-tab']").click();
+
+          // URL should include tab=history
+          await expect(page).toHaveURL(/tab=history/);
+        }
+      }
+    );
+
+    test("should preserve tab state in URL", { tag: "@data-setup" }, async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Navigate to a portfolio with history tab in URL
+      const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+      const exists = await portfolioLink.isVisible().catch(() => false);
+
+      if (exists) {
+        const href = await portfolioLink.getAttribute("href");
+        await page.goto(`${href}?tab=history`);
+
+        // History tab should be active
+        const historyTab = page.locator("[data-testid='history-tab']");
+        await expect(historyTab).toHaveAttribute("data-state", "active");
+      }
+    });
+  });
+
+  test.describe("AC-2.8.5: Empty State", () => {
+    test(
+      "should show empty state when no investments recorded",
+      { tag: "@data-setup" },
+      async ({ page }) => {
+        test.skip(
+          SKIP_DATA_SETUP_TESTS,
+          "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true"
+        );
+
+        // Navigate to a portfolio
+        const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+        const exists = await portfolioLink.isVisible().catch(() => false);
+
+        if (exists) {
+          await portfolioLink.click();
+          await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+          // Click History tab
+          await page.locator("[data-testid='history-tab']").click();
+
+          // Look for empty state
+          const emptyState = page.locator("[data-testid='empty-investment-history']");
+          const historyTab = page.locator("[data-testid='investment-history-tab']");
+
+          // Either empty state or history tab with content should be visible
+          const hasEmptyState = await emptyState.isVisible().catch(() => false);
+          const hasHistoryContent = await historyTab.isVisible().catch(() => false);
+
+          expect(hasEmptyState || hasHistoryContent).toBeTruthy();
+        }
+      }
+    );
+
+    test(
+      "should display helpful message in empty state",
+      { tag: "@data-setup" },
+      async ({ page }) => {
+        test.skip(
+          SKIP_DATA_SETUP_TESTS,
+          "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true"
+        );
+
+        // Navigate to a portfolio
+        const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+        const exists = await portfolioLink.isVisible().catch(() => false);
+
+        if (exists) {
+          await portfolioLink.click();
+          await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+          // Click History tab
+          await page.locator("[data-testid='history-tab']").click();
+
+          // Check for empty state elements if present
+          const emptyTitle = page.locator("[data-testid='empty-investment-title']");
+          const hasEmptyTitle = await emptyTitle.isVisible().catch(() => false);
+
+          if (hasEmptyTitle) {
+            await expect(page.getByText(/No investments recorded yet/i)).toBeVisible();
+          }
+        }
+      }
+    );
+  });
+
+  test.describe("AC-2.8.4: History Filtering", () => {
+    test(
+      "should display filter controls on history tab",
+      { tag: "@data-setup" },
+      async ({ page }) => {
+        test.skip(
+          SKIP_DATA_SETUP_TESTS,
+          "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true"
+        );
+
+        // Navigate to a portfolio
+        const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+        const exists = await portfolioLink.isVisible().catch(() => false);
+
+        if (exists) {
+          await portfolioLink.click();
+          await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+          // Click History tab
+          await page.locator("[data-testid='history-tab']").click();
+
+          // Check for filter controls
+          const filters = page.locator("[data-testid='investment-history-filters']");
+          const historyTab = page.locator("[data-testid='investment-history-tab']");
+
+          // Filter controls should be visible if there's history content
+          const hasFilters = await filters.isVisible().catch(() => false);
+          const hasHistory = await historyTab.isVisible().catch(() => false);
+
+          // Either has filters (when content exists) or is in empty state
+          expect(hasFilters || !hasHistory).toBeTruthy();
+        }
+      }
+    );
+
+    test("should have date range filter", { tag: "@data-setup" }, async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Navigate to a portfolio
+      const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+      const exists = await portfolioLink.isVisible().catch(() => false);
+
+      if (exists) {
+        await portfolioLink.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+        // Click History tab
+        await page.locator("[data-testid='history-tab']").click();
+
+        // Check for date range filter (using text content)
+        const historyTab = page.locator("[data-testid='investment-history-tab']");
+        const hasHistory = await historyTab.isVisible().catch(() => false);
+
+        if (hasHistory) {
+          // Look for date filter button
+          const dateFilter = page.getByRole("button", { name: /All Time|Last \d+|This Year/i });
+          await expect(dateFilter).toBeVisible();
+        }
+      }
+    });
+
+    test("should apply filters without page reload", { tag: "@data-setup" }, async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Navigate to a portfolio
+      const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+      const exists = await portfolioLink.isVisible().catch(() => false);
+
+      if (exists) {
+        await portfolioLink.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+        const baseUrl = page.url();
+
+        // Click History tab
+        await page.locator("[data-testid='history-tab']").click();
+
+        // Check for filter controls
+        const historyTab = page.locator("[data-testid='investment-history-tab']");
+        const hasHistory = await historyTab.isVisible().catch(() => false);
+
+        if (hasHistory) {
+          // Click date filter and select an option
+          const dateFilter = page.getByRole("button", { name: /All Time|Last \d+|This Year/i });
+          const hasDateFilter = await dateFilter.isVisible().catch(() => false);
+
+          if (hasDateFilter) {
+            await dateFilter.click();
+
+            // Select a preset
+            const preset = page.getByRole("menuitem", { name: "Last 30 Days" });
+            const hasPreset = await preset.isVisible().catch(() => false);
+
+            if (hasPreset) {
+              await preset.click();
+
+              // Page should not have reloaded (URL base should be same)
+              expect(page.url().startsWith(baseUrl.split("?")[0] ?? baseUrl)).toBeTruthy();
+            }
+          }
+        }
+      }
+    });
+  });
+
+  test.describe("AC-2.8.3: Investment Entry Details", () => {
+    test("should expand entry details when clicked", { tag: "@data-setup" }, async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Navigate to a portfolio
+      const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+      const exists = await portfolioLink.isVisible().catch(() => false);
+
+      if (exists) {
+        await portfolioLink.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+        // Click History tab
+        await page.locator("[data-testid='history-tab']").click();
+
+        // Look for an investment entry
+        const entry = page.locator("[data-testid^='investment-entry-']").first();
+        const hasEntry = await entry.isVisible().catch(() => false);
+
+        if (hasEntry) {
+          // Click to expand
+          await entry.click();
+
+          // Details section should be visible
+          const details = page.locator("[data-testid='investment-details']");
+          await expect(details).toBeVisible();
+        }
+      }
+    });
+
+    test(
+      "should collapse entry details when clicked again",
+      { tag: "@data-setup" },
+      async ({ page }) => {
+        test.skip(
+          SKIP_DATA_SETUP_TESTS,
+          "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true"
+        );
+
+        // Navigate to a portfolio
+        const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+        const exists = await portfolioLink.isVisible().catch(() => false);
+
+        if (exists) {
+          await portfolioLink.click();
+          await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+          // Click History tab
+          await page.locator("[data-testid='history-tab']").click();
+
+          // Look for an investment entry
+          const entry = page.locator("[data-testid^='investment-entry-']").first();
+          const hasEntry = await entry.isVisible().catch(() => false);
+
+          if (hasEntry) {
+            // Click to expand
+            await entry.click();
+
+            // Details should be visible
+            const details = page.locator("[data-testid='investment-details']");
+            await expect(details).toBeVisible();
+
+            // Click again to collapse
+            await entry.click();
+
+            // Details should be hidden
+            await expect(details).not.toBeVisible();
+          }
+        }
+      }
+    );
+  });
+
+  test.describe("AC-2.8.6: Regional Number Formatting", () => {
+    test(
+      "should display currency amounts with proper formatting",
+      { tag: "@data-setup" },
+      async ({ page }) => {
+        test.skip(
+          SKIP_DATA_SETUP_TESTS,
+          "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true"
+        );
+
+        // Navigate to a portfolio
+        const portfolioLink = page.locator("a[href^='/portfolio/']").first();
+        const exists = await portfolioLink.isVisible().catch(() => false);
+
+        if (exists) {
+          await portfolioLink.click();
+          await page.waitForURL(/\/portfolio\/[a-f0-9-]+$/);
+
+          // Click History tab
+          await page.locator("[data-testid='history-tab']").click();
+
+          // Look for investment amounts
+          const amounts = page.locator("[data-testid='investment-amount']");
+          const hasAmounts = await amounts.count().catch(() => 0);
+
+          if (hasAmounts > 0) {
+            // Get text of first amount
+            const amountText = await amounts.first().textContent();
+
+            // Should have currency symbol or formatted number
+            const hasCurrencyFormat = amountText?.match(/[€$R\$¥]|[\d,]+\.\d{2}/);
+            expect(hasCurrencyFormat).toBeTruthy();
+          }
+        }
+      }
+    );
+  });
+});

@@ -18,6 +18,7 @@ import {
   getPortfolioWithAssetTypes,
   PortfolioNotFoundError,
 } from "@/lib/services/portfolio-service";
+import { getInvestmentHistory } from "@/lib/services/investment-service";
 import { PortfolioDetailClient } from "./portfolio-detail-client";
 import { logger } from "@/lib/telemetry/logger";
 
@@ -55,10 +56,11 @@ async function getSession() {
  */
 async function fetchPortfolioData(userId: string, portfolioId: string) {
   try {
-    // Fetch portfolio with values and asset types in parallel
-    const [portfolioWithValues, portfolioWithAssetTypes] = await Promise.all([
+    // Fetch portfolio with values, asset types, and investments in parallel
+    const [portfolioWithValues, portfolioWithAssetTypes, investments] = await Promise.all([
       getPortfolioWithValues(userId, portfolioId),
       getPortfolioWithAssetTypes(userId, portfolioId),
+      getInvestmentHistory(userId, { portfolioId }),
     ]);
 
     // If portfolio not found (null from getPortfolioWithAssetTypes), return null
@@ -73,6 +75,7 @@ async function fetchPortfolioData(userId: string, portfolioId: string) {
     return {
       portfolioWithValues,
       acceptedAssetTypes: portfolioWithAssetTypes.acceptedAssetTypes,
+      investments,
     };
   } catch (error) {
     // Handle portfolio not found error
@@ -108,6 +111,7 @@ export default async function PortfolioDetailPage({ params }: PortfolioDetailPag
     <PortfolioDetailClient
       portfolioWithValues={portfolioData.portfolioWithValues}
       acceptedAssetTypes={portfolioData.acceptedAssetTypes}
+      investments={portfolioData.investments}
     />
   );
 }

@@ -6,6 +6,7 @@
  * Story 2.2: View Portfolio and Holdings
  * Story 2.4: Delete Portfolio
  * Story 2.5: Add Holdings to Portfolio
+ * Story 2.8: Investment History
  *
  * AC-2.2.1: Holdings list display with asset name, quantity, price, value
  * AC-2.2.2: Base currency display with allocation percentages
@@ -15,15 +16,17 @@
  * AC-2.4.4: Successful deletion redirects to portfolio list
  * AC-2.5.1: Add Asset button prominently displayed
  * AC-2.5.7: Allocation recalculation after addition
+ * AC-2.8.2: View Investment History Tab
  */
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, ArrowLeft, Pencil, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoldingsTable } from "@/components/portfolio/holdings-table";
 import { PortfolioSummaryCard } from "@/components/portfolio/portfolio-summary-card";
 import { EmptyHoldingsState } from "@/components/portfolio/empty-holdings-state";
@@ -31,17 +34,24 @@ import { HoldingDetailDrawer } from "@/components/portfolio/holding-detail-drawe
 import { DeletePortfolioDialog } from "@/components/portfolio/delete-portfolio-dialog";
 import { AddAssetModal } from "@/components/portfolio/add-asset-modal";
 import { MultiCurrencyIndicator } from "@/components/portfolio/multi-currency-indicator";
+import {
+  InvestmentHistoryTab,
+  type InvestmentWithContext,
+} from "@/components/portfolio/investment-history-tab";
 import type { PortfolioWithValues, AssetWithValue } from "@/lib/services/portfolio-service";
 import type { AssetType } from "@/lib/validations/portfolio";
+import type { Investment } from "@/lib/db/schema";
 
 interface PortfolioDetailClientProps {
   portfolioWithValues: PortfolioWithValues;
   acceptedAssetTypes: AssetType[];
+  investments: Investment[];
 }
 
 export function PortfolioDetailClient({
   portfolioWithValues,
   acceptedAssetTypes,
+  investments,
 }: PortfolioDetailClientProps) {
   const {
     portfolio,
@@ -57,6 +67,56 @@ export function PortfolioDetailClient({
   } = portfolioWithValues;
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Story 2.8: Tab state from URL query params (AC-5.4: URL query params for tab state)
+  const activeTab = searchParams.get("tab") ?? "holdings";
+
+  // Handle tab change and update URL
+  const handleTabChange = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value === "holdings") {
+        params.delete("tab");
+      } else {
+        params.set("tab", value);
+      }
+      const query = params.toString();
+      router.push(`/portfolio/${portfolio.id}${query ? `?${query}` : ""}`, { scroll: false });
+    },
+    [portfolio.id, router, searchParams]
+  );
+
+  // Story 2.8: Transform investments to include asset context
+  const investmentsWithContext: InvestmentWithContext[] = useMemo(() => {
+    // Create a map of asset IDs to asset details for quick lookup
+    const assetMap = new Map(assets.map((asset) => [asset.id, { name: asset.name }]));
+
+    return investments.map((investment) => {
+      const assetDetails = assetMap.get(investment.assetId);
+      return {
+        ...investment,
+        assetName: assetDetails?.name ?? undefined,
+        assetClass: undefined, // Asset class not available in AssetWithValue
+      };
+    });
+  }, [investments, assets]);
+
+  // Story 2.8: Extract unique asset classes for filtering (empty for now, asset class not in AssetWithValue)
+  const availableAssetClasses = useMemo(() => {
+    // Note: AssetWithValue doesn't currently include assetClassName
+    // This can be enhanced when that field is added to the interface
+    return [] as string[];
+  }, []);
+
+  // Story 2.8: Extract assets for autocomplete filtering
+  const availableAssets = useMemo(() => {
+    return assets.map((asset) => ({
+      id: asset.id,
+      symbol: asset.symbol,
+      name: asset.name,
+    }));
+  }, [assets]);
 
   // State for holding detail drawer
   const [selectedHolding, setSelectedHolding] = useState<AssetWithValue | null>(null);
@@ -196,18 +256,43 @@ export function PortfolioDetailClient({
         currencies={currencies}
       />
 
-      {/* Holdings Section */}
-      {hasNoHoldings ? (
-        // AC-2.2.3: Empty state
-        <EmptyHoldingsState portfolioId={portfolio.id} />
-      ) : (
-        // AC-2.2.1, AC-2.2.2: Holdings table with values
-        <HoldingsTable
-          assets={assets}
-          baseCurrency={baseCurrency}
-          onHoldingClick={handleHoldingClick}
-        />
-      )}
+      {/* Story 2.8: Tab Navigation for Holdings and History */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <TabsList data-testid="portfolio-tabs">
+          <TabsTrigger value="holdings" data-testid="holdings-tab">
+            Holdings
+          </TabsTrigger>
+          <TabsTrigger value="history" data-testid="history-tab">
+            History
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Holdings Tab Content */}
+        <TabsContent value="holdings" className="space-y-6">
+          {hasNoHoldings ? (
+            // AC-2.2.3: Empty state
+            <EmptyHoldingsState portfolioId={portfolio.id} />
+          ) : (
+            // AC-2.2.1, AC-2.2.2: Holdings table with values
+            <HoldingsTable
+              assets={assets}
+              baseCurrency={baseCurrency}
+              onHoldingClick={handleHoldingClick}
+            />
+          )}
+        </TabsContent>
+
+        {/* Story 2.8: Investment History Tab Content - AC-2.8.2 */}
+        <TabsContent value="history" className="space-y-6">
+          <InvestmentHistoryTab
+            investments={investmentsWithContext}
+            baseCurrency={baseCurrency}
+            portfolioId={portfolio.id}
+            availableAssetClasses={availableAssetClasses}
+            availableAssets={availableAssets}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Holding Detail Drawer - AC-2.2.4 */}
       <HoldingDetailDrawer

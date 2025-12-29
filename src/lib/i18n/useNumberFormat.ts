@@ -21,6 +21,11 @@ export interface NumberFormatOptions {
   maximumFractionDigits?: number;
 }
 
+export interface DateFormatOptions {
+  dateStyle?: "full" | "long" | "medium" | "short";
+  timeStyle?: "full" | "long" | "medium" | "short";
+}
+
 export interface UseNumberFormatResult {
   /**
    * Format a number according to the current locale
@@ -57,6 +62,30 @@ export interface UseNumberFormatResult {
    * formatPercent(0.1234) // "12,34%"
    */
   formatPercent: (value: number, options?: NumberFormatOptions) => string;
+
+  /**
+   * Format a date according to the current locale
+   *
+   * @example
+   * // With en-US locale
+   * formatDate(new Date("2024-06-15")) // "Jun 15, 2024"
+   *
+   * // With pt-BR locale
+   * formatDate(new Date("2024-06-15")) // "15 de jun. de 2024"
+   */
+  formatDate: (date: Date, options?: DateFormatOptions) => string;
+
+  /**
+   * Format a date with time according to the current locale
+   *
+   * @example
+   * // With en-US locale
+   * formatDateTime(new Date()) // "Jun 15, 2024, 2:30 PM"
+   *
+   * // With pt-BR locale
+   * formatDateTime(new Date()) // "15 de jun. de 2024, 14:30"
+   */
+  formatDateTime: (date: Date, options?: DateFormatOptions) => string;
 
   /**
    * The current locale being used for formatting
@@ -147,10 +176,41 @@ export function useNumberFormat(localeOverride?: Locale): UseNumberFormatResult 
     };
   }, [locale]);
 
+  const formatDate = useMemo(() => {
+    return (date: Date, options?: DateFormatOptions): string => {
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        return "-";
+      }
+
+      const formatter = new Intl.DateTimeFormat(locale, {
+        dateStyle: options?.dateStyle ?? "medium",
+      });
+
+      return formatter.format(date);
+    };
+  }, [locale]);
+
+  const formatDateTime = useMemo(() => {
+    return (date: Date, options?: DateFormatOptions): string => {
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        return "-";
+      }
+
+      const formatter = new Intl.DateTimeFormat(locale, {
+        dateStyle: options?.dateStyle ?? "medium",
+        timeStyle: options?.timeStyle ?? "short",
+      });
+
+      return formatter.format(date);
+    };
+  }, [locale]);
+
   return {
     formatNumber,
     formatCurrency,
     formatPercent,
+    formatDate,
+    formatDateTime,
     locale,
   };
 }
@@ -207,10 +267,37 @@ export function createNumberFormatter(locale: Locale = DEFAULT_LOCALE) {
     return formatter.format(value);
   };
 
+  const formatDate = (date: Date, options?: DateFormatOptions): string => {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return "-";
+    }
+
+    const formatter = new Intl.DateTimeFormat(locale, {
+      dateStyle: options?.dateStyle ?? "medium",
+    });
+
+    return formatter.format(date);
+  };
+
+  const formatDateTime = (date: Date, options?: DateFormatOptions): string => {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return "-";
+    }
+
+    const formatter = new Intl.DateTimeFormat(locale, {
+      dateStyle: options?.dateStyle ?? "medium",
+      timeStyle: options?.timeStyle ?? "short",
+    });
+
+    return formatter.format(date);
+  };
+
   return {
     formatNumber,
     formatCurrency,
     formatPercent,
+    formatDate,
+    formatDateTime,
     locale,
   };
 }
