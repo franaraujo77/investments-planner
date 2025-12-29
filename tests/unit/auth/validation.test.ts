@@ -235,6 +235,7 @@ describe("Registration Form Schema (Client-side)", () => {
       const input = {
         email: "test@example.com",
         password: "ValidP@ss123",
+        confirmPassword: "ValidP@ss123",
         disclaimerAcknowledged: true,
       };
       const result = registerFormSchema.safeParse(input);
@@ -245,6 +246,7 @@ describe("Registration Form Schema (Client-side)", () => {
       const input = {
         email: "test@example.com",
         password: "ValidP@ss123",
+        confirmPassword: "ValidP@ss123",
         disclaimerAcknowledged: false,
       };
       const result = registerFormSchema.safeParse(input);
@@ -258,11 +260,29 @@ describe("Registration Form Schema (Client-side)", () => {
       const input = {
         email: "test@example.com",
         password: "ValidP@ss123",
+        confirmPassword: "ValidP@ss123",
         disclaimerAcknowledged: true,
         name: "",
       };
       const result = registerFormSchema.safeParse(input);
       expect(result.success).toBe(true);
+    });
+
+    it("should reject when passwords do not match", () => {
+      const input = {
+        email: "test@example.com",
+        password: "ValidP@ss123",
+        confirmPassword: "DifferentP@ss123",
+        disclaimerAcknowledged: true,
+      };
+      const result = registerFormSchema.safeParse(input);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const mismatchError = result.error.issues.find(
+          (issue) => issue.path[0] === "confirmPassword"
+        );
+        expect(mismatchError?.message).toBe("Passwords do not match");
+      }
     });
   });
 });

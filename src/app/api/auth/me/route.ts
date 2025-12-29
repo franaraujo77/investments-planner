@@ -19,6 +19,7 @@ interface MeResponse {
     email: string;
     name: string | null;
     baseCurrency: string;
+    locale: string;
     emailVerified: boolean;
     disclaimerAcknowledgedAt: Date | null;
     createdAt: Date;
@@ -57,6 +58,7 @@ export const GET = withAuth<MeResponse>(async (_request, session) => {
           email: user.email,
           name: user.name,
           baseCurrency: user.baseCurrency,
+          locale: user.locale,
           emailVerified: user.emailVerified ?? false,
           disclaimerAcknowledgedAt: user.disclaimerAcknowledgedAt ?? null,
           createdAt: user.createdAt ?? new Date(),

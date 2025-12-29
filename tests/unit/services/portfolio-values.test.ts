@@ -36,11 +36,11 @@ vi.mock("@/lib/services/exchange-rate-service", () => ({
   getExchangeRate: vi.fn(),
 }));
 
-// Import after mocks
-import { db } from "@/lib/db";
-import { getUserProfile } from "@/lib/services/user-service";
-import { getCurrentPrices } from "@/lib/services/price-service";
-import { getExchangeRate } from "@/lib/services/exchange-rate-service";
+// Import after mocks - prefixed with _ as they're used for mock setup only
+import { db as _db } from "@/lib/db";
+import { getUserProfile as _getUserProfile } from "@/lib/services/user-service";
+import { getCurrentPrices as _getCurrentPrices } from "@/lib/services/price-service";
+import { getExchangeRate as _getExchangeRate } from "@/lib/services/exchange-rate-service";
 
 describe("Portfolio Value Calculations", () => {
   describe("Decimal.js Calculations", () => {
@@ -234,7 +234,9 @@ describe("Portfolio Value Calculations", () => {
 describe("Price Service", () => {
   it("returns mock prices for known symbols", async () => {
     // Manually test the price service behavior
-    const { getCurrentPrices } = await import("@/lib/services/price-service");
+    // Import is unused but required for module loading before reset
+    const { getCurrentPrices: _getCurrentPricesImport } =
+      await import("@/lib/services/price-service");
 
     // Since we've mocked it, we need to reset and reimport
     vi.resetModules();

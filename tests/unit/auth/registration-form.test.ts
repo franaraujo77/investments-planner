@@ -1,7 +1,7 @@
 /**
  * Registration Form Validation Tests
  *
- * Story 2.1: User Registration Flow
+ * Story 1.1: User Registration Flow
  *
  * Tests for registration form validation schema and behavior:
  * - AC1: Valid email (RFC 5322 format)
@@ -24,10 +24,12 @@ import { registerFormSchema, type RegisterFormInput } from "@/lib/auth/validatio
 describe("Registration Form Validation Schema", () => {
   /**
    * Valid form data that should pass all validation
+   * Story 1.1: Added confirmPassword field (AC-1.1.5)
    */
   const validFormData: RegisterFormInput = {
     email: "test@example.com",
     password: "Password123!",
+    confirmPassword: "Password123!",
     name: "Test User",
     disclaimerAcknowledged: true,
   };
@@ -48,6 +50,7 @@ describe("Registration Form Validation Schema", () => {
       const dataWithoutName = {
         email: "test@example.com",
         password: "Password123!",
+        confirmPassword: "Password123!",
         disclaimerAcknowledged: true,
       };
 
@@ -260,10 +263,74 @@ describe("Registration Form Validation Schema", () => {
         const result = registerFormSchema.safeParse({
           ...validFormData,
           password,
+          confirmPassword: password, // Must match password
         });
 
         expect(result.success).toBe(true);
       }
+    });
+  });
+
+  describe("Confirm Password Validation (AC-1.1.5)", () => {
+    it("should FAIL validation when confirmPassword is empty", () => {
+      const dataWithEmptyConfirm = {
+        ...validFormData,
+        confirmPassword: "",
+      };
+
+      const result = registerFormSchema.safeParse(dataWithEmptyConfirm);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const confirmError = result.error.issues.find(
+          (issue) => issue.path[0] === "confirmPassword"
+        );
+        expect(confirmError).toBeDefined();
+        expect(confirmError?.message).toContain("confirm");
+      }
+    });
+
+    it("should FAIL validation when passwords do not match", () => {
+      const dataWithMismatch = {
+        ...validFormData,
+        password: "Password123!",
+        confirmPassword: "DifferentPassword123!",
+      };
+
+      const result = registerFormSchema.safeParse(dataWithMismatch);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const mismatchError = result.error.issues.find(
+          (issue) => issue.path[0] === "confirmPassword" && issue.message.includes("match")
+        );
+        expect(mismatchError).toBeDefined();
+        expect(mismatchError?.message).toBe("Passwords do not match");
+      }
+    });
+
+    it("should PASS validation when passwords match", () => {
+      const dataWithMatchingPasswords = {
+        ...validFormData,
+        password: "SecurePass123!",
+        confirmPassword: "SecurePass123!",
+      };
+
+      const result = registerFormSchema.safeParse(dataWithMatchingPasswords);
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should FAIL validation when confirmPassword is undefined", () => {
+      const dataWithoutConfirm = {
+        email: "test@example.com",
+        password: "Password123!",
+        disclaimerAcknowledged: true,
+      };
+
+      const result = registerFormSchema.safeParse(dataWithoutConfirm);
+
+      expect(result.success).toBe(false);
     });
   });
 
@@ -296,12 +363,15 @@ describe("Registration Form Validation Schema", () => {
      *
      * REGRESSION NOTE: The bug was that even after filling all fields correctly,
      * isValid remained false because checkbox validation didn't trigger.
+     *
+     * Story 1.1: Updated to include confirmPassword field (AC-1.1.5)
      */
 
     it("should be INVALID when form is empty", () => {
       const emptyForm = {
         email: "",
         password: "",
+        confirmPassword: "",
         name: "",
         disclaimerAcknowledged: false,
       };
@@ -314,6 +384,7 @@ describe("Registration Form Validation Schema", () => {
       const partialForm = {
         email: "test@example.com",
         password: "",
+        confirmPassword: "",
         name: "",
         disclaimerAcknowledged: false,
       };
@@ -322,10 +393,24 @@ describe("Registration Form Validation Schema", () => {
       expect(result.success).toBe(false);
     });
 
-    it("should be INVALID with email and password but unchecked disclaimer", () => {
+    it("should be INVALID with email and password but no confirmPassword", () => {
+      const partialForm = {
+        email: "test@example.com",
+        password: "Password123!",
+        confirmPassword: "",
+        name: "",
+        disclaimerAcknowledged: false,
+      };
+
+      const result = registerFormSchema.safeParse(partialForm);
+      expect(result.success).toBe(false);
+    });
+
+    it("should be INVALID with email, password, confirmPassword but unchecked disclaimer", () => {
       const almostComplete = {
         email: "test@example.com",
         password: "Password123!",
+        confirmPassword: "Password123!",
         name: "",
         disclaimerAcknowledged: false,
       };
@@ -338,6 +423,7 @@ describe("Registration Form Validation Schema", () => {
       const completeForm = {
         email: "test@example.com",
         password: "Password123!",
+        confirmPassword: "Password123!",
         name: "",
         disclaimerAcknowledged: true,
       };
@@ -354,6 +440,7 @@ describe("Registration Form Validation Schema", () => {
       const beforeCheckbox = {
         email: "test@example.com",
         password: "Password123!",
+        confirmPassword: "Password123!",
         name: "User",
         disclaimerAcknowledged: false,
       };

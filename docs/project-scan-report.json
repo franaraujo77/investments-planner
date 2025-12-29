@@ -1,7 +1,11 @@
 {
   "workflow_version": "1.2.0",
-  "timestamps": { "started": "2025-12-20T12:00:00Z", "completed": "2025-12-20T12:35:00Z" },
-  "mode": "initial_scan",
+  "timestamps": {
+    "started": "2025-12-26T00:00:00Z",
+    "last_updated": "2025-12-26T00:35:00Z",
+    "completed": "2025-12-26T00:35:00Z"
+  },
+  "mode": "full_rescan",
   "scan_level": "exhaustive",
   "project_root": "/Users/francisaraujo/repos/investments-planner",
   "output_folder": "/Users/francisaraujo/repos/investments-planner/docs",
@@ -9,116 +13,113 @@
     {
       "step": "step_1",
       "status": "completed",
-      "timestamp": "2025-12-20T12:00:00Z",
-      "summary": "Classified as monolith web app"
+      "timestamp": "2025-12-26T00:05:00Z",
+      "summary": "Classified as monolith web app with Next.js 16 + React 19 + TypeScript"
     },
     {
       "step": "step_2",
       "status": "completed",
-      "timestamp": "2025-12-20T12:05:00Z",
-      "summary": "Found 100+ existing docs"
+      "timestamp": "2025-12-26T00:10:00Z",
+      "summary": "Found 197+ existing docs including PRD, architecture, epics, 168 sprint artifacts"
     },
     {
       "step": "step_3",
       "status": "completed",
-      "timestamp": "2025-12-20T12:10:00Z",
-      "summary": "Next.js 16 + React 19 + PostgreSQL/Drizzle stack"
+      "timestamp": "2025-12-26T00:15:00Z",
+      "summary": "Tech stack: Next.js 16 + React 19 + TypeScript + PostgreSQL/Drizzle + Vercel KV + Inngest"
     },
     {
       "step": "step_4",
       "status": "completed",
-      "timestamp": "2025-12-20T12:15:00Z",
-      "summary": "Web app with API, data models, UI components"
+      "timestamp": "2025-12-26T00:20:00Z",
+      "summary": "Exhaustive scan: 62 API routes, 17 tables, 26 services, 107 components, 21 hooks, 162 tests"
     },
     {
       "step": "step_5",
       "status": "completed",
-      "timestamp": "2025-12-20T12:20:00Z",
-      "summary": "Generated source-tree.md with 300+ files"
+      "timestamp": "2025-12-26T00:25:00Z",
+      "summary": "Updated source-tree.md with accurate file counts"
     },
     {
       "step": "step_6",
       "status": "completed",
-      "timestamp": "2025-12-20T12:22:00Z",
-      "summary": "Generated development-setup.md"
+      "timestamp": "2025-12-26T00:30:00Z",
+      "summary": "Updated development-setup.md, verified CI/CD and env config"
     },
     {
-      "step": "step_7",
+      "step": "step_7_12",
       "status": "completed",
-      "timestamp": "2025-12-20T12:23:00Z",
-      "summary": "Single-part monolith confirmed"
-    },
-    {
-      "step": "step_8",
-      "status": "completed",
-      "timestamp": "2025-12-20T12:25:00Z",
-      "summary": "Generated architecture-overview.md"
-    },
-    {
-      "step": "step_9",
-      "status": "completed",
-      "timestamp": "2025-12-20T12:28:00Z",
-      "summary": "Generated database-schema.md"
-    },
-    {
-      "step": "step_10",
-      "status": "completed",
-      "timestamp": "2025-12-20T12:30:00Z",
-      "summary": "Generated index.md master entry"
-    },
-    {
-      "step": "step_11",
-      "status": "completed",
-      "timestamp": "2025-12-20T12:33:00Z",
-      "summary": "Validation passed - all checklist items satisfied"
-    },
-    {
-      "step": "step_12",
-      "status": "completed",
-      "timestamp": "2025-12-20T12:35:00Z",
-      "summary": "Workflow finalized"
+      "timestamp": "2025-12-26T00:35:00Z",
+      "summary": "Updated index.md with accurate stats (62 endpoints, 107 components)"
     }
   ],
   "current_step": "completed",
   "project_classification": {
     "repository_type": "monolith",
     "parts_count": 1,
-    "primary_tech": "Next.js 16 + React 19 + TypeScript + PostgreSQL + Drizzle ORM"
+    "primary_tech": "Next.js 16 + React 19 + TypeScript + PostgreSQL + Drizzle ORM",
+    "architecture_pattern": "Layered Service Architecture with Event Sourcing"
   },
   "project_types": [
-    { "part_id": "main", "project_type_id": "web", "display_name": "Full-Stack Web Application" }
+    {
+      "part_id": "main",
+      "project_type_id": "web",
+      "display_name": "Full-Stack Web Application"
+    }
   ],
   "findings": {
     "technology_stack": {
       "framework": "Next.js 16 (App Router)",
-      "ui": "React 19 + Radix UI + Tailwind CSS",
-      "language": "TypeScript 5.x",
+      "ui": "React 19 + Radix UI + Tailwind CSS 4",
+      "language": "TypeScript 5.x (strict)",
       "database": "PostgreSQL with Drizzle ORM",
       "cache": "Vercel KV (Redis)",
       "auth": "JWT (jose) + bcrypt",
       "jobs": "Inngest",
-      "testing": "Vitest + Playwright",
-      "observability": "OpenTelemetry"
+      "testing": "Vitest (80% coverage) + Playwright",
+      "observability": "OpenTelemetry",
+      "forms": "React Hook Form + Zod",
+      "charts": "Recharts",
+      "math": "Decimal.js"
     },
     "codebase_stats": {
-      "api_endpoints": 59,
-      "react_components": 116,
-      "custom_hooks": 21,
-      "services": 26,
+      "api_routes": 62,
       "db_tables": 17,
+      "migrations": 17,
+      "services": 26,
+      "components": 107,
+      "hooks": 21,
       "validation_schemas": 12,
-      "migrations": 15
+      "inngest_functions": 4,
+      "test_files": 162
     },
-    "epics_completed": 9,
-    "stories_completed": "65+"
+    "existing_docs_count": 197,
+    "lib_structure": [
+      "api",
+      "auth",
+      "cache",
+      "calculations",
+      "constants",
+      "db",
+      "email",
+      "events",
+      "inngest",
+      "mocks",
+      "providers",
+      "rate-limit",
+      "repositories",
+      "services",
+      "telemetry",
+      "types",
+      "utils",
+      "validations"
+    ]
   },
   "outputs_generated": [
     "project-scan-report.json",
-    "index.md",
-    "architecture-overview.md",
     "source-tree.md",
-    "database-schema.md",
-    "development-setup.md"
+    "development-setup.md",
+    "index.md"
   ],
-  "resume_instructions": "Workflow complete. Documentation ready for brownfield PRD workflow."
+  "resume_instructions": "Workflow completed successfully"
 }

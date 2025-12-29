@@ -119,7 +119,8 @@ vi.mock("@/lib/services/score-service", () => ({
 
 // Import after mocks
 import { POST } from "@/app/api/scores/calculate/route";
-import { calculateAndPersistScores } from "@/lib/services/score-service";
+// Imported for mock setup - prefixed with _ to indicate intentionally unused
+import { calculateAndPersistScores as _calculateAndPersistScores } from "@/lib/services/score-service";
 
 describe("POST /api/scores/calculate", () => {
   beforeEach(() => {
@@ -134,7 +135,8 @@ describe("POST /api/scores/calculate", () => {
   });
 
   // Helper to set up mock data for tests that need assets
-  const setupMockAssets = () => {
+  // Prefixed with _ as currently unused (success tests moved to integration)
+  const _setupMockAssets = () => {
     mockDbState.portfolios = [{ id: "portfolio-1", userId: "test-user-id" }];
     mockDbState.assets = [
       { id: "asset-1", portfolioId: "portfolio-1", symbol: "AAPL", name: "Apple Inc." },
@@ -218,134 +220,32 @@ describe("POST /api/scores/calculate", () => {
   });
 
   /**
-   * NOTE: The following tests require a full Drizzle ORM mock which is complex to implement.
-   * These tests document the expected behavior and would pass with a proper test database.
-   * For now, we verify the service and scoring engine behavior in their dedicated unit tests:
-   * - tests/unit/calculations/scoring-engine.test.ts
-   * - tests/unit/services/ (when implemented)
+   * SUCCESS CALCULATION TESTS
    *
-   * The route behavior for success cases is tested via E2E tests with a real database.
-   */
-  describe("Successful Calculation (requires DB)", () => {
-    it.skip("returns 200 with scores and correlationId", async () => {
-      // This test requires proper Drizzle ORM mocking or a test database
-      // The scoring logic is tested in scoring-engine.test.ts
-      setupMockAssets();
-      const mockResult = {
-        jobId: "job-123",
-        scores: [
-          {
-            assetId: "asset-1",
-            symbol: "AAPL",
-            score: "15.0000",
-            breakdown: [
-              {
-                criterionId: "c1",
-                criterionName: "High Dividend",
-                matched: true,
-                pointsAwarded: 10,
-                actualValue: "5.0",
-                skippedReason: null,
-              },
-            ],
-            criteriaVersionId: "version-1",
-            calculatedAt: new Date(),
-          },
-        ],
-        calculatedAt: new Date(),
-        correlationId: "corr-123-456-789",
-        assetCount: 1,
-        duration: 50,
-      };
-
-      vi.mocked(calculateAndPersistScores).mockResolvedValue(mockResult);
-
-      const request = new NextRequest("http://localhost:3000/api/scores/calculate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
-        },
-        body: JSON.stringify({}),
-      });
-
-      const response = await POST(request, {} as never);
-      expect(response.status).toBe(200);
-
-      const body = await response.json();
-      expect(body.data.correlationId).toBe("corr-123-456-789");
-      expect(body.data.scores).toHaveLength(1);
-    });
-
-    it.skip("response includes breakdown for each score", async () => {
-      // This test requires proper Drizzle ORM mocking or a test database
-      setupMockAssets();
-
-      const request = new NextRequest("http://localhost:3000/api/scores/calculate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
-        },
-        body: JSON.stringify({}),
-      });
-
-      const response = await POST(request, {} as never);
-      const body = await response.json();
-
-      expect(body.data.scores[0].breakdown).toHaveLength(2);
-    });
-  });
-
-  describe("Error Handling", () => {
+   * These tests have been moved to tests/integration/api/scores-calculate.test.ts
+   * because they require a real database connection.
+   *
+   * Story 1.7 Task 3: Integration tests now verify:
+   * - returns 200 with scores and correlationId
+   * - response includes breakdown for each score
+   *
+   * The scoring logic itself is tested in tests/unit/calculations/scoring-engine.test.ts
+   *
+   * @see tests/integration/api/scores-calculate.test.ts
+   */ describe("Error Handling", () => {
     /**
-     * NOTE: These tests require proper Drizzle ORM mocking to simulate the database queries.
-     * The route first queries the database for portfolios and assets before calling the service.
-     * Without proper DB mocking, we can't test the service-level error handling.
+     * DB-DEPENDENT ERROR TESTS
      *
-     * The error handling logic IS verified by:
-     * 1. The route code inspection (lines 238-278 in route.ts)
-     * 2. The scoring engine tests (tests/unit/calculations/scoring-engine.test.ts)
+     * Tests for NO_CRITERIA and NO_ASSETS have been moved to
+     * tests/integration/api/scores-calculate.test.ts because they require
+     * real database interactions.
+     *
+     * Story 1.7: Integration tests now verify:
+     * - returns 404 when no criteria found
+     * - returns 404 when no assets found
+     *
+     * @see tests/integration/api/scores-calculate.test.ts
      */
-    it.skip("returns 404 when no criteria found (requires DB mock)", async () => {
-      setupMockAssets();
-      vi.mocked(calculateAndPersistScores).mockRejectedValue(new Error("NO_CRITERIA"));
-
-      const request = new NextRequest("http://localhost:3000/api/scores/calculate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
-        },
-        body: JSON.stringify({}),
-      });
-
-      const response = await POST(request, {} as never);
-      expect(response.status).toBe(404);
-
-      const body = await response.json();
-      expect(body.code).toBe("NO_CRITERIA");
-    });
-
-    it.skip("returns 404 when no assets found (requires DB mock)", async () => {
-      // NOTE: When DB returns empty, route returns 404 before calling service
-      // This test verifies the route's own NO_ASSETS handling (line 181-194)
-
-      const request = new NextRequest("http://localhost:3000/api/scores/calculate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
-        },
-        body: JSON.stringify({}),
-      });
-
-      const response = await POST(request, {} as never);
-      expect(response.status).toBe(404);
-
-      const body = await response.json();
-      expect(body.code).toBe("NO_ASSETS");
-    });
 
     it("returns 500 for unexpected errors when DB mock fails", async () => {
       // This tests that the route has proper error handling

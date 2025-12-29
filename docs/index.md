@@ -1,8 +1,9 @@
 # Investments Planner - Brownfield Project Documentation
 
 > **AI-Optimized Reference Documentation**
-> Last Updated: 2025-12-20
-> Documentation Version: 1.0.0
+> Last Updated: 2025-12-26
+> Documentation Version: 1.1.0
+> Scan Level: Exhaustive
 
 ## Project Overview
 
@@ -28,13 +29,13 @@
 
 - [Architecture Overview](./architecture-overview.md) - System design, patterns, data flow
 - [Database Schema](./database-schema.md) - 17 tables with relationships
-- [API Reference](./api-reference.md) - 59 REST endpoints
+- [API Reference](./api-reference.md) - 62 REST endpoints
 - [Data Flow](./data-flow.md) - Request lifecycle and caching
 
 ### Implementation Reference
 
 - [Source Tree](./source-tree.md) - Annotated directory structure
-- [Component Catalog](./component-catalog.md) - 116 React components
+- [Component Catalog](./component-catalog.md) - 107 React components
 - [Service Layer](./service-layer.md) - 26 business logic services
 - [Hooks Reference](./hooks-reference.md) - 21 custom React hooks
 
@@ -143,8 +144,8 @@ investments-planner/
 │   │   ├── (auth)/            # Auth pages (login, register, verify)
 │   │   ├── (dashboard)/       # Protected pages (portfolio, criteria, strategy)
 │   │   ├── (legal)/           # Legal pages (terms, privacy, disclaimer)
-│   │   └── api/               # 59 API route handlers
-│   ├── components/            # 116 React components
+│   │   └── api/               # 62 API route handlers
+│   ├── components/            # 107 React components
 │   │   ├── ui/               # 22 base UI components (shadcn/ui)
 │   │   ├── portfolio/        # Portfolio management
 │   │   ├── strategy/         # Asset class configuration
@@ -267,20 +268,20 @@ External data fetched via abstraction layer with:
 
 ## API Overview
 
-**59 REST Endpoints** across 15 domains:
+**62 REST Endpoints** across 15 domains:
 
 | Domain          | Endpoints | Key Features                                  |
 | --------------- | --------- | --------------------------------------------- |
 | Auth            | 9         | JWT tokens, rate limiting, email verification |
 | Portfolios      | 5         | CRUD, asset management, allocations           |
 | Assets          | 3         | Update, delete, toggle ignore                 |
-| Scores          | 5         | Calculate, history, breakdown, replay         |
+| Scores          | 6         | Calculate, history, breakdown, replay, inputs |
 | Criteria        | 6         | CRUD, compare, preview impact                 |
 | Recommendations | 3         | Generate, retrieve, breakdown                 |
-| Asset Classes   | 6         | Classes, subclasses, validation               |
-| User            | 5         | Profile, settings, export, delete             |
+| Asset Classes   | 7         | Classes, subclasses, validation, counts       |
+| User            | 6         | Profile, settings, export, delete, alerts     |
 | Investments     | 2         | Record, history                               |
-| Data            | 5         | Prices, rates, fundamentals, refresh          |
+| Data            | 6         | Prices, rates, fundamentals, refresh, convert |
 | Alerts          | 5         | List, read, dismiss                           |
 | Health          | 2         | DB check, provider status                     |
 | Dashboard       | 1         | Aggregated data                               |

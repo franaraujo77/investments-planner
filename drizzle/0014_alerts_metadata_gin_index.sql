@@ -11,4 +11,4 @@ ALTER TABLE "alerts" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now
 
 -- Create GIN index for JSONB metadata queries
 -- Using jsonb_path_ops for efficient containment and key-value queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS "alerts_metadata_gin_idx" ON "alerts" USING gin ("metadata" jsonb_path_ops);
+CREATE INDEX IF NOT EXISTS "alerts_metadata_gin_idx" ON "alerts" USING gin ("metadata" jsonb_path_ops);

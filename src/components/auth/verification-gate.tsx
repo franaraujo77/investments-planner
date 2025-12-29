@@ -84,6 +84,7 @@ export function VerificationGate({ children }: VerificationGateProps) {
             email: data.user.email,
             name: data.user.name,
             baseCurrency: data.user.baseCurrency,
+            locale: data.user.locale ?? "en-US",
             emailVerified: data.user.emailVerified,
             disclaimerAcknowledgedAt: data.user.disclaimerAcknowledgedAt,
             createdAt: data.user.createdAt,

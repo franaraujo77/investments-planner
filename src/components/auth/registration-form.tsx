@@ -3,18 +3,19 @@
 /**
  * Registration Form Component
  *
- * Story 2.1: User Registration Flow
+ * Story 1.1: User Registration with Email
  *
- * AC1: Valid email (RFC 5322) and password
- * AC2: Password complexity requirements
- * AC3: Password strength meter (integrated)
- * AC4: Inline validation errors (red, 14px)
- * AC5: Submit button disabled until form valid
- * AC7: Financial disclaimer checkbox
- * AC8: Success message
+ * AC-1.1.3: Email validation (RFC 5322) and password
+ * AC-1.1.4: Password complexity requirements
+ * AC-1.1.5: Confirm password must match password
+ * AC-1.1.6: Financial disclaimer checkbox required
+ * AC-1.1.9: Success message on registration
+ * AC-1.1.11: Inline validation errors
  *
- * Story 9.5: Terms of Service & Privacy Policy
- * AC-9.5.3: Links to Terms and Privacy visible near registration submit button
+ * Additional Features:
+ * - Password strength meter (visual feedback)
+ * - Submit button disabled until form valid
+ * - Terms of Service & Privacy Policy links
  */
 
 import * as React from "react";
@@ -53,6 +54,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
     defaultValues: {
       email: "",
       password: "",
+      confirmPassword: "",
       name: "",
       disclaimerAcknowledged: false,
     },
@@ -71,10 +73,13 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
     setSuccessMessage(null);
 
     try {
+      // Exclude confirmPassword from API call - backend doesn't need it
+      const { confirmPassword: _confirmPassword, ...registrationData } = data;
+
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(registrationData),
       });
 
       const result = await response.json();
@@ -168,7 +173,7 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label="Toggle visibility"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -176,6 +181,40 @@ export function RegistrationForm({ onSuccess }: RegistrationFormProps) {
               <FormMessage className="text-[14px]" />
               {/* Password Strength Meter (AC3) */}
               {password && <PasswordStrengthMeter password={password} />}
+            </FormItem>
+          )}
+        />
+
+        {/* Confirm Password Field (AC-1.1.5) */}
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Confirm Password <span className="text-destructive">*</span>
+              </FormLabel>
+              <div className="relative">
+                <FormControl>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    autoComplete="new-password"
+                    className="pr-10"
+                    {...field}
+                  />
+                </FormControl>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                  aria-label="Toggle visibility"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <FormMessage className="text-[14px]" />
             </FormItem>
           )}
         />

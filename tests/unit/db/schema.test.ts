@@ -260,34 +260,19 @@ describe("Multi-tenant Isolation (AC: 5)", () => {
 });
 
 /**
- * INTEGRATION TESTS - These tests require a real database connection.
+ * DATABASE INTEGRATION TESTS
  *
- * Story 1.7 AC-1.7.3 specifies these should be moved to tests/integration/.
- * They verify database behavior that cannot be mocked effectively:
- * - Migration success
- * - Foreign key cascade behavior
- * - Referential integrity
- * - Index existence
+ * These tests have been moved to tests/integration/db/schema.test.ts
+ * because they require a real database connection.
+ *
+ * Story 1.7 Task 3: Integration tests now verify:
+ * - Migration success (all expected tables exist)
+ * - Foreign key cascade on refresh_tokens
+ * - Referential integrity on calculation_events
+ * - Indexes on correlation_id and user_id
+ * - Numeric precision for monetary fields
  *
  * To run: DATABASE_URL="..." pnpm test:integration
  *
- * @see Story 1.7 Task 3: Set Up Integration Test Infrastructure
+ * @see tests/integration/db/schema.test.ts
  */
-describe.skip("Database Integration (requires DATABASE_URL)", () => {
-  it("should run migrations successfully", async () => {
-    // Would use drizzle-kit migrate programmatically
-    // or verify tables exist via SQL query
-  });
-
-  it("should enforce foreign key cascade on refresh_tokens", async () => {
-    // Would insert user, insert token, delete user, verify token is gone
-  });
-
-  it("should maintain referential integrity on calculation_events", async () => {
-    // Would verify calculation events cannot be created without valid user
-  });
-
-  it("should have indexes on correlation_id and user_id", async () => {
-    // Would query pg_indexes to verify indexes exist
-  });
-});

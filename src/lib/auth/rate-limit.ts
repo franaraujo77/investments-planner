@@ -88,9 +88,9 @@ function checkRateLimitInMemory(ip: string): RateLimitResult {
   }
 
   if (entry.attempts >= AUTH_CONSTANTS.RATE_LIMIT_MAX_ATTEMPTS) {
-    const retryAfter = Math.ceil(
-      (entry.windowStart + AUTH_CONSTANTS.RATE_LIMIT_WINDOW_MS - now) / 1000
-    );
+    // Use 15-minute lockout duration (AC-1.2.5) instead of full window
+    const lockoutEnd = entry.windowStart + AUTH_CONSTANTS.RATE_LIMIT_LOCKOUT_MS;
+    const retryAfter = Math.ceil(Math.max(0, lockoutEnd - now) / 1000);
     return {
       allowed: false,
       retryAfter,
@@ -311,6 +311,7 @@ export function _resetRateLimitStore(): void {
 
 // =============================================================================
 // EMAIL-BASED RATE LIMITING
+// Story 1.3: Password Reset Flow - Rate limit forgot-password by email
 // Story 2.2: Email Verification - Rate limit resend requests by email
 // =============================================================================
 

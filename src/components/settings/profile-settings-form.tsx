@@ -4,6 +4,7 @@
  * Profile Settings Form Component
  *
  * Story 2.6: Profile Settings & Base Currency
+ * Story 1.5: Regional Preferences and i18n Infrastructure
  *
  * Client component with auto-save functionality for profile updates.
  *
@@ -11,6 +12,8 @@
  * AC-2.6.2: Currency dropdown with 8 options
  * AC-2.6.4: Auto-save with success indicator
  * AC-2.6.5: Name field max 100 characters
+ * AC-1.5.1: Locale selection on settings page
+ * AC-1.5.5: Supported locales dropdown
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -29,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUser } from "@/contexts/user-context";
+import { SUPPORTED_LOCALES, type Locale } from "@/lib/i18n";
 
 /**
  * Supported currencies for base currency setting
@@ -46,12 +51,20 @@ const SUPPORTED_CURRENCIES = [
 ] as const;
 
 /**
+ * Locale values for Zod validation
+ * Derived from canonical SUPPORTED_LOCALES (AC-1.5.5)
+ */
+const LOCALE_VALUES = SUPPORTED_LOCALES.map((l) => l.value) as [Locale, ...Locale[]];
+
+/**
  * Form validation schema
  * AC-2.6.5: Name max 100 characters
+ * AC-1.5.1: Locale from allowed list
  */
 const profileSchema = z.object({
   name: z.string().max(100, "Name must be 100 characters or less"),
   baseCurrency: z.enum(["USD", "EUR", "GBP", "BRL", "CAD", "AUD", "JPY", "CHF"]),
+  locale: z.enum(LOCALE_VALUES),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -60,6 +73,7 @@ interface ProfileSettingsFormProps {
   initialData: {
     name: string | null;
     baseCurrency: string;
+    locale: string;
   };
 }
 
@@ -80,9 +94,11 @@ function debounce<T extends (...args: Parameters<T>) => void>(
 export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const { setLocale: setUserLocale } = useUser();
   const [lastSavedData, setLastSavedData] = useState<ProfileFormData>({
     name: initialData.name ?? "",
     baseCurrency: initialData.baseCurrency as ProfileFormData["baseCurrency"],
+    locale: initialData.locale as Locale,
   });
 
   const form = useForm<ProfileFormData>({
@@ -90,6 +106,7 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
     defaultValues: {
       name: initialData.name ?? "",
       baseCurrency: initialData.baseCurrency as ProfileFormData["baseCurrency"],
+      locale: initialData.locale as Locale,
     },
     mode: "onChange",
   });
@@ -104,11 +121,16 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
   /**
    * Save profile to API
    * AC-2.6.4: Auto-save with success indicator
+   * AC-1.5.1: Updates locale context when locale changes
    */
   const saveProfile = useCallback(
     async (data: ProfileFormData) => {
       // Only save if data has changed
-      if (data.name === lastSavedData.name && data.baseCurrency === lastSavedData.baseCurrency) {
+      if (
+        data.name === lastSavedData.name &&
+        data.baseCurrency === lastSavedData.baseCurrency &&
+        data.locale === lastSavedData.locale
+      ) {
         return;
       }
 
@@ -122,6 +144,7 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
           body: JSON.stringify({
             name: data.name || undefined,
             baseCurrency: data.baseCurrency,
+            locale: data.locale,
           }),
         });
 
@@ -133,6 +156,11 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
         // Update last saved data
         setLastSavedData(data);
 
+        // Update locale context if locale changed (AC-1.5.1)
+        if (data.locale !== lastSavedData.locale) {
+          setUserLocale(data.locale);
+        }
+
         // Show success indicator
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
@@ -142,7 +170,7 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
         setIsSaving(false);
       }
     },
-    [lastSavedData]
+    [lastSavedData, setUserLocale]
   );
 
   /**
@@ -161,10 +189,15 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
    */
   useEffect(() => {
     const subscription = watch((value) => {
-      if (value.name !== undefined && value.baseCurrency !== undefined) {
+      if (
+        value.name !== undefined &&
+        value.baseCurrency !== undefined &&
+        value.locale !== undefined
+      ) {
         debouncedSaveRef.current({
           name: value.name,
           baseCurrency: value.baseCurrency as ProfileFormData["baseCurrency"],
+          locale: value.locale as Locale,
         });
       }
     });
@@ -179,14 +212,33 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
     setValue("baseCurrency", value as ProfileFormData["baseCurrency"]);
     // Save immediately on currency change (no debounce needed for select)
     const currentName = watch("name");
+    const currentLocale = watch("locale");
     saveProfile({
       name: currentName,
       baseCurrency: value as ProfileFormData["baseCurrency"],
+      locale: currentLocale,
+    });
+  };
+
+  /**
+   * Handle locale change
+   * AC-1.5.1: Immediately triggers save (no debounce for select changes)
+   */
+  const handleLocaleChange = (value: string) => {
+    setValue("locale", value as Locale);
+    // Save immediately on locale change (no debounce needed for select)
+    const currentName = watch("name");
+    const currentCurrency = watch("baseCurrency");
+    saveProfile({
+      name: currentName,
+      baseCurrency: currentCurrency,
+      locale: value as Locale,
     });
   };
 
   const currentName = watch("name");
   const currentCurrency = watch("baseCurrency");
+  const currentLocale = watch("locale");
   const nameLength = currentName?.length ?? 0;
 
   return (
@@ -263,6 +315,26 @@ export function ProfileSettingsForm({ initialData }: ProfileSettingsFormProps) {
             </Select>
             <p className="text-sm text-muted-foreground">
               All portfolio values will be displayed in this currency.
+            </p>
+          </div>
+
+          {/* Locale Field - AC-1.5.1, AC-1.5.5 */}
+          <div className="space-y-2">
+            <Label htmlFor="locale">Language & Region</Label>
+            <Select value={currentLocale} onValueChange={handleLocaleChange}>
+              <SelectTrigger id="locale" className="w-full sm:w-[280px]">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_LOCALES.map((locale) => (
+                  <SelectItem key={locale.value} value={locale.value}>
+                    {locale.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Numbers and dates will be formatted according to this locale.
             </p>
           </div>
         </div>

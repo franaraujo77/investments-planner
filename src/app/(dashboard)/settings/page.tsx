@@ -19,11 +19,13 @@ export const metadata: Metadata = {
  * Story 2.6: Profile Settings & Base Currency
  * Story 2.7: Data Export
  * Story 2.8: Account Deletion
+ * Story 1.5: Regional Preferences and i18n Infrastructure
  *
  * Server component that fetches user data and renders the profile form.
  * AC-2.6.1: Settings page shows name and base currency fields
  * AC-2.7.1: Export button on Settings page
  * AC-2.8.1: Delete Account button styled as destructive action
+ * AC-1.5.1: Locale selection on settings page
  */
 export default async function SettingsPage() {
   // Get access token from cookies
@@ -61,6 +63,7 @@ export default async function SettingsPage() {
         initialData={{
           name: user.name,
           baseCurrency: user.baseCurrency,
+          locale: user.locale,
         }}
       />
 

@@ -106,6 +106,20 @@
       "when": 1766144693115,
       "tag": "0014_alerts_metadata_gin_index",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1766374857000,
+      "tag": "0015_enable_rls_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1766915571842,
+      "tag": "0016_add_locale_to_users",
+      "breakpoints": true
     }
   ]
 }

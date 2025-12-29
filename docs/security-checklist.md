@@ -58,8 +58,32 @@ CREATE POLICY "authenticated_read_shared_data"
 
 The following checks run automatically on PRs:
 
-1. **`pnpm security:check-rls`** - Verifies all schema tables have RLS in migrations
-2. **Supabase security advisors** - Run manually: check Supabase dashboard → Advisors
+1. **`pnpm security:check-rls`** - Verifies all schema tables have RLS in migrations (static check)
+2. **`pnpm security:splinter`** - Supabase Splinter database linter (live database check)
+3. **Supabase security advisors** - Run manually: check Supabase dashboard → Advisors
+
+### Splinter Integration
+
+Splinter runs as part of the integration tests CI pipeline and checks for:
+
+| Severity | Rule                            | Description                              |
+| -------- | ------------------------------- | ---------------------------------------- |
+| ERROR    | `auth_users_exposed`            | auth.users exposed to anon/authenticated |
+| ERROR    | `rls_disabled_in_public`        | Tables without RLS in public schema      |
+| ERROR    | `insecure_queue_exposed_in_api` | pgmq queues without RLS                  |
+| WARN     | `unindexed_foreign_keys`        | FK columns missing indexes               |
+| WARN     | `rls_enabled_no_policy`         | RLS enabled but no policies              |
+| WARN     | `security_definer_view`         | Views with SECURITY DEFINER              |
+
+**ERROR-level** issues will fail the CI pipeline. **WARN-level** issues are reported but won't fail.
+
+Run locally before pushing:
+
+```bash
+pnpm security:splinter
+```
+
+For more details, see [docs/development-setup.md](./development-setup.md#database-linting-with-splinter).
 
 ## Manual Verification
 

@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Project-specific ignores:
     ".bmad/**",
+    "_bmad/**",
+    "_bmad-output/**",
   ]),
   // Allow underscore-prefixed variables to be unused (common pattern for intentionally unused params)
   {
@@ -51,6 +53,13 @@ const eslintConfig = defineConfig([
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "no-console": "off",
+    },
+  },
+  // Playwright fixtures use a `use` function that ESLint incorrectly flags as a React hook
+  {
+    files: ["tests/e2e/fixtures/**/*.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
     },
   },
 ]);

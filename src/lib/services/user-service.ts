@@ -10,6 +10,7 @@ import { logger, redactUserId } from "@/lib/telemetry/logger";
 import { users, type User } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { invalidateRecommendations } from "@/lib/cache/recommendations";
+import { isValidLocale } from "@/lib/i18n";
 
 /**
  * Supported currencies for base currency setting
@@ -29,19 +30,25 @@ export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
 /**
  * Profile update data
+ *
+ * Story 2.6: Profile Settings & Base Currency
+ * Story 1.5: Regional Preferences and i18n Infrastructure (locale)
  */
 export interface UpdateProfileData {
   name?: string;
   baseCurrency?: string;
+  locale?: string;
 }
 
 /**
  * Updates a user's profile
  *
  * Story 2.6: Profile Settings & Base Currency
+ * Story 1.5: Regional Preferences and i18n Infrastructure
  *
  * AC-2.6.3: Invalidates recommendation cache when currency changes
  * AC-2.6.5: Validates name length (max 100 chars)
+ * AC-1.5.1: Validates locale against SUPPORTED_LOCALES
  *
  * @param userId - User ID to update
  * @param data - Profile data to update
@@ -68,6 +75,13 @@ export async function updateUserProfile(userId: string, data: UpdateProfileData)
     }
   }
 
+  // Validate locale if provided (AC-1.5.1)
+  if (data.locale !== undefined) {
+    if (!isValidLocale(data.locale)) {
+      throw new Error("Invalid locale");
+    }
+  }
+
   // Build update object only with provided fields
   const updateData: Partial<User> = {
     updatedAt: new Date(),
@@ -79,6 +93,10 @@ export async function updateUserProfile(userId: string, data: UpdateProfileData)
 
   if (data.baseCurrency !== undefined) {
     updateData.baseCurrency = data.baseCurrency;
+  }
+
+  if (data.locale !== undefined) {
+    updateData.locale = data.locale;
   }
 
   // Perform update

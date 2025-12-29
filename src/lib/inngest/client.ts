@@ -93,6 +93,30 @@ export type Events = {
       error?: string | undefined;
     };
   };
+
+  /**
+   * Triggered when a user requests their data export
+   * Story 1.6: GDPR Compliance - AC-1.6.1, AC-1.6.2
+   */
+  "email/data-export.requested": {
+    data: {
+      userId: string;
+      email: string;
+    };
+  };
+
+  /**
+   * Triggered when a user deletes their account
+   * Story 1.6: GDPR Compliance - AC-1.6.4
+   */
+  "email/account-deleted.requested": {
+    data: {
+      userId: string;
+      email: string;
+      scheduledPurgeDate: string; // ISO date string
+      gracePeriodDays: number;
+    };
+  };
 };
 
 /**

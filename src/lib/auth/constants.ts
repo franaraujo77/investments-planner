@@ -30,11 +30,14 @@ export const AUTH_CONSTANTS = {
   /** bcrypt cost factor for password hashing */
   BCRYPT_COST_FACTOR: 12,
 
-  /** Rate limit: maximum failed login attempts per hour per IP */
+  /** Rate limit: maximum failed login attempts per IP */
   RATE_LIMIT_MAX_ATTEMPTS: 5,
 
-  /** Rate limit window: 1 hour in milliseconds */
+  /** Rate limit window: 1 hour in milliseconds (attempts reset after this) */
   RATE_LIMIT_WINDOW_MS: 60 * 60 * 1000,
+
+  /** Rate limit lockout duration: 15 minutes in milliseconds (AC-1.2.5) */
+  RATE_LIMIT_LOCKOUT_MS: 15 * 60 * 1000,
 } as const;
 
 /**

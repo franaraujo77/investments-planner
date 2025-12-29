@@ -2,6 +2,7 @@
  * Account Management API Route
  *
  * Story 2.8: Account Deletion
+ * Story 1.6: GDPR Compliance - AC-1.6.4 (confirmation email)
  *
  * DELETE /api/user/account - Delete user account (soft delete)
  *
@@ -19,6 +20,8 @@ import { z } from "zod";
 import { withAuth } from "@/lib/auth/middleware";
 import { handleDbError, databaseError, type ErrorResponseBody } from "@/lib/api/responses";
 import { deleteUserAccount, PURGE_DELAY_DAYS } from "@/lib/services/account-service";
+import { inngest } from "@/lib/inngest/client";
+import { logger, redactUserId, redactEmail } from "@/lib/telemetry/logger";
 import type { AuthError } from "@/lib/auth/types";
 
 /**
@@ -74,6 +77,30 @@ export const DELETE = withAuth<DeleteAccountResponse | ErrorResponseBody>(
 
       // Perform account deletion
       const result = await deleteUserAccount(session.userId);
+
+      // Queue confirmation email via Inngest (Story 1.6: AC-1.6.4)
+      try {
+        await inngest.send({
+          name: "email/account-deleted.requested",
+          data: {
+            userId: session.userId,
+            email: session.email,
+            scheduledPurgeDate: result.scheduledPurgeDate.toISOString(),
+            gracePeriodDays: PURGE_DELAY_DAYS,
+          },
+        });
+        logger.info("Account deletion confirmation email queued", {
+          userId: redactUserId(session.userId),
+          email: redactEmail(session.email),
+          scheduledPurgeDate: result.scheduledPurgeDate.toISOString(),
+        });
+      } catch (emailError) {
+        // Log but don't fail the deletion - email is non-critical
+        logger.warn("Failed to queue account deletion email", {
+          userId: redactUserId(session.userId),
+          errorMessage: emailError instanceof Error ? emailError.message : String(emailError),
+        });
+      }
 
       // Return success response
       // Client should clear cookies and redirect to homepage

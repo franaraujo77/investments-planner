@@ -4,15 +4,17 @@
  * Export Data Section Component
  *
  * Story 2.7: Data Export
+ * Story 1.6: GDPR Compliance - AC-1.6.1, AC-1.6.2
  *
- * Client component that allows users to export all their data as a ZIP file.
+ * Client component that allows users to request their data export.
+ * Export is generated asynchronously and sent via email.
  *
- * AC-2.7.1: "Export My Data" button on Settings page
- * AC-2.7.5: Progress indicator shows during generation, button disabled during export
+ * AC-1.6.1: Request export, receive email with download link (within 24h)
+ * AC-1.6.2: Export contains all user data in JSON format
  */
 
 import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,47 +22,37 @@ import { Button } from "@/components/ui/button";
 /**
  * Export Data Section
  *
- * Displays a card with export functionality for user data.
- * Handles the export flow including loading state and download trigger.
+ * Displays a card with export request functionality for user data.
+ * Handles the export request flow including loading state.
  */
 export function ExportDataSection() {
-  const [isExporting, setIsExporting] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
 
   /**
-   * Handles the export process
+   * Handles the export request
    *
-   * AC-2.7.2: Downloads ZIP with portfolio.json, criteria.json, history.json, README.txt
-   * AC-2.7.5: Shows loading state during export, disables button
+   * Story 1.6: GDPR Compliance
+   * AC-1.6.1: Request queued, email sent when ready
+   * Rate limited to 1 request per 24 hours
    */
-  const handleExport = async () => {
-    setIsExporting(true);
+  const handleExportRequest = async () => {
+    setIsRequesting(true);
     try {
-      const response = await fetch("/api/user/export");
+      const response = await fetch("/api/user/export", {
+        method: "POST",
+      });
+
+      const data = await response.json();
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Export failed");
+        throw new Error(data.error || "Export request failed");
       }
 
-      // Create blob from response
-      const blob = await response.blob();
-
-      // Create download link and trigger download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `investments-planner-export-${new Date().toISOString().split("T")[0]}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast.success("Export downloaded successfully");
+      toast.success("Export request received! You'll receive an email with your download link.");
     } catch (error) {
-      // Error displayed to user via toast - no additional logging needed in client
-      toast.error(error instanceof Error ? error.message : "Failed to export data");
+      toast.error(error instanceof Error ? error.message : "Failed to request export");
     } finally {
-      setIsExporting(false);
+      setIsRequesting(false);
     }
   };
 
@@ -68,25 +60,29 @@ export function ExportDataSection() {
     <div className="rounded-lg border bg-card p-6">
       <h2 className="text-lg font-semibold mb-2">Export Your Data</h2>
       <p className="text-sm text-muted-foreground mb-4">
-        Download a copy of all your data including portfolios, scoring criteria, and investment
-        history. The export will be in JSON format for easy backup and analysis.
+        Request a copy of all your data including your profile, portfolios, scoring criteria, and
+        investment history. The export will be generated and you&apos;ll receive an email with a
+        download link within 24 hours.
+      </p>
+      <p className="text-xs text-muted-foreground mb-4">
+        Note: You can request one export every 24 hours. The download link expires after 24 hours.
       </p>
 
       <Button
-        onClick={handleExport}
-        disabled={isExporting}
+        onClick={handleExportRequest}
+        disabled={isRequesting}
         variant="outline"
         className="w-full sm:w-auto"
       >
-        {isExporting ? (
+        {isRequesting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Exporting...
+            Requesting...
           </>
         ) : (
           <>
-            <Download className="mr-2 h-4 w-4" />
-            Export My Data
+            <Mail className="mr-2 h-4 w-4" />
+            Request Data Export
           </>
         )}
       </Button>

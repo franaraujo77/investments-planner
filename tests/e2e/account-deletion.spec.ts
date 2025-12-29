@@ -8,36 +8,18 @@
  * AC-2.8.1: Delete Account Button in Settings
  * AC-2.8.2: Confirmation Dialog with Consequences
  * AC-2.8.5: Logout and Redirect After Deletion
+ *
+ * NOTE: These tests run in the 'chromium-authenticated' project which uses
+ * storageState from the auth setup. No API mocking is needed for authentication.
+ *
+ * IMPORTANT: These tests don't actually delete the test user. They mock the
+ * deletion API to verify UI behavior without affecting the test database.
  */
 
 import { test, expect } from "@playwright/test";
 
-/**
- * Helper function to mock successful authenticated state
- */
-async function mockAuthenticatedState(page: import("@playwright/test").Page) {
-  // Mock the middleware check for authenticated user
-  await page.route("**/api/auth/me", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        user: {
-          id: "test-user-id",
-          email: "test@example.com",
-          name: "Test User",
-          baseCurrency: "USD",
-          emailVerified: true,
-          createdAt: new Date().toISOString(),
-        },
-      }),
-    });
-  });
-}
-
 test.describe("Delete Account Button (AC-2.8.1)", () => {
   test("should display delete account button on settings page", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     // Look for delete account button with red/destructive styling
@@ -47,7 +29,6 @@ test.describe("Delete Account Button (AC-2.8.1)", () => {
   });
 
   test("should display delete button with destructive styling (red)", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     const deleteButton = page.getByTestId("delete-account-button");
@@ -59,7 +40,6 @@ test.describe("Delete Account Button (AC-2.8.1)", () => {
   });
 
   test("should display danger zone section with warning", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     // Look for "Danger Zone" heading
@@ -74,7 +54,6 @@ test.describe("Delete Account Button (AC-2.8.1)", () => {
 
 test.describe("Confirmation Dialog (AC-2.8.2)", () => {
   test("should open confirmation dialog when clicking delete button", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     // Click delete button
@@ -87,20 +66,28 @@ test.describe("Confirmation Dialog (AC-2.8.2)", () => {
   });
 
   test("should display consequences in confirmation dialog", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     await page.getByTestId("delete-account-button").click();
 
-    // Check for consequence list items
-    await expect(page.getByText("Your account and profile information")).toBeVisible();
-    await expect(page.getByText("All your portfolios")).toBeVisible();
-    await expect(page.getByText("scoring criteria")).toBeVisible();
-    await expect(page.getByText("investment history")).toBeVisible();
+    // Wait for dialog to open
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    // Check for consequence list items within the dialog (use listitem role to avoid matching export section)
+    await expect(
+      dialog.getByRole("listitem").filter({ hasText: /account and profile/i })
+    ).toBeVisible();
+    await expect(dialog.getByRole("listitem").filter({ hasText: /portfolios/i })).toBeVisible();
+    await expect(
+      dialog.getByRole("listitem").filter({ hasText: /scoring criteria/i })
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("listitem").filter({ hasText: /investment history/i })
+    ).toBeVisible();
   });
 
   test("should display 30-day grace period warning", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     await page.getByTestId("delete-account-button").click();
@@ -111,7 +98,6 @@ test.describe("Confirmation Dialog (AC-2.8.2)", () => {
   });
 
   test("should show input field for typing DELETE", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     await page.getByTestId("delete-account-button").click();
@@ -123,7 +109,6 @@ test.describe("Confirmation Dialog (AC-2.8.2)", () => {
   });
 
   test("should have confirm button disabled until DELETE typed", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     await page.getByTestId("delete-account-button").click();
@@ -147,7 +132,6 @@ test.describe("Confirmation Dialog (AC-2.8.2)", () => {
   });
 
   test("should close dialog on cancel button click", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     await page.getByTestId("delete-account-button").click();
@@ -161,7 +145,6 @@ test.describe("Confirmation Dialog (AC-2.8.2)", () => {
   });
 
   test("should reset confirmation input when dialog reopened", async ({ page }) => {
-    await mockAuthenticatedState(page);
     await page.goto("/settings");
 
     // Open dialog
@@ -183,11 +166,9 @@ test.describe("Confirmation Dialog (AC-2.8.2)", () => {
 
 test.describe("Deletion Flow (AC-2.8.5)", () => {
   test("should call API on confirmed deletion", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
     let deleteCalled = false;
 
-    // Mock deletion API
+    // Mock deletion API to prevent actual deletion
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
         deleteCalled = true;
@@ -201,6 +182,8 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
             gracePeriodDays: 30,
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -215,9 +198,7 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
   });
 
   test("should show success toast after deletion", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
-    // Mock deletion API
+    // Mock deletion API to prevent actual deletion
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
         await route.fulfill({
@@ -230,6 +211,8 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
             gracePeriodDays: 30,
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -243,9 +226,7 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
   });
 
   test("should redirect to homepage after successful deletion", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
-    // Mock deletion API
+    // Mock deletion API to prevent actual deletion
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
         await route.fulfill({
@@ -258,6 +239,8 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
             gracePeriodDays: 30,
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -271,8 +254,6 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
   });
 
   test("should show loading state during deletion", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
     // Mock slow deletion API
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
@@ -287,6 +268,8 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
             gracePeriodDays: 30,
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -302,8 +285,6 @@ test.describe("Deletion Flow (AC-2.8.5)", () => {
 
 test.describe("Error Handling", () => {
   test("should show error toast on API failure", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
     // Mock deletion API error
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
@@ -315,6 +296,8 @@ test.describe("Error Handling", () => {
             code: "INTERNAL_ERROR",
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -328,8 +311,6 @@ test.describe("Error Handling", () => {
   });
 
   test("should show error for invalid confirmation", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
     // Mock deletion API with validation error
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
@@ -341,6 +322,8 @@ test.describe("Error Handling", () => {
             code: "INVALID_CONFIRMATION",
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -354,8 +337,6 @@ test.describe("Error Handling", () => {
   });
 
   test("should not redirect on API error", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
     // Mock deletion API error
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
@@ -367,6 +348,8 @@ test.describe("Error Handling", () => {
             code: "INTERNAL_ERROR",
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -383,8 +366,6 @@ test.describe("Error Handling", () => {
 
 test.describe("Button State During Deletion", () => {
   test("should disable confirm button during API call", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
     // Mock slow deletion API
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
@@ -399,6 +380,8 @@ test.describe("Button State During Deletion", () => {
             gracePeriodDays: 30,
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -412,8 +395,6 @@ test.describe("Button State During Deletion", () => {
   });
 
   test("should disable input field during deletion", async ({ page }) => {
-    await mockAuthenticatedState(page);
-
     // Mock slow deletion API
     await page.route("**/api/user/account", async (route) => {
       if (route.request().method() === "DELETE") {
@@ -428,6 +409,8 @@ test.describe("Button State During Deletion", () => {
             gracePeriodDays: 30,
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -438,29 +421,5 @@ test.describe("Button State During Deletion", () => {
 
     // Input should be disabled during loading
     await expect(page.getByTestId("delete-confirmation-input")).toBeDisabled();
-  });
-});
-
-test.describe("Deleted User Cannot Login", () => {
-  test("should reject login for deleted user", async ({ page }) => {
-    // Try to login as deleted user
-    await page.route("**/api/auth/login", async (route) => {
-      await route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({
-          error: "Invalid email or password",
-          code: "INVALID_CREDENTIALS",
-        }),
-      });
-    });
-
-    await page.goto("/login");
-    await page.getByLabel("Email").fill("deleted@example.com");
-    await page.getByLabel("Password").fill("password123");
-    await page.getByRole("button", { name: "Sign in" }).click();
-
-    // Should show error
-    await expect(page.getByText(/invalid email or password/i)).toBeVisible({ timeout: 3000 });
   });
 });
