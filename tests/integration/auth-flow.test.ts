@@ -4,12 +4,23 @@
  * Tests for Story 1.3: Full authentication flow integration tests
  * AC: 1, 2, 3, 4, 5
  *
- * NOTE: These tests require Vitest (Story 1.7) to be installed.
- * NOTE: Integration tests require DATABASE_URL configured.
- * Run with: pnpm test
+ * IMPORTANT: These are API integration tests that require:
+ * 1. A running Next.js server (pnpm dev)
+ * 2. DATABASE_URL pointing to a test database
+ * 3. Database migrations applied
+ *
+ * These tests use fetch() to call actual API endpoints, making them
+ * more suitable for E2E testing with Playwright's API testing.
+ * Consider using tests/e2e/ for full API flow testing instead.
+ *
+ * Story 1.7 AC-1.7.3: These tests are conditionally skipped until
+ * the full integration test infrastructure is in place.
+ *
+ * Run integration tests with: DATABASE_URL=... pnpm test:integration
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, beforeAll } from "vitest";
+import { isDatabaseAvailable } from "./setup";
 
 // Mock environment before importing auth modules
 beforeEach(() => {
@@ -18,19 +29,31 @@ beforeEach(() => {
 });
 
 /**
- * These integration tests verify the complete auth flow.
- * They are marked as .skip because they require:
- * 1. A running database
- * 2. Database migrations applied
- * 3. Test isolation (cleanup between tests)
+ * Auth Flow Integration Tests
+ *
+ * These tests verify the complete auth flow via HTTP API calls.
+ * They are skipped by default because they require:
+ * 1. A running Next.js server on localhost:3000
+ * 2. A configured test database (DATABASE_URL)
+ * 3. Database migrations applied
  *
  * To run these tests:
- * 1. Set up test database
- * 2. Run migrations
- * 3. Remove .skip
+ * 1. Start the dev server: pnpm dev
+ * 2. Set DATABASE_URL to a test database
+ * 3. Run migrations: pnpm db:migrate
+ * 4. Set RUN_API_INTEGRATION_TESTS=true
  */
 
-describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
+describe("Auth Flow Integration (requires running server)", () => {
+  const shouldSkip = !process.env.RUN_API_INTEGRATION_TESTS || !isDatabaseAvailable();
+
+  beforeAll(() => {
+    if (shouldSkip) {
+      console.log(
+        "⚠️  Skipping Auth Flow Integration tests - requires RUN_API_INTEGRATION_TESTS=true and DATABASE_URL"
+      );
+    }
+  });
   describe("Register → Login → Me → Logout Flow", () => {
     const testUser = {
       email: `test-${Date.now()}@example.com`,
@@ -38,7 +61,7 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
       name: "Test User",
     };
 
-    it("should complete full registration flow", async () => {
+    it.skipIf(shouldSkip)("should complete full registration flow", async () => {
       // 1. Register
       const registerResponse = await fetch("/api/auth/register", {
         method: "POST",
@@ -57,7 +80,7 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
       expect(cookies).toContain("refresh_token");
     });
 
-    it("should complete full login flow", async () => {
+    it.skipIf(shouldSkip)("should complete full login flow", async () => {
       // Login
       const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
@@ -73,7 +96,7 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
       expect(loginData.user.email).toBe(testUser.email);
     });
 
-    it("should get current user with /me endpoint", async () => {
+    it.skipIf(shouldSkip)("should get current user with /me endpoint", async () => {
       // Login first to get cookies
       const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
@@ -97,7 +120,7 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
       expect(meData.user.email).toBe(testUser.email);
     });
 
-    it("should logout and clear cookies", async () => {
+    it.skipIf(shouldSkip)("should logout and clear cookies", async () => {
       // Login first
       const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
@@ -127,7 +150,7 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
   });
 
   describe("Token Refresh (AC: 2)", () => {
-    it("should rotate refresh tokens on refresh", async () => {
+    it.skipIf(shouldSkip)("should rotate refresh tokens on refresh", async () => {
       // Register/Login to get initial tokens
       const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
@@ -164,7 +187,7 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
   });
 
   describe("Rate Limiting (AC: 5)", () => {
-    it("should block after 5 failed login attempts", async () => {
+    it.skipIf(shouldSkip)("should block after 5 failed login attempts", async () => {
       const testEmail = "ratelimit-test@example.com";
 
       // Make 5 failed login attempts
@@ -197,7 +220,7 @@ describe.skip("Auth Flow Integration (requires DATABASE_URL)", () => {
   });
 
   describe("Cookie Security (AC: 4)", () => {
-    it("should set httpOnly, secure, sameSite on cookies", async () => {
+    it.skipIf(shouldSkip)("should set httpOnly, secure, sameSite on cookies", async () => {
       const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

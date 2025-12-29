@@ -259,8 +259,20 @@ describe("Multi-tenant Isolation (AC: 5)", () => {
   });
 });
 
-// NOTE: Integration tests requiring actual database connection
-// These would run against a test database in CI/CD
+/**
+ * INTEGRATION TESTS - These tests require a real database connection.
+ *
+ * Story 1.7 AC-1.7.3 specifies these should be moved to tests/integration/.
+ * They verify database behavior that cannot be mocked effectively:
+ * - Migration success
+ * - Foreign key cascade behavior
+ * - Referential integrity
+ * - Index existence
+ *
+ * To run: DATABASE_URL="..." pnpm test:integration
+ *
+ * @see Story 1.7 Task 3: Set Up Integration Test Infrastructure
+ */
 describe.skip("Database Integration (requires DATABASE_URL)", () => {
   it("should run migrations successfully", async () => {
     // Would use drizzle-kit migrate programmatically

@@ -53,13 +53,15 @@ describe("Cache Invalidation (AC-7.9.3)", () => {
   describe("All Expected Keys Invalidated", () => {
     const userId = "user-123";
 
-    it("should return all three cache keys for user", () => {
+    it("should return all four cache keys for user", () => {
       const keys = getAllUserCacheKeys(userId);
 
-      expect(keys).toHaveLength(3);
+      // Story 1.6: GDPR Compliance - includes export rate limit key for cleanup
+      expect(keys).toHaveLength(4);
       expect(keys).toContain(`recs:${userId}`);
       expect(keys).toContain(`portfolio:${userId}`);
       expect(keys).toContain(`allocation:${userId}`);
+      expect(keys).toContain(`rate-limit:export:${userId}`);
     });
 
     it("should generate unique keys for different users", () => {
@@ -75,7 +77,13 @@ describe("Cache Invalidation (AC-7.9.3)", () => {
   describe("Cache Error Handling", () => {
     it("should define expected cache key structure", () => {
       const userId = "test-user";
-      const expectedKeys = [`recs:${userId}`, `portfolio:${userId}`, `allocation:${userId}`];
+      // Story 1.6: GDPR Compliance - includes export rate limit key for cleanup
+      const expectedKeys = [
+        `recs:${userId}`,
+        `portfolio:${userId}`,
+        `allocation:${userId}`,
+        `rate-limit:export:${userId}`,
+      ];
 
       const actualKeys = getAllUserCacheKeys(userId);
 

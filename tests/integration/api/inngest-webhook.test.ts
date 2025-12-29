@@ -95,8 +95,12 @@ describe("Inngest Webhook Handler", () => {
       // Epic 8 function (cache warming is done inline in overnight-scoring Step 7)
       expect(functionIds).toContain("investments-planner-overnight-scoring");
 
-      // Total should be 4 functions
-      expect(functions.length).toBe(4);
+      // Story 1.6: GDPR Compliance functions
+      expect(functionIds).toContain("investments-planner-generate-data-export");
+      expect(functionIds).toContain("investments-planner-send-account-deletion-email");
+
+      // Total should be 6 functions
+      expect(functions.length).toBe(6);
     });
   });
 
