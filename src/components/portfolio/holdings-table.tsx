@@ -288,6 +288,7 @@ function HoldingRow({
       </TableCell>
 
       {/* Value (Base Currency) - with exchange rate tooltip if different currency */}
+      {/* Story 2.7: AC-2.7.1, AC-2.7.2: Enhanced exchange rate display with T-1 indicator */}
       <TableCell className="text-right font-mono font-medium">
         {needsConversion ? (
           <Tooltip>
@@ -297,9 +298,16 @@ function HoldingRow({
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              <div className="text-xs">
-                Exchange rate: 1 {asset.currency} = {parseFloat(asset.exchangeRate).toFixed(4)}{" "}
-                {baseCurrency}
+              <div className="text-xs space-y-1">
+                <p className="font-medium">
+                  1 {asset.currency} ={" "}
+                  {formatNumber(parseFloat(asset.exchangeRate), {
+                    minimumFractionDigits: 4,
+                    maximumFractionDigits: 4,
+                  })}{" "}
+                  {baseCurrency}
+                </p>
+                <p className="text-muted-foreground">Using T-1 (previous trading day) rates</p>
               </div>
             </TooltipContent>
           </Tooltip>

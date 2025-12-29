@@ -61,7 +61,7 @@ development_status:
   2-4-delete-portfolio: done
   2-5-add-holdings-to-portfolio: done
   2-6-update-and-remove-holdings: done
-  2-7-multi-currency-portfolio-display: backlog
+  2-7-multi-currency-portfolio-display: done
   2-8-investment-history: backlog
   epic-2-retrospective: optional
 

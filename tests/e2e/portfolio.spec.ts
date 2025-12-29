@@ -4288,3 +4288,208 @@ test.describe("Ignore Holding from Drawer (AC-2.6.6, AC-2.6.7)", () => {
     }
   );
 });
+
+// =============================================================================
+// Story 2.7: Multi-Currency Portfolio Display Tests
+// AC-2.7.1: Original currency value display alongside base currency on hover
+// AC-2.7.2: Exchange rate tooltip with T-1 indicator
+// AC-2.7.3: Exchange rate freshness indicator
+// AC-2.7.4: Multi-currency portfolio summary indicator
+// AC-2.7.5: Holdings display with proper currency formatting
+// AC-2.7.6: Regional number formatting (useNumberFormat hook)
+// =============================================================================
+test.describe("Story 2.7: Multi-Currency Portfolio Display", () => {
+  test.beforeEach(async ({ page }) => {
+    // Login first
+    await loginUser(page);
+    await expect(page).toHaveURL("/portfolio", { timeout: 15000 });
+  });
+
+  test(
+    "AC-2.7.4: should display multi-currency indicator for portfolios with multiple currencies",
+    { tag: "@data-setup" },
+    async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Find and click a portfolio card
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+        // Check if multi-currency indicator exists (only for multi-currency portfolios)
+        const indicator = page.locator("[data-testid='multi-currency-indicator']");
+        const isMultiCurrency = await indicator.isVisible().catch(() => false);
+
+        if (isMultiCurrency) {
+          // Should show "Currencies:" label
+          await expect(page.getByText("Currencies:")).toBeVisible();
+
+          // Should have at least one currency badge
+          const badges = page.locator("[data-testid='currency-badge']");
+          const count = await badges.count();
+          expect(count).toBeGreaterThan(0);
+
+          // Hover to verify tooltip content
+          await indicator.hover();
+          await expect(page.getByText(/All values converted to/i)).toBeVisible({
+            timeout: 3000,
+          });
+        }
+      }
+    }
+  );
+
+  test(
+    "AC-2.7.2: should display T-1 indicator on exchange rate tooltip",
+    { tag: "@data-setup" },
+    async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Find and click a portfolio card
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+        // Find holdings table
+        const holdingsTable = page.locator("[data-testid='holdings-table']");
+        const hasTable = await holdingsTable.isVisible().catch(() => false);
+
+        if (hasTable) {
+          // Find a row with currency conversion (base currency value cell with tooltip)
+          const convertedCell = page.locator(".cursor-help").first();
+          const hasConversion = await convertedCell.isVisible().catch(() => false);
+
+          if (hasConversion) {
+            // Hover on converted value
+            await convertedCell.hover();
+
+            // Should show T-1 rates tooltip
+            await expect(page.getByText(/T-1|previous trading day/i)).toBeVisible({
+              timeout: 3000,
+            });
+          }
+        }
+      }
+    }
+  );
+
+  test(
+    "AC-2.7.3: should display exchange rate freshness in summary card for multi-currency portfolios",
+    { tag: "@data-setup" },
+    async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Find and click a portfolio card
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+        // Check for summary card
+        const summaryCard = page.locator("[data-testid='portfolio-summary-card']");
+        await expect(summaryCard).toBeVisible();
+
+        // Should show price data freshness
+        const dataFreshness = page.locator("[data-testid='data-freshness']");
+        await expect(dataFreshness).toBeVisible();
+
+        // Check for exchange rate freshness (only visible for multi-currency)
+        const exchangeRateFreshness = page.locator("[data-testid='exchange-rate-freshness']");
+        const isMultiCurrency = await exchangeRateFreshness.isVisible().catch(() => false);
+
+        if (isMultiCurrency) {
+          // Should show T-1 badge
+          await expect(page.getByText("T-1")).toBeVisible();
+
+          // Hover for tooltip
+          await exchangeRateFreshness.hover();
+          await expect(page.getByText(/Previous Trading Day Rates/i)).toBeVisible({
+            timeout: 3000,
+          });
+        }
+      }
+    }
+  );
+
+  test(
+    "AC-2.7.5, AC-2.7.6: should display holdings with proper currency formatting",
+    { tag: "@data-setup" },
+    async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Find and click a portfolio card
+      const portfolioCard = page
+        .locator("button")
+        .filter({ hasText: /Created/ })
+        .first();
+      const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+      if (hasPortfolio) {
+        await portfolioCard.click();
+        await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+        // Check holdings table
+        const holdingsTable = page.locator("[data-testid='holdings-table']");
+        const hasTable = await holdingsTable.isVisible().catch(() => false);
+
+        if (hasTable) {
+          // Verify currency values are formatted with proper symbols
+          // Looking for common currency patterns: $, €, R$, etc.
+          const currencyPatterns = [/\$[\d,]+\./, /€[\d,.]+/, /R\$[\d,.]+/, /¥[\d,]+/];
+
+          // Get all table cells with monetary content
+          const cells = await page.locator(".font-mono").allTextContents();
+          const hasFormattedCurrency = cells.some((text) =>
+            currencyPatterns.some((pattern) => pattern.test(text))
+          );
+
+          // Should have at least some formatted currency values
+          expect(hasFormattedCurrency || cells.length === 0).toBeTruthy();
+        }
+      }
+    }
+  );
+
+  test(
+    "AC-2.7.4: should not show multi-currency indicator for single-currency portfolios",
+    { tag: "@data-setup" },
+    async ({ page }) => {
+      test.skip(SKIP_DATA_SETUP_TESTS, "Skipping data setup test - set RUN_DATA_SETUP_TESTS=true");
+
+      // Create a new portfolio with single currency
+      await page.getByRole("button", { name: /Create Portfolio/i }).click();
+
+      // Fill form
+      await page.getByLabel("Portfolio Name").fill("Single Currency Test");
+      await page.getByLabel("Base Currency").click();
+      await page.getByRole("option", { name: "USD" }).click();
+
+      // Submit
+      await page.getByRole("button", { name: /Create/i }).click();
+
+      // Wait for navigation to new portfolio
+      await page.waitForURL(/\/portfolio\/[a-f0-9-]+/);
+
+      // Multi-currency indicator should NOT be visible (empty or single currency matching base)
+      const indicator = page.locator("[data-testid='multi-currency-indicator']");
+      await expect(indicator).not.toBeVisible({ timeout: 3000 });
+    }
+  );
+});

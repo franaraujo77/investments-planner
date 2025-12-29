@@ -30,6 +30,7 @@ import { EmptyHoldingsState } from "@/components/portfolio/empty-holdings-state"
 import { HoldingDetailDrawer } from "@/components/portfolio/holding-detail-drawer";
 import { DeletePortfolioDialog } from "@/components/portfolio/delete-portfolio-dialog";
 import { AddAssetModal } from "@/components/portfolio/add-asset-modal";
+import { MultiCurrencyIndicator } from "@/components/portfolio/multi-currency-indicator";
 import type { PortfolioWithValues, AssetWithValue } from "@/lib/services/portfolio-service";
 import type { AssetType } from "@/lib/validations/portfolio";
 
@@ -47,6 +48,8 @@ export function PortfolioDetailClient({
     assets,
     baseCurrency,
     dataFreshness,
+    exchangeRateFreshness,
+    currencies,
     assetCount,
     activeAssetCount,
     ignoredAssetCount,
@@ -176,6 +179,9 @@ export function PortfolioDetailClient({
             ))}
           </div>
         )}
+
+        {/* Story 2.7: Multi-Currency Indicator - AC-2.7.4 */}
+        <MultiCurrencyIndicator currencies={currencies} baseCurrency={baseCurrency} />
       </div>
 
       {/* Portfolio Summary Card - always show */}
@@ -186,6 +192,8 @@ export function PortfolioDetailClient({
         assetCount={assetCount}
         ignoredAssetCount={ignoredAssetCount}
         dataFreshness={dataFreshness}
+        exchangeRateFreshness={exchangeRateFreshness}
+        currencies={currencies}
       />
 
       {/* Holdings Section */}

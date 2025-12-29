@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DollarSign, TrendingUp, Clock, EyeOff } from "lucide-react";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
+import { formatExactTime } from "@/lib/types/freshness";
 
 interface PortfolioSummaryCardProps {
   totalValueBase: string;
@@ -25,6 +26,10 @@ interface PortfolioSummaryCardProps {
   assetCount: number;
   ignoredAssetCount: number;
   dataFreshness: Date;
+  /** Story 2.7: Separate exchange rate freshness for multi-currency display */
+  exchangeRateFreshness?: Date;
+  /** Story 2.7: Currencies present in portfolio (for multi-currency display) */
+  currencies?: string[];
 }
 
 export function PortfolioSummaryCard({
@@ -34,11 +39,21 @@ export function PortfolioSummaryCard({
   assetCount,
   ignoredAssetCount,
   dataFreshness,
+  exchangeRateFreshness,
+  currencies = [],
 }: PortfolioSummaryCardProps) {
   const { formatCurrency } = useNumberFormat();
 
   // Calculate data freshness
   const freshnessInfo = getDataFreshnessInfo(dataFreshness);
+
+  // Story 2.7: Calculate exchange rate freshness separately
+  const exchangeRateFreshnessInfo = exchangeRateFreshness
+    ? getDataFreshnessInfo(exchangeRateFreshness)
+    : null;
+
+  // Story 2.7: Determine if we have multi-currency (need to show exchange rate freshness)
+  const isMultiCurrency = currencies.length > 1;
 
   return (
     <Card data-testid="portfolio-summary-card">
@@ -49,7 +64,7 @@ export function PortfolioSummaryCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           {/* Total Value - Task 3.2 */}
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Total Value</p>
@@ -98,7 +113,7 @@ export function PortfolioSummaryCard({
 
           {/* Data Freshness - Task 3.5 */}
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Data Updated</p>
+            <p className="text-sm text-muted-foreground">Price Data</p>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 cursor-help">
@@ -116,12 +131,47 @@ export function PortfolioSummaryCard({
               </TooltipTrigger>
               <TooltipContent>
                 <div className="text-xs">
-                  <p>Last price/rate update:</p>
-                  <p className="font-mono">{new Date(dataFreshness).toLocaleString()}</p>
+                  <p>Last price update:</p>
+                  <p className="font-mono">{formatExactTime(new Date(dataFreshness))}</p>
                 </div>
               </TooltipContent>
             </Tooltip>
           </div>
+
+          {/* Story 2.7: Exchange Rate Freshness - AC-2.7.2, AC-2.7.3 */}
+          {isMultiCurrency && exchangeRateFreshnessInfo && (
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Exchange Rates</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 cursor-help">
+                    <Clock className={`h-4 w-4 ${exchangeRateFreshnessInfo.colorClass}`} />
+                    <span className="text-sm font-medium" data-testid="exchange-rate-freshness">
+                      {exchangeRateFreshnessInfo.label}
+                    </span>
+                    <Badge
+                      variant={exchangeRateFreshnessInfo.isStale ? "destructive" : "secondary"}
+                      className="text-xs"
+                    >
+                      T-1
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs space-y-1">
+                    <p className="font-medium">Previous Trading Day Rates</p>
+                    <p>
+                      Updated:{" "}
+                      <span className="font-mono">
+                        {formatExactTime(new Date(exchangeRateFreshness!))}
+                      </span>
+                    </p>
+                    <p className="text-muted-foreground">MVP uses static exchange rates</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

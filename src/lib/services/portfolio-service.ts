@@ -1020,6 +1020,10 @@ export interface PortfolioWithValues {
   totalActiveValueBase: string; // Excludes ignored assets (for allocation calc)
   baseCurrency: string;
   dataFreshness: Date;
+  /** Story 2.7: Separate exchange rate freshness for multi-currency display */
+  exchangeRateFreshness: Date;
+  /** Story 2.7: Unique currencies in portfolio for multi-currency indicator */
+  currencies: string[];
   assetCount: number;
   activeAssetCount: number;
   ignoredAssetCount: number;
@@ -1189,6 +1193,9 @@ export async function getPortfolioWithValues(
   const activeAssetCount = assets.filter((a) => !a.isIgnored).length;
   const ignoredAssetCount = assetCount - activeAssetCount;
 
+  // Story 2.7: Extract unique currencies for multi-currency indicator
+  const currencies = [...new Set(assets.filter((a) => !a.isIgnored).map((a) => a.currency))].sort();
+
   return {
     portfolio,
     assets: assetsWithValues,
@@ -1196,6 +1203,9 @@ export async function getPortfolioWithValues(
     totalActiveValueBase: totalActiveValueStr,
     baseCurrency,
     dataFreshness,
+    // Story 2.7: Separate exchange rate freshness
+    exchangeRateFreshness: oldestRateUpdate,
+    currencies,
     assetCount,
     activeAssetCount,
     ignoredAssetCount,
