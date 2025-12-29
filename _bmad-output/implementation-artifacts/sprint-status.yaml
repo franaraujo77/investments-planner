@@ -1,0 +1,115 @@
+# generated: 2025-12-27
+# project: investments-planner
+# project_key: investments-planner
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2025-12-27
+project: investments-planner
+project_key: investments-planner
+tracking_system: file-system
+story_location: "_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: User Authentication & Account Foundation
+  epic-1: in-progress
+  1-1-user-registration-with-email: done
+  1-2-user-login-and-session-management: done
+  1-3-password-reset-flow: done
+  1-4-profile-management: done
+  1-5-regional-preferences-and-i18n-infrastructure: done
+  1-6-gdpr-compliance-data-export-and-deletion: done
+  1-7-enable-all-skipped-tests: done  # Enable all ~27 skipped tests
+  1-8-github-actions-integration-tests-pipeline: done
+  1-9-supabase-splinter-database-linter: done  # Database schema linting with Supabase Splinter
+  epic-1-retrospective: optional
+
+  # Epic 2: Portfolio Management Foundation
+  epic-2: backlog
+  2-1-create-portfolio: backlog
+  2-2-view-portfolio-and-holdings: backlog
+  2-3-edit-portfolio: backlog
+  2-4-delete-portfolio: backlog
+  2-5-add-holdings-to-portfolio: backlog
+  2-6-update-and-remove-holdings: backlog
+  2-7-multi-currency-portfolio-display: backlog
+  2-8-investment-history: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Visual Allocation Feedback
+  epic-3: backlog
+  3-1-allocation-pie-chart-component: backlog
+  3-2-live-allocation-indicator: backlog
+  3-3-allocation-validation: backlog
+  3-4-visual-status-feedback: backlog
+  3-5-onboarding-tips: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Investment Strategy Configuration
+  epic-4: backlog
+  4-1-asset-class-management: backlog
+  4-2-allocation-range-configuration: backlog
+  4-3-scoring-criteria-creation: backlog
+  4-4-criteria-library-and-management: backlog
+  4-5-criteria-preview-and-comparison: backlog
+  4-6-historical-surplus-scoring: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Market Data & Scoring Engine
+  epic-5: backlog
+  5-1-market-data-fetching: backlog
+  5-2-two-tier-refresh-architecture: backlog
+  5-3-score-calculation-engine: backlog
+  5-4-view-asset-scores: backlog
+  5-5-manual-data-refresh: backlog
+  5-6-overnight-pre-computation: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Investment Recommendations
+  epic-6: backlog
+  6-1-monthly-contribution-input: backlog
+  6-2-recommendation-generation: backlog
+  6-3-recommendation-display: backlog
+  6-4-recommendation-details: backlog
+  6-5-investment-confirmation: backlog
+  6-6-before-after-comparison: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Data Transparency & Alerts
+  epic-7: backlog
+  7-1-data-source-attribution: backlog
+  7-2-calculation-transparency: backlog
+  7-3-data-freshness-indicators: backlog
+  7-4-financial-disclaimers: backlog
+  7-5-allocation-drift-alerts: backlog
+  7-6-opportunity-alerts-and-preferences: backlog
+  epic-7-retrospective: optional
