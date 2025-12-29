@@ -98,12 +98,66 @@ WHERE schemaname = 'public';
 
 All tables should show `rowsecurity = true`.
 
+## RLS Migration Best Practices
+
+### CRITICAL: Use `db:migrate` Not `db:push`
+
+**Problem discovered (2025-12-29):** The integration database had 21 of 22 tables missing RLS because migrations were not applied.
+
+**Root cause:** Using `db:push` directly pushes the Drizzle schema to the database but does NOT apply SQL migrations. This means RLS statements in migration files are never executed.
+
+**The fix:** Always use `db:migrate` for schema changes:
+
+```bash
+# ✅ CORRECT: Apply migrations (includes RLS statements)
+pnpm db:migrate
+
+# ❌ WRONG: Direct schema push (skips migrations)
+pnpm db:push  # Only for local development with fresh databases!
+```
+
+### Verify RLS Status After Migrations
+
+Always verify RLS is actually enabled after applying migrations:
+
+```sql
+-- Check RLS status for all tables
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY tablename;
+
+-- All 22 tables should show rowsecurity = true
+```
+
+Or use the security check script:
+
+```bash
+pnpm security:check-rls
+```
+
+### Incident Reference: Story 2.9
+
+**Issue:** Integration database was missing RLS on 21/22 tables despite migration 0015 existing.
+
+**Discovery:** Supabase Splinter reported `rls_disabled_in_public` errors during CI.
+
+**Resolution:** Created idempotent migration 0018 (`drizzle/0018_fix_rls_all_tables.sql`) that:
+
+1. Safely enables RLS on all 22 tables (idempotent - safe to run multiple times)
+2. Reapplies REVOKE statements for auth token tables
+3. Uses `DO` blocks with `IF NOT EXISTS` for policy creation
+
+This pattern can be used in the future to fix similar issues on any environment.
+
 ## Common Mistakes
 
 1. **Forgetting RLS on new tables** - Always add RLS migration when creating tables
 2. **Using db:push without migration** - Never use `db:push` in production; always create migrations
-3. **Exposing sensitive data** - Auth tokens should never be accessible via PostgREST
-4. **Missing policies for shared data** - If data should be client-readable, add explicit policies
+3. **Using db:push for schema updates** - Even for non-production environments, use `db:migrate` to ensure RLS is applied
+4. **Exposing sensitive data** - Auth tokens should never be accessible via PostgREST
+5. **Missing policies for shared data** - If data should be client-readable, add explicit policies
+6. **Not verifying after migration** - Always verify RLS status with `pnpm security:check-rls` after migrations
 
 ## Emergency Response
 
@@ -124,22 +178,23 @@ All tables in the schema must be classified. This reference documents the classi
 
 Tables containing user-specific data with `user_id` foreign key. Access controlled via service role only.
 
-| Table                  | Description                               | RLS Migration                  |
-| ---------------------- | ----------------------------------------- | ------------------------------ |
-| `users`                | Core user identity and preferences        | `0015_enable_rls_security.sql` |
-| `portfolios`           | User investment portfolios                | `0015_enable_rls_security.sql` |
-| `portfolio_assets`     | Individual asset holdings (via portfolio) | `0015_enable_rls_security.sql` |
-| `asset_classes`        | User-defined asset categories             | `0015_enable_rls_security.sql` |
-| `asset_subclasses`     | Subdivisions within asset classes         | `0015_enable_rls_security.sql` |
-| `criteria_versions`    | Immutable scoring criteria sets           | `0015_enable_rls_security.sql` |
-| `asset_scores`         | Calculated scores for assets              | `0015_enable_rls_security.sql` |
-| `score_history`        | Historical score records (append-only)    | `0015_enable_rls_security.sql` |
-| `investments`          | Investment transaction records            | `0015_enable_rls_security.sql` |
-| `recommendations`      | Recommendation generation sessions        | `0015_enable_rls_security.sql` |
-| `recommendation_items` | Individual asset recommendations          | `0015_enable_rls_security.sql` |
-| `calculation_events`   | Event sourcing audit trail                | `0015_enable_rls_security.sql` |
-| `alerts`               | User notifications for portfolio events   | `0015_enable_rls_security.sql` |
-| `alert_preferences`    | User notification settings                | `0015_enable_rls_security.sql` |
+| Table                            | Description                               | RLS Migration                  |
+| -------------------------------- | ----------------------------------------- | ------------------------------ |
+| `users`                          | Core user identity and preferences        | `0015_enable_rls_security.sql` |
+| `portfolios`                     | User investment portfolios                | `0015_enable_rls_security.sql` |
+| `portfolio_assets`               | Individual asset holdings (via portfolio) | `0015_enable_rls_security.sql` |
+| `asset_classes`                  | User-defined asset categories             | `0015_enable_rls_security.sql` |
+| `asset_subclasses`               | Subdivisions within asset classes         | `0015_enable_rls_security.sql` |
+| `criteria_versions`              | Immutable scoring criteria sets           | `0015_enable_rls_security.sql` |
+| `asset_scores`                   | Calculated scores for assets              | `0015_enable_rls_security.sql` |
+| `score_history`                  | Historical score records (append-only)    | `0015_enable_rls_security.sql` |
+| `investments`                    | Investment transaction records            | `0015_enable_rls_security.sql` |
+| `recommendations`                | Recommendation generation sessions        | `0015_enable_rls_security.sql` |
+| `recommendation_items`           | Individual asset recommendations          | `0015_enable_rls_security.sql` |
+| `calculation_events`             | Event sourcing audit trail                | `0015_enable_rls_security.sql` |
+| `alerts`                         | User notifications for portfolio events   | `0015_enable_rls_security.sql` |
+| `alert_preferences`              | User notification settings                | `0015_enable_rls_security.sql` |
+| `portfolio_accepted_asset_types` | Junction table for portfolio asset types  | `0017_romantic_redwing.sql`    |
 
 ### Auth Token Tables
 
@@ -171,4 +226,4 @@ Admin/job tracking tables. RLS enabled with service role only access.
 
 ---
 
-**Total Tables: 21** | All tables have RLS enabled as of migration `0015_enable_rls_security.sql`
+**Total Tables: 22** | All tables have RLS enabled as of migrations `0015_enable_rls_security.sql` and `0017_romantic_redwing.sql`, with idempotent fix in `0018_fix_rls_all_tables.sql`
