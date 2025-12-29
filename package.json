@@ -24,6 +24,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "db:seed-e2e": "npx tsx --env-file=.env scripts/seed-e2e-user.ts",
+    "db:seed-e2e-data": "npx tsx --env-file=.env scripts/seed-e2e-data-setup.ts",
     "prepare": "husky",
     "security:check-rls": "npx tsx scripts/check-rls-coverage.ts"
   },

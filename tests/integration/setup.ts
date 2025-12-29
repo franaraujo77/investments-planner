@@ -45,13 +45,29 @@ afterEach(async () => {
 });
 
 /**
+ * Known dummy/placeholder DATABASE_URLs that indicate no real DB available
+ */
+const DUMMY_DATABASE_URLS = [
+  "postgresql://test:test@localhost:5432/test",
+  "postgresql://test:test@localhost:5432/test_integration",
+];
+
+/**
  * Check if database is available for integration tests
+ *
+ * Returns true only if DATABASE_URL is set AND is not a dummy placeholder URL.
+ * This prevents tests from attempting to connect to non-existent databases.
  */
 export function isDatabaseAvailable(): boolean {
-  return (
-    !!process.env.DATABASE_URL &&
-    process.env.DATABASE_URL !== "postgresql://test:test@localhost:5432/test"
-  );
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) return false;
+
+  // Check if it's a dummy URL
+  if (DUMMY_DATABASE_URLS.includes(dbUrl)) return false;
+
+  // Check if it's a localhost URL without a running database
+  // (we can't verify connection here, but dummy URLs are filtered above)
+  return true;
 }
 
 /**

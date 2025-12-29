@@ -37,6 +37,15 @@ const TEST_USER = {
 };
 
 /**
+ * Check if @data-setup tests should run
+ * Set RUN_DATA_SETUP_TESTS=true to enable these tests
+ *
+ * Story 1.7: Enable All Skipped Tests
+ * AC-1.7.4: Tests with @data-setup tag run when data is seeded
+ */
+const SKIP_DATA_SETUP_TESTS = !process.env.RUN_DATA_SETUP_TESTS;
+
+/**
  * Helper to login before each test
  */
 async function loginUser(page: import("@playwright/test").Page) {
@@ -451,7 +460,10 @@ test.describe("Asset Class Limit", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires 10 asset classes to be set up");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and 10 asset classes to be set up"
+      );
 
       await loginUser(page);
       await page.goto("/strategy");
@@ -488,7 +500,10 @@ test.describe("Asset Class Limit", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires 10 asset classes to be set up");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and 10 asset classes to be set up"
+      );
 
       await loginUser(page);
       await page.goto("/strategy");
@@ -997,7 +1012,10 @@ test.describe("Allocation Warning Banner (AC-4.3.3)", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires asset classes with total minimums > 100%");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and asset classes with total minimums > 100%"
+      );
 
       // This test requires setting up multiple asset classes with minimums
       // totaling more than 100%
@@ -1021,7 +1039,10 @@ test.describe("Allocation Warning Banner (AC-4.3.3)", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires allocation warning banner to be visible");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and allocation warning banner to be visible"
+      );
 
       const warningBanner = page.getByTestId("allocation-warning-banner");
       const isVisible = await warningBanner.isVisible().catch(() => false);
@@ -1189,7 +1210,10 @@ test.describe("Subclass Allocation Warning Banner (AC-4.4.2, AC-4.4.3)", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires subclass with max > parent class max");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and subclass with max > parent class max"
+      );
 
       // This test requires:
       // 1. Asset class with targetMax set (e.g., 50%)
@@ -1215,7 +1239,10 @@ test.describe("Subclass Allocation Warning Banner (AC-4.4.2, AC-4.4.3)", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires subclass minimums summing > parent max");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and subclass minimums summing > parent max"
+      );
 
       // This test requires:
       // 1. Asset class with targetMax set (e.g., 50%)
@@ -1243,7 +1270,10 @@ test.describe("Subclass Allocation Warning Banner (AC-4.4.2, AC-4.4.3)", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires subclass warning banner to be visible");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and subclass warning banner to be visible"
+      );
 
       // Expand asset class
       const toggleButton = page.locator("[aria-label='Toggle subclasses']").first();

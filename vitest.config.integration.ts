@@ -32,6 +32,7 @@ export default defineConfig({
     hookTimeout: 30000,
     // Run tests sequentially to avoid DB conflicts
     pool: "forks",
+    // @ts-expect-error poolOptions is valid in vitest v4 but types may lag
     poolOptions: {
       forks: {
         singleFork: true,

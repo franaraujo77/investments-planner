@@ -28,6 +28,15 @@ const TEST_USER = {
 };
 
 /**
+ * Check if @data-setup tests should run
+ * Set RUN_DATA_SETUP_TESTS=true to enable these tests
+ *
+ * Story 1.7: Enable All Skipped Tests
+ * AC-1.7.4: Tests with @data-setup tag run when data is seeded
+ */
+const SKIP_DATA_SETUP_TESTS = !process.env.RUN_DATA_SETUP_TESTS;
+
+/**
  * Helper to login before each test
  */
 async function loginUser(page: import("@playwright/test").Page) {
@@ -246,7 +255,10 @@ test.describe("Portfolio Limit (AC-3.1.4)", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires 5 portfolios to be set up");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and 5 portfolios to be set up"
+      );
 
       await loginUser(page);
       await page.goto("/portfolio");
@@ -517,7 +529,10 @@ test.describe("Duplicate Asset (AC-3.2.4)", () => {
       tag: "@data-setup",
     },
     async ({ page }) => {
-      test.skip(true, "Requires AAPL asset to already exist in portfolio");
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and AAPL asset to already exist in portfolio"
+      );
 
       await loginUser(page);
       await page.goto("/portfolio");
