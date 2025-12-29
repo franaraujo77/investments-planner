@@ -11,14 +11,59 @@
  */
 
 /**
+ * Supported asset types for portfolios
+ * Story 2.1: Create Portfolio - AC-2.1.3
+ */
+export type AssetType =
+  | "Stocks"
+  | "ETFs"
+  | "REITs"
+  | "Bonds"
+  | "Crypto"
+  | "Funds"
+  | "Options"
+  | "Other";
+
+/**
+ * Industry sectors for portfolios
+ * Story 2.1: Create Portfolio - AC-2.1.2
+ */
+export type IndustrySector =
+  | "Insurance"
+  | "Banking"
+  | "Software"
+  | "Aerospace & Defense"
+  | "Energy"
+  | "Healthcare"
+  | "Consumer Goods"
+  | "Real Estate"
+  | "Technology"
+  | "Financial Services"
+  | "Utilities"
+  | "Other";
+
+/**
  * Portfolio base type
+ * Story 2.1: Enhanced with baseCurrency, industrySector
  */
 export interface Portfolio {
   id: string;
   userId: string;
   name: string;
+  /** Portfolio's base currency for value display (e.g., "USD", "EUR") */
+  baseCurrency: string;
+  /** Industry sector categorization - stored as string in DB, use IndustrySector for validation */
+  industrySector: string;
   createdAt: Date | null;
   updatedAt: Date | null;
+}
+
+/**
+ * Portfolio with accepted asset types
+ * Story 2.1: Create Portfolio - AC-2.1.3, AC-2.1.6
+ */
+export interface PortfolioWithAssetTypes extends Portfolio {
+  acceptedAssetTypes: AssetType[];
 }
 
 /**

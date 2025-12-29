@@ -1,9 +1,11 @@
 /**
  * Portfolio Page
  *
+ * Story 2.1: Create Portfolio (Epic 2)
  * Story 3.1: Create Portfolio
  * Story 3.6: Portfolio Overview with Values
  *
+ * AC-2.1.6: Display portfolios with industry sector and asset types
  * AC-3.1.1: Show empty state for users with no portfolios
  * AC-3.1.3: Show portfolio list when portfolios exist
  * AC-3.6.1: Portfolio table displays values
@@ -14,7 +16,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { COOKIE_NAMES } from "@/lib/auth/constants";
-import { getUserPortfolios, canCreatePortfolio } from "@/lib/services/portfolio-service";
+import {
+  getUserPortfoliosWithAssetTypes,
+  canCreatePortfolio,
+} from "@/lib/services/portfolio-service";
 import { getUserProfile } from "@/lib/services/user-service";
 import { PortfolioPageClient } from "./portfolio-page-client";
 import { RefreshButton } from "@/components/data/refresh-button";
@@ -48,7 +53,7 @@ export default async function PortfolioPage() {
   }
 
   const [portfolios, canCreate, user] = await Promise.all([
-    getUserPortfolios(session.userId),
+    getUserPortfoliosWithAssetTypes(session.userId),
     canCreatePortfolio(session.userId),
     getUserProfile(session.userId),
   ]);

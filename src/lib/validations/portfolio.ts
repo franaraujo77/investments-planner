@@ -2,8 +2,14 @@
  * Portfolio Validation Schemas
  *
  * Zod schemas for portfolio operations.
- * Story 3.1: Create Portfolio
+ * Story 2.1: Create Portfolio (Epic 2)
+ * Story 3.1: Create Portfolio (Legacy)
  *
+ * AC-2.1.1: Portfolio creation form with name, currency, industry sector, asset types
+ * AC-2.1.2: Industry sector selection
+ * AC-2.1.3: Asset types selection
+ * AC-2.1.4: Duplicate name warning
+ * AC-2.1.5: Validation for required fields
  * AC-3.1.2: Portfolio name validation (1-50 characters)
  * AC-3.1.4: Portfolio limit enforcement (5 max per user)
  */
@@ -23,6 +29,44 @@ export const PORTFOLIO_NAME_MIN_LENGTH = 1;
 export const PORTFOLIO_NAME_MAX_LENGTH = 50;
 
 /**
+ * Industry sectors for portfolio classification
+ * Story 2.1: Create Portfolio - AC-2.1.2
+ */
+export const INDUSTRY_SECTORS = [
+  "Insurance",
+  "Banking",
+  "Software",
+  "Aerospace & Defense",
+  "Energy",
+  "Healthcare",
+  "Consumer Goods",
+  "Real Estate",
+  "Technology",
+  "Financial Services",
+  "Utilities",
+  "Other",
+] as const;
+
+export type IndustrySector = (typeof INDUSTRY_SECTORS)[number];
+
+/**
+ * Asset types for portfolio filtering
+ * Story 2.1: Create Portfolio - AC-2.1.3
+ */
+export const ASSET_TYPES = [
+  "Stocks",
+  "ETFs",
+  "REITs",
+  "Bonds",
+  "Crypto",
+  "Funds",
+  "Options",
+  "Other",
+] as const;
+
+export type AssetType = (typeof ASSET_TYPES)[number];
+
+/**
  * Asset constraints
  * Story 3.2: Add Asset to Portfolio
  */
@@ -36,6 +80,9 @@ export const PORTFOLIO_MESSAGES = {
   NAME_REQUIRED: "Portfolio name is required",
   NAME_TOO_LONG: `Portfolio name must be ${PORTFOLIO_NAME_MAX_LENGTH} characters or less`,
   LIMIT_REACHED: `Maximum portfolios reached (${MAX_PORTFOLIOS_PER_USER})`,
+  INDUSTRY_SECTOR_REQUIRED: "Industry sector is required",
+  ASSET_TYPES_REQUIRED: "At least one asset type is required",
+  BASE_CURRENCY_REQUIRED: "Base currency is required",
 } as const;
 
 /**
@@ -103,8 +150,41 @@ export const SUPPORTED_CURRENCIES = [
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number]["code"];
 
 /**
+ * Industry sector schema
+ * Story 2.1: Create Portfolio - AC-2.1.2
+ */
+export const industrySectorSchema = z.enum(INDUSTRY_SECTORS, {
+  message: PORTFOLIO_MESSAGES.INDUSTRY_SECTOR_REQUIRED,
+});
+
+/**
+ * Asset type schema
+ * Story 2.1: Create Portfolio - AC-2.1.3
+ */
+export const assetTypeSchema = z.enum(ASSET_TYPES);
+
+/**
+ * Supported currency codes as tuple for Zod
+ */
+const CURRENCY_CODES = SUPPORTED_CURRENCIES.map((c) => c.code) as [string, ...string[]];
+
+/**
+ * Supported currency schema
+ */
+export const supportedCurrencySchema = z.enum(CURRENCY_CODES, {
+  message: PORTFOLIO_MESSAGES.BASE_CURRENCY_REQUIRED,
+});
+
+/**
  * Create portfolio schema
+ * Story 2.1: Create Portfolio - AC-2.1.1, AC-2.1.5
  * Used for POST /api/portfolios
+ *
+ * Validates:
+ * - name: 1-50 characters, required
+ * - baseCurrency: Must be a supported currency
+ * - industrySector: Must be a valid industry sector
+ * - assetTypes: Must have at least one valid asset type
  */
 export const createPortfolioSchema = z.object({
   name: z
@@ -116,7 +196,23 @@ export const createPortfolioSchema = z.object({
         .min(PORTFOLIO_NAME_MIN_LENGTH, PORTFOLIO_MESSAGES.NAME_REQUIRED)
         .max(PORTFOLIO_NAME_MAX_LENGTH, PORTFOLIO_MESSAGES.NAME_TOO_LONG)
     ),
+  baseCurrency: supportedCurrencySchema,
+  industrySector: industrySectorSchema,
+  assetTypes: z.array(assetTypeSchema).min(1, PORTFOLIO_MESSAGES.ASSET_TYPES_REQUIRED),
 });
+
+/**
+ * Check portfolio name schema
+ * Story 2.1: Create Portfolio - AC-2.1.4
+ */
+export const checkPortfolioNameSchema = z.object({
+  name: z
+    .string()
+    .transform((name) => name.trim())
+    .pipe(z.string().min(1, PORTFOLIO_MESSAGES.NAME_REQUIRED)),
+});
+
+export type CheckPortfolioNameInput = z.infer<typeof checkPortfolioNameSchema>;
 
 /**
  * Add asset schema

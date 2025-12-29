@@ -1,9 +1,10 @@
 /**
  * Portfolios API Routes
  *
- * Story 3.1: Create Portfolio
+ * Story 2.1: Create Portfolio (Epic 2)
+ * Story 3.1: Create Portfolio (Legacy)
  *
- * GET /api/portfolios - List all user portfolios
+ * GET /api/portfolios - List all user portfolios with asset types
  * POST /api/portfolios - Create a new portfolio
  *
  * Returns:
@@ -19,20 +20,20 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { handleDbError, databaseError } from "@/lib/api/responses";
 import {
-  getUserPortfolios,
+  getUserPortfoliosWithAssetTypes,
   createPortfolio,
   canCreatePortfolio,
   PortfolioLimitError,
+  type PortfolioWithAssetTypes,
 } from "@/lib/services/portfolio-service";
 import { createPortfolioSchema, MAX_PORTFOLIOS_PER_USER } from "@/lib/validations/portfolio";
 import type { AuthError } from "@/lib/auth/types";
-import type { Portfolio } from "@/lib/db/schema";
 
 /**
  * Response types
  */
 interface PortfolioListResponse {
-  data: Portfolio[];
+  data: PortfolioWithAssetTypes[];
   meta: {
     count: number;
     limit: number;
@@ -41,7 +42,7 @@ interface PortfolioListResponse {
 }
 
 interface PortfolioResponse {
-  data: Portfolio;
+  data: PortfolioWithAssetTypes;
 }
 
 interface ValidationError {
@@ -53,18 +54,19 @@ interface ValidationError {
 /**
  * GET /api/portfolios
  *
- * Lists all portfolios for the authenticated user.
+ * Lists all portfolios for the authenticated user with accepted asset types.
  * Requires authentication via withAuth middleware.
  *
+ * Story 2.1: Create Portfolio - AC-2.1.6
  * AC-3.1.1: Used to check if user has portfolios (empty state logic)
  *
  * Response:
- * - data: Array of portfolio objects
+ * - data: Array of portfolio objects with acceptedAssetTypes
  * - meta: Count, limit, and canCreate flag
  */
 export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, session) => {
   try {
-    const portfolios = await getUserPortfolios(session.userId);
+    const portfolios = await getUserPortfoliosWithAssetTypes(session.userId);
     const canCreate = await canCreatePortfolio(session.userId);
 
     return NextResponse.json<PortfolioListResponse>({
@@ -87,16 +89,24 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
  * Creates a new portfolio for the authenticated user.
  * Requires authentication via withAuth middleware.
  *
+ * Story 2.1: Create Portfolio
+ * AC-2.1.1: Portfolio creation with all fields
+ * AC-2.1.2: Industry sector tagging
+ * AC-2.1.3: Asset types selection
+ * AC-2.1.5: Required field validation
  * AC-3.1.3: Portfolio is created and saved to database
  * AC-3.1.4: Enforces 5 portfolio limit
  * AC-3.1.5: Response within 500ms
  *
  * Request Body:
  * - name: string (1-50 characters)
+ * - baseCurrency: string (e.g., "USD", "EUR")
+ * - industrySector: string (e.g., "Technology", "Healthcare")
+ * - assetTypes: string[] (e.g., ["Stocks", "ETFs"])
  *
  * Response:
- * - 201: Created portfolio
- * - 400: Validation error (empty name, name too long)
+ * - 201: Created portfolio with acceptedAssetTypes
+ * - 400: Validation error
  * - 409: Portfolio limit exceeded
  */
 export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(

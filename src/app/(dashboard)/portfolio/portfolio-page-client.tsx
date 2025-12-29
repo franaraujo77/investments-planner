@@ -35,10 +35,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MAX_PORTFOLIOS_PER_USER } from "@/lib/validations/portfolio";
-import type { Portfolio, PortfolioWithValues } from "@/types/portfolio";
+import type { PortfolioWithAssetTypes, PortfolioWithValues } from "@/types/portfolio";
+import { Badge } from "@/components/ui/badge";
 
 interface PortfolioPageClientProps {
-  initialPortfolios: Portfolio[];
+  initialPortfolios: PortfolioWithAssetTypes[];
   canCreate: boolean;
   baseCurrency?: string;
 }
@@ -187,6 +188,8 @@ function PortfolioValueSummary({
  *
  * Fetches portfolio data with calculated values and displays
  * enhanced table with sorting, filtering, and value columns.
+ *
+ * Story 2.1: Display industry sector and asset types (AC-2.1.6)
  */
 function PortfolioCardWithValues({
   portfolio,
@@ -194,7 +197,7 @@ function PortfolioCardWithValues({
   onToggle,
   baseCurrency,
 }: {
-  portfolio: Portfolio;
+  portfolio: PortfolioWithAssetTypes;
   isExpanded: boolean;
   onToggle: () => void;
   baseCurrency: string;
@@ -306,7 +309,25 @@ function PortfolioCardWithValues({
             <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
           <div className="flex-1 space-y-1">
-            <h3 className="font-medium leading-none">{portfolio.name}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-medium leading-none">{portfolio.name}</h3>
+              {/* Story 2.1: AC-2.1.6 - Display industry sector */}
+              <Badge variant="secondary" className="text-xs">
+                {portfolio.industrySector}
+              </Badge>
+              {/* Story 2.1: AC-2.1.6 - Display base currency */}
+              <Badge variant="outline" className="text-xs">
+                {portfolio.baseCurrency}
+              </Badge>
+            </div>
+            {/* Story 2.1: AC-2.1.6 - Display accepted asset types */}
+            <div className="flex items-center gap-1 flex-wrap mt-1">
+              {portfolio.acceptedAssetTypes.map((assetType) => (
+                <Badge key={assetType} variant="outline" className="text-xs px-1.5 py-0">
+                  {assetType}
+                </Badge>
+              ))}
+            </div>
             <p className="text-sm text-muted-foreground">
               Created {new Date(portfolio.createdAt!).toLocaleDateString()}
             </p>

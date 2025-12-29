@@ -120,6 +120,13 @@
       "when": 1766915571842,
       "tag": "0016_add_locale_to_users",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1767028188653,
+      "tag": "0017_romantic_redwing",
+      "breakpoints": true
     }
   ]
 }

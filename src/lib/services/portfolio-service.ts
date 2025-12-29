@@ -29,12 +29,14 @@ import { Decimal } from "@/lib/calculations/decimal-config";
 import {
   portfolios,
   portfolioAssets,
+  portfolioAcceptedAssetTypes,
   type Portfolio,
   type NewPortfolio,
   type PortfolioAsset,
   type NewPortfolioAsset,
+  type NewPortfolioAcceptedAssetType,
 } from "@/lib/db/schema";
-import { eq, count } from "drizzle-orm";
+import { eq, count, and, ne } from "drizzle-orm";
 import {
   MAX_PORTFOLIOS_PER_USER,
   PORTFOLIO_MESSAGES,
@@ -42,6 +44,7 @@ import {
   type CreatePortfolioInput,
   type AddAssetInput,
   type UpdateAssetInput,
+  type AssetType,
 } from "@/lib/validations/portfolio";
 import { alertService } from "./alert-service";
 import { logger } from "@/lib/telemetry/logger";
@@ -144,21 +147,33 @@ export async function getPortfolioById(
 }
 
 /**
+ * Portfolio with accepted asset types
+ * Story 2.1: Create Portfolio
+ */
+export interface PortfolioWithAssetTypes extends Portfolio {
+  acceptedAssetTypes: AssetType[];
+}
+
+/**
  * Create a new portfolio
  *
- * Story 3.1: Create Portfolio
+ * Story 2.1: Create Portfolio
+ * Story 3.1: Create Portfolio (legacy)
+ * AC-2.1.1: Portfolio creation with all fields
+ * AC-2.1.2: Industry sector tagging
+ * AC-2.1.3: Asset types selection
  * AC-3.1.3: Portfolio created and saved to database
  * AC-3.1.4: Enforce 5 portfolio limit
  *
  * @param userId - User ID creating the portfolio
- * @param input - Portfolio creation input (name)
- * @returns Created portfolio
+ * @param input - Portfolio creation input (name, baseCurrency, industrySector, assetTypes)
+ * @returns Created portfolio with asset types
  * @throws PortfolioLimitError if user already has 5 portfolios
  */
 export async function createPortfolio(
   userId: string,
   input: CreatePortfolioInput
-): Promise<Portfolio> {
+): Promise<PortfolioWithAssetTypes> {
   // Check portfolio limit before creating
   const currentCount = await getPortfolioCount(userId);
 
@@ -169,15 +184,44 @@ export async function createPortfolio(
   const newPortfolio: NewPortfolio = {
     userId,
     name: input.name,
+    baseCurrency: input.baseCurrency,
+    industrySector: input.industrySector,
   };
 
-  const result = await db.insert(portfolios).values(newPortfolio).returning();
+  // Use transaction to create portfolio and asset types together
+  const result = await db.transaction(async (tx) => {
+    // Insert portfolio
+    const portfolioResult = await tx.insert(portfolios).values(newPortfolio).returning();
 
-  if (!result[0]) {
-    throw new Error("Failed to create portfolio");
-  }
+    const createdPortfolio = portfolioResult[0];
+    if (!createdPortfolio) {
+      throw new Error("Failed to create portfolio");
+    }
 
-  return result[0];
+    // Insert accepted asset types
+    const assetTypeRecords: NewPortfolioAcceptedAssetType[] = input.assetTypes.map((assetType) => ({
+      portfolioId: createdPortfolio.id,
+      assetType,
+    }));
+
+    await tx.insert(portfolioAcceptedAssetTypes).values(assetTypeRecords);
+
+    logger.info("Portfolio created", {
+      userId,
+      portfolioId: createdPortfolio.id,
+      name: createdPortfolio.name,
+      industrySector: createdPortfolio.industrySector,
+      baseCurrency: createdPortfolio.baseCurrency,
+      assetTypesCount: input.assetTypes.length,
+    });
+
+    return {
+      ...createdPortfolio,
+      acceptedAssetTypes: input.assetTypes,
+    };
+  });
+
+  return result;
 }
 
 /**
@@ -209,6 +253,189 @@ export async function deletePortfolio(userId: string, portfolioId: string): Prom
 export async function canCreatePortfolio(userId: string): Promise<boolean> {
   const currentCount = await getPortfolioCount(userId);
   return currentCount < MAX_PORTFOLIOS_PER_USER;
+}
+
+/**
+ * Similar portfolio name result
+ * Story 2.1: Create Portfolio - AC-2.1.4
+ */
+export interface SimilarPortfolioResult {
+  id: string;
+  name: string;
+  similarity: "exact" | "similar";
+}
+
+/**
+ * Check for similar portfolio names
+ *
+ * Story 2.1: Create Portfolio - AC-2.1.4
+ * Returns portfolios with similar names (case-insensitive match or fuzzy match)
+ *
+ * @param userId - User ID to check portfolios for
+ * @param name - Name to check for similarity
+ * @param excludePortfolioId - Optional portfolio ID to exclude (for edit scenarios)
+ * @returns Array of similar portfolios
+ */
+export async function checkSimilarPortfolioName(
+  userId: string,
+  name: string,
+  excludePortfolioId?: string
+): Promise<SimilarPortfolioResult[]> {
+  const trimmedName = name.trim().toLowerCase();
+
+  if (!trimmedName) {
+    return [];
+  }
+
+  // Get all user portfolios
+  const userPortfolios = await db.query.portfolios.findMany({
+    where: excludePortfolioId
+      ? and(eq(portfolios.userId, userId), ne(portfolios.id, excludePortfolioId))
+      : eq(portfolios.userId, userId),
+    columns: {
+      id: true,
+      name: true,
+    },
+  });
+
+  const results: SimilarPortfolioResult[] = [];
+
+  for (const portfolio of userPortfolios) {
+    const portfolioNameLower = portfolio.name.toLowerCase();
+
+    // Check for exact match (case-insensitive)
+    if (portfolioNameLower === trimmedName) {
+      results.push({
+        id: portfolio.id,
+        name: portfolio.name,
+        similarity: "exact",
+      });
+      continue;
+    }
+
+    // Check for substring match (name contains input or input contains name)
+    if (portfolioNameLower.includes(trimmedName) || trimmedName.includes(portfolioNameLower)) {
+      results.push({
+        id: portfolio.id,
+        name: portfolio.name,
+        similarity: "similar",
+      });
+      continue;
+    }
+
+    // Check for Levenshtein distance (simple fuzzy match)
+    const distance = levenshteinDistance(trimmedName, portfolioNameLower);
+    const maxLength = Math.max(trimmedName.length, portfolioNameLower.length);
+    const similarity = 1 - distance / maxLength;
+
+    // Consider similar if more than 70% similar
+    if (similarity > 0.7) {
+      results.push({
+        id: portfolio.id,
+        name: portfolio.name,
+        similarity: "similar",
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Levenshtein distance calculation for fuzzy matching
+ * Used for AC-2.1.4 duplicate name detection
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+
+  // Initialize first column
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  // Initialize first row
+  for (let j = 0; j <= a.length; j++) {
+    if (matrix[0]) {
+      matrix[0][j] = j;
+    }
+  }
+
+  // Fill in the rest of the matrix
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      const charB = b.charAt(i - 1);
+      const charA = a.charAt(j - 1);
+
+      if (charB === charA) {
+        matrix[i]![j] = matrix[i - 1]![j - 1]!;
+      } else {
+        matrix[i]![j] = Math.min(
+          matrix[i - 1]![j - 1]! + 1, // substitution
+          matrix[i]![j - 1]! + 1, // insertion
+          matrix[i - 1]![j]! + 1 // deletion
+        );
+      }
+    }
+  }
+
+  return matrix[b.length]![a.length]!;
+}
+
+/**
+ * Get all portfolios for a user with their accepted asset types
+ *
+ * Story 2.1: Create Portfolio
+ * Multi-tenant isolation: Only returns portfolios belonging to the userId
+ *
+ * @param userId - User ID to fetch portfolios for
+ * @returns Array of user's portfolios with asset types, ordered by creation date (newest first)
+ */
+export async function getUserPortfoliosWithAssetTypes(
+  userId: string
+): Promise<PortfolioWithAssetTypes[]> {
+  const userPortfolios = await db.query.portfolios.findMany({
+    where: eq(portfolios.userId, userId),
+    orderBy: (portfolios, { desc }) => [desc(portfolios.createdAt)],
+    with: {
+      acceptedAssetTypes: true,
+    },
+  });
+
+  return userPortfolios.map((portfolio) => ({
+    ...portfolio,
+    acceptedAssetTypes: portfolio.acceptedAssetTypes.map((at) => at.assetType as AssetType),
+  }));
+}
+
+/**
+ * Get a single portfolio with its accepted asset types
+ *
+ * Story 2.1: Create Portfolio
+ * Multi-tenant isolation: Only returns if portfolio belongs to the userId
+ *
+ * @param userId - User ID (for ownership verification)
+ * @param portfolioId - Portfolio ID to fetch
+ * @returns Portfolio with asset types or null if not found/not owned by user
+ */
+export async function getPortfolioWithAssetTypes(
+  userId: string,
+  portfolioId: string
+): Promise<PortfolioWithAssetTypes | null> {
+  const result = await db.query.portfolios.findFirst({
+    where: and(eq(portfolios.id, portfolioId), eq(portfolios.userId, userId)),
+    with: {
+      acceptedAssetTypes: true,
+    },
+  });
+
+  if (!result) {
+    return null;
+  }
+
+  return {
+    ...result,
+    acceptedAssetTypes: result.acceptedAssetTypes.map((at) => at.assetType as AssetType),
+  };
 }
 
 // =============================================================================

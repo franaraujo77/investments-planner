@@ -15,14 +15,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 let mockPortfolioCountResult: { count: number }[] = [];
 let mockPortfoliosResult: unknown[] = [];
 let mockInsertResult: unknown[] = [];
+let mockAssetTypesInsertResult: unknown[] = [];
 
 // Mock drizzle-orm operators first (before db mock)
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn((field, value) => ({ field, value, type: "eq" })),
   count: vi.fn(() => ({ type: "count" })),
+  and: vi.fn((...conditions) => ({ conditions, type: "and" })),
+  ne: vi.fn((field, value) => ({ field, value, type: "ne" })),
 }));
 
-// Mock the database module
+// Mock the database module with transaction support
 vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(() => ({
@@ -47,6 +50,24 @@ vi.mock("@/lib/db", () => ({
         returning: vi.fn(() => Promise.resolve([])),
       })),
     })),
+    // Transaction mock for createPortfolio (Story 2.1)
+    transaction: vi.fn(async (callback) => {
+      // Create a mock tx object that matches the real transaction interface
+      const tx = {
+        insert: vi.fn(() => ({
+          values: vi.fn((_data) => {
+            // If inserting into portfolio table (returns portfolio)
+            if (mockInsertResult.length > 0) {
+              return { returning: vi.fn(() => Promise.resolve(mockInsertResult)) };
+            }
+            // If inserting asset types (no return needed)
+            return { returning: vi.fn(() => Promise.resolve(mockAssetTypesInsertResult)) };
+          }),
+        })),
+      };
+      // Execute the callback with the mock tx
+      return callback(tx);
+    }),
   },
 }));
 
@@ -56,8 +77,16 @@ vi.mock("@/lib/db/schema", () => ({
     id: "id",
     userId: "user_id",
     name: "name",
+    baseCurrency: "base_currency",
+    industrySector: "industry_sector",
     createdAt: "created_at",
     updatedAt: "updated_at",
+  },
+  portfolioAcceptedAssetTypes: {
+    id: "id",
+    portfolioId: "portfolio_id",
+    assetType: "asset_type",
+    createdAt: "created_at",
   },
 }));
 
@@ -82,6 +111,7 @@ describe("Portfolio Service", () => {
     mockPortfolioCountResult = [{ count: 0 }];
     mockPortfoliosResult = [];
     mockInsertResult = [];
+    mockAssetTypesInsertResult = [];
   });
 
   afterEach(() => {
@@ -198,36 +228,57 @@ describe("Portfolio Service", () => {
   });
 
   describe("createPortfolio", () => {
-    it("should create portfolio with valid input (AC-3.1.3)", async () => {
+    it("should create portfolio with valid input (AC-3.1.3, AC-2.1.1)", async () => {
       const mockCreatedPortfolio = {
         id: mockPortfolioId,
         userId: mockUserId,
         name: "My Portfolio",
+        baseCurrency: "USD",
+        industrySector: "Technology",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       mockPortfolioCountResult = [{ count: 0 }];
       mockInsertResult = [mockCreatedPortfolio];
 
-      const portfolio = await createPortfolio(mockUserId, { name: "My Portfolio" });
+      const portfolio = await createPortfolio(mockUserId, {
+        name: "My Portfolio",
+        baseCurrency: "USD",
+        industrySector: "Technology",
+        assetTypes: ["Stocks", "ETFs"],
+      });
 
-      expect(portfolio).toEqual(mockCreatedPortfolio);
+      // Should include acceptedAssetTypes from input
+      expect(portfolio.name).toBe("My Portfolio");
+      expect(portfolio.baseCurrency).toBe("USD");
+      expect(portfolio.industrySector).toBe("Technology");
+      expect(portfolio.acceptedAssetTypes).toEqual(["Stocks", "ETFs"]);
     });
 
     it("should throw PortfolioLimitError when user has 5 portfolios (AC-3.1.4)", async () => {
       mockPortfolioCountResult = [{ count: 5 }];
 
-      await expect(createPortfolio(mockUserId, { name: "New Portfolio" })).rejects.toThrow(
-        PortfolioLimitError
-      );
+      await expect(
+        createPortfolio(mockUserId, {
+          name: "New Portfolio",
+          baseCurrency: "USD",
+          industrySector: "Other",
+          assetTypes: ["Stocks"],
+        })
+      ).rejects.toThrow(PortfolioLimitError);
     });
 
     it("should throw PortfolioLimitError with correct message", async () => {
       mockPortfolioCountResult = [{ count: 5 }];
 
-      await expect(createPortfolio(mockUserId, { name: "New Portfolio" })).rejects.toThrow(
-        "Maximum portfolios reached (5)"
-      );
+      await expect(
+        createPortfolio(mockUserId, {
+          name: "New Portfolio",
+          baseCurrency: "USD",
+          industrySector: "Other",
+          assetTypes: ["Stocks"],
+        })
+      ).rejects.toThrow("Maximum portfolios reached (5)");
     });
 
     it("should create portfolio when user has 4 portfolios", async () => {
@@ -235,15 +286,23 @@ describe("Portfolio Service", () => {
         id: mockPortfolioId,
         userId: mockUserId,
         name: "Fifth Portfolio",
+        baseCurrency: "EUR",
+        industrySector: "Banking",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       mockPortfolioCountResult = [{ count: 4 }];
       mockInsertResult = [mockCreatedPortfolio];
 
-      const portfolio = await createPortfolio(mockUserId, { name: "Fifth Portfolio" });
+      const portfolio = await createPortfolio(mockUserId, {
+        name: "Fifth Portfolio",
+        baseCurrency: "EUR",
+        industrySector: "Banking",
+        assetTypes: ["Bonds"],
+      });
 
       expect(portfolio.name).toBe("Fifth Portfolio");
+      expect(portfolio.acceptedAssetTypes).toEqual(["Bonds"]);
     });
   });
 

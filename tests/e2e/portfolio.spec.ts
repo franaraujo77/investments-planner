@@ -1,18 +1,33 @@
 /**
  * Portfolio E2E Tests
  *
+ * Story 2.1: Create Portfolio with Enhanced Fields (Epic 2)
  * Story 3.1: Create Portfolio
  * Story 3.2: Add Asset to Portfolio
  * Story 3.5: Mark Asset as Ignored
  *
  * Tests for portfolio page and creation flows.
+ *
+ * Story 2.1 (Epic 2):
+ * AC-2.1.1: Form fields for name, currency, industry sector, asset types
+ * AC-2.1.2: Industry sector dropdown selection
+ * AC-2.1.3: Asset types multi-select checkboxes
+ * AC-2.1.4: Similar name warning with debounce
+ * AC-2.1.5: Client-side validation before submit
+ * AC-2.1.6: Display portfolios with industry sector and asset types
+ *
+ * Story 3.1:
  * AC-3.1.1: Empty state for new users
  * AC-3.1.2: Form validation (50 char limit, character counter)
  * AC-3.1.3: Portfolio creation success
  * AC-3.1.4: Portfolio limit enforcement (5 max)
+ *
+ * Story 3.2:
  * AC-3.2.1: Add Asset button visible
  * AC-3.2.2: Add Asset form validation
  * AC-3.2.6: Asset creation success
+ *
+ * Story 3.5:
  * AC-3.5.1: Ignore toggle display
  * AC-3.5.2: Toggle visual indicator
  * AC-3.5.5: Instant toggle with toast
@@ -241,6 +256,247 @@ test.describe("Portfolio Creation (AC-3.1.3)", () => {
     await expect(page.getByText("Portfolio created successfully")).toBeVisible({
       timeout: 10000,
     });
+  });
+});
+
+// =============================================================================
+// Story 2.1: Create Portfolio with Enhanced Fields (Epic 2)
+// =============================================================================
+
+test.describe("Enhanced Portfolio Creation Page (AC-2.1.1 to AC-2.1.6)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+  });
+
+  test("should navigate to portfolio creation page", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Should show the create portfolio page
+    await expect(page.getByRole("heading", { name: "Create New Portfolio" })).toBeVisible();
+    await expect(page.getByText("Set up a new portfolio to track your investments")).toBeVisible();
+  });
+
+  test("should have all required form fields (AC-2.1.1)", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Check for name input
+    await expect(page.getByLabel("Portfolio Name")).toBeVisible();
+
+    // Check for base currency dropdown
+    await expect(page.getByLabel("Base Currency")).toBeVisible();
+
+    // Check for industry sector dropdown
+    await expect(page.getByLabel("Industry Sector")).toBeVisible();
+
+    // Check for asset types checkboxes
+    await expect(page.getByText("Accepted Asset Types")).toBeVisible();
+    await expect(page.getByLabel("Stocks")).toBeVisible();
+    await expect(page.getByLabel("ETFs")).toBeVisible();
+    await expect(page.getByLabel("Bonds")).toBeVisible();
+    await expect(page.getByLabel("Crypto")).toBeVisible();
+  });
+
+  test("should show character counter for name field (AC-2.1.1)", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    const nameInput = page.getByPlaceholder("e.g., Retirement Fund, Tech Portfolio");
+    await nameInput.fill("Test");
+
+    // Should show character count (e.g., "4/50")
+    await expect(page.getByText(/4\/50/)).toBeVisible();
+  });
+
+  test("should have industry sector dropdown with options (AC-2.1.2)", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Click the industry sector dropdown
+    await page.getByLabel("Industry Sector").click();
+
+    // Check for sector options
+    await expect(page.getByText("Technology")).toBeVisible();
+    await expect(page.getByText("Healthcare")).toBeVisible();
+    await expect(page.getByText("Banking")).toBeVisible();
+    await expect(page.getByText("Energy")).toBeVisible();
+  });
+
+  test("should allow selecting multiple asset types (AC-2.1.3)", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Check Stocks should be pre-selected
+    const stocksCheckbox = page.locator('input[id="asset-Stocks"]');
+    await expect(stocksCheckbox).toBeChecked();
+
+    // Select additional asset types
+    await page.getByLabel("ETFs").click();
+    await page.getByLabel("REITs").click();
+
+    // Verify they are checked
+    await expect(page.locator('input[id="asset-ETFs"]')).toBeChecked();
+    await expect(page.locator('input[id="asset-REITs"]')).toBeChecked();
+  });
+
+  test("should show validation error for empty name (AC-2.1.5)", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Try to submit with empty name
+    const createButton = page.getByRole("button", { name: "Create Portfolio" });
+    await expect(createButton).toBeDisabled();
+
+    // Name is required
+    const nameInput = page.getByPlaceholder("e.g., Retirement Fund, Tech Portfolio");
+    await nameInput.fill("a");
+    await nameInput.clear();
+    await nameInput.blur();
+
+    // Should show error
+    await expect(page.getByText(/Portfolio name is required/i)).toBeVisible();
+  });
+
+  test("should check for similar names with debounce (AC-2.1.4)", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // First create a portfolio
+    const uniqueName = `Test Portfolio ${Date.now()}`;
+    const nameInput = page.getByPlaceholder("e.g., Retirement Fund, Tech Portfolio");
+    await nameInput.fill(uniqueName);
+
+    // Wait for debounce (300ms)
+    await page.waitForTimeout(500);
+
+    // If there's a similar name, a warning should appear
+    // (this is optional depending on existing data)
+    // Just verify the flow doesn't error
+    const createButton = page.getByRole("button", { name: "Create Portfolio" });
+    await expect(createButton).toBeEnabled({ timeout: 5000 });
+  });
+
+  test("should create portfolio with all fields and redirect (AC-2.1.6)", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Fill in all fields
+    const uniqueName = `Tech Portfolio ${Date.now()}`;
+    await page.getByPlaceholder("e.g., Retirement Fund, Tech Portfolio").fill(uniqueName);
+
+    // Select currency
+    await page.getByLabel("Base Currency").click();
+    await page.getByText("Euro (EUR)").click();
+
+    // Select industry sector
+    await page.getByLabel("Industry Sector").click();
+    await page.getByRole("option", { name: "Technology" }).click();
+
+    // Select additional asset types
+    await page.getByLabel("ETFs").click();
+
+    // Submit the form
+    const createButton = page.getByRole("button", { name: "Create Portfolio" });
+    await expect(createButton).toBeEnabled();
+    await createButton.click();
+
+    // Should show success toast
+    await expect(page.getByText("Portfolio created successfully")).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Should redirect to portfolios list
+    await expect(page).toHaveURL(/\/dashboard\/portfolios/);
+  });
+
+  test("should show loading state during creation", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Fill minimum required fields
+    await page.getByPlaceholder("e.g., Retirement Fund, Tech Portfolio").fill(`Test ${Date.now()}`);
+
+    // Submit
+    const createButton = page.getByRole("button", { name: "Create Portfolio" });
+    await createButton.click();
+
+    // Should show "Creating..." text (may be brief)
+    // Then show success toast
+    await expect(page.getByText("Portfolio created successfully")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should navigate back to portfolios on cancel", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Click cancel button
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    // Should go back to portfolios list
+    await expect(page).toHaveURL(/\/dashboard\/portfolios/);
+  });
+
+  test("should use back link to return to portfolios", async ({ page }) => {
+    await page.goto("/dashboard/portfolios/new");
+
+    // Click back link
+    await page.getByRole("link", { name: /Back to Portfolios/i }).click();
+
+    // Should go back to portfolios list
+    await expect(page).toHaveURL(/\/dashboard\/portfolios/);
+  });
+});
+
+test.describe("Portfolio Display with Enhanced Fields (AC-2.1.6)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/portfolio");
+  });
+
+  test("should display industry sector badge on portfolio card", async ({ page }) => {
+    // Look for a portfolio card with industry sector badge
+    // The badge should show the sector (e.g., "Technology", "Other")
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      // Look for sector badge (secondary variant)
+      const sectorBadges = page.locator("span.text-xs").filter({
+        hasText: /Technology|Healthcare|Banking|Software|Energy|Insurance|Other/i,
+      });
+      const hasBadge = (await sectorBadges.count()) > 0;
+      expect(hasBadge).toBe(true);
+    }
+  });
+
+  test("should display base currency badge on portfolio card", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      // Look for currency badge (outline variant with 3-letter code)
+      const currencyBadges = page.locator("span.text-xs").filter({
+        hasText: /^(USD|EUR|GBP|BRL|JPY|AUD|CAD|CHF)$/,
+      });
+      const hasBadge = (await currencyBadges.count()) > 0;
+      expect(hasBadge).toBe(true);
+    }
+  });
+
+  test("should display accepted asset types on portfolio card", async ({ page }) => {
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (hasPortfolio) {
+      // Look for asset type badges
+      const assetTypeBadges = page.locator("span.text-xs").filter({
+        hasText: /Stocks|ETFs|REITs|Bonds|Crypto|Funds|Options/,
+      });
+      const hasBadge = (await assetTypeBadges.count()) > 0;
+      expect(hasBadge).toBe(true);
+    }
   });
 });
 

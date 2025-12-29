@@ -168,12 +168,69 @@ export const passwordResetTokens = pgTable(
 // =============================================================================
 
 /**
+ * Industry sectors for portfolio classification
+ * Story 2.1: Create Portfolio - AC-2.1.2
+ */
+export const INDUSTRY_SECTORS = [
+  "Insurance",
+  "Banking",
+  "Software",
+  "Aerospace & Defense",
+  "Energy",
+  "Healthcare",
+  "Consumer Goods",
+  "Real Estate",
+  "Technology",
+  "Financial Services",
+  "Utilities",
+  "Other",
+] as const;
+
+export type IndustrySector = (typeof INDUSTRY_SECTORS)[number];
+
+/**
+ * Asset types for portfolio filtering
+ * Story 2.1: Create Portfolio - AC-2.1.3
+ */
+export const ASSET_TYPES = [
+  "Stocks",
+  "ETFs",
+  "REITs",
+  "Bonds",
+  "Crypto",
+  "Funds",
+  "Options",
+  "Other",
+] as const;
+
+export type AssetType = (typeof ASSET_TYPES)[number];
+
+/**
+ * Supported currencies for portfolios
+ * AC-6.4.5 from architecture
+ */
+export const SUPPORTED_CURRENCIES = [
+  "USD",
+  "EUR",
+  "GBP",
+  "BRL",
+  "CAD",
+  "AUD",
+  "JPY",
+  "CHF",
+] as const;
+
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
+/**
  * Portfolios table - user investment portfolios
  *
- * Story 3.1: Create Portfolio
+ * Story 2.1: Create Portfolio
  * - Each user can have up to 5 portfolios (MAX_PORTFOLIOS_PER_USER)
  * - Multi-tenant isolation via user_id (AC: 5)
  * - CASCADE delete when user is deleted
+ * - AC-2.1.1: portfolio name, base currency, industry sector
+ * - AC-2.1.2: industry sector tagging
  */
 export const portfolios = pgTable(
   "portfolios",
@@ -183,10 +240,35 @@ export const portfolios = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 50 }).notNull(),
+    baseCurrency: varchar("base_currency", { length: 3 }).notNull().default("USD"),
+    industrySector: varchar("industry_sector", { length: 50 }).notNull().default("Other"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [index("portfolios_user_id_idx").on(table.userId)]
+);
+
+/**
+ * Portfolio asset types junction table
+ *
+ * Story 2.1: Create Portfolio - AC-2.1.3
+ * - Many-to-many relationship between portfolios and accepted asset types
+ * - CASCADE delete when portfolio is deleted
+ */
+export const portfolioAcceptedAssetTypes = pgTable(
+  "portfolio_accepted_asset_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    portfolioId: uuid("portfolio_id")
+      .notNull()
+      .references(() => portfolios.id, { onDelete: "cascade" }),
+    assetType: varchar("asset_type", { length: 20 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("portfolio_accepted_asset_types_portfolio_id_idx").on(table.portfolioId),
+    unique("portfolio_accepted_asset_types_uniq").on(table.portfolioId, table.assetType),
+  ]
 );
 
 // =============================================================================
@@ -863,7 +945,18 @@ export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
   assets: many(portfolioAssets),
   investments: many(investments),
   recommendations: many(recommendations),
+  acceptedAssetTypes: many(portfolioAcceptedAssetTypes),
 }));
+
+export const portfolioAcceptedAssetTypesRelations = relations(
+  portfolioAcceptedAssetTypes,
+  ({ one }) => ({
+    portfolio: one(portfolios, {
+      fields: [portfolioAcceptedAssetTypes.portfolioId],
+      references: [portfolios.id],
+    }),
+  })
+);
 
 export const portfolioAssetsRelations = relations(portfolioAssets, ({ one, many }) => ({
   portfolio: one(portfolios, {
@@ -1006,6 +1099,9 @@ export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
 
 export type Portfolio = typeof portfolios.$inferSelect;
 export type NewPortfolio = typeof portfolios.$inferInsert;
+
+export type PortfolioAcceptedAssetType = typeof portfolioAcceptedAssetTypes.$inferSelect;
+export type NewPortfolioAcceptedAssetType = typeof portfolioAcceptedAssetTypes.$inferInsert;
 
 export type PortfolioAsset = typeof portfolioAssets.$inferSelect;
 export type NewPortfolioAsset = typeof portfolioAssets.$inferInsert;
