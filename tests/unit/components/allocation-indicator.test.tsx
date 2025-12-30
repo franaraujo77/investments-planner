@@ -117,9 +117,26 @@ describe("AllocationIndicator - getState (exported)", () => {
   });
 
   describe("Edge Cases", () => {
-    it("handles 0% allocation", () => {
+    it("handles 0% allocation (100% remaining)", () => {
       const state = getState(100, false);
       expect(state).toBe("underallocated");
+    });
+
+    it("handles 0% allocation - verifies styling and message", () => {
+      // 0% allocated means 100% remaining
+      const state = getState(100, false);
+      const styles = getStateStyles(state);
+
+      expect(state).toBe("underallocated");
+      expect(styles.textColor).toBe("text-muted-foreground");
+      expect(styles.bgColor).toBe("bg-muted/30");
+
+      // Message should show 0% allocated, 100% remaining
+      const message = buildMessage("underallocated", "0%", "100%", "0%");
+      expect(message).toBe("0% allocated, 100% remaining");
+
+      // Progress bar should be at 0%
+      expect(calculateProgressWidth(0)).toBe(0);
     });
 
     it("handles 99.9% allocation (near but not valid)", () => {
@@ -130,6 +147,12 @@ describe("AllocationIndicator - getState (exported)", () => {
     it("handles 100.1% allocation (slightly over)", () => {
       const state = getState(-0.1, false);
       expect(state).toBe("overallocated");
+    });
+
+    it("handles negative allocated values (invalid input)", () => {
+      // Edge case: allocated could theoretically be negative if bad data
+      expect(calculateProgressWidth(-10)).toBe(0);
+      expect(calculateOverPercent(110)).toBe(0); // positive remaining = not over
     });
   });
 });
@@ -332,18 +355,23 @@ describe("AllocationIndicatorLive - Type Definitions", () => {
 });
 
 describe("AllocationIndicator - i18n Formatting Integration", () => {
-  describe("Formatting Expectations", () => {
-    it("en-US locale uses period as decimal separator", () => {
+  describe("Locale Format Pattern Verification", () => {
+    it("verifies en-US format pattern uses period as decimal separator", () => {
+      // This validates the expected output format for en-US locale
+      // Actual locale-specific formatting is tested via useNumberFormat hook tests
       const expectedPattern = /\d+\.\d+%/;
       expect("45.5%").toMatch(expectedPattern);
     });
 
-    it("pt-BR locale uses comma as decimal separator", () => {
+    it("verifies pt-BR format pattern uses comma as decimal separator", () => {
+      // This validates the expected output format for pt-BR locale
+      // Actual locale-specific formatting is tested via useNumberFormat hook tests
       const expectedPattern = /\d+,\d+%/;
       expect("45,5%").toMatch(expectedPattern);
     });
 
     it("formatPercent expects decimal input (0.45 for 45%)", () => {
+      // Component divides by 100 before passing to formatPercent
       const allocated = 45;
       const decimalInput = allocated / 100;
       expect(decimalInput).toBe(0.45);

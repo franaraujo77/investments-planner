@@ -49,6 +49,11 @@ export interface AllocationIndicatorProps {
 /**
  * Determine the visual state based on allocation values
  * Exported for testing
+ *
+ * Logic:
+ * - If valid flag is true → "valid" (exactly 100%)
+ * - If remaining < 0 → "overallocated" (> 100%)
+ * - Otherwise → "underallocated" (< 100%)
  */
 export function getState(remaining: number, valid: boolean): AllocationState {
   if (valid) return "valid";
@@ -137,26 +142,20 @@ export function AllocationIndicator({
   const state = useMemo(() => getState(remaining, valid), [remaining, valid]);
   const styles = useMemo(() => getStateStyles(state), [state]);
 
-  // Calculate progress bar width (cap at 100% for display)
-  const progressWidth = useMemo(() => Math.min(Math.max(allocated, 0), 100), [allocated]);
+  // Calculate derived values in a single useMemo to reduce recalculations
+  const { progressWidth, formattedAllocated, formattedRemaining, formattedOver } = useMemo(() => {
+    const overPct = remaining < 0 ? Math.abs(remaining) : 0;
+    const formatOptions = { minimumFractionDigits: 0, maximumFractionDigits: 1 };
 
-  // Calculate the over percentage for overallocated state
-  const overPercent = useMemo(() => (remaining < 0 ? Math.abs(remaining) : 0), [remaining]);
-
-  // Format percentages using i18n hook
-  // formatPercent expects a decimal (0.45 for 45%), so divide by 100
-  const formattedAllocated = formatPercent(allocated / 100, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  });
-  const formattedRemaining = formatPercent(Math.abs(remaining) / 100, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  });
-  const formattedOver = formatPercent(overPercent / 100, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  });
+    return {
+      // Progress bar width (capped at 100% for display)
+      progressWidth: Math.min(Math.max(allocated, 0), 100),
+      // Format percentages using i18n hook (expects decimal: 0.45 for 45%)
+      formattedAllocated: formatPercent(allocated / 100, formatOptions),
+      formattedRemaining: formatPercent(Math.abs(remaining) / 100, formatOptions),
+      formattedOver: formatPercent(overPct / 100, formatOptions),
+    };
+  }, [allocated, remaining, formatPercent]);
 
   // Build the message based on state
   const message = useMemo(() => {
@@ -203,11 +202,14 @@ export function AllocationIndicator({
         <span className={cn("text-sm font-medium", styles.textColor)}>{message}</span>
       </div>
 
-      {/* Optional progress bar */}
+      {/* Optional progress bar with smooth transitions */}
       {showProgress && (
         <div className="h-2 w-full rounded-full bg-muted overflow-hidden" aria-hidden="true">
           <div
-            className={cn("h-full rounded-full transition-all duration-200", styles.progressColor)}
+            className={cn(
+              "h-full rounded-full origin-left transition-all duration-300 ease-out",
+              styles.progressColor
+            )}
             style={{ width: `${progressWidth}%` }}
           />
         </div>
