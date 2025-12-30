@@ -29,10 +29,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  createPortfolioSchema,
-  type CreatePortfolioInput,
+  createPortfolioQuickSchema,
+  type CreatePortfolioQuickInput,
   PORTFOLIO_NAME_MAX_LENGTH,
 } from "@/lib/validations/portfolio";
+import { VALIDATION_ERRORS, BUSINESS_ERRORS } from "@/lib/api/error-codes";
 import { postWithRetry } from "@/lib/utils/fetch-with-retry";
 
 // =============================================================================
@@ -127,9 +128,9 @@ export function CreatePortfolioModal({
     handleSubmit,
     watch,
     reset,
-    formState: { errors, isValid },
-  } = useForm<CreatePortfolioInput>({
-    resolver: zodResolver(createPortfolioSchema),
+    formState: { errors },
+  } = useForm<CreatePortfolioQuickInput>({
+    resolver: zodResolver(createPortfolioQuickSchema),
     mode: "onChange",
     defaultValues: {
       name: "",
@@ -139,7 +140,13 @@ export function CreatePortfolioModal({
   const nameValue = watch("name") || "";
   const charactersRemaining = PORTFOLIO_NAME_MAX_LENGTH - nameValue.length;
 
-  const onSubmit = async (data: CreatePortfolioInput) => {
+  // Determine if form can be submitted:
+  // - Must have a non-empty name (after trim)
+  // - Must have no validation errors
+  // - Using explicit check instead of isValid for better compatibility with Zod 4
+  const canSubmit = nameValue.trim().length > 0 && !errors.name;
+
+  const onSubmit = async (data: CreatePortfolioQuickInput) => {
     setIsSubmitting(true);
 
     try {
@@ -149,9 +156,9 @@ export function CreatePortfolioModal({
 
       if (!result.ok) {
         // Handle specific error codes using errorCode from FetchRetryResult
-        if (result.errorCode === "LIMIT_EXCEEDED") {
+        if (result.errorCode === BUSINESS_ERRORS.LIMIT_EXCEEDED) {
           toast.error(result.error ?? "Portfolio limit exceeded");
-        } else if (result.errorCode === "VALIDATION_ERROR") {
+        } else if (result.errorCode === VALIDATION_ERRORS.INVALID_INPUT) {
           toast.error("Please check your input and try again");
         } else {
           toast.error(result.error ?? "Failed to create portfolio");
@@ -242,7 +249,7 @@ export function CreatePortfolioModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!isValid || isSubmitting}>
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />

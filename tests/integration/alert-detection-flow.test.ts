@@ -22,6 +22,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import Decimal from "decimal.js";
 
+// Mock database to prevent connection attempts during tests
+// This must be before any imports that might use the db
+vi.mock("@/lib/db", () => ({
+  db: {},
+}));
+
 // Mock logger (always needed)
 vi.mock("@/lib/telemetry/logger", () => ({
   logger: {

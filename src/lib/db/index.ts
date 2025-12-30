@@ -13,24 +13,139 @@ import * as schema from "./schema";
  * - max: 1 connection per serverless instance
  * - idle_timeout: 20s to release connections quickly
  * - connect_timeout: 10s to fail fast on connection issues
+ *
+ * The connection is created lazily to support test environments where
+ * DATABASE_URL may not be properly configured.
  */
 
-const connectionString = process.env.DATABASE_URL;
+/**
+ * Validate and sanitize the DATABASE_URL.
+ *
+ * The postgres.js library uses decodeURIComponent on the URL, which will fail
+ * if the password contains encoded sequences that decode to invalid UTF-8.
+ *
+ * Common issues:
+ * - %258B decodes to %8B, which is not valid UTF-8
+ * - The password must be properly URL-encoded so that after decoding,
+ *   all remaining % sequences are valid UTF-8
+ *
+ * This function validates the URL and provides a helpful error message
+ * if the URL is malformed or incompatible with postgres.js.
+ */
+function validateConnectionString(url: string): string {
+  try {
+    // Try to parse as URL to catch obvious issues
+    const parsed = new URL(url);
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL environment variable is not set");
+    // Validate password is compatible with postgres.js decoding
+    if (parsed.password) {
+      try {
+        const decoded = decodeURIComponent(parsed.password);
+        // postgres.js will decode again if result contains %
+        // Validate the second decode won't fail
+        if (decoded.includes("%")) {
+          decodeURIComponent(decoded);
+        }
+      } catch {
+        throw new Error(
+          `DATABASE_URL password contains invalid encoding. ` +
+            `The password decodes to a value with invalid percent-encoded sequences. ` +
+            `If your password contains '%', ensure it's encoded as '%25'. ` +
+            `Example: password 'abc%def' should be encoded as 'abc%25def' in the URL.`
+        );
+      }
+    }
+
+    // Check if password needs encoding (contains % not followed by valid hex)
+    if (parsed.password && /%(?![0-9A-Fa-f]{2})/.test(parsed.password)) {
+      // Password contains '%' that isn't part of a percent-encoded sequence
+      // This will cause postgres.js to fail with "URI malformed"
+      const encodedPassword = encodeURIComponent(
+        decodeURIComponent(parsed.password.replace(/%(?![0-9A-Fa-f]{2})/g, "%25"))
+      );
+      parsed.password = encodedPassword;
+      return parsed.toString();
+    }
+
+    return url;
+  } catch (error) {
+    // URL parsing failed - provide helpful error message
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(
+      `DATABASE_URL is malformed: ${message}. ` +
+        `Ensure special characters in the password are URL-encoded ` +
+        `(e.g., '%' should be '%25', '@' should be '%40').`
+    );
+  }
 }
 
-// Configure postgres.js for serverless environments
-const client = postgres(connectionString, {
-  max: 1, // Single connection per serverless instance
-  idle_timeout: 20, // Release idle connections after 20 seconds
-  connect_timeout: 10, // Fail fast on connection issues
-  prepare: false, // Disable prepared statements for serverless compatibility
+/**
+ * Create the database connection.
+ *
+ * This is wrapped in a function to allow for error handling and
+ * to support environments where DATABASE_URL is not configured.
+ */
+function createDatabaseConnection() {
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is not set");
+  }
+
+  const sanitizedConnectionString = validateConnectionString(connectionString);
+
+  // Configure postgres.js for serverless environments
+  const client = postgres(sanitizedConnectionString, {
+    max: 1, // Single connection per serverless instance
+    idle_timeout: 20, // Release idle connections after 20 seconds
+    connect_timeout: 10, // Fail fast on connection issues
+    prepare: false, // Disable prepared statements for serverless compatibility
+  });
+
+  return drizzle(client, { schema });
+}
+
+// Lazy initialization of the database connection
+// In production, this runs immediately. In tests, mocks can intercept before this runs.
+let _db: ReturnType<typeof createDatabaseConnection> | null = null;
+let _dbError: Error | null = null;
+
+// Try to create the connection immediately, but catch errors for test environments
+try {
+  _db = createDatabaseConnection();
+} catch (error) {
+  // Store the error to throw later when db is actually accessed
+  _dbError = error instanceof Error ? error : new Error(String(error));
+}
+
+/**
+ * Get the database instance.
+ *
+ * Throws if DATABASE_URL is not configured or malformed.
+ * This allows tests to mock the db module before it's used.
+ */
+function getDb(): ReturnType<typeof createDatabaseConnection> {
+  if (_dbError) {
+    throw _dbError;
+  }
+  if (!_db) {
+    throw new Error("Database connection not initialized");
+  }
+  return _db;
+}
+
+// Export the db instance (will throw on access if connection failed)
+export const db = new Proxy({} as ReturnType<typeof createDatabaseConnection>, {
+  get(_target, prop) {
+    const realDb = getDb();
+    const value = realDb[prop as keyof typeof realDb];
+    // Bind functions to the real db instance
+    if (typeof value === "function") {
+      return value.bind(realDb);
+    }
+    return value;
+  },
 });
 
-// Create Drizzle instance with schema
-export const db = drizzle(client, { schema });
-
 // Export types for use throughout the app
-export type Database = typeof db;
+export type Database = ReturnType<typeof createDatabaseConnection>;

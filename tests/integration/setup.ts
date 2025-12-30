@@ -53,10 +53,58 @@ const DUMMY_DATABASE_URLS = [
 ];
 
 /**
+ * Check if a URL is parseable and compatible with postgres.js
+ *
+ * postgres.js internally calls decodeURIComponent on URL components.
+ * A URL can be valid for `new URL()` but still fail in postgres.js if:
+ * - The password contains encoded sequences that decode to invalid UTF-8
+ * - Example: %258B decodes to %8B, which is not valid UTF-8
+ *
+ * This function validates that the URL will work with postgres.js.
+ */
+function isValidPostgresUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+
+    // Validate password can be decoded by postgres.js
+    if (parsed.password) {
+      try {
+        const decoded = decodeURIComponent(parsed.password);
+        // postgres.js may decode again if the result contains %
+        // Test if a second decode would fail
+        if (decoded.includes("%")) {
+          decodeURIComponent(decoded);
+        }
+      } catch {
+        // Password will fail postgres.js decoding
+        return false;
+      }
+    }
+
+    // Validate username similarly
+    if (parsed.username) {
+      try {
+        const decoded = decodeURIComponent(parsed.username);
+        if (decoded.includes("%")) {
+          decodeURIComponent(decoded);
+        }
+      } catch {
+        return false;
+      }
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if database is available for integration tests
  *
- * Returns true only if DATABASE_URL is set AND is not a dummy placeholder URL.
- * This prevents tests from attempting to connect to non-existent databases.
+ * Returns true only if DATABASE_URL is set, is not a dummy placeholder URL,
+ * and is compatible with postgres.js. This prevents tests from attempting
+ * to connect to non-existent or malformed databases.
  */
 export function isDatabaseAvailable(): boolean {
   const dbUrl = process.env.DATABASE_URL;
@@ -65,8 +113,16 @@ export function isDatabaseAvailable(): boolean {
   // Check if it's a dummy URL
   if (DUMMY_DATABASE_URLS.includes(dbUrl)) return false;
 
-  // Check if it's a localhost URL without a running database
-  // (we can't verify connection here, but dummy URLs are filtered above)
+  // Check if the URL is compatible with postgres.js
+  if (!isValidPostgresUrl(dbUrl)) {
+    console.warn(
+      "⚠️  DATABASE_URL is malformed or incompatible with postgres.js - " +
+        "integration tests requiring DB will be skipped. " +
+        "Ensure special characters in password are properly URL-encoded."
+    );
+    return false;
+  }
+
   return true;
 }
 

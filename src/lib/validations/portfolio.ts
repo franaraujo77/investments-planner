@@ -176,7 +176,35 @@ export const supportedCurrencySchema = z.enum(CURRENCY_CODES, {
 });
 
 /**
- * Create portfolio schema
+ * Create portfolio quick schema (name only)
+ * Story 3.1: Create Portfolio (Quick Modal)
+ * Used for lightweight portfolio creation modal
+ *
+ * Validates:
+ * - name: 1-50 characters, required (after trimming)
+ *
+ * Server applies defaults for other fields:
+ * - baseCurrency: "USD"
+ * - industrySector: "Other"
+ * - assetTypes: ["Stocks"]
+ *
+ * Note: Client-side validation uses explicit canSubmit check rather than
+ * react-hook-form's isValid for better Zod 4 compatibility.
+ */
+export const createPortfolioQuickSchema = z.object({
+  name: z
+    .string()
+    .transform((name) => name.trim())
+    .pipe(
+      z
+        .string()
+        .min(PORTFOLIO_NAME_MIN_LENGTH, PORTFOLIO_MESSAGES.NAME_REQUIRED)
+        .max(PORTFOLIO_NAME_MAX_LENGTH, PORTFOLIO_MESSAGES.NAME_TOO_LONG)
+    ),
+});
+
+/**
+ * Create portfolio schema (full form)
  * Story 2.1: Create Portfolio - AC-2.1.1, AC-2.1.5
  * Used for POST /api/portfolios
  *
@@ -431,6 +459,7 @@ export const impactAnalysisSchema = z.object({
 /**
  * Type exports inferred from schemas
  */
+export type CreatePortfolioQuickInput = z.infer<typeof createPortfolioQuickSchema>;
 export type CreatePortfolioInput = z.infer<typeof createPortfolioSchema>;
 export type UpdatePortfolioInput = z.infer<typeof updatePortfolioSchema>;
 export type ImpactAnalysisInput = z.infer<typeof impactAnalysisSchema>;

@@ -162,6 +162,19 @@ export const EXTERNAL_ERRORS = {
 } as const;
 
 // =============================================================================
+// BUSINESS RULE ERRORS
+// =============================================================================
+
+export const BUSINESS_ERRORS = {
+  /** Resource limit exceeded (e.g., max portfolios per user) */
+  LIMIT_EXCEEDED: "BUSINESS_LIMIT_EXCEEDED",
+  /** Feature not available for user's plan/tier */
+  FEATURE_NOT_AVAILABLE: "BUSINESS_FEATURE_NOT_AVAILABLE",
+  /** Operation not allowed in current state */
+  INVALID_STATE: "BUSINESS_INVALID_STATE",
+} as const;
+
+// =============================================================================
 // INTERNAL ERRORS
 // =============================================================================
 
@@ -185,6 +198,7 @@ export type ConflictErrorCode = (typeof CONFLICT_ERRORS)[keyof typeof CONFLICT_E
 export type RateLimitErrorCode = (typeof RATE_LIMIT_ERRORS)[keyof typeof RATE_LIMIT_ERRORS];
 export type DatabaseErrorCode = (typeof DATABASE_ERRORS)[keyof typeof DATABASE_ERRORS];
 export type ExternalErrorCode = (typeof EXTERNAL_ERRORS)[keyof typeof EXTERNAL_ERRORS];
+export type BusinessErrorCode = (typeof BUSINESS_ERRORS)[keyof typeof BUSINESS_ERRORS];
 export type InternalErrorCode = (typeof INTERNAL_ERRORS)[keyof typeof INTERNAL_ERRORS];
 
 export type ErrorCode =
@@ -195,6 +209,7 @@ export type ErrorCode =
   | RateLimitErrorCode
   | DatabaseErrorCode
   | ExternalErrorCode
+  | BusinessErrorCode
   | InternalErrorCode;
 
 // =============================================================================
@@ -232,6 +247,11 @@ export function getHttpStatusForErrorCode(code: ErrorCode): number {
 
   // Conflict errors -> 409
   if (code.startsWith("CONFLICT_")) {
+    return 409;
+  }
+
+  // Business rule errors -> 409 (conflict with business rules)
+  if (code.startsWith("BUSINESS_")) {
     return 409;
   }
 

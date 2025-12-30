@@ -12,7 +12,12 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { GET, POST, PUT } from "@/app/api/inngest/route";
+
+// Mock database to prevent connection attempts during tests
+// This must be before any imports that might use the db
+vi.mock("@/lib/db", () => ({
+  db: {},
+}));
 
 // Mock the logger to avoid actual logging during tests
 vi.mock("@/lib/telemetry/logger", () => ({
@@ -23,6 +28,9 @@ vi.mock("@/lib/telemetry/logger", () => ({
     debug: vi.fn(),
   },
 }));
+
+// Import route handlers after mocks are set up
+import { GET, POST, PUT } from "@/app/api/inngest/route";
 
 describe("Inngest Webhook Handler", () => {
   beforeEach(() => {

@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { handleDbError, databaseError } from "@/lib/api/responses";
+import { VALIDATION_ERRORS, BUSINESS_ERRORS } from "@/lib/api/error-codes";
 import {
   getUserPortfoliosWithAssetTypes,
   createPortfolio,
@@ -26,7 +27,14 @@ import {
   PortfolioLimitError,
   type PortfolioWithAssetTypes,
 } from "@/lib/services/portfolio-service";
-import { createPortfolioSchema, MAX_PORTFOLIOS_PER_USER } from "@/lib/validations/portfolio";
+import {
+  createPortfolioSchema,
+  MAX_PORTFOLIOS_PER_USER,
+  type CreatePortfolioInput,
+  type SupportedCurrency,
+  type IndustrySector,
+  type AssetType,
+} from "@/lib/validations/portfolio";
 import type { AuthError } from "@/lib/auth/types";
 
 /**
@@ -84,12 +92,27 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
 });
 
 /**
+ * Default values for quick portfolio creation (Story 3.1)
+ * Applied when optional fields are not provided
+ *
+ * Type-safe defaults ensure TypeScript catches any mismatches
+ * with the schema's allowed values at compile time.
+ */
+const PORTFOLIO_DEFAULTS: Omit<CreatePortfolioInput, "name"> = {
+  baseCurrency: "USD" satisfies SupportedCurrency,
+  industrySector: "Other" satisfies IndustrySector,
+  assetTypes: ["Stocks"] satisfies AssetType[],
+};
+
+/**
  * POST /api/portfolios
  *
  * Creates a new portfolio for the authenticated user.
  * Requires authentication via withAuth middleware.
  *
- * Story 2.1: Create Portfolio
+ * Story 2.1: Create Portfolio (full form with all fields)
+ * Story 3.1: Create Portfolio (quick modal with name only)
+ *
  * AC-2.1.1: Portfolio creation with all fields
  * AC-2.1.2: Industry sector tagging
  * AC-2.1.3: Asset types selection
@@ -99,10 +122,10 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
  * AC-3.1.5: Response within 500ms
  *
  * Request Body:
- * - name: string (1-50 characters)
- * - baseCurrency: string (e.g., "USD", "EUR")
- * - industrySector: string (e.g., "Technology", "Healthcare")
- * - assetTypes: string[] (e.g., ["Stocks", "ETFs"])
+ * - name: string (1-50 characters) - REQUIRED
+ * - baseCurrency: string (e.g., "USD", "EUR") - optional, defaults to "USD"
+ * - industrySector: string (e.g., "Technology", "Healthcare") - optional, defaults to "Other"
+ * - assetTypes: string[] (e.g., ["Stocks", "ETFs"]) - optional, defaults to ["Stocks"]
  *
  * Response:
  * - 201: Created portfolio with acceptedAssetTypes
@@ -112,15 +135,19 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
 export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
   async (request, session) => {
     try {
-      // Parse and validate request body
+      // Parse request body and apply defaults for quick creation (Story 3.1)
       const body = await request.json();
-      const validationResult = createPortfolioSchema.safeParse(body);
+      const bodyWithDefaults = {
+        ...PORTFOLIO_DEFAULTS,
+        ...body,
+      };
+      const validationResult = createPortfolioSchema.safeParse(bodyWithDefaults);
 
       if (!validationResult.success) {
         return NextResponse.json<ValidationError>(
           {
             error: "Validation failed",
-            code: "VALIDATION_ERROR",
+            code: VALIDATION_ERRORS.INVALID_INPUT,
             details: validationResult.error.flatten().fieldErrors,
           },
           { status: 400 }
@@ -137,7 +164,7 @@ export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
         return NextResponse.json<ValidationError>(
           {
             error: error.message,
-            code: "LIMIT_EXCEEDED",
+            code: BUSINESS_ERRORS.LIMIT_EXCEEDED,
           },
           { status: 409 }
         );
