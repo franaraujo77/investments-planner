@@ -57,13 +57,16 @@ export interface AllocationPieChartProps {
   height?: number;
   /** Additional CSS classes */
   className?: string;
+  /** Locale for number formatting (defaults to "en-US") */
+  locale?: string;
 }
 
 /**
  * Color palette for chart segments
  * Using distinct colors that work well for financial data
+ * Exported for testing
  */
-const CHART_COLORS = [
+export const CHART_COLORS = [
   "hsl(222, 47%, 51%)", // Blue
   "hsl(142, 71%, 45%)", // Green
   "hsl(38, 92%, 50%)", // Amber
@@ -78,8 +81,9 @@ const CHART_COLORS = [
 
 /**
  * Get color for a chart segment
+ * Exported for testing
  */
-function getSegmentColor(index: number, customColor?: string): string {
+export function getSegmentColor(index: number, customColor?: string): string {
   if (customColor) return customColor;
   return CHART_COLORS[index % CHART_COLORS.length] ?? CHART_COLORS[0]!;
 }
@@ -87,8 +91,9 @@ function getSegmentColor(index: number, customColor?: string): string {
 /**
  * Format percentage with 1 decimal precision
  * AC-3.7.4: Percentages show with 1 decimal precision
+ * Exported for testing
  */
-function formatPercent(value: string): string {
+export function formatPercent(value: string): string {
   try {
     return new Decimal(value).toFixed(1);
   } catch {
@@ -98,13 +103,21 @@ function formatPercent(value: string): string {
 
 /**
  * Format value for tooltip display
+ * Exported for testing
+ *
+ * @param value - The value string to format
+ * @param currency - Optional currency code prefix
+ * @param locale - Optional locale for formatting (defaults to "en-US" for backward compatibility)
  */
-function formatValue(value: string, currency?: string): string {
+export function formatValue(value: string, currency?: string, locale: string = "en-US"): string {
   try {
-    const num = parseFloat(value);
-    if (isNaN(num)) return value;
+    // Use Decimal.js for consistent financial precision (Issue #6 fix)
+    const decimal = new Decimal(value);
+    const num = decimal.toNumber();
+    if (!Number.isFinite(num)) return value;
 
-    const formatted = new Intl.NumberFormat("en-US", {
+    // Use locale-aware formatting (Issue #1 fix)
+    const formatted = new Intl.NumberFormat(locale, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(num);
@@ -126,9 +139,10 @@ interface CustomTooltipProps {
     payload: ClassAllocation & { fill: string };
   }>;
   currency?: string | undefined;
+  locale?: string | undefined;
 }
 
-function CustomTooltip({ active, payload, currency }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, currency, locale = "en-US" }: CustomTooltipProps) {
   if (!active || !payload || payload.length === 0 || !payload[0]) {
     return null;
   }
@@ -148,7 +162,9 @@ function CustomTooltip({ active, payload, currency }: CustomTooltipProps) {
         </div>
         <div>
           Value:{" "}
-          <span className="font-mono text-foreground">{formatValue(data.value, currency)}</span>
+          <span className="font-mono text-foreground">
+            {formatValue(data.value, currency, locale)}
+          </span>
         </div>
         <div>Assets: {data.assetCount}</div>
         {data.targetMin !== null && data.targetMax !== null && (
@@ -178,7 +194,11 @@ function CustomLegend({ payload, onLegendClick, selectedClassId }: LegendProps) 
   if (!payload) return null;
 
   return (
-    <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 px-2">
+    <div
+      className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 px-2"
+      role="list"
+      aria-label="Allocation legend"
+    >
       {payload.map((entry) => (
         <button
           key={entry.payload.classId}
@@ -189,10 +209,14 @@ function CustomLegend({ payload, onLegendClick, selectedClassId }: LegendProps) 
           )}
           onClick={() => onLegendClick?.(entry.payload.classId)}
           type="button"
+          role="listitem"
+          aria-label={`${entry.value}: ${formatPercent(entry.payload.percentage)}% allocation${selectedClassId === entry.payload.classId ? " (selected)" : ""}`}
+          aria-current={selectedClassId === entry.payload.classId ? "true" : undefined}
         >
           <span
             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
             style={{ backgroundColor: entry.color }}
+            aria-hidden="true"
           />
           <span className="truncate max-w-20">{entry.value}</span>
           <span className="text-muted-foreground font-mono">
@@ -213,6 +237,7 @@ export function AllocationPieChart({
   showLegend = true,
   height = 300,
   className,
+  locale = "en-US",
 }: AllocationPieChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
 
@@ -258,6 +283,16 @@ export function AllocationPieChart({
     }
   };
 
+  // Generate accessible description of allocations
+  // Must be before early return to follow rules of hooks
+  const accessibleDescription = useMemo(() => {
+    if (allocations.length === 0) return "No allocation data available";
+    const descriptions = chartData.map(
+      (alloc) => `${alloc.className}: ${formatPercent(alloc.percentage)}%`
+    );
+    return `Portfolio allocation breakdown: ${descriptions.join(", ")}`;
+  }, [allocations.length, chartData]);
+
   // Empty state
   if (allocations.length === 0) {
     return (
@@ -273,7 +308,17 @@ export function AllocationPieChart({
   }
 
   return (
-    <div className={cn("w-full", className)} data-testid="allocation-pie-chart">
+    <div
+      className={cn("w-full", className)}
+      data-testid="allocation-pie-chart"
+      role="figure"
+      aria-label="Portfolio allocation pie chart"
+      aria-describedby="allocation-chart-description"
+    >
+      {/* Screen reader description */}
+      <div id="allocation-chart-description" className="sr-only">
+        {accessibleDescription}
+      </div>
       <ResponsiveContainer width="100%" height={height}>
         <PieChart>
           <Pie
@@ -289,6 +334,11 @@ export function AllocationPieChart({
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             style={{ cursor: onClassClick ? "pointer" : "default" }}
+            // AC-3.1.2: Smooth animation transitions (<200ms)
+            isAnimationActive={true}
+            animationDuration={200}
+            animationBegin={0}
+            animationEasing="ease-out"
           >
             {chartData.map((entry, index) => (
               <Cell
@@ -300,7 +350,7 @@ export function AllocationPieChart({
             ))}
           </Pie>
           <RechartsTooltip
-            content={<CustomTooltip currency={currency} />}
+            content={<CustomTooltip currency={currency} locale={locale} />}
             wrapperStyle={{ outline: "none" }}
           />
           {showLegend && (
@@ -318,7 +368,7 @@ export function AllocationPieChart({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
             <div className="text-xs text-muted-foreground">Total</div>
-            <div className="text-sm font-semibold">{formatValue(totalValue, currency)}</div>
+            <div className="text-sm font-semibold">{formatValue(totalValue, currency, locale)}</div>
           </div>
         </div>
       )}

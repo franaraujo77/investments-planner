@@ -1857,6 +1857,113 @@ test.describe("Allocation Pie Chart (AC-3.7.1)", () => {
   });
 });
 
+// =============================================================================
+// Story 3.1: Allocation Pie Chart Component Tests
+// AC-3.1.1: Pie chart display and render performance
+// AC-3.1.2: Real-time updates (form integration)
+// AC-3.1.3: Interactive tooltips
+// AC-3.1.4: Accessibility (ARIA labels)
+// AC-3.1.5: Color customization with fallback palette
+// =============================================================================
+test.describe("Allocation Pie Chart Accessibility (AC-3.1.4)", () => {
+  /**
+   * Helper to navigate to a portfolio with assets and locate pie chart
+   * Returns skip info if preconditions not met (test should skip)
+   *
+   * Code Review Fix: Tests now properly skip instead of silently passing
+   * when preconditions aren't met.
+   */
+  async function navigateToPieChart(page: import("@playwright/test").Page) {
+    await loginUser(page);
+    await page.goto("/portfolio");
+
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (!hasPortfolio) {
+      return { skip: true, reason: "No portfolio found - requires seeded test data" };
+    }
+
+    await portfolioCard.click();
+    await page.waitForTimeout(3000);
+
+    const hasAssets = (await page.locator("[data-testid^='quantity-']").count()) > 0;
+    if (!hasAssets) {
+      return { skip: true, reason: "Portfolio has no assets - requires seeded test data" };
+    }
+
+    const pieChart = page.getByTestId("allocation-pie-chart");
+    const isVisible = await pieChart.isVisible().catch(() => false);
+    if (!isVisible) {
+      return { skip: true, reason: "Pie chart not visible - requires assets with allocations" };
+    }
+
+    return { skip: false, pieChart, page };
+  }
+
+  test("should have accessible figure role and aria-label", async ({ page }) => {
+    const result = await navigateToPieChart(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+    // Check for figure role
+    await expect(pieChart!).toHaveAttribute("role", "figure");
+    // Check for aria-label
+    await expect(pieChart!).toHaveAttribute("aria-label", "Portfolio allocation pie chart");
+    // Check for aria-describedby linking to description
+    await expect(pieChart!).toHaveAttribute("aria-describedby", "allocation-chart-description");
+  });
+
+  test("should have screen reader description with allocation breakdown", async ({ page }) => {
+    const result = await navigateToPieChart(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    // Check for screen reader description element
+    const srDescription = page.locator("#allocation-chart-description");
+    await expect(srDescription).toBeAttached();
+    // Description should contain "Portfolio allocation breakdown"
+    const text = await srDescription.textContent();
+    expect(text).toBeTruthy();
+    expect(text).toContain("Portfolio allocation breakdown");
+  });
+
+  test("should have accessible legend items with aria-labels", async ({ page }) => {
+    const result = await navigateToPieChart(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+    // Find legend container
+    const legendContainer = pieChart!.locator("[role='list'][aria-label='Allocation legend']");
+    await expect(legendContainer).toBeVisible({ timeout: 5000 });
+
+    // Check legend items have aria-labels
+    const legendItems = legendContainer.locator("[role='listitem']");
+    const count = await legendItems.count();
+    expect(count).toBeGreaterThan(0);
+
+    const firstItem = legendItems.first();
+    const ariaLabel = await firstItem.getAttribute("aria-label");
+    // Should contain "allocation" in the label
+    expect(ariaLabel).toBeTruthy();
+    expect(ariaLabel).toContain("allocation");
+  });
+});
+
 test.describe("Allocation Bar Chart (AC-3.7.2)", () => {
   test.beforeEach(async ({ page }) => {
     await loginUser(page);
