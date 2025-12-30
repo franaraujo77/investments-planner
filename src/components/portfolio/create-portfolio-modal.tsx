@@ -29,8 +29,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  createPortfolioSchema,
-  type CreatePortfolioInput,
+  createPortfolioQuickSchema,
+  type CreatePortfolioQuickInput,
   PORTFOLIO_NAME_MAX_LENGTH,
 } from "@/lib/validations/portfolio";
 import { postWithRetry } from "@/lib/utils/fetch-with-retry";
@@ -128,8 +128,8 @@ export function CreatePortfolioModal({
     watch,
     reset,
     formState: { errors, isValid },
-  } = useForm<CreatePortfolioInput>({
-    resolver: zodResolver(createPortfolioSchema),
+  } = useForm<CreatePortfolioQuickInput>({
+    resolver: zodResolver(createPortfolioQuickSchema),
     mode: "onChange",
     defaultValues: {
       name: "",
@@ -139,7 +139,7 @@ export function CreatePortfolioModal({
   const nameValue = watch("name") || "";
   const charactersRemaining = PORTFOLIO_NAME_MAX_LENGTH - nameValue.length;
 
-  const onSubmit = async (data: CreatePortfolioInput) => {
+  const onSubmit = async (data: CreatePortfolioQuickInput) => {
     setIsSubmitting(true);
 
     try {

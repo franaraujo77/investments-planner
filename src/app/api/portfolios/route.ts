@@ -84,12 +84,24 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
 });
 
 /**
+ * Default values for quick portfolio creation (Story 3.1)
+ * Applied when optional fields are not provided
+ */
+const PORTFOLIO_DEFAULTS = {
+  baseCurrency: "USD" as const,
+  industrySector: "Other" as const,
+  assetTypes: ["Stocks"] as const,
+};
+
+/**
  * POST /api/portfolios
  *
  * Creates a new portfolio for the authenticated user.
  * Requires authentication via withAuth middleware.
  *
- * Story 2.1: Create Portfolio
+ * Story 2.1: Create Portfolio (full form with all fields)
+ * Story 3.1: Create Portfolio (quick modal with name only)
+ *
  * AC-2.1.1: Portfolio creation with all fields
  * AC-2.1.2: Industry sector tagging
  * AC-2.1.3: Asset types selection
@@ -99,10 +111,10 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
  * AC-3.1.5: Response within 500ms
  *
  * Request Body:
- * - name: string (1-50 characters)
- * - baseCurrency: string (e.g., "USD", "EUR")
- * - industrySector: string (e.g., "Technology", "Healthcare")
- * - assetTypes: string[] (e.g., ["Stocks", "ETFs"])
+ * - name: string (1-50 characters) - REQUIRED
+ * - baseCurrency: string (e.g., "USD", "EUR") - optional, defaults to "USD"
+ * - industrySector: string (e.g., "Technology", "Healthcare") - optional, defaults to "Other"
+ * - assetTypes: string[] (e.g., ["Stocks", "ETFs"]) - optional, defaults to ["Stocks"]
  *
  * Response:
  * - 201: Created portfolio with acceptedAssetTypes
@@ -112,9 +124,13 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
 export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
   async (request, session) => {
     try {
-      // Parse and validate request body
+      // Parse request body and apply defaults for quick creation (Story 3.1)
       const body = await request.json();
-      const validationResult = createPortfolioSchema.safeParse(body);
+      const bodyWithDefaults = {
+        ...PORTFOLIO_DEFAULTS,
+        ...body,
+      };
+      const validationResult = createPortfolioSchema.safeParse(bodyWithDefaults);
 
       if (!validationResult.success) {
         return NextResponse.json<ValidationError>(
