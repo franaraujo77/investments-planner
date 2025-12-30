@@ -162,6 +162,13 @@ export function PortfolioDetailClient({
   // Determine if we should show empty state
   const hasNoHoldings = assets.length === 0;
 
+  // Story 3.2: Calculate total allocation percentage from active assets
+  const totalAllocationPercent = useMemo(() => {
+    return assets
+      .filter((asset) => !asset.isIgnored)
+      .reduce((sum, asset) => sum + parseFloat(asset.allocationPercent), 0);
+  }, [assets]);
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb Navigation - Task 1.4 */}
@@ -254,6 +261,7 @@ export function PortfolioDetailClient({
         dataFreshness={dataFreshness}
         exchangeRateFreshness={exchangeRateFreshness}
         currencies={currencies}
+        totalAllocationPercent={totalAllocationPercent}
       />
 
       {/* Story 2.8: Tab Navigation for Holdings and History */}

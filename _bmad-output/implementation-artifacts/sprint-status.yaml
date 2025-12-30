@@ -69,7 +69,7 @@ development_status:
   # Epic 3: Visual Allocation Feedback
   epic-3: in-progress
   3-1-allocation-pie-chart-component: done
-  3-2-live-allocation-indicator: backlog
+  3-2-live-allocation-indicator: review
   3-3-allocation-validation: backlog
   3-4-visual-status-feedback: backlog
   3-5-onboarding-tips: backlog
