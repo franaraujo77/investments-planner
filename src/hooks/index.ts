@@ -15,3 +15,20 @@ export {
   useUnsavedChangesWarning,
   type UseUnsavedChangesWarningOptions,
 } from "./useUnsavedChangesWarning";
+
+export {
+  useAllocationValidation,
+  computeAllocationValidation,
+  type AllocationValidationResult,
+  type ComputeAllocationValidationInput,
+  type UseAllocationValidationOptions,
+} from "./useAllocationValidation";
+
+export {
+  useAllocationWarning,
+  computeWarningState,
+  type AllocationWarningState,
+  type ComputeWarningStateInput,
+  type UseAllocationWarningOptions,
+  type UseAllocationWarningResult,
+} from "./useAllocationWarning";

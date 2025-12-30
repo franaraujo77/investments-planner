@@ -47,3 +47,10 @@ export {
   type AllocationHealthIndicatorProps,
   type HealthIndicatorData,
 } from "./allocation-health-indicator";
+
+export {
+  FormValidityIndicator,
+  getValidityStyles,
+  getValidityIcon,
+  type FormValidityIndicatorProps,
+} from "./form-validity-indicator";
