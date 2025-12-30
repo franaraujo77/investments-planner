@@ -8,6 +8,7 @@
  * 1. A running Next.js server (pnpm dev)
  * 2. DATABASE_URL pointing to a test database
  * 3. Database migrations applied
+ * 4. AUTH_FLOW_BASE_URL set to the server URL (e.g., http://localhost:3000)
  *
  * These tests use fetch() to call actual API endpoints, making them
  * more suitable for E2E testing with Playwright's API testing.
@@ -16,7 +17,8 @@
  * Story 1.7 AC-1.7.3: These tests are conditionally skipped until
  * the full integration test infrastructure is in place.
  *
- * Run integration tests with: DATABASE_URL=... pnpm test:integration
+ * Run integration tests with:
+ *   AUTH_FLOW_BASE_URL=http://localhost:3000 DATABASE_URL=... pnpm test:integration
  */
 
 import { describe, it, expect, beforeEach, vi, beforeAll } from "vitest";
@@ -29,11 +31,30 @@ beforeEach(() => {
 });
 
 /**
+ * Get the base URL for API calls.
+ * These tests require a running server, so we need an absolute URL.
+ */
+function getBaseUrl(): string | null {
+  return process.env.AUTH_FLOW_BASE_URL || null;
+}
+
+/**
+ * Helper to make fetch calls with the correct base URL
+ */
+function apiFetch(path: string, options?: RequestInit): Promise<Response> {
+  const baseUrl = getBaseUrl();
+  if (!baseUrl) {
+    throw new Error("AUTH_FLOW_BASE_URL not configured");
+  }
+  return fetch(`${baseUrl}${path}`, options);
+}
+
+/**
  * Auth Flow Integration Tests
  *
  * These tests verify the complete auth flow via HTTP API calls.
  * They are skipped by default because they require:
- * 1. A running Next.js server on localhost:3000
+ * 1. A running Next.js server (set AUTH_FLOW_BASE_URL)
  * 2. A configured test database (DATABASE_URL)
  * 3. Database migrations applied
  *
@@ -41,16 +62,18 @@ beforeEach(() => {
  * 1. Start the dev server: pnpm dev
  * 2. Set DATABASE_URL to a test database
  * 3. Run migrations: pnpm db:migrate
- * 4. Set RUN_API_INTEGRATION_TESTS=true
+ * 4. Set AUTH_FLOW_BASE_URL=http://localhost:3000
  */
 
 describe("Auth Flow Integration (requires running server)", () => {
-  const shouldSkip = !process.env.RUN_API_INTEGRATION_TESTS || !isDatabaseAvailable();
+  // Skip if no base URL configured (means no running server)
+  const baseUrl = getBaseUrl();
+  const shouldSkip = !baseUrl || !isDatabaseAvailable();
 
   beforeAll(() => {
     if (shouldSkip) {
       console.log(
-        "⚠️  Skipping Auth Flow Integration tests - requires RUN_API_INTEGRATION_TESTS=true and DATABASE_URL"
+        "⚠️  Skipping Auth Flow Integration tests - requires AUTH_FLOW_BASE_URL (running server) and DATABASE_URL"
       );
     }
   });
@@ -63,7 +86,7 @@ describe("Auth Flow Integration (requires running server)", () => {
 
     it.skipIf(shouldSkip)("should complete full registration flow", async () => {
       // 1. Register
-      const registerResponse = await fetch("/api/auth/register", {
+      const registerResponse = await apiFetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(testUser),
@@ -82,7 +105,7 @@ describe("Auth Flow Integration (requires running server)", () => {
 
     it.skipIf(shouldSkip)("should complete full login flow", async () => {
       // Login
-      const loginResponse = await fetch("/api/auth/login", {
+      const loginResponse = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,7 +121,7 @@ describe("Auth Flow Integration (requires running server)", () => {
 
     it.skipIf(shouldSkip)("should get current user with /me endpoint", async () => {
       // Login first to get cookies
-      const loginResponse = await fetch("/api/auth/login", {
+      const loginResponse = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,7 +134,7 @@ describe("Auth Flow Integration (requires running server)", () => {
       const cookies = loginResponse.headers.get("set-cookie") ?? "";
 
       // Call /me with cookies
-      const meResponse = await fetch("/api/auth/me", {
+      const meResponse = await apiFetch("/api/auth/me", {
         headers: { Cookie: cookies },
       });
 
@@ -122,7 +145,7 @@ describe("Auth Flow Integration (requires running server)", () => {
 
     it.skipIf(shouldSkip)("should logout and clear cookies", async () => {
       // Login first
-      const loginResponse = await fetch("/api/auth/login", {
+      const loginResponse = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -134,7 +157,7 @@ describe("Auth Flow Integration (requires running server)", () => {
       const loginCookies = loginResponse.headers.get("set-cookie") ?? "";
 
       // Logout
-      const logoutResponse = await fetch("/api/auth/logout", {
+      const logoutResponse = await apiFetch("/api/auth/logout", {
         method: "POST",
         headers: { Cookie: loginCookies },
       });
@@ -152,7 +175,7 @@ describe("Auth Flow Integration (requires running server)", () => {
   describe("Token Refresh (AC: 2)", () => {
     it.skipIf(shouldSkip)("should rotate refresh tokens on refresh", async () => {
       // Register/Login to get initial tokens
-      const loginResponse = await fetch("/api/auth/login", {
+      const loginResponse = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -164,7 +187,7 @@ describe("Auth Flow Integration (requires running server)", () => {
       const initialCookies = loginResponse.headers.get("set-cookie") ?? "";
 
       // Refresh tokens
-      const refreshResponse = await fetch("/api/auth/refresh", {
+      const refreshResponse = await apiFetch("/api/auth/refresh", {
         method: "POST",
         headers: { Cookie: initialCookies },
       });
@@ -176,7 +199,7 @@ describe("Auth Flow Integration (requires running server)", () => {
       expect(newCookies).toContain("refresh_token");
 
       // Old token should no longer work (rotation)
-      const secondRefreshResponse = await fetch("/api/auth/refresh", {
+      const secondRefreshResponse = await apiFetch("/api/auth/refresh", {
         method: "POST",
         headers: { Cookie: initialCookies }, // Using OLD cookies
       });
@@ -192,7 +215,7 @@ describe("Auth Flow Integration (requires running server)", () => {
 
       // Make 5 failed login attempts
       for (let i = 0; i < 5; i++) {
-        await fetch("/api/auth/login", {
+        await apiFetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -203,7 +226,7 @@ describe("Auth Flow Integration (requires running server)", () => {
       }
 
       // 6th attempt should be rate limited
-      const blockedResponse = await fetch("/api/auth/login", {
+      const blockedResponse = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -221,7 +244,7 @@ describe("Auth Flow Integration (requires running server)", () => {
 
   describe("Cookie Security (AC: 4)", () => {
     it.skipIf(shouldSkip)("should set httpOnly, secure, sameSite on cookies", async () => {
-      const loginResponse = await fetch("/api/auth/login", {
+      const loginResponse = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

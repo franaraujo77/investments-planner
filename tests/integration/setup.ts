@@ -53,10 +53,23 @@ const DUMMY_DATABASE_URLS = [
 ];
 
 /**
+ * Check if a URL is parseable (not malformed)
+ */
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if database is available for integration tests
  *
- * Returns true only if DATABASE_URL is set AND is not a dummy placeholder URL.
- * This prevents tests from attempting to connect to non-existent databases.
+ * Returns true only if DATABASE_URL is set, is not a dummy placeholder URL,
+ * and is a valid URL format. This prevents tests from attempting to connect
+ * to non-existent or malformed databases.
  */
 export function isDatabaseAvailable(): boolean {
   const dbUrl = process.env.DATABASE_URL;
@@ -65,8 +78,12 @@ export function isDatabaseAvailable(): boolean {
   // Check if it's a dummy URL
   if (DUMMY_DATABASE_URLS.includes(dbUrl)) return false;
 
-  // Check if it's a localhost URL without a running database
-  // (we can't verify connection here, but dummy URLs are filtered above)
+  // Check if the URL is parseable (not malformed)
+  if (!isValidUrl(dbUrl)) {
+    console.warn("⚠️  DATABASE_URL is malformed - integration tests requiring DB will be skipped");
+    return false;
+  }
+
   return true;
 }
 
