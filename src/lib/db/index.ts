@@ -22,15 +22,39 @@ import * as schema from "./schema";
  * Validate and sanitize the DATABASE_URL.
  *
  * The postgres.js library uses decodeURIComponent on the URL, which will fail
- * if the password contains unencoded special characters like '%'.
+ * if the password contains encoded sequences that decode to invalid UTF-8.
  *
- * This function attempts to parse the URL and provides a helpful error message
- * if the URL is malformed.
+ * Common issues:
+ * - %258B decodes to %8B, which is not valid UTF-8
+ * - The password must be properly URL-encoded so that after decoding,
+ *   all remaining % sequences are valid UTF-8
+ *
+ * This function validates the URL and provides a helpful error message
+ * if the URL is malformed or incompatible with postgres.js.
  */
 function validateConnectionString(url: string): string {
   try {
     // Try to parse as URL to catch obvious issues
     const parsed = new URL(url);
+
+    // Validate password is compatible with postgres.js decoding
+    if (parsed.password) {
+      try {
+        const decoded = decodeURIComponent(parsed.password);
+        // postgres.js will decode again if result contains %
+        // Validate the second decode won't fail
+        if (decoded.includes("%")) {
+          decodeURIComponent(decoded);
+        }
+      } catch {
+        throw new Error(
+          `DATABASE_URL password contains invalid encoding. ` +
+            `The password decodes to a value with invalid percent-encoded sequences. ` +
+            `If your password contains '%', ensure it's encoded as '%25'. ` +
+            `Example: password 'abc%def' should be encoded as 'abc%25def' in the URL.`
+        );
+      }
+    }
 
     // Check if password needs encoding (contains % not followed by valid hex)
     if (parsed.password && /%(?![0-9A-Fa-f]{2})/.test(parsed.password)) {
