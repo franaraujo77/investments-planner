@@ -127,7 +127,7 @@ export function CreatePortfolioModal({
     handleSubmit,
     watch,
     reset,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm<CreatePortfolioQuickInput>({
     resolver: zodResolver(createPortfolioQuickSchema),
     mode: "onChange",
@@ -138,6 +138,12 @@ export function CreatePortfolioModal({
 
   const nameValue = watch("name") || "";
   const charactersRemaining = PORTFOLIO_NAME_MAX_LENGTH - nameValue.length;
+
+  // Determine if form can be submitted:
+  // - Must have a non-empty name (after trim)
+  // - Must have no validation errors
+  // - Using explicit check instead of isValid for better compatibility with Zod 4
+  const canSubmit = nameValue.trim().length > 0 && !errors.name;
 
   const onSubmit = async (data: CreatePortfolioQuickInput) => {
     setIsSubmitting(true);
@@ -242,7 +248,7 @@ export function CreatePortfolioModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!isValid || isSubmitting}>
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />

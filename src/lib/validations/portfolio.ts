@@ -181,23 +181,25 @@ export const supportedCurrencySchema = z.enum(CURRENCY_CODES, {
  * Used for lightweight portfolio creation modal
  *
  * Validates:
- * - name: 1-50 characters, required
+ * - name: 1-50 characters, required (after trimming)
  *
  * Server applies defaults for other fields:
  * - baseCurrency: "USD"
  * - industrySector: "Other"
  * - assetTypes: ["Stocks"]
+ *
+ * Note: Uses refine instead of transform+pipe to ensure better
+ * compatibility with react-hook-form's isValid state tracking.
  */
 export const createPortfolioQuickSchema = z.object({
   name: z
     .string()
-    .transform((name) => name.trim())
-    .pipe(
-      z
-        .string()
-        .min(PORTFOLIO_NAME_MIN_LENGTH, PORTFOLIO_MESSAGES.NAME_REQUIRED)
-        .max(PORTFOLIO_NAME_MAX_LENGTH, PORTFOLIO_MESSAGES.NAME_TOO_LONG)
-    ),
+    .min(PORTFOLIO_NAME_MIN_LENGTH, PORTFOLIO_MESSAGES.NAME_REQUIRED)
+    .max(PORTFOLIO_NAME_MAX_LENGTH, PORTFOLIO_MESSAGES.NAME_TOO_LONG)
+    .refine((val) => val.trim().length >= PORTFOLIO_NAME_MIN_LENGTH, {
+      message: PORTFOLIO_MESSAGES.NAME_REQUIRED,
+    })
+    .transform((val) => val.trim()),
 });
 
 /**
