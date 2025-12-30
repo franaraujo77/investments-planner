@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { DbErrorCode } from "@/lib/db/errors";
+import { VALIDATION_ERRORS } from "@/lib/api/error-codes";
 
 // Mock session for authenticated requests
 let mockSession: { userId: string } | null = null;
@@ -142,7 +143,7 @@ describe("API Error Handling", () => {
       const body = await response.json();
 
       expect(response.status).toBe(400);
-      expect(body.code).toBe("VALIDATION_ERROR");
+      expect(body.code).toBe(VALIDATION_ERRORS.INVALID_INPUT);
     });
 
     it("should include field errors in validation response", async () => {
@@ -170,7 +171,7 @@ describe("API Error Handling", () => {
       const body = await response.json();
 
       expect(response.status).toBe(400);
-      expect(body.code).toBe("VALIDATION_ERROR");
+      expect(body.code).toBe(VALIDATION_ERRORS.INVALID_INPUT);
     });
   });
 

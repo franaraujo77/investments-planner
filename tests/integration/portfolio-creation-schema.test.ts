@@ -23,6 +23,7 @@ import {
   type CreatePortfolioQuickInput,
   type CreatePortfolioInput,
 } from "@/lib/validations/portfolio";
+import { VALIDATION_ERRORS } from "@/lib/api/error-codes";
 
 // =============================================================================
 // SCHEMA VALIDATION TESTS
@@ -291,7 +292,7 @@ describe("Portfolio Creation API - Schema Integration", () => {
       expect(response.status).toBe(400);
 
       const body = await response.json();
-      expect(body.code).toBe("VALIDATION_ERROR");
+      expect(body.code).toBe(VALIDATION_ERRORS.INVALID_INPUT);
     });
 
     it("should reject missing name field", async () => {
@@ -305,7 +306,7 @@ describe("Portfolio Creation API - Schema Integration", () => {
       expect(response.status).toBe(400);
 
       const body = await response.json();
-      expect(body.code).toBe("VALIDATION_ERROR");
+      expect(body.code).toBe(VALIDATION_ERRORS.INVALID_INPUT);
     });
   });
 
