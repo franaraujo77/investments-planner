@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/middleware";
 import { handleDbError, databaseError } from "@/lib/api/responses";
+import { VALIDATION_ERRORS, BUSINESS_ERRORS } from "@/lib/api/error-codes";
 import {
   getUserPortfoliosWithAssetTypes,
   createPortfolio,
@@ -26,7 +27,14 @@ import {
   PortfolioLimitError,
   type PortfolioWithAssetTypes,
 } from "@/lib/services/portfolio-service";
-import { createPortfolioSchema, MAX_PORTFOLIOS_PER_USER } from "@/lib/validations/portfolio";
+import {
+  createPortfolioSchema,
+  MAX_PORTFOLIOS_PER_USER,
+  type CreatePortfolioInput,
+  type SupportedCurrency,
+  type IndustrySector,
+  type AssetType,
+} from "@/lib/validations/portfolio";
 import type { AuthError } from "@/lib/auth/types";
 
 /**
@@ -86,11 +94,14 @@ export const GET = withAuth<PortfolioListResponse | AuthError>(async (_request, 
 /**
  * Default values for quick portfolio creation (Story 3.1)
  * Applied when optional fields are not provided
+ *
+ * Type-safe defaults ensure TypeScript catches any mismatches
+ * with the schema's allowed values at compile time.
  */
-const PORTFOLIO_DEFAULTS = {
-  baseCurrency: "USD" as const,
-  industrySector: "Other" as const,
-  assetTypes: ["Stocks"] as const,
+const PORTFOLIO_DEFAULTS: Omit<CreatePortfolioInput, "name"> = {
+  baseCurrency: "USD" satisfies SupportedCurrency,
+  industrySector: "Other" satisfies IndustrySector,
+  assetTypes: ["Stocks"] satisfies AssetType[],
 };
 
 /**
@@ -136,7 +147,7 @@ export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
         return NextResponse.json<ValidationError>(
           {
             error: "Validation failed",
-            code: "VALIDATION_ERROR",
+            code: VALIDATION_ERRORS.INVALID_INPUT,
             details: validationResult.error.flatten().fieldErrors,
           },
           { status: 400 }
@@ -153,7 +164,7 @@ export const POST = withAuth<PortfolioResponse | ValidationError | AuthError>(
         return NextResponse.json<ValidationError>(
           {
             error: error.message,
-            code: "LIMIT_EXCEEDED",
+            code: BUSINESS_ERRORS.LIMIT_EXCEEDED,
           },
           { status: 409 }
         );

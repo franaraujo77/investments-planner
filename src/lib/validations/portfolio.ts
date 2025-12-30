@@ -188,18 +188,19 @@ export const supportedCurrencySchema = z.enum(CURRENCY_CODES, {
  * - industrySector: "Other"
  * - assetTypes: ["Stocks"]
  *
- * Note: Uses refine instead of transform+pipe to ensure better
- * compatibility with react-hook-form's isValid state tracking.
+ * Note: Client-side validation uses explicit canSubmit check rather than
+ * react-hook-form's isValid for better Zod 4 compatibility.
  */
 export const createPortfolioQuickSchema = z.object({
   name: z
     .string()
-    .min(PORTFOLIO_NAME_MIN_LENGTH, PORTFOLIO_MESSAGES.NAME_REQUIRED)
-    .max(PORTFOLIO_NAME_MAX_LENGTH, PORTFOLIO_MESSAGES.NAME_TOO_LONG)
-    .refine((val) => val.trim().length >= PORTFOLIO_NAME_MIN_LENGTH, {
-      message: PORTFOLIO_MESSAGES.NAME_REQUIRED,
-    })
-    .transform((val) => val.trim()),
+    .transform((name) => name.trim())
+    .pipe(
+      z
+        .string()
+        .min(PORTFOLIO_NAME_MIN_LENGTH, PORTFOLIO_MESSAGES.NAME_REQUIRED)
+        .max(PORTFOLIO_NAME_MAX_LENGTH, PORTFOLIO_MESSAGES.NAME_TOO_LONG)
+    ),
 });
 
 /**
