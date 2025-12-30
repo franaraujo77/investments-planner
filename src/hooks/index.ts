@@ -32,3 +32,5 @@ export {
   type UseAllocationWarningOptions,
   type UseAllocationWarningResult,
 } from "./useAllocationWarning";
+
+export { useOnboarding, type UseOnboardingReturn } from "./useOnboarding";

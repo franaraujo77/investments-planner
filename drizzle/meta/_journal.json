@@ -134,6 +134,13 @@
       "when": 1767052800000,
       "tag": "0018_fix_rls_all_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1767136230385,
+      "tag": "0019_equal_umar",
+      "breakpoints": true
     }
   ]
 }

@@ -67,12 +67,12 @@ development_status:
   epic-2-retrospective: done
 
   # Epic 3: Visual Allocation Feedback
-  epic-3: in-progress
+  epic-3: done
   3-1-allocation-pie-chart-component: done
   3-2-live-allocation-indicator: done
   3-3-allocation-validation: done
   3-4-visual-status-feedback: done
-  3-5-onboarding-tips: backlog
+  3-5-onboarding-tips: done
   epic-3-retrospective: optional
 
   # Epic 4: Investment Strategy Configuration
