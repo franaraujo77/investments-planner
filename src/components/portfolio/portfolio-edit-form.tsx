@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { getFieldBorderClassName } from "@/components/forms/form-field-status";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -136,7 +138,7 @@ export function PortfolioEditForm({ portfolio }: PortfolioEditFormProps) {
     setValue,
     watch,
     handleSubmit,
-    formState: { errors, isValid, isDirty },
+    formState: { errors, isValid, isDirty, touchedFields },
   } = form;
 
   // AC-2.3.8: Unsaved changes warning
@@ -392,7 +394,7 @@ export function PortfolioEditForm({ portfolio }: PortfolioEditFormProps) {
         className="space-y-6"
         data-testid="portfolio-edit-form"
       >
-        {/* Portfolio Name */}
+        {/* Portfolio Name - AC-3.4.5/3.4.6: Visual Status Feedback */}
         <div className="space-y-2">
           <Label htmlFor="name">
             Portfolio Name <span className="text-destructive">*</span>
@@ -404,7 +406,14 @@ export function PortfolioEditForm({ portfolio }: PortfolioEditFormProps) {
               maxLength={PORTFOLIO_NAME_MAX_LENGTH}
               {...register("name")}
               aria-describedby={errors.name ? "name-error" : "name-hint"}
-              className={errors.name ? "border-destructive" : ""}
+              className={cn(
+                "border pr-16",
+                getFieldBorderClassName({
+                  hasError: !!errors.name,
+                  isTouched: !!touchedFields.name,
+                  isValid: !errors.name && !!touchedFields.name,
+                })
+              )}
               data-testid="portfolio-name-input"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -412,7 +421,7 @@ export function PortfolioEditForm({ portfolio }: PortfolioEditFormProps) {
             </span>
           </div>
           {errors.name ? (
-            <p id="name-error" className="text-sm text-destructive">
+            <p id="name-error" role="alert" className="text-sm text-destructive">
               {errors.name.message}
             </p>
           ) : (

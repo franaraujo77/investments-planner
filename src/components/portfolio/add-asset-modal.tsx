@@ -30,6 +30,8 @@ import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { getFieldBorderClassName } from "@/components/forms/form-field-status";
 import {
   Dialog,
   DialogContent,
@@ -88,7 +90,7 @@ export function AddAssetModal({
     reset,
     control,
     setValue,
-    formState: { errors, isValid },
+    formState: { errors, isValid, touchedFields },
   } = useForm<AddAssetFormValues>({
     resolver: zodResolver(addAssetSchema) as Resolver<AddAssetFormValues>,
     mode: "onChange",
@@ -250,7 +252,7 @@ export function AddAssetModal({
               )}
             </div>
 
-            {/* Quantity and Price Row */}
+            {/* Quantity and Price Row - AC-3.4.5/3.4.6: Visual Status Feedback */}
             <div className="grid grid-cols-2 gap-4">
               {/* Quantity Field */}
               <div className="space-y-2">
@@ -262,10 +264,18 @@ export function AddAssetModal({
                   placeholder="e.g., 10.5"
                   aria-invalid={!!errors.quantity}
                   aria-describedby={errors.quantity ? "quantity-error" : undefined}
+                  className={cn(
+                    "border",
+                    getFieldBorderClassName({
+                      hasError: !!errors.quantity,
+                      isTouched: !!touchedFields.quantity,
+                      isValid: !errors.quantity && !!touchedFields.quantity,
+                    })
+                  )}
                   {...register("quantity")}
                 />
                 {errors.quantity && (
-                  <p id="quantity-error" className="text-sm text-destructive">
+                  <p id="quantity-error" role="alert" className="text-sm text-destructive">
                     {errors.quantity.message}
                   </p>
                 )}
@@ -281,10 +291,18 @@ export function AddAssetModal({
                   placeholder="e.g., 150.50"
                   aria-invalid={!!errors.purchasePrice}
                   aria-describedby={errors.purchasePrice ? "price-error" : undefined}
+                  className={cn(
+                    "border",
+                    getFieldBorderClassName({
+                      hasError: !!errors.purchasePrice,
+                      isTouched: !!touchedFields.purchasePrice,
+                      isValid: !errors.purchasePrice && !!touchedFields.purchasePrice,
+                    })
+                  )}
                   {...register("purchasePrice")}
                 />
                 {errors.purchasePrice && (
-                  <p id="price-error" className="text-sm text-destructive">
+                  <p id="price-error" role="alert" className="text-sm text-destructive">
                     {errors.purchasePrice.message}
                   </p>
                 )}

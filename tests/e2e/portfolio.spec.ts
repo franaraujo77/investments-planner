@@ -5304,3 +5304,259 @@ test.describe("Story 3.2: Live Allocation Indicator", () => {
     });
   });
 });
+
+// =============================================================================
+// STORY 3.4: Visual Status Feedback Tests
+// =============================================================================
+
+test.describe("Story 3.4: Visual Status Feedback", () => {
+  test.describe("AC-3.4.5/3.4.6: Field-Level Error and Valid Styling", () => {
+    test.describe("Edit Holding Modal", () => {
+      test("should show red border on invalid quantity field", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        // Check if there are any holdings to edit
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        // Click edit button on the first holding
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        // Wait for modal to open
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        // Get quantity input
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await expect(quantityInput).toBeVisible();
+
+        // Clear and enter invalid value (empty or 0)
+        await quantityInput.clear();
+        await quantityInput.fill("0");
+        await quantityInput.blur();
+
+        // Check for error state - border-destructive class (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-destructive/);
+      });
+
+      test("should show green border on valid touched quantity field", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await expect(quantityInput).toBeVisible();
+
+        // Enter valid value and blur
+        await quantityInput.clear();
+        await quantityInput.fill("100");
+        await quantityInput.blur();
+
+        // Check for valid state - border-green-500 class (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-green-500/);
+      });
+
+      test("should show error message with role=alert for invalid field", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await quantityInput.clear();
+        await quantityInput.fill("-5");
+        await quantityInput.blur();
+
+        // Error message should have role="alert" for accessibility (auto-retries until passing)
+        const errorMessage = page.locator("#quantity-error[role='alert']");
+        await expect(errorMessage).toBeVisible();
+        await expect(errorMessage).toContainText("positive");
+      });
+
+      test("should transition from error to valid border on correction", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+
+        // First enter invalid value
+        await quantityInput.clear();
+        await quantityInput.fill("0");
+        await quantityInput.blur();
+
+        // Verify error state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-destructive/);
+
+        // Now correct the value
+        await quantityInput.clear();
+        await quantityInput.fill("50");
+        await quantityInput.blur();
+
+        // Verify transition to valid state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-green-500/);
+        await expect(quantityInput).not.toHaveClass(/border-destructive/);
+      });
+    });
+
+    test.describe("Add Asset Modal", () => {
+      test("should show red border on invalid quantity in add asset form", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        // Click add asset button
+        const addButton = page.getByRole("button", { name: /Add Asset/i });
+        if (!(await addButton.isVisible().catch(() => false))) {
+          test.skip(true, "Add Asset button not found");
+          return;
+        }
+        await addButton.click();
+
+        // Get quantity input
+        const quantityInput = page.locator("#quantity");
+        await expect(quantityInput).toBeVisible();
+
+        // Enter invalid value
+        await quantityInput.fill("-10");
+        await quantityInput.blur();
+
+        // Check for error state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-destructive/);
+      });
+
+      test("should show green border on valid quantity in add asset form", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const addButton = page.getByRole("button", { name: /Add Asset/i });
+        if (!(await addButton.isVisible().catch(() => false))) {
+          test.skip(true, "Add Asset button not found");
+          return;
+        }
+        await addButton.click();
+
+        const quantityInput = page.locator("#quantity");
+        await expect(quantityInput).toBeVisible();
+
+        // Enter valid value
+        await quantityInput.fill("100");
+        await quantityInput.blur();
+
+        // Check for valid state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-green-500/);
+      });
+    });
+
+    test.describe("Portfolio Create Form", () => {
+      test("should show green border on valid portfolio name", async ({ page }) => {
+        await loginUser(page);
+        await page.goto("/portfolio/create");
+
+        const nameInput = page.locator("#name");
+        await expect(nameInput).toBeVisible();
+
+        // Enter valid name
+        await nameInput.fill("My Test Portfolio");
+        await nameInput.blur();
+
+        // Check for valid state (auto-retries until passing)
+        await expect(nameInput).toHaveClass(/border-green-500/);
+      });
+    });
+  });
+});

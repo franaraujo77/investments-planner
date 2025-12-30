@@ -4,6 +4,9 @@
  * Story 3.2: Live Allocation Indicator
  * Tests for AC-3.2.1 through AC-3.2.5
  *
+ * Story 3.4: Visual Status Feedback
+ * Tests for AC-3.4.1 through AC-3.4.3 (range-based health states)
+ *
  * Tests the exported helper functions and type definitions.
  * Component rendering tests are in E2E via Playwright.
  */
@@ -12,9 +15,12 @@ import { describe, it, expect } from "vitest";
 import {
   getState,
   getStateStyles,
+  getAllocationHealthState,
+  getHealthStateStyles,
   type AllocationIndicatorProps,
   type AllocationIndicatorLiveProps,
   type AllocationState,
+  type AllocationHealthState,
 } from "@/components/forms/allocation-indicator";
 
 // =============================================================================
@@ -394,5 +400,175 @@ describe("AllocationIndicator - Progress Bar Logic", () => {
   it("progress bar width is 0% for 0 or negative allocated values", () => {
     expect(calculateProgressWidth(0)).toBe(0);
     expect(calculateProgressWidth(-10)).toBe(0);
+  });
+});
+
+// =============================================================================
+// TESTS FOR ALLOCATION HEALTH STATE (Story 3.4 - Range-Based Feedback)
+// =============================================================================
+
+describe("AllocationIndicator - getAllocationHealthState (exported)", () => {
+  describe("AC-3.4.1: Healthy Allocation Display (Within Range)", () => {
+    it("returns healthy state when current is within target range", () => {
+      // 45% is within 40-50% target range
+      expect(getAllocationHealthState(45, 40, 50)).toBe("healthy");
+    });
+
+    it("returns healthy state at exact minimum boundary", () => {
+      expect(getAllocationHealthState(40, 40, 50)).toBe("healthy");
+    });
+
+    it("returns healthy state at exact maximum boundary", () => {
+      expect(getAllocationHealthState(50, 40, 50)).toBe("healthy");
+    });
+
+    it("handles floating-point precision (within tolerance)", () => {
+      // 39.99 should be considered healthy (within 0.01 tolerance)
+      expect(getAllocationHealthState(39.99, 40, 50)).toBe("healthy");
+      expect(getAllocationHealthState(50.01, 40, 50)).toBe("healthy");
+    });
+  });
+
+  describe("AC-3.4.2: Attention Needed Display (Slightly Outside)", () => {
+    it("returns attention state when slightly below range (within 5%)", () => {
+      // 37% is 3% below 40% minimum (within default 5% tolerance)
+      expect(getAllocationHealthState(37, 40, 50)).toBe("attention");
+    });
+
+    it("returns attention state when slightly above range (within 5%)", () => {
+      // 53% is 3% above 50% maximum (within default 5% tolerance)
+      expect(getAllocationHealthState(53, 40, 50)).toBe("attention");
+    });
+
+    it("returns attention state at exactly 5% below minimum", () => {
+      expect(getAllocationHealthState(35, 40, 50)).toBe("attention");
+    });
+
+    it("returns attention state at exactly 5% above maximum", () => {
+      expect(getAllocationHealthState(55, 40, 50)).toBe("attention");
+    });
+
+    it("handles custom tolerance parameter", () => {
+      // With 3% tolerance, 37% (3% below) should be attention
+      expect(getAllocationHealthState(37, 40, 50, 3)).toBe("attention");
+      // With 3% tolerance, 36% (4% below) should be problem
+      expect(getAllocationHealthState(36, 40, 50, 3)).toBe("problem");
+    });
+  });
+
+  describe("AC-3.4.3: Problem Display (Significantly Outside)", () => {
+    it("returns problem state when significantly below range (>5%)", () => {
+      // 30% is 10% below 40% minimum (exceeds default 5% tolerance)
+      expect(getAllocationHealthState(30, 40, 50)).toBe("problem");
+    });
+
+    it("returns problem state when significantly above range (>5%)", () => {
+      // 60% is 10% above 50% maximum (exceeds default 5% tolerance)
+      expect(getAllocationHealthState(60, 40, 50)).toBe("problem");
+    });
+
+    it("returns problem state at 0% when range is 40-50%", () => {
+      expect(getAllocationHealthState(0, 40, 50)).toBe("problem");
+    });
+
+    it("returns problem state at 100% when range is 40-50%", () => {
+      expect(getAllocationHealthState(100, 40, 50)).toBe("problem");
+    });
+  });
+
+  describe("Edge Cases", () => {
+    it("handles 0-100% range (always healthy)", () => {
+      expect(getAllocationHealthState(0, 0, 100)).toBe("healthy");
+      expect(getAllocationHealthState(50, 0, 100)).toBe("healthy");
+      expect(getAllocationHealthState(100, 0, 100)).toBe("healthy");
+    });
+
+    it("handles narrow range (e.g., exactly 50%)", () => {
+      expect(getAllocationHealthState(50, 50, 50)).toBe("healthy");
+      expect(getAllocationHealthState(47, 50, 50)).toBe("attention"); // 3% below
+      expect(getAllocationHealthState(44, 50, 50)).toBe("problem"); // 6% below
+    });
+
+    it("handles negative current values", () => {
+      // -5 is 5% below 0 which equals tolerance, so attention
+      expect(getAllocationHealthState(-5, 0, 100)).toBe("attention");
+      // -6 is 6% below 0 which exceeds tolerance, so problem
+      expect(getAllocationHealthState(-6, 0, 100)).toBe("problem");
+    });
+
+    it("handles values greater than 100%", () => {
+      expect(getAllocationHealthState(110, 0, 100)).toBe("problem");
+    });
+  });
+});
+
+describe("AllocationIndicator - getHealthStateStyles (exported)", () => {
+  describe("AC-3.4.1: Healthy styling (green)", () => {
+    it("applies emerald colors for healthy state", () => {
+      const styles = getHealthStateStyles("healthy");
+      expect(styles.textColor).toBe("text-emerald-600 dark:text-emerald-400");
+      expect(styles.bgColor).toBe("bg-emerald-100/50 dark:bg-emerald-900/20");
+      expect(styles.borderColor).toBe("border-emerald-500");
+    });
+  });
+
+  describe("AC-3.4.2: Attention styling (amber/yellow)", () => {
+    it("applies amber colors for attention state", () => {
+      const styles = getHealthStateStyles("attention");
+      expect(styles.textColor).toBe("text-amber-600 dark:text-amber-400");
+      expect(styles.bgColor).toBe("bg-amber-100/50 dark:bg-amber-900/20");
+      expect(styles.borderColor).toBe("border-amber-500");
+    });
+  });
+
+  describe("AC-3.4.3: Problem styling (red)", () => {
+    it("applies red colors for problem state", () => {
+      const styles = getHealthStateStyles("problem");
+      expect(styles.textColor).toBe("text-red-600 dark:text-red-400");
+      expect(styles.bgColor).toBe("bg-red-100/50 dark:bg-red-900/20");
+      expect(styles.borderColor).toBe("border-red-500");
+    });
+  });
+
+  describe("Color Consistency with Design System", () => {
+    it("uses emerald for healthy state (consistent with valid state)", () => {
+      const styles = getHealthStateStyles("healthy");
+      expect(styles.textColor).toContain("emerald");
+      expect(styles.bgColor).toContain("emerald");
+      expect(styles.borderColor).toContain("emerald");
+    });
+
+    it("uses amber for attention state", () => {
+      const styles = getHealthStateStyles("attention");
+      expect(styles.textColor).toContain("amber");
+      expect(styles.bgColor).toContain("amber");
+      expect(styles.borderColor).toContain("amber");
+    });
+
+    it("uses red for problem state (consistent with overallocated state)", () => {
+      const styles = getHealthStateStyles("problem");
+      expect(styles.textColor).toContain("red");
+      expect(styles.bgColor).toContain("red");
+      expect(styles.borderColor).toContain("red");
+    });
+
+    it("includes dark mode variants", () => {
+      const healthyStyles = getHealthStateStyles("healthy");
+      expect(healthyStyles.textColor).toContain("dark:");
+
+      const attentionStyles = getHealthStateStyles("attention");
+      expect(attentionStyles.textColor).toContain("dark:");
+
+      const problemStyles = getHealthStateStyles("problem");
+      expect(problemStyles.textColor).toContain("dark:");
+    });
+  });
+});
+
+describe("AllocationHealthState - Type Definitions", () => {
+  it("includes all valid health states", () => {
+    // Type-level verification - these values should compile without error
+    const states: AllocationHealthState[] = ["healthy", "attention", "problem"];
+    expect(states).toHaveLength(3);
   });
 });

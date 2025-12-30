@@ -26,9 +26,24 @@ import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { useLiveAllocationTotal } from "./allocation-pie-chart-live";
 
 /**
+ * Floating-point tolerance for equality comparisons
+ * Per project-context.md and Story 3.3/3.4
+ * Using 0.02 to account for JS floating-point precision errors
+ * (e.g., |99.99 - 100| = 0.010000000000005116)
+ */
+export const ALLOCATION_FP_TOLERANCE = 0.02;
+
+/**
  * Visual state of the allocation indicator
  */
 export type AllocationState = "underallocated" | "valid" | "overallocated";
+
+/**
+ * Visual state for range-based allocation health
+ * Story 3.4: Visual Status Feedback
+ * AC-3.4.1-3.4.3
+ */
+export type AllocationHealthState = "healthy" | "attention" | "problem";
 
 /**
  * Props for the AllocationIndicator component
@@ -89,6 +104,85 @@ export function getStateStyles(state: AllocationState): {
         textColor: "text-muted-foreground",
         bgColor: "bg-muted/30",
         progressColor: "bg-slate-400",
+      };
+  }
+}
+
+/**
+ * Determine allocation health state based on range comparison
+ * Story 3.4: Visual Status Feedback (AC-3.4.1-3.4.3)
+ *
+ * @param current - Current allocation percentage (0-100+)
+ * @param targetMin - Minimum of target range
+ * @param targetMax - Maximum of target range
+ * @param tolerance - Tolerance for "attention" state (default 5%)
+ * @returns AllocationHealthState - healthy, attention, or problem
+ *
+ * Logic:
+ * - Within range (with 0.01 floating-point tolerance) → healthy
+ * - Within tolerance of range → attention
+ * - Beyond tolerance → problem
+ */
+export function getAllocationHealthState(
+  current: number,
+  targetMin: number,
+  targetMax: number,
+  tolerance: number = 5
+): AllocationHealthState {
+  // Check if within target range (with floating-point tolerance)
+  const isWithinRange =
+    current >= targetMin - ALLOCATION_FP_TOLERANCE &&
+    current <= targetMax + ALLOCATION_FP_TOLERANCE;
+
+  if (isWithinRange) {
+    return "healthy";
+  }
+
+  // Calculate how far outside the range
+  const deviationBelow = current < targetMin ? targetMin - current : 0;
+  const deviationAbove = current > targetMax ? current - targetMax : 0;
+  const deviation = Math.max(deviationBelow, deviationAbove);
+
+  // Within tolerance → attention; beyond tolerance → problem
+  if (deviation <= tolerance) {
+    return "attention";
+  }
+
+  return "problem";
+}
+
+/**
+ * Get styling classes for allocation health state
+ * Story 3.4: Visual Status Feedback
+ *
+ * Color palette from Dev Notes:
+ * - Healthy: emerald (green)
+ * - Attention: amber (yellow)
+ * - Problem: red
+ */
+export function getHealthStateStyles(state: AllocationHealthState): {
+  textColor: string;
+  bgColor: string;
+  borderColor: string;
+} {
+  switch (state) {
+    case "healthy":
+      return {
+        textColor: "text-emerald-600 dark:text-emerald-400",
+        bgColor: "bg-emerald-100/50 dark:bg-emerald-900/20",
+        borderColor: "border-emerald-500",
+      };
+    case "attention":
+      return {
+        textColor: "text-amber-600 dark:text-amber-400",
+        bgColor: "bg-amber-100/50 dark:bg-amber-900/20",
+        borderColor: "border-amber-500",
+      };
+    case "problem":
+      return {
+        textColor: "text-red-600 dark:text-red-400",
+        bgColor: "bg-red-100/50 dark:bg-red-900/20",
+        borderColor: "border-red-500",
       };
   }
 }

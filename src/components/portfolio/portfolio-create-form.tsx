@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { getFieldBorderClassName } from "@/components/forms/form-field-status";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -96,7 +98,7 @@ export function PortfolioCreateForm() {
     setValue,
     watch,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors, isValid, touchedFields },
   } = form;
 
   const watchedName = watch("name");
@@ -224,7 +226,7 @@ export function PortfolioCreateForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Portfolio Name - AC-2.1.1 */}
+      {/* Portfolio Name - AC-2.1.1, AC-3.4.5/3.4.6: Visual Status Feedback */}
       <div className="space-y-2">
         <Label htmlFor="name">
           Portfolio Name <span className="text-destructive">*</span>
@@ -236,14 +238,21 @@ export function PortfolioCreateForm() {
             maxLength={PORTFOLIO_NAME_MAX_LENGTH}
             {...register("name")}
             aria-describedby={errors.name ? "name-error" : "name-hint"}
-            className={errors.name ? "border-destructive" : ""}
+            className={cn(
+              "border pr-16",
+              getFieldBorderClassName({
+                hasError: !!errors.name,
+                isTouched: !!touchedFields.name,
+                isValid: !errors.name && !!touchedFields.name,
+              })
+            )}
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
             {nameLength}/{PORTFOLIO_NAME_MAX_LENGTH}
           </span>
         </div>
         {errors.name ? (
-          <p id="name-error" className="text-sm text-destructive">
+          <p id="name-error" role="alert" className="text-sm text-destructive">
             {errors.name.message}
           </p>
         ) : (
