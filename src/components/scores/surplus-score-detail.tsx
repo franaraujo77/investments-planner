@@ -52,11 +52,37 @@ export interface SurplusScoreDetailProps {
 }
 
 // =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Surplus status types for icon and styling decisions
+ */
+export type SurplusStatus = "bonus" | "penalty" | "neutral";
+
+/**
+ * Determine surplus status based on bonus and penalty values
+ *
+ * Exported for independent testing and reuse in other components.
+ *
+ * @param bonusApplied - Bonus points (positive or 0)
+ * @param penaltyApplied - Penalty points (negative or 0)
+ * @returns Status: 'bonus' if positive bonus, 'penalty' if negative penalty, 'neutral' otherwise
+ */
+export function getSurplusStatus(bonusApplied: number, penaltyApplied: number): SurplusStatus {
+  if (bonusApplied > 0) return "bonus";
+  if (penaltyApplied < 0) return "penalty";
+  return "neutral";
+}
+
+// =============================================================================
 // HELPER COMPONENTS
 // =============================================================================
 
 /**
  * Status icon based on score impact
+ *
+ * Uses getSurplusStatus for logic, renders appropriate icon.
  */
 function StatusIcon({
   bonusApplied,
@@ -65,13 +91,16 @@ function StatusIcon({
   bonusApplied: number;
   penaltyApplied: number;
 }) {
-  if (bonusApplied > 0) {
-    return <CheckCircle2 className="h-4 w-4 text-green-600" aria-label="Bonus applied" />;
+  const status = getSurplusStatus(bonusApplied, penaltyApplied);
+
+  switch (status) {
+    case "bonus":
+      return <CheckCircle2 className="h-4 w-4 text-green-600" aria-label="Bonus applied" />;
+    case "penalty":
+      return <XCircle className="h-4 w-4 text-red-600" aria-label="Penalty applied" />;
+    case "neutral":
+      return <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Neutral" />;
   }
-  if (penaltyApplied < 0) {
-    return <XCircle className="h-4 w-4 text-red-600" aria-label="Penalty applied" />;
-  }
-  return <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Neutral" />;
 }
 
 /**

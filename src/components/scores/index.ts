@@ -8,7 +8,12 @@
  * - IncompleteDataNotice: Warning for missing dividend data
  */
 
-export { SurplusScoreDetail, type SurplusScoreDetailProps } from "./surplus-score-detail";
+export {
+  SurplusScoreDetail,
+  getSurplusStatus,
+  type SurplusScoreDetailProps,
+  type SurplusStatus,
+} from "./surplus-score-detail";
 export {
   IncompleteDataNotice,
   shouldShowIncompleteDataNotice,

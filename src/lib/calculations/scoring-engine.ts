@@ -286,7 +286,7 @@ export function calculateScores(
       const surplusResult = calculateSurplusScore(asset.surplusHistory);
 
       // Add surplus scoring as a special criterion result
-      const surplusCriterionResult: CriterionResult = {
+      const surplusCriterionResult = {
         criterionId: "surplus-consistency",
         criterionName: "Surplus Consistency",
         matched: surplusResult.totalPoints !== 0,
@@ -299,7 +299,7 @@ export function calculateScores(
           bonusApplied: surplusResult.bonusApplied,
           penaltyApplied: surplusResult.penaltyApplied,
         },
-      };
+      } satisfies CriterionResult;
 
       assetData.breakdown.push(surplusCriterionResult);
       assetData.totalScore = assetData.totalScore.plus(surplusResult.totalPoints);

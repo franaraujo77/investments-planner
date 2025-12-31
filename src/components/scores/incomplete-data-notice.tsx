@@ -18,6 +18,10 @@
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  EXPECTED_YEARS_OF_DATA,
+  PENALTY_PER_MISSING_YEAR,
+} from "@/lib/calculations/surplus-scoring";
 
 // =============================================================================
 // TYPES
@@ -37,13 +41,6 @@ export interface IncompleteDataNoticeProps {
 }
 
 // =============================================================================
-// CONSTANTS
-// =============================================================================
-
-const EXPECTED_YEARS = 5;
-const PENALTY_PER_MISSING_YEAR = -2;
-
-// =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
@@ -55,7 +52,7 @@ function calculateMissingInfo(yearsOfData: number): {
   totalPenalty: number;
   isComplete: boolean;
 } {
-  const missingYears = Math.max(0, EXPECTED_YEARS - yearsOfData);
+  const missingYears = Math.max(0, EXPECTED_YEARS_OF_DATA - yearsOfData);
   const totalPenalty = missingYears * PENALTY_PER_MISSING_YEAR;
   const isComplete = missingYears === 0;
 
@@ -75,11 +72,11 @@ function getMessage(
   if (missingYears === 0) {
     return {
       title: "Complete Data Available",
-      description: `${assetText} complete dividend history data for the past ${EXPECTED_YEARS} years.`,
+      description: `${assetText} complete dividend history data for the past ${EXPECTED_YEARS_OF_DATA} years.`,
     };
   }
 
-  if (missingYears === EXPECTED_YEARS) {
+  if (missingYears === EXPECTED_YEARS_OF_DATA) {
     return {
       title: "No Dividend Data Available",
       description: `${assetText} no dividend history data available. This results in a ${totalPenalty} point penalty.`,
@@ -88,7 +85,7 @@ function getMessage(
 
   return {
     title: "Incomplete Dividend Data",
-    description: `${assetText} only ${EXPECTED_YEARS - missingYears} of ${EXPECTED_YEARS} years of dividend history available. ${missingYears} missing year${missingYears > 1 ? "s" : ""} result${missingYears === 1 ? "s" : ""} in a ${totalPenalty} point penalty.`,
+    description: `${assetText} only ${EXPECTED_YEARS_OF_DATA - missingYears} of ${EXPECTED_YEARS_OF_DATA} years of dividend history available. ${missingYears} missing year${missingYears > 1 ? "s" : ""} result${missingYears === 1 ? "s" : ""} in a ${totalPenalty} point penalty.`,
   };
 }
 
@@ -151,5 +148,5 @@ export function IncompleteDataNotice({
  * Export helper for checking if notice should be shown
  */
 export function shouldShowIncompleteDataNotice(yearsOfData: number): boolean {
-  return yearsOfData < EXPECTED_YEARS;
+  return yearsOfData < EXPECTED_YEARS_OF_DATA;
 }

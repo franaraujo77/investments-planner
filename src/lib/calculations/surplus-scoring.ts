@@ -99,9 +99,10 @@ export function evaluateSurplusPenalty(history: SurplusHistoryData): {
   // In JavaScript, 0 * -2 produces -0 (negative zero), which is a distinct value
   // from 0 (Object.is(0, -0) === false). While -0 === 0 is true, returning
   // explicit 0 avoids potential edge cases in serialization and comparisons.
+  // Using Decimal(0).toNumber() for consistency with the calculation path below.
   if (missingYears === 0) {
     return {
-      penaltyPoints: 0,
+      penaltyPoints: new Decimal(0).toNumber(),
       missingYears: 0,
       yearsAvailable,
     };
