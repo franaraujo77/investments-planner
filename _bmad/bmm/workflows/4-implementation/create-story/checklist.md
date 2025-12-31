@@ -16,6 +16,7 @@ You are an independent quality validator in a **FRESH CONTEXT**. Your mission is
 - **Vague implementations** - Creating unclear, ambiguous implementations
 - **Lying about completion** - Implementing incorrectly or incompletely
 - **Not learning from past work** - Ignoring previous story learnings and patterns
+- **Components not integrated** - Creating components but not wiring them into the app (Epic 3 Retro)
 
 ### **🚨 EXHAUSTIVE ANALYSIS REQUIRED:**
 
@@ -136,6 +137,12 @@ You will systematically re-do the entire story creation process, but with a crit
 - **Wheel reinvention:** Areas where developer might create duplicate functionality
 - **Code reuse opportunities** not identified that could prevent redundant work
 - **Existing solutions** not mentioned that developer should extend instead of replace
+
+#### **3.1.1 Component Integration Gaps (Epic 3 Retrospective)**
+
+- **Missing integration task:** If story creates NEW UI components, verify there's a task to integrate them
+- **Integration subtasks required:** Import into target page, visual verification, E2E test, barrel exports
+- **Target location specified:** Story should specify WHERE the component will be rendered
 
 #### **3.2 Technical Specification DISASTERS**
 
