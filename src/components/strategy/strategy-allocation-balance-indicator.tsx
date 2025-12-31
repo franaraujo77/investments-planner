@@ -95,10 +95,11 @@ export function StrategyAllocationBalanceIndicator({
     formattedOver,
   } = useMemo(() => {
     // Default to 0 if no summary
-    const totalMinimums = summary?.totalMinimums ?? "0";
+    // Use totalMaximums to match pie chart behavior (targetMax ?? targetMin preference)
+    const totalMaximums = summary?.totalMaximums ?? "0";
     const classCount = summary?.classCount ?? 0;
 
-    const totalDecimal = new Decimal(totalMinimums);
+    const totalDecimal = new Decimal(totalMaximums);
     const remainingDecimal = new Decimal(100).minus(totalDecimal);
     const totalNum = totalDecimal.toNumber();
     const remainingNum = remainingDecimal.toNumber();
