@@ -9,14 +9,20 @@
  *
  * Combines the allocation pie chart and comparison legend
  * in a responsive two-column layout.
+ *
+ * Supports toggling between:
+ * - Target Allocation: Shows configured target allocations from asset classes
+ * - Current Allocation: Shows actual portfolio holdings allocation
  */
 
 import { useState, useCallback } from "react";
+import { Target, PieChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StrategyAllocationChart } from "./strategy-allocation-chart";
 import { AllocationComparisonLegend } from "./allocation-comparison-legend";
-import { useStrategyAllocation } from "@/hooks";
+import { useStrategyAllocation, type AllocationView } from "@/hooks";
 import { AllocationPieChartSkeleton } from "@/components/portfolio/allocation-pie-chart";
 
 // =============================================================================
@@ -36,6 +42,7 @@ export interface StrategyAllocationSectionProps {
  * Strategy Allocation Section
  *
  * Displays the portfolio allocation overview with:
+ * - Toggle between Target and Current allocation views
  * - Pie chart (60% width on large screens)
  * - Comparison legend (40% width on large screens)
  * - Responsive stacking on mobile
@@ -47,13 +54,30 @@ export interface StrategyAllocationSectionProps {
  */
 export function StrategyAllocationSection({ className }: StrategyAllocationSectionProps) {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-  const { allocations, totalValue, unclassified, hasAssets, isLoading, error } =
-    useStrategyAllocation();
+  const {
+    allocations,
+    totalValue,
+    unclassified,
+    hasAssets,
+    hasAssetClasses,
+    view,
+    setView,
+    isLoading,
+    error,
+  } = useStrategyAllocation({ initialView: "target" });
 
   // Handle class selection from chart or legend
   const handleClassClick = useCallback((classId: string) => {
     setSelectedClassId((current) => (current === classId ? null : classId));
   }, []);
+
+  // Handle view toggle
+  const handleViewChange = useCallback(
+    (value: string) => {
+      setView(value as AllocationView);
+    },
+    [setView]
+  );
 
   // Loading state
   if (isLoading) {
@@ -101,23 +125,53 @@ export function StrategyAllocationSection({ className }: StrategyAllocationSecti
     );
   }
 
+  // Determine empty state message based on view
+  const getEmptyStateMessage = () => {
+    if (view === "target") {
+      return {
+        title: "No target allocations configured",
+        description: "Add target allocation percentages to your asset classes to see your strategy",
+      };
+    }
+    return {
+      title: "No allocation data",
+      description: "Add assets to your portfolio to see allocation breakdown",
+    };
+  };
+
+  // Check if we should show empty state
+  const showEmptyState =
+    allocations.length === 0 &&
+    ((view === "target" && !hasAssetClasses) || (view === "current" && !hasAssets));
+
   // Empty state - show card with message
-  if (!hasAssets || allocations.length === 0) {
+  if (showEmptyState) {
+    const emptyState = getEmptyStateMessage();
     return (
       <Card className={cn("w-full", className)} data-testid="strategy-allocation-section-empty">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg">Portfolio Allocation Overview</CardTitle>
+          <Tabs value={view} onValueChange={handleViewChange}>
+            <TabsList className="h-8">
+              <TabsTrigger value="target" className="text-xs px-2 gap-1">
+                <Target className="h-3 w-3" />
+                Target
+              </TabsTrigger>
+              <TabsTrigger value="current" className="text-xs px-2 gap-1">
+                <PieChart className="h-3 w-3" />
+                Current
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
           <div
             className="flex flex-col items-center justify-center py-12 text-muted-foreground border-2 border-dashed rounded-lg"
             role="status"
-            aria-label="No allocation data"
+            aria-label={emptyState.title}
           >
-            <div className="text-lg font-medium">No allocation data</div>
-            <div className="text-sm text-center max-w-sm mt-1">
-              Add assets to your portfolio to see allocation breakdown
-            </div>
+            <div className="text-lg font-medium">{emptyState.title}</div>
+            <div className="text-sm text-center max-w-sm mt-1">{emptyState.description}</div>
           </div>
         </CardContent>
       </Card>
@@ -126,8 +180,20 @@ export function StrategyAllocationSection({ className }: StrategyAllocationSecti
 
   return (
     <Card className={cn("w-full", className)} data-testid="strategy-allocation-section">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg">Portfolio Allocation Overview</CardTitle>
+        <Tabs value={view} onValueChange={handleViewChange}>
+          <TabsList className="h-8">
+            <TabsTrigger value="target" className="text-xs px-2 gap-1">
+              <Target className="h-3 w-3" />
+              Target
+            </TabsTrigger>
+            <TabsTrigger value="current" className="text-xs px-2 gap-1">
+              <PieChart className="h-3 w-3" />
+              Current
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

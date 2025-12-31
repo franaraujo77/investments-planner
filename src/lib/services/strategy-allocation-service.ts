@@ -207,3 +207,82 @@ export async function hasPortfolioAssets(userId: string): Promise<boolean> {
 
   return (result[0]?.count ?? 0) > 0;
 }
+
+/**
+ * Check if user has any asset classes configured
+ *
+ * Used to determine empty state for target allocation view
+ */
+export async function hasAssetClasses(userId: string): Promise<boolean> {
+  const result = await db
+    .select({ count: sql<number>`COUNT(${assetClasses.id})::int` })
+    .from(assetClasses)
+    .where(eq(assetClasses.userId, userId));
+
+  return (result[0]?.count ?? 0) > 0;
+}
+
+/**
+ * Get target allocation strategy for a user
+ *
+ * Returns the configured target allocations (targetMin percentages) from asset classes.
+ * This shows the user's investment strategy/plan, not actual holdings.
+ *
+ * @param userId - User ID to get target allocation for
+ * @returns StrategyAllocationSummary with target allocations
+ */
+export async function getTargetAllocation(userId: string): Promise<StrategyAllocationSummary> {
+  // Query all asset classes for this user with their target allocations
+  const userAssetClasses = await db
+    .select({
+      id: assetClasses.id,
+      name: assetClasses.name,
+      targetMin: assetClasses.targetMin,
+      targetMax: assetClasses.targetMax,
+    })
+    .from(assetClasses)
+    .where(eq(assetClasses.userId, userId))
+    .orderBy(assetClasses.name);
+
+  // Build allocation objects using targetMin as the percentage for the pie chart
+  const allocations: StrategyAllocation[] = userAssetClasses
+    .filter((ac) => ac.targetMin !== null) // Only include classes with target allocations
+    .map((ac) => {
+      const targetMinValue = ac.targetMin ?? "0";
+
+      return {
+        classId: ac.id,
+        className: ac.name,
+        targetMin: ac.targetMin,
+        targetMax: ac.targetMax,
+        currentValue: "0.0000", // Not applicable for target view
+        currentPercentage: targetMinValue, // Use targetMin as the display percentage
+        assetCount: 0, // Not applicable for target view
+        status: "on-target" as AllocationStatus, // Targets are always "on-target" by definition
+      };
+    });
+
+  // Sort by percentage descending
+  allocations.sort((a, b) => {
+    return new Decimal(b.currentPercentage).minus(new Decimal(a.currentPercentage)).toNumber();
+  });
+
+  // Calculate total of all targetMin values
+  const totalTargetMin = allocations.reduce((sum, alloc) => {
+    return sum.plus(new Decimal(alloc.currentPercentage));
+  }, new Decimal(0));
+
+  logger.debug("Target allocation calculated", {
+    userId,
+    classCount: allocations.length,
+    totalTargetMin: totalTargetMin.toFixed(2),
+  });
+
+  return {
+    allocations,
+    totalPortfolioValue: "0.0000", // Not applicable for target view
+    unclassifiedValue: "0.0000",
+    unclassifiedPercentage: "0.0000",
+    unclassifiedAssetCount: 0,
+  };
+}
