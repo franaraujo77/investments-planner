@@ -309,7 +309,7 @@ export function AllocationPieChart({
 
   return (
     <div
-      className={cn("w-full", className)}
+      className={cn("relative w-full", className)}
       data-testid="allocation-pie-chart"
       role="figure"
       aria-label="Portfolio allocation pie chart"

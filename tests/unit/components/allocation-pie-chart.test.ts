@@ -6,7 +6,7 @@
  * AC-3.1.5: Color customization with fallback palette
  *
  * Tests the exported utility functions and validates chart data processing.
- * Component rendering tests are in E2E (tests/e2e/portfolio.spec.ts).
+ * Component rendering tests (including CSS positioning) are in E2E tests.
  */
 
 import { describe, it, expect } from "vitest";

@@ -1964,6 +1964,141 @@ test.describe("Allocation Pie Chart Accessibility (AC-3.1.4)", () => {
   });
 });
 
+// =============================================================================
+// Allocation Pie Chart CSS Structure Tests
+// Verifies the CSS positioning fix for center label containment
+// =============================================================================
+test.describe("Allocation Pie Chart CSS Structure", () => {
+  /**
+   * Helper to navigate to a portfolio with assets and locate pie chart
+   */
+  async function navigateToPieChartWithAssets(page: import("@playwright/test").Page) {
+    await loginUser(page);
+    await page.goto("/portfolio");
+
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (!hasPortfolio) {
+      return { skip: true, reason: "No portfolio found - requires seeded test data" };
+    }
+
+    await portfolioCard.click();
+    await page.waitForTimeout(3000);
+
+    const hasAssets = (await page.locator("[data-testid^='quantity-']").count()) > 0;
+    if (!hasAssets) {
+      return { skip: true, reason: "Portfolio has no assets - requires seeded test data" };
+    }
+
+    const pieChart = page.getByTestId("allocation-pie-chart");
+    const isVisible = await pieChart.isVisible().catch(() => false);
+    if (!isVisible) {
+      return { skip: true, reason: "Pie chart not visible - requires assets with allocations" };
+    }
+
+    return { skip: false, pieChart, page };
+  }
+
+  /**
+   * CRITICAL TEST: Verify container has position:relative for center label containment
+   *
+   * The center label uses position:absolute with inset:0, which requires the parent
+   * container to have position:relative. Without this, the absolutely positioned
+   * element escapes to the nearest positioned ancestor, causing layout issues
+   * or making the chart invisible.
+   *
+   * This test ensures the CSS fix is not regressed.
+   */
+  test("should have relative positioning class on chart container", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // Get the class attribute
+    const className = await pieChart!.getAttribute("class");
+    expect(className).toBeTruthy();
+
+    // Container must have 'relative' class for proper absolute child positioning
+    expect(className).toContain("relative");
+  });
+
+  test("should render Recharts ResponsiveContainer with proper dimensions", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // The ResponsiveContainer should be rendered inside the chart
+    const container = pieChart!.locator(".recharts-responsive-container");
+    const isVisible = await container.isVisible().catch(() => false);
+
+    if (isVisible) {
+      // Container should have non-zero dimensions
+      const box = await container.boundingBox();
+      expect(box).toBeTruthy();
+      expect(box!.width).toBeGreaterThan(0);
+      expect(box!.height).toBeGreaterThan(0);
+    }
+  });
+
+  test("should render pie chart SVG with visible segments", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // Look for SVG element inside the chart
+    const svg = pieChart!.locator("svg").first();
+    await expect(svg).toBeVisible();
+
+    // Should have path elements for pie segments
+    const paths = pieChart!.locator("svg path");
+    const pathCount = await paths.count();
+
+    // At least one path should exist (pie segment)
+    expect(pathCount).toBeGreaterThan(0);
+  });
+
+  test("should render legend container with proper structure", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // Legend should be a list with proper role
+    const legend = pieChart!.locator("[role='list'][aria-label='Allocation legend']");
+    const legendVisible = await legend.isVisible().catch(() => false);
+
+    if (legendVisible) {
+      // Legend should have list items
+      const items = legend.locator("[role='listitem']");
+      const itemCount = await items.count();
+      expect(itemCount).toBeGreaterThan(0);
+    }
+  });
+});
+
 test.describe("Allocation Bar Chart (AC-3.7.2)", () => {
   test.beforeEach(async ({ page }) => {
     await loginUser(page);
