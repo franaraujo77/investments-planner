@@ -17,6 +17,7 @@ let mockSession: { userId: string; email: string } | null = null;
 
 // Mock allocation state
 let mockHasAssets = false;
+let mockHasAssetClasses = false;
 let mockAllocations: Array<{
   classId: string;
   className: string;
@@ -66,7 +67,17 @@ vi.mock("@/lib/services/strategy-allocation-service", () => ({
       unclassifiedAssetCount: mockUnclassified.assetCount,
     })
   ),
+  getTargetAllocation: vi.fn(() =>
+    Promise.resolve({
+      allocations: mockAllocations,
+      totalPortfolioValue: mockTotalValue,
+      unclassifiedValue: mockUnclassified.value,
+      unclassifiedPercentage: mockUnclassified.percentage,
+      unclassifiedAssetCount: mockUnclassified.assetCount,
+    })
+  ),
   hasPortfolioAssets: vi.fn(() => Promise.resolve(mockHasAssets)),
+  hasAssetClasses: vi.fn(() => Promise.resolve(mockHasAssetClasses)),
 }));
 
 // Mock logger
@@ -95,6 +106,7 @@ describe("Strategy Allocation API", () => {
     // Reset state
     mockSession = null;
     mockHasAssets = false;
+    mockHasAssetClasses = false;
     mockAllocations = [];
     mockTotalValue = "0";
     mockUnclassified = { value: "0", percentage: "0", assetCount: 0 };
@@ -117,6 +129,7 @@ describe("Strategy Allocation API", () => {
     it("should return allocation data when authenticated", async () => {
       mockSession = { userId: "user-123", email: "test@example.com" };
       mockHasAssets = true;
+      mockHasAssetClasses = true;
       mockAllocations = [
         {
           classId: "class-1",
@@ -172,6 +185,7 @@ describe("Strategy Allocation API", () => {
     it("should include unclassified assets in response", async () => {
       mockSession = { userId: "user-123", email: "test@example.com" };
       mockHasAssets = true;
+      mockHasAssetClasses = true;
       mockAllocations = [
         {
           classId: "class-1",
@@ -201,6 +215,7 @@ describe("Strategy Allocation API", () => {
     it("should include all allocation status types", async () => {
       mockSession = { userId: "user-123", email: "test@example.com" };
       mockHasAssets = true;
+      mockHasAssetClasses = true;
       mockAllocations = [
         {
           classId: "class-1",
