@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScoreBadge } from "@/components/fintech/score-badge";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import {
   Table,
   TableBody,
@@ -52,7 +53,13 @@ interface PreviewAssetsTableProps {
 /**
  * Score breakdown for a single asset
  */
-function ScoreBreakdown({ breakdown }: { breakdown: CriterionScore[] }) {
+function ScoreBreakdown({
+  breakdown,
+  formatNumber,
+}: {
+  breakdown: CriterionScore[];
+  formatNumber: (value: number) => string;
+}) {
   return (
     <div className="bg-muted/50 p-4 space-y-2">
       <h5 className="font-medium text-sm text-muted-foreground mb-3">Score Breakdown</h5>
@@ -81,7 +88,7 @@ function ScoreBreakdown({ breakdown }: { breakdown: CriterionScore[] }) {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground">
-                Actual: {score.actualValue !== null ? score.actualValue.toFixed(2) : "N/A"}
+                Actual: {score.actualValue !== null ? formatNumber(score.actualValue) : "N/A"}
               </span>
               <Badge variant={score.passed ? "default" : "outline"} className="font-mono text-xs">
                 +{score.pointsAwarded} / {score.maxPoints}
@@ -101,10 +108,12 @@ function AssetRow({
   asset,
   isExpanded,
   onToggle,
+  formatNumber,
 }: {
   asset: PreviewAsset;
   isExpanded: boolean;
   onToggle: () => void;
+  formatNumber: (value: number) => string;
 }) {
   return (
     <Fragment>
@@ -139,7 +148,7 @@ function AssetRow({
       {isExpanded && (
         <TableRow>
           <TableCell colSpan={4} className="p-0">
-            <ScoreBreakdown breakdown={asset.breakdown} />
+            <ScoreBreakdown breakdown={asset.breakdown} formatNumber={formatNumber} />
           </TableCell>
         </TableRow>
       )}
@@ -180,6 +189,7 @@ export function PreviewAssetsTable({
   className,
 }: PreviewAssetsTableProps) {
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
+  const { formatNumber } = useNumberFormat();
 
   const toggleExpand = (symbol: string) => {
     setExpandedAsset(expandedAsset === symbol ? null : symbol);
@@ -219,6 +229,7 @@ export function PreviewAssetsTable({
               asset={asset}
               isExpanded={expandedAsset === asset.symbol}
               onToggle={() => toggleExpand(asset.symbol)}
+              formatNumber={formatNumber}
             />
           ))}
         </TableBody>
