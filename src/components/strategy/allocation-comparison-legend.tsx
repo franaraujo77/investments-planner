@@ -17,6 +17,7 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Decimal } from "@/lib/calculations/decimal-config";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
+import { getSegmentColor } from "@/components/portfolio/allocation-pie-chart";
 import type { StrategyAllocation } from "@/lib/services/strategy-allocation-service";
 import type { AllocationStatus } from "@/components/fintech/allocation-gauge";
 
@@ -43,23 +44,6 @@ export interface AllocationComparisonLegendProps {
 // =============================================================================
 // STATUS STYLING
 // =============================================================================
-
-/**
- * Get status indicator styling
- */
-function getStatusIndicatorClass(status: AllocationStatus): string {
-  switch (status) {
-    case "under":
-      return "bg-amber-500";
-    case "on-target":
-      return "bg-emerald-500";
-    case "over":
-      return "bg-red-500";
-    case "no-target":
-    default:
-      return "bg-slate-400";
-  }
-}
 
 /**
  * Get status text color
@@ -159,7 +143,7 @@ export function AllocationComparisonLegend({
       data-testid="allocation-comparison-legend"
     >
       {/* Asset class rows */}
-      {allocations.map((alloc) => (
+      {allocations.map((alloc, index) => (
         <AllocationRow
           key={alloc.classId}
           classId={alloc.classId}
@@ -171,6 +155,7 @@ export function AllocationComparisonLegend({
           isSelected={selectedClassId === alloc.classId}
           onClick={onRowClick}
           formatPercent={formatPercent}
+          colorIndex={index}
         />
       ))}
 
@@ -187,6 +172,8 @@ export function AllocationComparisonLegend({
           onClick={onRowClick}
           isUnclassified
           formatPercent={formatPercent}
+          colorIndex={allocations.length}
+          customColor="hsl(215, 16%, 47%)"
         />
       )}
     </div>
@@ -209,6 +196,10 @@ interface AllocationRowProps {
   isUnclassified?: boolean;
   /** Formatter function from useNumberFormat hook */
   formatPercent: (value: number) => string;
+  /** Index for chart color assignment */
+  colorIndex: number;
+  /** Optional custom color (overrides colorIndex) */
+  customColor?: string;
 }
 
 function AllocationRow({
@@ -222,6 +213,8 @@ function AllocationRow({
   onClick,
   isUnclassified = false,
   formatPercent,
+  colorIndex,
+  customColor,
 }: AllocationRowProps) {
   const hasTarget = targetMin !== null && targetMax !== null;
 
@@ -255,9 +248,10 @@ function AllocationRow({
       aria-current={isSelected ? "true" : undefined}
       data-testid={`allocation-row-${classId}`}
     >
-      {/* Status indicator dot */}
+      {/* Chart segment color dot - matches pie chart colors */}
       <span
-        className={cn("w-3 h-3 rounded-full flex-shrink-0", getStatusIndicatorClass(status))}
+        className="w-3 h-3 rounded-full flex-shrink-0"
+        style={{ backgroundColor: customColor ?? getSegmentColor(colorIndex) }}
         aria-hidden="true"
       />
 
