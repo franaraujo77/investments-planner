@@ -34,3 +34,5 @@ export {
 } from "./useAllocationWarning";
 
 export { useOnboarding, type UseOnboardingReturn } from "./useOnboarding";
+
+export { useStrategyAllocation, type UseStrategyAllocationReturn } from "./useStrategyAllocation";

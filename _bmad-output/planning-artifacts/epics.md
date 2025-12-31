@@ -964,6 +964,87 @@ So that **I understand how to use the platform effectively**.
 **When** tips are shown
 **Then** I see tips for: pie chart interaction, allocation indicator, 100% validation rule
 
+### Story 3.6: Strategy Allocation Overview Chart
+
+As a **user**,
+I want **to see a pie chart on the strategy page showing how my asset classes contribute to my total portfolio**,
+So that **I can visualize my current allocation distribution while managing my investment strategy**.
+
+**Acceptance Criteria:**
+
+**Given** I am on the strategy page
+**When** the page loads
+**Then** I see a pie chart showing actual allocation percentages by asset class
+**And** each slice represents an asset class with its current percentage of total portfolio value
+**And** the chart renders in less than 100ms
+
+**Given** I have assets assigned to asset classes
+**When** I view the strategy page pie chart
+**Then** each asset class shows its percentage contribution based on actual portfolio values
+**And** unclassified assets are shown as a separate "Unclassified" segment
+
+**Given** I hover over a pie slice
+**When** the tooltip appears
+**Then** I see: asset class name, current percentage, value in base currency, and number of assets
+
+**Given** my portfolio has no assets
+**When** I view the strategy page
+**Then** I see an empty state message: "Add assets to your portfolio to see allocation breakdown"
+
+**Given** I have asset classes with target ranges configured
+**When** I view the pie chart
+**Then** I can compare current allocation (pie chart) against my target ranges
+**And** color coding indicates if each class is under/on-target/over allocation
+
+**Given** I am using a screen reader
+**When** the pie chart is displayed
+**Then** accessible text describes the allocation distribution
+**And** ARIA labels are provided for each segment
+
+### Story 3.7: Strategy Allocation Balance Indicator
+
+As a **user**,
+I want **to see a visual indicator showing how much allocation is remaining or over to reach 100% across my asset classes**,
+So that **I can quickly understand if my strategy configuration is complete and balanced**.
+
+**Acceptance Criteria:**
+
+**Given** I am on the strategy page
+**When** I view the allocation summary
+**Then** I see the total allocation percentage across all asset classes
+**And** I see how much is remaining to reach 100% (if under)
+**And** I see how much is over 100% (if exceeded)
+
+**Given** the sum of minimum allocations is less than 100%
+**When** I view the indicator
+**Then** I see "X% allocated, Y% remaining" in neutral/info color
+**And** a progress bar shows the current allocation level
+
+**Given** the sum of minimum allocations equals exactly 100%
+**When** I view the indicator
+**Then** I see "100% allocated" in green (success) color
+**And** a checkmark icon appears indicating valid configuration
+
+**Given** the sum of minimum allocations exceeds 100%
+**When** I view the indicator
+**Then** I see "X% allocated (Y% over)" in red (error) color
+**And** a warning icon appears
+**And** I see guidance: "Reduce allocations to reach 100%"
+
+**Given** I have no asset classes configured
+**When** I view the strategy page
+**Then** I see "0% allocated" with prompt to add asset classes
+
+**Given** I modify an asset class allocation range
+**When** the value changes
+**Then** the indicator updates immediately (< 50ms)
+**And** the visual feedback reflects the new total
+
+**Given** I am using a screen reader
+**When** the indicator is displayed
+**Then** accessible text announces the allocation status
+**And** ARIA live region updates when values change
+
 ---
 
 ## Epic 4: Investment Strategy Configuration

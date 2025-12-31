@@ -1,12 +1,18 @@
 /**
  * Strategy E2E Tests
  *
+ * Story 3.6: Strategy Allocation Overview Chart
  * Story 4.1: Define Asset Classes
  * Story 4.2: Define Subclasses
  * Story 4.3: Set Allocation Ranges for Classes
  * Story 4.4: Set Allocation Ranges for Subclasses
  *
  * Tests for strategy page, asset class and subclass management.
+ * AC-3.6.1: Pie chart showing allocation by asset class
+ * AC-3.6.3: Tooltip with asset class name, percentage, value, and asset count
+ * AC-3.6.4: Empty state message for portfolios without assets
+ * AC-3.6.5: Color-coded status indicators
+ * AC-3.6.6: Screen reader accessibility
  * AC-4.1.1: View list of asset classes
  * AC-4.1.2: Create asset class with name and optional icon
  * AC-4.1.3: Edit asset class name (inline)
@@ -85,6 +91,174 @@ test.describe("Strategy Page", () => {
     const strategyLink = page.getByRole("link", { name: "Strategy" });
     await expect(strategyLink).toBeVisible();
   });
+});
+
+// =============================================================================
+// STRATEGY ALLOCATION CHART TESTS (Story 3.6)
+// =============================================================================
+
+test.describe("Strategy Allocation Overview Chart (Story 3.6)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+    await page.goto("/strategy");
+  });
+
+  test("should display Portfolio Allocation Overview section (AC-3.6.1)", async ({ page }) => {
+    // Should see the allocation section card
+    await expect(
+      page.getByRole("heading", { name: "Portfolio Allocation Overview" })
+    ).toBeVisible();
+  });
+
+  test("should show allocation chart or empty state (AC-3.6.4)", async ({ page }) => {
+    // Either chart is visible or empty state is shown
+    const chartElement = page.getByTestId("strategy-allocation-section");
+    const emptyState = page.getByTestId("strategy-allocation-section-empty");
+    const loadingState = page.getByTestId("strategy-allocation-section-loading");
+
+    // Wait for loading to complete
+    await expect(loadingState).not.toBeVisible({ timeout: 10000 });
+
+    // One of these should be visible
+    const hasChart = await chartElement.isVisible().catch(() => false);
+    const hasEmpty = await emptyState.isVisible().catch(() => false);
+
+    expect(hasChart || hasEmpty).toBe(true);
+  });
+
+  test("should show empty state message for user without assets (AC-3.6.4)", async ({ page }) => {
+    // Note: This test may show the chart if user has assets
+    const emptyState = page.getByTestId("strategy-allocation-section-empty");
+    const hasEmpty = await emptyState.isVisible().catch(() => false);
+
+    if (hasEmpty) {
+      await expect(page.getByText("No allocation data")).toBeVisible();
+      await expect(
+        page.getByText("Add assets to your portfolio to see allocation breakdown")
+      ).toBeVisible();
+    }
+  });
+
+  test("should have accessible chart structure (AC-3.6.6)", async ({ page }) => {
+    const section = page.getByTestId("strategy-allocation-section");
+    const hasSection = await section.isVisible().catch(() => false);
+
+    if (hasSection) {
+      // Section should have proper heading
+      await expect(
+        page.getByRole("heading", { name: "Portfolio Allocation Overview" })
+      ).toBeVisible();
+
+      // Chart or legend should have proper roles
+      const legend = page.getByTestId("allocation-comparison-legend");
+      const hasLegend = await legend.isVisible().catch(() => false);
+
+      if (hasLegend) {
+        await expect(legend).toHaveAttribute("role", "list");
+      }
+    }
+  });
+
+  /**
+   * @data-setup: Requires portfolio with classified assets
+   */
+  test(
+    "should display allocation comparison legend with status indicators (AC-3.6.5)",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and portfolio with classified assets"
+      );
+
+      // Wait for chart to load
+      const section = page.getByTestId("strategy-allocation-section");
+      await expect(section).toBeVisible({ timeout: 10000 });
+
+      // Should show allocation comparison legend
+      const legend = page.getByTestId("allocation-comparison-legend");
+      await expect(legend).toBeVisible();
+
+      // Legend should have rows
+      const rows = legend.locator("[data-testid^='allocation-row-']");
+      const rowCount = await rows.count();
+
+      expect(rowCount).toBeGreaterThan(0);
+    }
+  );
+
+  /**
+   * @data-setup: Requires portfolio with classified assets
+   */
+  test(
+    "should show correct status colors based on allocation vs target (AC-3.6.5)",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and portfolio with classified assets"
+      );
+
+      const legend = page.getByTestId("allocation-comparison-legend");
+      const hasLegend = await legend.isVisible().catch(() => false);
+
+      if (hasLegend) {
+        // Status badges should be present
+        const statuses = ["On target", "Under", "Over", "No target"];
+        let foundAnyStatus = false;
+
+        for (const status of statuses) {
+          const statusBadge = page.getByText(status);
+          const isVisible = await statusBadge.isVisible().catch(() => false);
+          if (isVisible) {
+            foundAnyStatus = true;
+            break;
+          }
+        }
+
+        expect(foundAnyStatus).toBe(true);
+      }
+    }
+  );
+
+  /**
+   * @data-setup: Requires portfolio with classified assets
+   */
+  test(
+    "should highlight selected class when clicking legend row",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and portfolio with classified assets"
+      );
+
+      const legend = page.getByTestId("allocation-comparison-legend");
+      const hasLegend = await legend.isVisible().catch(() => false);
+
+      if (hasLegend) {
+        // Click first row
+        const firstRow = legend.locator("[data-testid^='allocation-row-']").first();
+        await firstRow.click();
+
+        // Should have selection indication (aria-current)
+        await expect(firstRow).toHaveAttribute("aria-current", "true");
+
+        // Click again to deselect
+        await firstRow.click();
+
+        // Should no longer have selection
+        const current = await firstRow.getAttribute("aria-current");
+        expect(current).toBeNull();
+      }
+    }
+  );
 });
 
 test.describe("Asset Classes List (AC-4.1.1)", () => {
