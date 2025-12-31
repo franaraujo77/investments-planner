@@ -6,7 +6,11 @@
  * implements the actual data fetching from market data providers.
  *
  * See: docs/epics/epic-6-data-pipeline.md for the planned implementation.
+ *
+ * Story 4.6: Added generateMockSurplusHistory for surplus scoring testing.
  */
+
+import type { SurplusHistoryData } from "@/lib/validations/score-schemas";
 
 /**
  * Generate mock fundamentals for testing and development
@@ -38,5 +42,73 @@ export function generateMockFundamentals(symbol: string): Record<string, number 
     surplus_years: seed % 2 === 0 ? null : (seed % 10) + 1,
     revenue: seed % 3 === 0 ? null : ((seed % 50) + 1) * 1_000_000_000,
     earnings: seed % 4 === 0 ? null : ((seed % 20) + 1) * 1_000_000_000,
+  };
+}
+
+/**
+ * Generate mock surplus history data for testing and development
+ *
+ * Story 4.6: Historical Surplus Scoring
+ *
+ * Uses the asset symbol as a seed for consistent but varied mock data.
+ * Returns undefined for ~20% of assets to test "no data" scenarios.
+ *
+ * @param symbol - Asset symbol (e.g., "AAPL", "PETR4")
+ * @returns SurplusHistoryData or undefined if no surplus data available
+ */
+export function generateMockSurplusHistory(symbol: string): SurplusHistoryData | undefined {
+  const seed = symbol.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+  // ~20% of assets have no surplus data
+  if (seed % 5 === 0) {
+    return undefined;
+  }
+
+  const currentYear = new Date().getFullYear();
+
+  // Generate varied years of data (1-7 years)
+  const yearsAvailable = (seed % 7) + 1;
+
+  // Generate surplus by year - use seed to determine pattern
+  const surplusByYear: Record<string, boolean | null> = {};
+  let consecutiveCount = 0;
+  let maxConsecutive = 0;
+  let currentStreak = 0;
+
+  for (let i = 0; i < yearsAvailable; i++) {
+    const year = currentYear - i - 1;
+    // Use different bits of the seed to vary the pattern
+    const hasSurplus = (seed + i * 7) % 10 > 2; // ~70% have surplus
+
+    if (hasSurplus) {
+      surplusByYear[String(year)] = true;
+      currentStreak++;
+      if (currentStreak > maxConsecutive) {
+        maxConsecutive = currentStreak;
+      }
+    } else {
+      surplusByYear[String(year)] = false;
+      currentStreak = 0;
+    }
+  }
+
+  // For seeds divisible by 3, give them a perfect 5+ year streak
+  if (seed % 3 === 0 && yearsAvailable >= 5) {
+    consecutiveCount = Math.min(yearsAvailable, 5 + (seed % 3));
+    // Override to create consecutive streak
+    for (let i = 0; i < consecutiveCount; i++) {
+      const year = currentYear - i - 1;
+      surplusByYear[String(year)] = true;
+    }
+  } else {
+    consecutiveCount = maxConsecutive;
+  }
+
+  return {
+    yearsAvailable,
+    consecutiveSurplusYears: consecutiveCount,
+    surplusByYear,
+    dataSource: "mock-generator",
+    lastUpdated: new Date().toISOString(),
   };
 }

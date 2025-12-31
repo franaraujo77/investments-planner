@@ -45,6 +45,16 @@ export interface CriterionScore {
   pointsAwarded: number;
   maxPoints: number;
   passed: boolean;
+  /**
+   * Story 4.6: Surplus scoring details for breakdown display
+   * Only present for surplus-consistency criterion
+   */
+  surplusDetails?: {
+    yearsOfData: number;
+    consecutiveYears: number;
+    bonusApplied: number;
+    penaltyApplied: number;
+  } | null;
 }
 
 /**
@@ -541,6 +551,9 @@ export function getSampleAssets(): SampleAsset[] {
 /**
  * Evaluate a criterion against an asset's fundamentals
  *
+ * Uses Decimal.js for consistent precision with scoring-engine.ts
+ * AC-5.8.2: Decimal Precision for All Calculations
+ *
  * @param criterion - The criterion rule to evaluate
  * @param fundamentals - Asset's fundamental data
  * @returns Points awarded (0 if criterion not met)
@@ -561,27 +574,34 @@ function evaluateCriterion(
     return 0;
   }
 
-  const targetValue = parseFloat(criterion.value);
-  if (isNaN(targetValue)) return 0;
+  try {
+    const value = new Decimal(metricValue);
+    const targetValue = new Decimal(criterion.value);
 
-  switch (criterion.operator) {
-    case "gt":
-      return metricValue > targetValue ? criterion.points : 0;
-    case "lt":
-      return metricValue < targetValue ? criterion.points : 0;
-    case "gte":
-      return metricValue >= targetValue ? criterion.points : 0;
-    case "lte":
-      return metricValue <= targetValue ? criterion.points : 0;
-    case "equals":
-      return metricValue === targetValue ? criterion.points : 0;
-    case "between": {
-      const targetValue2 = criterion.value2 ? parseFloat(criterion.value2) : NaN;
-      if (isNaN(targetValue2)) return 0;
-      return metricValue >= targetValue && metricValue <= targetValue2 ? criterion.points : 0;
+    switch (criterion.operator) {
+      case "gt":
+        return value.greaterThan(targetValue) ? criterion.points : 0;
+      case "lt":
+        return value.lessThan(targetValue) ? criterion.points : 0;
+      case "gte":
+        return value.greaterThanOrEqualTo(targetValue) ? criterion.points : 0;
+      case "lte":
+        return value.lessThanOrEqualTo(targetValue) ? criterion.points : 0;
+      case "equals":
+        return value.equals(targetValue) ? criterion.points : 0;
+      case "between": {
+        const targetValue2 = criterion.value2 ? new Decimal(criterion.value2) : null;
+        if (!targetValue2) return 0;
+        return value.greaterThanOrEqualTo(targetValue) && value.lessThanOrEqualTo(targetValue2)
+          ? criterion.points
+          : 0;
+      }
+      default:
+        return 0;
     }
-    default:
-      return 0;
+  } catch {
+    // Invalid value or comparison - fail safely
+    return 0;
   }
 }
 

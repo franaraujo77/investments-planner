@@ -30,7 +30,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+} from "lucide-react";
 import type { PreviewAsset, CriterionScore } from "@/lib/calculations/quick-calc";
 
 // =============================================================================
@@ -51,6 +59,69 @@ interface PreviewAssetsTableProps {
 // =============================================================================
 
 /**
+ * Surplus scoring breakdown item
+ * Story 4.6: AC-4.6.3 - Shows surplus scoring details inline
+ */
+function SurplusBreakdownItem({
+  score,
+  formatNumber,
+}: {
+  score: CriterionScore;
+  formatNumber: (value: number) => string;
+}) {
+  const details = score.surplusDetails;
+  if (!details) return null;
+
+  const hasBonus = details.bonusApplied > 0;
+  const hasPenalty = details.penaltyApplied < 0;
+  const netPoints = details.bonusApplied + details.penaltyApplied;
+
+  const bgColor = hasBonus
+    ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900"
+    : hasPenalty
+      ? "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900"
+      : "bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900";
+
+  return (
+    <div className={cn("p-2 rounded-md text-sm", bgColor)}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {hasBonus ? (
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          ) : hasPenalty ? (
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          )}
+          <span className="font-medium">{score.criterionName}</span>
+        </div>
+        <Badge
+          variant={hasBonus ? "default" : hasPenalty ? "destructive" : "secondary"}
+          className="font-mono text-xs"
+        >
+          {netPoints > 0 ? "+" : ""}
+          {formatNumber(netPoints)} pts
+        </Badge>
+      </div>
+      <div className="mt-2 text-xs text-muted-foreground grid grid-cols-2 gap-2">
+        <div>
+          Years of data: <span className="font-medium">{details.yearsOfData}/5</span>
+        </div>
+        <div>
+          Consecutive: <span className="font-medium">{details.consecutiveYears} years</span>
+        </div>
+        {hasBonus && (
+          <div className="text-green-600">Bonus: +{formatNumber(details.bonusApplied)} pts</div>
+        )}
+        {hasPenalty && (
+          <div className="text-red-600">Penalty: {formatNumber(details.penaltyApplied)} pts</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Score breakdown for a single asset
  */
 function ScoreBreakdown({
@@ -60,11 +131,15 @@ function ScoreBreakdown({
   breakdown: CriterionScore[];
   formatNumber: (value: number) => string;
 }) {
+  // Separate regular criteria from surplus scoring
+  const regularCriteria = breakdown.filter((s) => s.criterionId !== "surplus-consistency");
+  const surplusCriterion = breakdown.find((s) => s.criterionId === "surplus-consistency");
+
   return (
     <div className="bg-muted/50 p-4 space-y-2">
       <h5 className="font-medium text-sm text-muted-foreground mb-3">Score Breakdown</h5>
       <div className="grid gap-2">
-        {breakdown.map((score) => (
+        {regularCriteria.map((score) => (
           <div
             key={score.criterionId}
             className={cn(
@@ -96,6 +171,11 @@ function ScoreBreakdown({
             </div>
           </div>
         ))}
+
+        {/* Story 4.6: Surplus scoring breakdown */}
+        {surplusCriterion && surplusCriterion.surplusDetails && (
+          <SurplusBreakdownItem score={surplusCriterion} formatNumber={formatNumber} />
+        )}
       </div>
     </div>
   );

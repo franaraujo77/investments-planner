@@ -2,12 +2,50 @@
  * Score Validation Schemas
  *
  * Story 5.8: Score Calculation Engine
+ * Story 4.6: Historical Surplus Scoring
  *
  * Zod schemas for score-related API requests and responses.
  * Task 7: Create Zod Schemas for Score Operations
  */
 
 import { z } from "zod";
+
+// =============================================================================
+// SURPLUS HISTORY SCHEMA (Story 4.6)
+// =============================================================================
+
+/**
+ * Schema for historical surplus data
+ *
+ * AC-4.6.1: Bonus Points for Consistent Surplus History
+ * AC-4.6.2: Penalty Points for Missing Surplus Data
+ *
+ * Tracks dividend surplus history for an asset to enable bonus/penalty calculations
+ */
+export const surplusHistoryDataSchema = z.object({
+  yearsAvailable: z.number().int().min(0).max(50), // Total years of data (0-50)
+  consecutiveSurplusYears: z.number().int().min(0).max(50), // Years with consecutive surplus
+  surplusByYear: z.record(z.string(), z.boolean().nullable()), // year -> had surplus (null = no data)
+  dataSource: z.string().min(1).max(100), // "Company IR", "SEC Filing", etc.
+  lastUpdated: z.string().datetime(), // ISO date
+});
+
+export type SurplusHistoryData = z.infer<typeof surplusHistoryDataSchema>;
+
+/**
+ * Schema for surplus score calculation result
+ *
+ * AC-4.6.3: Score Breakdown Display
+ */
+export const surplusScoreResultSchema = z.object({
+  totalPoints: z.number(), // Combined bonus + penalty
+  bonusApplied: z.number().min(0), // 0 or +5 for 5+ consecutive years
+  penaltyApplied: z.number().max(0), // 0 or negative for missing years
+  yearsOfData: z.number().int().min(0), // Years of data available
+  consecutiveYears: z.number().int().min(0), // Consecutive surplus years
+});
+
+export type SurplusScoreResult = z.infer<typeof surplusScoreResultSchema>;
 
 // =============================================================================
 // CRITERION RESULT SCHEMA
@@ -146,6 +184,7 @@ export type ScoreErrorResponse = z.infer<typeof scoreErrorResponseSchema>;
  * Schema for asset data with fundamentals
  *
  * Used internally by scoring engine
+ * Story 4.6: Added surplusHistory for historical surplus scoring
  */
 export const assetWithFundamentalsSchema = z.object({
   id: z.string().uuid(),
@@ -153,6 +192,7 @@ export const assetWithFundamentalsSchema = z.object({
   name: z.string().optional(),
   fundamentals: z.record(z.string(), z.number().nullable()),
   targetMarket: z.string().optional(),
+  surplusHistory: surplusHistoryDataSchema.optional(), // Story 4.6: Historical surplus data
 });
 
 export type AssetWithFundamentals = z.infer<typeof assetWithFundamentalsSchema>;

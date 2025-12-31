@@ -488,15 +488,34 @@ export const criteriaVersions = pgTable(
  * CriterionResult interface - breakdown of a single criterion evaluation
  *
  * Story 5.8: Score Calculation Engine
+ * Story 4.6: Historical Surplus Scoring
  * AC-5.8.5: breakdown includes criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason
+ * AC-4.6.3: surplusDetails for surplus scoring breakdown
  */
+/**
+ * Valid reasons for skipping criterion evaluation
+ * Must match Zod enum in score-schemas.ts
+ */
+export type SkippedReason =
+  | "missing_fundamental"
+  | "data_stale"
+  | "invalid_value"
+  | "evaluation_error";
+
 export interface CriterionResult {
   criterionId: string;
   criterionName: string;
   matched: boolean;
   pointsAwarded: number;
   actualValue?: string | null;
-  skippedReason?: string | null; // 'missing_fundamental', 'data_stale', etc.
+  skippedReason?: SkippedReason | null;
+  // Story 4.6: Surplus scoring details for breakdown display
+  surplusDetails?: {
+    yearsOfData: number;
+    consecutiveYears: number;
+    bonusApplied: number;
+    penaltyApplied: number;
+  } | null;
 }
 
 /**
