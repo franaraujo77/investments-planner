@@ -9,9 +9,8 @@
  * Component rendering tests are in E2E via Playwright.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
-  ONBOARDING_TIPS,
   getTipsForPage,
   getTipById,
   getAllTipIds,

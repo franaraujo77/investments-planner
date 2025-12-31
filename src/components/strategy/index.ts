@@ -44,3 +44,9 @@ export { MinAllocationBadge } from "./min-allocation-badge";
 // Input Components
 export { AssetCountInput } from "./asset-count-input";
 export { MinAllocationInput } from "./min-allocation-input";
+
+// Story 3.7: Strategy Allocation Balance Indicator
+export {
+  StrategyAllocationBalanceIndicator,
+  type StrategyAllocationBalanceIndicatorProps,
+} from "./strategy-allocation-balance-indicator";
