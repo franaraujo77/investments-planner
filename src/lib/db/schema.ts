@@ -492,9 +492,24 @@ export const criteriaVersions = pgTable(
  * AC-5.8.5: breakdown includes criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason
  * AC-4.6.3: surplusDetails for surplus scoring breakdown
  */
+
 /**
  * Valid reasons for skipping criterion evaluation
- * Must match Zod enum in score-schemas.ts
+ *
+ * IMPORTANT: This type is used within CriterionResult interface, which is stored
+ * as JSONB in the assetScores.breakdown column (see line ~546). This is NOT a
+ * separate database column - it's part of the structured JSON breakdown data.
+ *
+ * The JSONB storage approach allows flexible criterion result storage without
+ * requiring schema migrations when adding new skip reasons.
+ *
+ * Must match Zod enum in score-schemas.ts for API validation.
+ *
+ * Values:
+ * - missing_fundamental: Required data point not available for evaluation
+ * - data_stale: Fundamental data is too old (exceeds freshness threshold)
+ * - invalid_value: Data exists but is invalid (e.g., negative P/E ratio)
+ * - evaluation_error: Runtime error during criterion evaluation
  */
 export type SkippedReason =
   | "missing_fundamental"

@@ -95,7 +95,10 @@ export function evaluateSurplusPenalty(history: SurplusHistoryData): {
   const yearsAvailable = history.yearsAvailable;
   const missingYears = Math.max(0, EXPECTED_YEARS_OF_DATA - yearsAvailable);
 
-  // If no missing years, return 0 (not -0)
+  // Early return for complete data: explicitly return positive 0, not -0.
+  // In JavaScript, 0 * -2 produces -0 (negative zero), which is a distinct value
+  // from 0 (Object.is(0, -0) === false). While -0 === 0 is true, returning
+  // explicit 0 avoids potential edge cases in serialization and comparisons.
   if (missingYears === 0) {
     return {
       penaltyPoints: 0,

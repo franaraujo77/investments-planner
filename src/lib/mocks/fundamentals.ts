@@ -8,6 +8,17 @@
  * See: docs/epics/epic-6-data-pipeline.md for the planned implementation.
  *
  * Story 4.6: Added generateMockSurplusHistory for surplus scoring testing.
+ *
+ * IMPORTANT - Number Formatting:
+ * All numeric values returned by these functions are RAW NUMBERS, not pre-formatted
+ * strings. Components consuming this data MUST use the useNumberFormat() hook to
+ * format values for display. This ensures consistent locale-aware formatting across
+ * the application per project standards (see CLAUDE.md "i18n & Number Formatting").
+ *
+ * Example:
+ *   const fundamentals = generateMockFundamentals("AAPL");
+ *   // fundamentals.dividend_yield = 5.25 (raw number)
+ *   // In component: formatPercent(fundamentals.dividend_yield) => "5.25%"
  */
 
 import type { SurplusHistoryData } from "@/lib/validations/score-schemas";
