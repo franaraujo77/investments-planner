@@ -158,7 +158,7 @@ export function AlertPreferencesSection() {
 
     // Clamp to valid range
     const clamped = Math.min(Math.max(num, 1), 20);
-    const formatted = clamped.toFixed(2);
+    const formatted = clamped.toFixed(2); // eslint-disable-line no-restricted-syntax
 
     updatePreference({ driftThreshold: formatted });
   };

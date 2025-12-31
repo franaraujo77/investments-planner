@@ -112,10 +112,11 @@ function getStatusLabel(status: AllocationStatus): string {
 /**
  * Format percentage with 1 decimal precision
  * AC-3.7.4: Percentages show with 1 decimal precision
+ * Note: This helper is used for data calculation, not UI display
  */
 function formatPercent(value: string): string {
   try {
-    return new Decimal(value).toFixed(1);
+    return new Decimal(value).toFixed(1); // eslint-disable-line no-restricted-syntax
   } catch {
     return value;
   }

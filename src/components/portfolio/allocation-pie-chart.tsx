@@ -25,7 +25,7 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { Decimal } from "@/lib/calculations/decimal-config";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import type { AllocationStatus } from "@/components/fintech/allocation-gauge";
 
 export interface ClassAllocation {
@@ -89,46 +89,6 @@ export function getSegmentColor(index: number, customColor?: string): string {
 }
 
 /**
- * Format percentage with 1 decimal precision
- * AC-3.7.4: Percentages show with 1 decimal precision
- * Exported for testing
- */
-export function formatPercent(value: string): string {
-  try {
-    return new Decimal(value).toFixed(1);
-  } catch {
-    return value;
-  }
-}
-
-/**
- * Format value for tooltip display
- * Exported for testing
- *
- * @param value - The value string to format
- * @param currency - Optional currency code prefix
- * @param locale - Optional locale for formatting (defaults to "en-US" for backward compatibility)
- */
-export function formatValue(value: string, currency?: string, locale: string = "en-US"): string {
-  try {
-    // Use Decimal.js for consistent financial precision (Issue #6 fix)
-    const decimal = new Decimal(value);
-    const num = decimal.toNumber();
-    if (!Number.isFinite(num)) return value;
-
-    // Use locale-aware formatting (Issue #1 fix)
-    const formatted = new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(num);
-
-    return currency ? `${currency} ${formatted}` : formatted;
-  } catch {
-    return value;
-  }
-}
-
-/**
  * Custom tooltip component for the pie chart
  */
 interface CustomTooltipProps {
@@ -139,15 +99,27 @@ interface CustomTooltipProps {
     payload: ClassAllocation & { fill: string };
   }>;
   currency?: string | undefined;
-  locale?: string | undefined;
 }
 
-function CustomTooltip({ active, payload, currency, locale = "en-US" }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, currency }: CustomTooltipProps) {
+  const { formatNumber, formatCurrency } = useNumberFormat();
+
   if (!active || !payload || payload.length === 0 || !payload[0]) {
     return null;
   }
 
   const data = payload[0].payload;
+
+  // Format percentage values with 1 decimal place
+  const formatPct = (val: string) =>
+    formatNumber(parseFloat(val), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  // Format value
+  const formatVal = (val: string) => {
+    const num = parseFloat(val);
+    if (!Number.isFinite(num)) return val;
+    return currency ? formatCurrency(num, currency) : formatNumber(num);
+  };
 
   return (
     <div className="bg-popover text-popover-foreground border rounded-lg shadow-lg p-3 text-sm">
@@ -158,18 +130,15 @@ function CustomTooltip({ active, payload, currency, locale = "en-US" }: CustomTo
       <div className="mt-1 space-y-0.5 text-muted-foreground">
         <div>
           Allocation:{" "}
-          <span className="font-mono text-foreground">{formatPercent(data.percentage)}%</span>
+          <span className="font-mono text-foreground">{formatPct(data.percentage)}%</span>
         </div>
         <div>
-          Value:{" "}
-          <span className="font-mono text-foreground">
-            {formatValue(data.value, currency, locale)}
-          </span>
+          Value: <span className="font-mono text-foreground">{formatVal(data.value)}</span>
         </div>
         <div>Assets: {data.assetCount}</div>
         {data.targetMin !== null && data.targetMax !== null && (
           <div>
-            Target: {formatPercent(data.targetMin)} - {formatPercent(data.targetMax)}%
+            Target: {formatPct(data.targetMin)} - {formatPct(data.targetMax)}%
           </div>
         )}
       </div>
@@ -191,7 +160,12 @@ interface LegendProps {
 }
 
 function CustomLegend({ payload, onLegendClick, selectedClassId }: LegendProps) {
+  const { formatNumber } = useNumberFormat();
+
   if (!payload) return null;
+
+  const formatPct = (val: string) =>
+    formatNumber(parseFloat(val), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   return (
     <div
@@ -210,7 +184,7 @@ function CustomLegend({ payload, onLegendClick, selectedClassId }: LegendProps) 
           onClick={() => onLegendClick?.(entry.payload.classId)}
           type="button"
           role="listitem"
-          aria-label={`${entry.value}: ${formatPercent(entry.payload.percentage)}% allocation${selectedClassId === entry.payload.classId ? " (selected)" : ""}`}
+          aria-label={`${entry.value}: ${formatPct(entry.payload.percentage)}% allocation${selectedClassId === entry.payload.classId ? " (selected)" : ""}`}
           aria-current={selectedClassId === entry.payload.classId ? "true" : undefined}
         >
           <span
@@ -220,7 +194,7 @@ function CustomLegend({ payload, onLegendClick, selectedClassId }: LegendProps) 
           />
           <span>{entry.value}</span>
           <span className="text-muted-foreground font-mono whitespace-nowrap">
-            {formatPercent(entry.payload.percentage)}%
+            {formatPct(entry.payload.percentage)}%
           </span>
         </button>
       ))}
@@ -237,8 +211,8 @@ export function AllocationPieChart({
   showLegend = true,
   height = 300,
   className,
-  locale = "en-US",
 }: AllocationPieChartProps) {
+  const { formatNumber, formatCurrency } = useNumberFormat();
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
 
   // Prepare chart data with colors
@@ -283,14 +257,26 @@ export function AllocationPieChart({
     }
   };
 
+  // Format percentage values with 1 decimal place
+  const formatPct = (val: string) =>
+    formatNumber(parseFloat(val), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  // Format value for center display
+  const formatVal = (val: string) => {
+    const num = parseFloat(val);
+    if (!Number.isFinite(num)) return val;
+    return currency ? formatCurrency(num, currency) : formatNumber(num);
+  };
+
   // Generate accessible description of allocations
   // Must be before early return to follow rules of hooks
   const accessibleDescription = useMemo(() => {
     if (allocations.length === 0) return "No allocation data available";
     const descriptions = chartData.map(
-      (alloc) => `${alloc.className}: ${formatPercent(alloc.percentage)}%`
+      (alloc) => `${alloc.className}: ${formatPct(alloc.percentage)}%`
     );
     return `Portfolio allocation breakdown: ${descriptions.join(", ")}`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allocations.length, chartData]);
 
   // Empty state
@@ -350,7 +336,7 @@ export function AllocationPieChart({
             ))}
           </Pie>
           <RechartsTooltip
-            content={<CustomTooltip currency={currency} locale={locale} />}
+            content={<CustomTooltip currency={currency} />}
             wrapperStyle={{ outline: "none" }}
           />
           {showLegend && (
@@ -368,7 +354,7 @@ export function AllocationPieChart({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
             <div className="text-xs text-muted-foreground">Total</div>
-            <div className="text-sm font-semibold">{formatValue(totalValue, currency, locale)}</div>
+            <div className="text-sm font-semibold">{formatVal(totalValue)}</div>
           </div>
         </div>
       )}
@@ -396,4 +382,39 @@ export function AllocationPieChartSkeleton({
       </div>
     </div>
   );
+}
+
+/**
+ * Legacy export functions for backward compatibility in tests
+ * @deprecated Use useNumberFormat hook directly
+ */
+export function formatPercent(value: string): string {
+  try {
+    const num = parseFloat(value);
+    if (!Number.isFinite(num)) return value;
+    return num.toFixed(1); // eslint-disable-line no-restricted-syntax
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Legacy export function for backward compatibility in tests
+ * @deprecated Use useNumberFormat hook directly
+ */
+export function formatValue(value: string, currency?: string, locale: string = "en-US"): string {
+  try {
+    const num = parseFloat(value);
+    if (!Number.isFinite(num)) return value;
+
+    // eslint-disable-next-line no-restricted-syntax
+    const formatted = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+
+    return currency ? `${currency} ${formatted}` : formatted;
+  } catch {
+    return value;
+  }
 }

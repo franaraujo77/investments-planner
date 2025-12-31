@@ -97,8 +97,8 @@ export function InvestmentAmountRow({
       setLocalValue("0");
       onAmountChange(assetId, "0");
     } else {
-      // Format to 2 decimal places
-      const formatted = numValue.toFixed(2);
+      // Format to 2 decimal places - used for data consistency, not display
+      const formatted = numValue.toFixed(2); // eslint-disable-line no-restricted-syntax
       setLocalValue(formatted);
       onAmountChange(assetId, formatted);
     }

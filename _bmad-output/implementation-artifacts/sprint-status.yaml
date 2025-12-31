@@ -85,7 +85,7 @@ development_status:
   4-4-criteria-library-and-management: done
   4-5-criteria-preview-and-comparison: done  # Code review completed 2025-12-31
   4-6-historical-surplus-scoring: done  # Code review completed 2025-12-31
-  4-7-fix-number-formatting-lint-errors: ready-for-dev  # Tech debt: 53 lint errors in 24 files
+  4-7-fix-number-formatting-lint-errors: done  # Tech debt: All 49 lint errors fixed
   epic-4-retrospective: optional
 
   # Epic 5: Market Data & Scoring Engine

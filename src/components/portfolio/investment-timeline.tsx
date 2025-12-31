@@ -20,6 +20,7 @@ import { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SimpleCurrencyDisplay } from "@/components/fintech/currency-display";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { Decimal } from "@/lib/calculations/decimal-config";
 import type { Investment } from "@/lib/db/schema";
 
@@ -58,6 +59,7 @@ function groupInvestmentsByDate(investments: Investment[]): GroupedInvestment[] 
 
   for (const [dateKey, dayInvestments] of groups) {
     // Calculate daily total using decimal.js
+    // eslint-disable-next-line no-restricted-syntax
     const totalAmount = dayInvestments
       .reduce((sum, inv) => sum.plus(inv.totalAmount), new Decimal(0))
       .toFixed(4);
@@ -106,7 +108,7 @@ function calculateVariance(
   const variance = act.minus(rec);
 
   return {
-    variance: variance.abs().toFixed(2),
+    variance: variance.abs().toFixed(2), // eslint-disable-line no-restricted-syntax
     isPositive: variance.greaterThan(0),
     isZero: variance.equals(0),
   };
@@ -200,6 +202,7 @@ export function InvestmentTimeline({ investments }: InvestmentTimelineProps) {
  * AC-3.9.3: Recommended vs actual amount comparison
  */
 function InvestmentRow({ investment }: { investment: Investment }) {
+  const { formatNumber } = useNumberFormat();
   const variance = calculateVariance(investment.recommendedAmount, investment.totalAmount);
 
   return (
@@ -215,9 +218,7 @@ function InvestmentRow({ investment }: { investment: Investment }) {
           <div className="flex items-center gap-2">
             <span className="font-medium">{investment.symbol}</span>
             <span className="text-muted-foreground">×</span>
-            <span className="text-sm">
-              {parseFloat(investment.quantity).toLocaleString()} units
-            </span>
+            <span className="text-sm">{formatNumber(parseFloat(investment.quantity))} units</span>
           </div>
           <p className="text-sm text-muted-foreground">
             @{" "}

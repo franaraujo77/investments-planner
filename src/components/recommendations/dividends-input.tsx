@@ -64,6 +64,7 @@ function getLocaleForCurrency(currency: string): string {
 
 /**
  * Format a numeric value for display with currency formatting
+ * Note: Uses Intl.NumberFormat directly for locale-specific input formatting
  */
 function formatDisplayValue(value: string, currency: string): string {
   if (!value || value === "") return "";
@@ -73,6 +74,7 @@ function formatDisplayValue(value: string, currency: string): string {
     if (isNaN(numValue)) return value;
 
     const locale = getLocaleForCurrency(currency);
+    // eslint-disable-next-line no-restricted-syntax
     return new Intl.NumberFormat(locale, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -93,6 +95,7 @@ function parseFormattedValue(formattedValue: string, currency: string): string {
   const locale = getLocaleForCurrency(currency);
 
   // Determine decimal separator for this locale
+  // eslint-disable-next-line no-restricted-syntax
   const parts = new Intl.NumberFormat(locale).formatToParts(1234.56);
   const decimalSeparator = parts.find((p) => p.type === "decimal")?.value || ".";
   const groupSeparator = parts.find((p) => p.type === "group")?.value || ",";

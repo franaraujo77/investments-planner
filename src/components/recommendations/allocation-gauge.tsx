@@ -19,6 +19,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 
 // =============================================================================
 // TYPES
@@ -147,6 +148,12 @@ export function AllocationGauge({
   showValues = true,
   size = "md",
 }: AllocationGaugeProps) {
+  const { formatNumber } = useNumberFormat();
+
+  // Format percentage with 1 decimal
+  const fmtPct = (value: number) =>
+    formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
   // Parse values
   const currentValue = useMemo(() => parseFloat(current) || 0, [current]);
   const minValue = useMemo(() => parseFloat(targetMin) || 0, [targetMin]);
@@ -163,7 +170,8 @@ export function AllocationGauge({
 
   // Calculate target midpoint for display
   const targetMidpoint = useMemo(
-    () => ((minValue + maxValue) / 2).toFixed(1),
+    () => fmtPct((minValue + maxValue) / 2),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [minValue, maxValue]
   );
 
@@ -180,7 +188,7 @@ export function AllocationGauge({
       {showValues && (
         <div className={cn("flex justify-between mb-1", sizeClasses[size].text)}>
           <span className={cn("font-medium", colors.text)} data-testid="current-value">
-            {currentValue.toFixed(1)}%
+            {fmtPct(currentValue)}%
           </span>
           <span className="text-muted-foreground" data-testid="target-value">
             Target: {targetMidpoint}%
@@ -198,7 +206,7 @@ export function AllocationGauge({
         aria-valuenow={currentValue}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Allocation: ${currentValue.toFixed(1)}% (target: ${minValue.toFixed(1)}-${maxValue.toFixed(1)}%)`}
+        aria-label={`Allocation: ${fmtPct(currentValue)}% (target: ${fmtPct(minValue)}-${fmtPct(maxValue)}%)`}
       >
         {/* Target range indicator (background) */}
         <div

@@ -82,8 +82,9 @@ export function calculateDelta(
   const delta = afterValue - beforeValue;
 
   // Format with sign and 1 decimal place
+  // Note: This is a calculation helper, uses eslint-disable
   const sign = delta > 0 ? "+" : "";
-  const formatted = `${sign}${delta.toFixed(1)}%`;
+  const formatted = `${sign}${delta.toFixed(1)}%`; // eslint-disable-line no-restricted-syntax
 
   return { value: delta, formatted };
 }

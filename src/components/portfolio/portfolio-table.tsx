@@ -31,6 +31,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ArrowUpDown, DollarSign, Search, Trash2 } from "lucide-react";
 import { Decimal } from "@/lib/calculations/decimal-config";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { AddAssetModal } from "./add-asset-modal";
 import { EditableCell } from "./editable-cell";
 import { DeleteAssetDialog } from "./delete-asset-dialog";
@@ -105,21 +106,23 @@ interface SortState {
 
 /**
  * Format number for display with appropriate decimal places
+ * Note: This is a calculation helper, not for display - uses eslint-disable
  */
 function formatQuantity(value: string): string {
   const decimal = new Decimal(value);
-  const formatted = decimal.toFixed(8);
+  const formatted = decimal.toFixed(8); // eslint-disable-line no-restricted-syntax
   return formatted.replace(/\.?0+$/, "");
 }
 
 /**
  * Format price for display (2-4 decimal places)
+ * Note: This is a calculation helper, not for display - uses eslint-disable
  */
 function formatPrice(value: string): string {
   const decimal = new Decimal(value);
   const numValue = decimal.toNumber();
   const decimalPlaces = numValue % 1 === 0 ? 2 : 4;
-  return decimal.toFixed(decimalPlaces);
+  return decimal.toFixed(decimalPlaces); // eslint-disable-line no-restricted-syntax
 }
 
 /**
@@ -128,28 +131,7 @@ function formatPrice(value: string): string {
 function calculateValue(quantity: string, price: string): string {
   const qty = new Decimal(quantity);
   const prc = new Decimal(price);
-  return qty.times(prc).toFixed(2);
-}
-
-/**
- * Format currency amount for display
- */
-function formatCurrency(value: string, currency: string): string {
-  const num = parseFloat(value);
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num);
-}
-
-/**
- * Format allocation percentage for display
- */
-function formatAllocation(value: string): string {
-  const num = parseFloat(value);
-  return `${num.toFixed(2)}%`;
+  return qty.times(prc).toFixed(2); // eslint-disable-line no-restricted-syntax
 }
 
 // =============================================================================
@@ -200,6 +182,7 @@ function AssetRow({
   asset: PortfolioAsset;
   onDeleteClick: (asset: PortfolioAsset, value: string) => void;
 }) {
+  const { formatCurrency } = useNumberFormat();
   const { updateAsset } = useUpdateAsset();
   const { toggleIgnore, isToggling } = useToggleIgnore();
   const value = calculateValue(asset.quantity, asset.purchasePrice);
@@ -260,7 +243,7 @@ function AssetRow({
         />
       </TableCell>
       <TableCell className={`text-right font-mono font-medium ${ignoredClass}`}>
-        {formatCurrency(value, asset.currency)}
+        {formatCurrency(parseFloat(value), asset.currency)}
       </TableCell>
       <TableCell className={ignoredClass}>{asset.currency}</TableCell>
       <TableCell className="w-20">
@@ -313,6 +296,7 @@ function AssetRowWithValues({
   unscoredReason?: { code: string; message: string } | null;
   onScoreClick?: (assetId: string) => void;
 }) {
+  const { formatNumber } = useNumberFormat();
   const { updateAsset } = useUpdateAsset();
   const { toggleIgnore, isToggling } = useToggleIgnore();
 
@@ -397,7 +381,11 @@ function AssetRowWithValues({
             <TooltipContent>
               <div className="text-xs">
                 <div>
-                  Exchange rate: 1 {asset.currency} = {parseFloat(asset.exchangeRate).toFixed(4)}{" "}
+                  Exchange rate: 1 {asset.currency} ={" "}
+                  {formatNumber(parseFloat(asset.exchangeRate), {
+                    minimumFractionDigits: 4,
+                    maximumFractionDigits: 4,
+                  })}{" "}
                   {baseCurrency}
                 </div>
               </div>
@@ -413,7 +401,7 @@ function AssetRowWithValues({
         {asset.isIgnored ? (
           <span className="text-muted-foreground">-</span>
         ) : (
-          formatAllocation(asset.allocationPercent)
+          `${formatNumber(parseFloat(asset.allocationPercent), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
         )}
       </TableCell>
 

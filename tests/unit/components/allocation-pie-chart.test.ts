@@ -83,9 +83,9 @@ describe("AllocationPieChart Utilities", () => {
     });
 
     it("handles string numbers with leading/trailing spaces", () => {
-      // Decimal.js preserves spaces in invalid input - returns original value
-      // This is expected behavior since input should be pre-validated
-      expect(formatPercent(" 25.5 ")).toBe(" 25.5 ");
+      // parseFloat trims spaces and formats correctly
+      // Input is expected to be pre-validated, but whitespace is acceptable
+      expect(formatPercent(" 25.5 ")).toBe("25.5");
     });
   });
 

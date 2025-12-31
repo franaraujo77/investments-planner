@@ -28,7 +28,7 @@ import {
   Cell,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { Decimal } from "@/lib/calculations/decimal-config";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import type { AllocationStatus } from "@/components/fintech/allocation-gauge";
 
 export interface ClassAllocationForBar {
@@ -78,21 +78,6 @@ function getStatusColor(status: AllocationStatus): string {
 }
 
 /**
- * Format percentage with 1 decimal precision
- * AC-3.7.4: Percentages show with 1 decimal precision
- */
-function formatPercent(value: string | number): string {
-  try {
-    if (typeof value === "number") {
-      return new Decimal(value).toFixed(1);
-    }
-    return new Decimal(value).toFixed(1);
-  } catch {
-    return String(value);
-  }
-}
-
-/**
  * Custom tooltip component for the bar chart
  */
 interface CustomTooltipProps {
@@ -104,6 +89,8 @@ interface CustomTooltipProps {
 }
 
 function CustomTooltip({ active, payload }: CustomTooltipProps) {
+  const { formatNumber } = useNumberFormat();
+
   if (!active || !payload || payload.length === 0 || !payload[0]) {
     return null;
   }
@@ -116,6 +103,10 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
     "no-target": "No target set",
   }[data.status];
 
+  // Format percentage values with 1 decimal place
+  const formatPct = (val: string) =>
+    formatNumber(parseFloat(val), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
   return (
     <div className="bg-popover text-popover-foreground border rounded-lg shadow-lg p-3 text-sm">
       <div className="font-semibold flex items-center gap-2">
@@ -124,14 +115,13 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
       </div>
       <div className="mt-1 space-y-0.5 text-muted-foreground">
         <div>
-          Current:{" "}
-          <span className="font-mono text-foreground">{formatPercent(data.percentage)}%</span>
+          Current: <span className="font-mono text-foreground">{formatPct(data.percentage)}%</span>
         </div>
         {data.targetMin !== null && data.targetMax !== null && (
           <div>
             Target:{" "}
             <span className="font-mono text-foreground">
-              {formatPercent(data.targetMin)} - {formatPercent(data.targetMax)}%
+              {formatPct(data.targetMin)} - {formatPct(data.targetMax)}%
             </span>
           </div>
         )}
@@ -177,22 +167,34 @@ function CustomYAxisTick({ x, y, payload }: YAxisTickProps) {
 
 /**
  * Custom label showing percentage on the bar
+ * Note: Uses hook for locale-aware formatting
  */
-interface BarLabelProps {
+function BarLabel({
+  x,
+  y,
+  width,
+  height,
+  value,
+}: {
   x?: number;
   y?: number;
   width?: number;
   height?: number;
   value?: number;
   fill?: string;
-}
+}) {
+  const { formatNumber } = useNumberFormat();
 
-function BarLabel({ x, y, width, height, value }: BarLabelProps) {
   if (!x || !y || !width || !height || value === undefined) return null;
 
   // Position label to the right of the bar
   const labelX = x + width + 8;
   const labelY = y + height / 2;
+
+  const formattedValue = formatNumber(value, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 
   return (
     <text
@@ -202,7 +204,7 @@ function BarLabel({ x, y, width, height, value }: BarLabelProps) {
       textAnchor="start"
       className="text-xs fill-foreground font-mono"
     >
-      {formatPercent(value)}%
+      {formattedValue}%
     </text>
   );
 }
