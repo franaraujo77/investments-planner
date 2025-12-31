@@ -23,6 +23,7 @@ import {
   createClass,
   canCreateAssetClass,
   AssetClassLimitError,
+  DuplicateAssetClassNameError,
   MAX_ASSET_CLASSES_PER_USER,
 } from "@/lib/services/asset-class-service";
 import { createAssetClassSchema } from "@/lib/validations/asset-class-schemas";
@@ -128,6 +129,17 @@ export const POST = withAuth<AssetClassResponse | ValidationError | AuthError>(
           {
             error: error.message,
             code: "LIMIT_EXCEEDED",
+          },
+          { status: 409 }
+        );
+      }
+
+      // AC-4.1.10: Handle duplicate name error
+      if (error instanceof DuplicateAssetClassNameError) {
+        return NextResponse.json<ValidationError>(
+          {
+            error: error.message,
+            code: "DUPLICATE_NAME",
           },
           { status: 409 }
         );

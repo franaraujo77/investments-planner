@@ -29,6 +29,7 @@ import {
   deleteClass,
   getAssetCountByClass,
   AssetClassNotFoundError,
+  DuplicateAssetClassNameError,
 } from "@/lib/services/asset-class-service";
 import {
   updateAssetClassSchema,
@@ -156,6 +157,17 @@ export const PATCH = withAuth<AssetClassResponse | ValidationError | AuthError>(
             code: "NOT_FOUND",
           },
           { status: 404 }
+        );
+      }
+
+      // AC-4.1.10: Handle duplicate name error on update
+      if (error instanceof DuplicateAssetClassNameError) {
+        return NextResponse.json<ValidationError>(
+          {
+            error: error.message,
+            code: "DUPLICATE_NAME",
+          },
+          { status: 409 }
         );
       }
 

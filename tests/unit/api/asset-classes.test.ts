@@ -52,6 +52,7 @@ vi.mock("@/lib/services/asset-class-service", () => ({
   createClass: vi.fn((userId: string, data: any) =>
     Promise.resolve({ ...mockAssetClass, ...data, userId })
   ),
+  assetClassNameExists: vi.fn(() => Promise.resolve(false)),
   getAssetClassById: vi.fn((userId: string, id: string) => {
     const found = mockAssetClasses.find((c) => c.id === id);
     return Promise.resolve(found || null);
@@ -85,6 +86,12 @@ vi.mock("@/lib/services/asset-class-service", () => ({
     constructor(message = "Asset class limit reached") {
       super(message);
       this.name = "AssetClassLimitError";
+    }
+  },
+  DuplicateAssetClassNameError: class DuplicateAssetClassNameError extends Error {
+    constructor(message = "An asset class with this name already exists") {
+      super(message);
+      this.name = "DuplicateAssetClassNameError";
     }
   },
   MAX_ASSET_CLASSES_PER_USER: 10,
@@ -346,6 +353,25 @@ describe("Asset Classes API", () => {
       expect(response.status).toBe(409);
       expect(data.code).toBe("LIMIT_EXCEEDED");
     });
+
+    it("should return 409 when asset class name already exists (AC-4.1.10)", async () => {
+      const { createClass, DuplicateAssetClassNameError } =
+        await import("@/lib/services/asset-class-service");
+      vi.mocked(createClass).mockRejectedValueOnce(new DuplicateAssetClassNameError());
+
+      const request = new NextRequest("http://localhost/api/asset-classes", {
+        method: "POST",
+        body: JSON.stringify({ name: "Fixed Income" }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(409);
+      expect(data.code).toBe("DUPLICATE_NAME");
+      expect(data.error).toBe("An asset class with this name already exists");
+    });
   });
 
   // ===========================================================================
@@ -504,6 +530,26 @@ describe("Asset Classes API", () => {
       const response = await PATCH(request, context as any);
 
       expect(response.status).toBe(200);
+    });
+
+    it("should return 409 when updating asset class to duplicate name (AC-4.1.10)", async () => {
+      const { updateClass, DuplicateAssetClassNameError } =
+        await import("@/lib/services/asset-class-service");
+      vi.mocked(updateClass).mockRejectedValueOnce(new DuplicateAssetClassNameError());
+
+      const request = new NextRequest("http://localhost/api/asset-classes/class-123", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "Fixed Income" }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const context = { params: Promise.resolve({ id: "class-123" }) };
+
+      const response = await PATCH(request, context as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(409);
+      expect(data.code).toBe("DUPLICATE_NAME");
+      expect(data.error).toBe("An asset class with this name already exists");
     });
   });
 

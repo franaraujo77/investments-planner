@@ -88,6 +88,17 @@ export class AssetClassNotFoundError extends Error {
 }
 
 /**
+ * Error thrown when asset class name already exists for this user
+ * AC-4.1.10: Duplicate name prevention (per-user scope)
+ */
+export class DuplicateAssetClassNameError extends Error {
+  constructor() {
+    super("An asset class with this name already exists");
+    this.name = "DuplicateAssetClassNameError";
+  }
+}
+
+/**
  * Error thrown when user has reached the maximum number of subclasses per class
  */
 export class SubclassLimitError extends Error {
@@ -140,6 +151,33 @@ export interface UpdateSubclassInput {
 // =============================================================================
 // SERVICE FUNCTIONS
 // =============================================================================
+
+/**
+ * Check if an asset class name already exists for a user (case-insensitive)
+ *
+ * AC-4.1.10: Duplicate name prevention
+ * Per-user scope: Different users can have the same asset class names
+ *
+ * @param userId - User ID to check within
+ * @param name - Asset class name to check
+ * @param excludeClassId - Optional class ID to exclude (for edit scenarios)
+ * @param existingClasses - Optional pre-fetched classes to avoid extra query
+ * @returns true if name already exists, false otherwise
+ */
+export async function assetClassNameExists(
+  userId: string,
+  name: string,
+  excludeClassId?: string,
+  existingClasses?: AssetClass[]
+): Promise<boolean> {
+  const classes = existingClasses ?? (await getClassesForUser(userId));
+  const normalizedName = name.trim().toLowerCase();
+
+  return classes.some(
+    (c) =>
+      c.name.toLowerCase() === normalizedName && (excludeClassId ? c.id !== excludeClassId : true)
+  );
+}
 
 /**
  * Get count of asset classes for a user
@@ -197,25 +235,33 @@ export async function getAssetClassById(
  *
  * Story 4.1: Define Asset Classes
  * AC-4.1.2: Create with name (1-50 chars) and optional icon
+ * AC-4.1.10: Duplicate name prevention (case-insensitive, per-user scope)
  *
  * @param userId - User ID creating the asset class
  * @param input - Asset class creation input (name, icon)
  * @returns Created asset class
  * @throws AssetClassLimitError if user already has 10 asset classes
+ * @throws DuplicateAssetClassNameError if name already exists for this user
  */
 export async function createClass(
   userId: string,
   input: CreateAssetClassInput
 ): Promise<AssetClass> {
-  // Check asset class limit before creating
-  const currentCount = await getAssetClassCount(userId);
+  // Fetch existing classes once for all validations (performance optimization)
+  const existingClasses = await getClassesForUser(userId);
 
-  if (currentCount >= MAX_ASSET_CLASSES_PER_USER) {
+  // Check asset class limit before creating
+  if (existingClasses.length >= MAX_ASSET_CLASSES_PER_USER) {
     throw new AssetClassLimitError();
   }
 
+  // AC-4.1.10: Check for duplicate name (case-insensitive, per-user scope)
+  const nameExists = await assetClassNameExists(userId, input.name, undefined, existingClasses);
+  if (nameExists) {
+    throw new DuplicateAssetClassNameError();
+  }
+
   // Get the next sort order (max + 1)
-  const existingClasses = await getClassesForUser(userId);
   const maxSortOrder = existingClasses.reduce((max, c) => {
     const order = parseInt(c.sortOrder ?? "0", 10);
     return order > max ? order : max;
@@ -242,6 +288,7 @@ export async function createClass(
  *
  * Story 4.1: Define Asset Classes
  * AC-4.1.3: Edit asset class name
+ * AC-4.1.10: Duplicate name prevention on update
  *
  * Multi-tenant isolation: Verifies class ownership before updating
  *
@@ -250,6 +297,7 @@ export async function createClass(
  * @param input - Partial update input (name and/or icon)
  * @returns Updated asset class
  * @throws AssetClassNotFoundError if class doesn't exist or user doesn't own it
+ * @throws DuplicateAssetClassNameError if new name already exists for this user
  */
 export async function updateClass(
   userId: string,
@@ -261,6 +309,14 @@ export async function updateClass(
 
   if (!existingClass) {
     throw new AssetClassNotFoundError();
+  }
+
+  // AC-4.1.10: Check for duplicate name when updating (case-insensitive, per-user scope)
+  if (input.name !== undefined && input.name !== existingClass.name) {
+    const nameExists = await assetClassNameExists(userId, input.name, classId);
+    if (nameExists) {
+      throw new DuplicateAssetClassNameError();
+    }
   }
 
   // Build update object with only provided fields

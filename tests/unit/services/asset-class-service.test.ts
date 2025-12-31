@@ -309,7 +309,16 @@ describe("Asset Class Service", () => {
     });
 
     it("should throw AssetClassLimitError when user has 10 asset classes", async () => {
-      mockAssetClassCountResult = [{ count: 10 }];
+      // Mock 10 existing asset classes to trigger limit
+      mockAssetClassesResult = Array(10)
+        .fill(null)
+        .map((_, i) => ({
+          id: `class-${i}`,
+          userId: mockUserId,
+          name: `Class ${i}`,
+          icon: null,
+          sortOrder: String(i),
+        }));
 
       await expect(createClass(mockUserId, { name: "New Class" })).rejects.toThrow(
         AssetClassLimitError
@@ -317,7 +326,16 @@ describe("Asset Class Service", () => {
     });
 
     it("should throw AssetClassLimitError with correct message", async () => {
-      mockAssetClassCountResult = [{ count: 10 }];
+      // Mock 10 existing asset classes to trigger limit
+      mockAssetClassesResult = Array(10)
+        .fill(null)
+        .map((_, i) => ({
+          id: `class-${i}`,
+          userId: mockUserId,
+          name: `Class ${i}`,
+          icon: null,
+          sortOrder: String(i),
+        }));
 
       await expect(createClass(mockUserId, { name: "New Class" })).rejects.toThrow(
         "Maximum of 10 asset classes allowed"
