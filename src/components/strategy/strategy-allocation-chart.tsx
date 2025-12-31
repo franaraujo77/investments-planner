@@ -21,10 +21,10 @@ import { useStrategyAllocation } from "@/hooks";
 import {
   AllocationPieChart,
   AllocationPieChartSkeleton,
+  getSegmentColor,
   type ClassAllocation,
 } from "@/components/portfolio/allocation-pie-chart";
 import type { StrategyAllocation } from "@/lib/services/strategy-allocation-service";
-import type { AllocationStatus } from "@/components/fintech/allocation-gauge";
 
 // =============================================================================
 // TYPES
@@ -64,27 +64,9 @@ export interface StrategyAllocationChartProps {
 // =============================================================================
 
 /**
- * Status-based color palette for pie chart segments
- * AC-3.6.5: Color coding indicates allocation status
- */
-const STATUS_COLORS: Record<AllocationStatus, string> = {
-  under: "hsl(38, 92%, 50%)", // Amber - under-allocated
-  "on-target": "hsl(142, 71%, 45%)", // Green - on-target
-  over: "hsl(0, 84%, 60%)", // Red - over-allocated
-  "no-target": "hsl(222, 47%, 51%)", // Blue - no target set
-};
-
-/**
  * Color for unclassified assets
  */
-const UNCLASSIFIED_COLOR = "hsl(220, 9%, 46%)"; // Gray
-
-/**
- * Get color based on allocation status
- */
-function getStatusColor(status: AllocationStatus): string {
-  return STATUS_COLORS[status];
-}
+const UNCLASSIFIED_COLOR = "hsl(215, 16%, 47%)"; // Gray - matches legend
 
 // =============================================================================
 // DATA TRANSFORMATION
@@ -93,7 +75,7 @@ function getStatusColor(status: AllocationStatus): string {
 /**
  * Transform StrategyAllocation[] to ClassAllocation[] for pie chart
  *
- * Adds color based on status and formats for AllocationPieChart
+ * Adds color based on index (matching legend colors) and formats for AllocationPieChart
  */
 function transformToChartData(
   allocations: StrategyAllocation[],
@@ -103,8 +85,8 @@ function transformToChartData(
     assetCount: number;
   }
 ): ClassAllocation[] {
-  // Transform classified allocations
-  const data: ClassAllocation[] = allocations.map((alloc) => ({
+  // Transform classified allocations with index-based colors
+  const data: ClassAllocation[] = allocations.map((alloc, index) => ({
     classId: alloc.classId,
     className: alloc.className,
     value: alloc.currentValue,
@@ -113,7 +95,7 @@ function transformToChartData(
     targetMin: alloc.targetMin,
     targetMax: alloc.targetMax,
     status: alloc.status,
-    color: getStatusColor(alloc.status),
+    color: getSegmentColor(index),
   }));
 
   // Add unclassified segment if there are unclassified assets
