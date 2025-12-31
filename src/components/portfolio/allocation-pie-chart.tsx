@@ -218,8 +218,8 @@ function CustomLegend({ payload, onLegendClick, selectedClassId }: LegendProps) 
             style={{ backgroundColor: entry.color }}
             aria-hidden="true"
           />
-          <span className="truncate max-w-20">{entry.value}</span>
-          <span className="text-muted-foreground font-mono">
+          <span>{entry.value}</span>
+          <span className="text-muted-foreground font-mono whitespace-nowrap">
             {formatPercent(entry.payload.percentage)}%
           </span>
         </button>

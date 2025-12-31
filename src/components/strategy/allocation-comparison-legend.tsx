@@ -225,18 +225,19 @@ function AllocationRow({
 }: AllocationRowProps) {
   const hasTarget = targetMin !== null && targetMax !== null;
 
-  // Helper to parse string percentage to number for formatting
-  const parsePercent = (value: string): number => {
+  // Helper to parse string percentage to decimal for i18n formatPercent
+  // Database stores 3.00 for 3%, but Intl.NumberFormat expects 0.03 for 3%
+  const parsePercentToDecimal = (value: string): number => {
     try {
-      return new Decimal(value).toNumber();
+      return new Decimal(value).dividedBy(100).toNumber();
     } catch {
       return 0;
     }
   };
 
-  const currentPct = parsePercent(currentPercentage);
-  const minPct = targetMin ? parsePercent(targetMin) : 0;
-  const maxPct = targetMax ? parsePercent(targetMax) : 0;
+  const currentPct = parsePercentToDecimal(currentPercentage);
+  const minPct = targetMin ? parsePercentToDecimal(targetMin) : 0;
+  const maxPct = targetMax ? parsePercentToDecimal(targetMax) : 0;
 
   return (
     <button
@@ -261,7 +262,7 @@ function AllocationRow({
       />
 
       {/* Class name */}
-      <span className="flex-1 font-medium text-sm truncate">{classNameStr}</span>
+      <span className="flex-1 font-medium text-sm min-w-[120px]">{classNameStr}</span>
 
       {/* Current percentage */}
       <span className={cn("font-mono text-sm font-semibold", getStatusTextClass(status))}>

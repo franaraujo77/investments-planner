@@ -244,11 +244,13 @@ export async function getTargetAllocation(userId: string): Promise<StrategyAlloc
     .where(eq(assetClasses.userId, userId))
     .orderBy(assetClasses.name);
 
-  // Build allocation objects using targetMin as the percentage for the pie chart
+  // Build allocation objects using target values for the pie chart
+  // Preference: targetMax (if set), fallback to targetMin
   const allocations: StrategyAllocation[] = userAssetClasses
-    .filter((ac) => ac.targetMin !== null) // Only include classes with target allocations
+    .filter((ac) => ac.targetMin !== null || ac.targetMax !== null) // Include classes with any target set
     .map((ac) => {
-      const targetMinValue = ac.targetMin ?? "0";
+      // Use targetMax preferably, fallback to targetMin
+      const displayPercentage = ac.targetMax ?? ac.targetMin ?? "0";
 
       return {
         classId: ac.id,
@@ -256,7 +258,7 @@ export async function getTargetAllocation(userId: string): Promise<StrategyAlloc
         targetMin: ac.targetMin,
         targetMax: ac.targetMax,
         currentValue: "0.0000", // Not applicable for target view
-        currentPercentage: targetMinValue, // Use targetMin as the display percentage
+        currentPercentage: displayPercentage, // Use targetMax (preferred) or targetMin
         assetCount: 0, // Not applicable for target view
         status: "on-target" as AllocationStatus, // Targets are always "on-target" by definition
       };

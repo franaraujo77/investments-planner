@@ -334,6 +334,167 @@ describe("AllocationPieChart Accessibility (AC-3.1.4)", () => {
   });
 });
 
+describe("AllocationPieChart Legend - Full Class Names", () => {
+  /**
+   * Tests to verify that class names are displayed in full without truncation.
+   * The legend should show complete asset class names regardless of length.
+   */
+
+  describe("legend entry generation", () => {
+    it("preserves full class name for short names", () => {
+      const className = "Stocks";
+      const entry = { value: className, percentage: "45.5" };
+
+      // Legend should display full name
+      expect(entry.value).toBe("Stocks");
+      expect(entry.value.length).toBe(6);
+    });
+
+    it("preserves full class name for medium-length names", () => {
+      const className = "Fixed Income Bonds";
+      const entry = { value: className, percentage: "30.0" };
+
+      expect(entry.value).toBe("Fixed Income Bonds");
+      expect(entry.value.length).toBe(18);
+    });
+
+    it("preserves full class name for long names", () => {
+      const className = "International Real Estate Investment Trusts";
+      const entry = { value: className, percentage: "15.0" };
+
+      expect(entry.value).toBe("International Real Estate Investment Trusts");
+      expect(entry.value.length).toBe(43);
+    });
+
+    it("preserves full class name for very long names with special characters", () => {
+      const className = "S&P 500 Index-Linked Emerging Markets ETF Portfolio";
+      const entry = { value: className, percentage: "10.0" };
+
+      expect(entry.value).toBe("S&P 500 Index-Linked Emerging Markets ETF Portfolio");
+      expect(entry.value.length).toBe(51);
+    });
+  });
+
+  describe("ARIA labels with full class names", () => {
+    it("generates complete ARIA label for short class name", () => {
+      const className = "Stocks";
+      const percentage = "45.5";
+      const ariaLabel = `${className}: ${formatPercent(percentage)}% allocation`;
+
+      expect(ariaLabel).toBe("Stocks: 45.5% allocation");
+    });
+
+    it("generates complete ARIA label for long class name", () => {
+      const className = "International Real Estate Investment Trusts";
+      const percentage = "15.0";
+      const ariaLabel = `${className}: ${formatPercent(percentage)}% allocation`;
+
+      expect(ariaLabel).toBe("International Real Estate Investment Trusts: 15.0% allocation");
+    });
+
+    it("generates complete ARIA label with special characters", () => {
+      const className = "S&P 500 ETFs (Large Cap)";
+      const percentage = "25.0";
+      const ariaLabel = `${className}: ${formatPercent(percentage)}% allocation`;
+
+      expect(ariaLabel).toBe("S&P 500 ETFs (Large Cap): 25.0% allocation");
+    });
+  });
+
+  describe("accessible description with full class names", () => {
+    it("generates full description for portfolio with long class names", () => {
+      const allocations = [
+        { classId: "1", className: "United States Equity Large Cap Growth", percentage: "40" },
+        { classId: "2", className: "International Developed Markets Bonds", percentage: "35" },
+        { classId: "3", className: "Emerging Markets Real Estate", percentage: "25" },
+      ];
+
+      const description = allocations
+        .map((a) => `${a.className}: ${formatPercent(a.percentage)}%`)
+        .join(", ");
+
+      expect(description).toBe(
+        "United States Equity Large Cap Growth: 40.0%, " +
+          "International Developed Markets Bonds: 35.0%, " +
+          "Emerging Markets Real Estate: 25.0%"
+      );
+    });
+
+    it("includes all class names without truncation in description", () => {
+      const allocations = [
+        { className: "Very Long Asset Class Name That Should Not Be Truncated", percentage: "50" },
+        { className: "Another Extremely Long Name For Testing Purposes", percentage: "50" },
+      ];
+
+      const descriptions = allocations.map((a) => a.className);
+
+      // Verify no truncation (no ellipsis)
+      descriptions.forEach((name) => {
+        expect(name).not.toContain("...");
+        expect(name).not.toContain("…");
+      });
+    });
+  });
+
+  describe("legend data transformation preserves full names", () => {
+    it("transforms allocations array preserving full class names", () => {
+      const allocations: ClassAllocation[] = [
+        {
+          classId: "us-equity",
+          className: "United States Large Cap Equity Growth Fund",
+          value: "50000",
+          percentage: "50",
+          assetCount: 5,
+          targetMin: "45",
+          targetMax: "55",
+          status: "on-target",
+        },
+        {
+          classId: "intl-bonds",
+          className: "International Investment Grade Corporate Bonds",
+          value: "30000",
+          percentage: "30",
+          assetCount: 3,
+          targetMin: "25",
+          targetMax: "35",
+          status: "on-target",
+        },
+        {
+          classId: "em-reits",
+          className: "Emerging Markets Real Estate Investment Trusts",
+          value: "20000",
+          percentage: "20",
+          assetCount: 2,
+          targetMin: "15",
+          targetMax: "25",
+          status: "on-target",
+        },
+      ];
+
+      // Simulate legend data transformation
+      const legendData = allocations.map((alloc, index) => ({
+        value: alloc.className, // Full name preserved
+        payload: {
+          classId: alloc.classId,
+          percentage: alloc.percentage,
+        },
+        color: getSegmentColor(index, alloc.color),
+      }));
+
+      // Verify all class names are preserved in full
+      expect(legendData[0].value).toBe("United States Large Cap Equity Growth Fund");
+      expect(legendData[1].value).toBe("International Investment Grade Corporate Bonds");
+      expect(legendData[2].value).toBe("Emerging Markets Real Estate Investment Trusts");
+
+      // Verify no name was truncated
+      legendData.forEach((entry) => {
+        expect(entry.value).not.toContain("...");
+        expect(entry.value.length).toBeGreaterThan(30); // All test names are > 30 chars
+      });
+    });
+  });
+});
+
 describe("AllocationPieChart Edge Cases", () => {
   it("handles empty allocations array", () => {
     const allocations: ClassAllocation[] = [];

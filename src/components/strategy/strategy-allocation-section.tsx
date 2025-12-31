@@ -125,24 +125,35 @@ export function StrategyAllocationSection({ className }: StrategyAllocationSecti
     );
   }
 
-  // Determine empty state message based on view
+  // Determine empty state message based on view and data availability
   const getEmptyStateMessage = () => {
     if (view === "target") {
+      if (!hasAssetClasses) {
+        return {
+          title: "No asset classes configured",
+          description: "Create asset classes to define your investment strategy",
+        };
+      }
       return {
         title: "No target allocations configured",
         description: "Add target allocation percentages to your asset classes to see your strategy",
       };
     }
+    // Current view
+    if (!hasAssets) {
+      return {
+        title: "No portfolio assets",
+        description: "Add assets to your portfolio to see allocation breakdown",
+      };
+    }
     return {
-      title: "No allocation data",
-      description: "Add assets to your portfolio to see allocation breakdown",
+      title: "No classified assets",
+      description: "Assign asset classes to your portfolio assets to see allocation breakdown",
     };
   };
 
-  // Check if we should show empty state
-  const showEmptyState =
-    allocations.length === 0 &&
-    ((view === "target" && !hasAssetClasses) || (view === "current" && !hasAssets));
+  // Show empty state when there's no data to display
+  const showEmptyState = allocations.length === 0;
 
   // Empty state - show card with message
   if (showEmptyState) {
