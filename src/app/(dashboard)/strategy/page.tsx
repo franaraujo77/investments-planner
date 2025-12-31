@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { AssetClassList } from "@/components/strategy/asset-class-list";
 import { StrategyHeader } from "@/components/strategy/strategy-header";
+import { StrategyAllocationSection } from "@/components/strategy/strategy-allocation-section";
 
 export const metadata: Metadata = {
   title: "Strategy",
@@ -10,15 +11,21 @@ export const metadata: Metadata = {
 /**
  * Strategy Page
  *
+ * Story 3.6: Strategy Allocation Overview Chart
+ * Story 3.7: Strategy Allocation Balance Indicator
  * Story 4.1: Define Asset Classes
  * Story 4.3: Set Allocation Ranges for Classes
  *
  * Server component that renders the strategy management interface.
+ * AC-3.6.1: Pie chart showing allocation by asset class
+ * AC-3.7.1: Strategy page allocation summary (via StrategyHeader)
  * AC-4.1.1: View list of asset classes
  * AC-4.3.1: View and set allocation ranges
  * AC-4.3.3: Warning when sum of minimums exceeds 100%
  *
  * This page allows users to:
+ * - View allocation balance indicator showing total % allocated (Story 3.7)
+ * - View portfolio allocation overview with pie chart (Story 3.6)
  * - View all their asset classes
  * - Create new asset classes
  * - Edit existing asset classes
@@ -29,8 +36,11 @@ export const metadata: Metadata = {
 export default function StrategyPage() {
   return (
     <div className="space-y-6">
-      {/* Header with allocation warning banner - Story 4.3 */}
+      {/* Header with balance indicator (Story 3.7) and allocation warning banner (Story 4.3) */}
       <StrategyHeader />
+
+      {/* Story 3.6: Portfolio Allocation Overview Chart */}
+      <StrategyAllocationSection />
 
       {/* Story 4.1: Asset Classes Management */}
       <AssetClassList />

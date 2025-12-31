@@ -5,6 +5,7 @@ import { verifyAccessToken } from "@/lib/auth/jwt";
 import { getSafeUserById } from "@/lib/auth/service";
 import { ProfileSettingsForm } from "@/components/settings/profile-settings-form";
 import { AlertPreferencesSection } from "@/components/settings/alert-preferences-section";
+import { OnboardingResetSection } from "@/components/settings/onboarding-reset-section";
 import { ExportDataSection } from "@/components/settings/export-data-section";
 import { DeleteAccountDialog } from "@/components/settings/delete-account-dialog";
 
@@ -20,12 +21,14 @@ export const metadata: Metadata = {
  * Story 2.7: Data Export
  * Story 2.8: Account Deletion
  * Story 1.5: Regional Preferences and i18n Infrastructure
+ * Story 3.5: Onboarding Tips
  *
  * Server component that fetches user data and renders the profile form.
  * AC-2.6.1: Settings page shows name and base currency fields
  * AC-2.7.1: Export button on Settings page
  * AC-2.8.1: Delete Account button styled as destructive action
  * AC-1.5.1: Locale selection on settings page
+ * AC-3.5.4: Reset Onboarding Tips Option
  */
 export default async function SettingsPage() {
   // Get access token from cookies
@@ -69,6 +72,9 @@ export default async function SettingsPage() {
 
       {/* Story 9.3: Alert Preferences */}
       <AlertPreferencesSection />
+
+      {/* Story 3.5: Onboarding Tips - AC-3.5.4: Reset Tips Option */}
+      <OnboardingResetSection />
 
       {/* Story 2.7: Data Export */}
       <ExportDataSection />

@@ -34,6 +34,7 @@ import { HoldingDetailDrawer } from "@/components/portfolio/holding-detail-drawe
 import { DeletePortfolioDialog } from "@/components/portfolio/delete-portfolio-dialog";
 import { AddAssetModal } from "@/components/portfolio/add-asset-modal";
 import { MultiCurrencyIndicator } from "@/components/portfolio/multi-currency-indicator";
+import { OnboardingWrapper } from "@/components/onboarding";
 import {
   InvestmentHistoryTab,
   type InvestmentWithContext,
@@ -162,6 +163,13 @@ export function PortfolioDetailClient({
   // Determine if we should show empty state
   const hasNoHoldings = assets.length === 0;
 
+  // Story 3.2: Calculate total allocation percentage from active assets
+  const totalAllocationPercent = useMemo(() => {
+    return assets
+      .filter((asset) => !asset.isIgnored)
+      .reduce((sum, asset) => sum + parseFloat(asset.allocationPercent), 0);
+  }, [assets]);
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb Navigation - Task 1.4 */}
@@ -245,16 +253,20 @@ export function PortfolioDetailClient({
       </div>
 
       {/* Portfolio Summary Card - always show */}
-      <PortfolioSummaryCard
-        totalValueBase={totalValueBase}
-        baseCurrency={baseCurrency}
-        activeAssetCount={activeAssetCount}
-        assetCount={assetCount}
-        ignoredAssetCount={ignoredAssetCount}
-        dataFreshness={dataFreshness}
-        exchangeRateFreshness={exchangeRateFreshness}
-        currencies={currencies}
-      />
+      {/* Story 3.5: Onboarding tip for pie chart interaction (AC-3.5.5) */}
+      <OnboardingWrapper tipId="pie-chart-interaction" side="bottom" align="start">
+        <PortfolioSummaryCard
+          totalValueBase={totalValueBase}
+          baseCurrency={baseCurrency}
+          activeAssetCount={activeAssetCount}
+          assetCount={assetCount}
+          ignoredAssetCount={ignoredAssetCount}
+          dataFreshness={dataFreshness}
+          exchangeRateFreshness={exchangeRateFreshness}
+          currencies={currencies}
+          totalAllocationPercent={totalAllocationPercent}
+        />
+      </OnboardingWrapper>
 
       {/* Story 2.8: Tab Navigation for Holdings and History */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
@@ -274,11 +286,14 @@ export function PortfolioDetailClient({
             <EmptyHoldingsState portfolioId={portfolio.id} />
           ) : (
             // AC-2.2.1, AC-2.2.2: Holdings table with values
-            <HoldingsTable
-              assets={assets}
-              baseCurrency={baseCurrency}
-              onHoldingClick={handleHoldingClick}
-            />
+            // Story 3.5: Onboarding tip for allocation validation (AC-3.5.5)
+            <OnboardingWrapper tipId="allocation-validation" side="top" align="start">
+              <HoldingsTable
+                assets={assets}
+                baseCurrency={baseCurrency}
+                onHoldingClick={handleHoldingClick}
+              />
+            </OnboardingWrapper>
           )}
         </TabsContent>
 

@@ -18,6 +18,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { DollarSign, TrendingUp, Clock, EyeOff } from "lucide-react";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { formatExactTime } from "@/lib/types/freshness";
+import { AllocationIndicator } from "@/components/forms";
+import { OnboardingWrapper } from "@/components/onboarding";
 
 interface PortfolioSummaryCardProps {
   totalValueBase: string;
@@ -30,6 +32,8 @@ interface PortfolioSummaryCardProps {
   exchangeRateFreshness?: Date;
   /** Story 2.7: Currencies present in portfolio (for multi-currency display) */
   currencies?: string[];
+  /** Story 3.2: Total allocation percentage (sum of all asset allocations) */
+  totalAllocationPercent?: number;
 }
 
 export function PortfolioSummaryCard({
@@ -41,6 +45,7 @@ export function PortfolioSummaryCard({
   dataFreshness,
   exchangeRateFreshness,
   currencies = [],
+  totalAllocationPercent,
 }: PortfolioSummaryCardProps) {
   const { formatCurrency } = useNumberFormat();
 
@@ -173,6 +178,21 @@ export function PortfolioSummaryCard({
             </div>
           )}
         </div>
+
+        {/* Story 3.2: Allocation Status Indicator - AC-3.2.1 through AC-3.2.4 */}
+        {/* Story 3.5: Onboarding tip for allocation indicator (AC-3.5.5) */}
+        {totalAllocationPercent !== undefined && activeAssetCount > 0 && (
+          <div className="mt-4 pt-4 border-t">
+            <OnboardingWrapper tipId="allocation-indicator" side="bottom" align="center">
+              <AllocationIndicator
+                allocated={totalAllocationPercent}
+                remaining={100 - totalAllocationPercent}
+                valid={Math.abs(100 - totalAllocationPercent) < 0.01}
+                showProgress
+              />
+            </OnboardingWrapper>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

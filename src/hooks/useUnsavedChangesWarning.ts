@@ -14,7 +14,7 @@ import { useEffect, useCallback } from "react";
 /**
  * Hook options
  */
-interface UseUnsavedChangesWarningOptions {
+export interface UseUnsavedChangesWarningOptions {
   /**
    * Whether there are unsaved changes
    * Pass formState.isDirty from react-hook-form

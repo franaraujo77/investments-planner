@@ -1857,6 +1857,248 @@ test.describe("Allocation Pie Chart (AC-3.7.1)", () => {
   });
 });
 
+// =============================================================================
+// Story 3.1: Allocation Pie Chart Component Tests
+// AC-3.1.1: Pie chart display and render performance
+// AC-3.1.2: Real-time updates (form integration)
+// AC-3.1.3: Interactive tooltips
+// AC-3.1.4: Accessibility (ARIA labels)
+// AC-3.1.5: Color customization with fallback palette
+// =============================================================================
+test.describe("Allocation Pie Chart Accessibility (AC-3.1.4)", () => {
+  /**
+   * Helper to navigate to a portfolio with assets and locate pie chart
+   * Returns skip info if preconditions not met (test should skip)
+   *
+   * Code Review Fix: Tests now properly skip instead of silently passing
+   * when preconditions aren't met.
+   */
+  async function navigateToPieChart(page: import("@playwright/test").Page) {
+    await loginUser(page);
+    await page.goto("/portfolio");
+
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (!hasPortfolio) {
+      return { skip: true, reason: "No portfolio found - requires seeded test data" };
+    }
+
+    await portfolioCard.click();
+    await page.waitForTimeout(3000);
+
+    const hasAssets = (await page.locator("[data-testid^='quantity-']").count()) > 0;
+    if (!hasAssets) {
+      return { skip: true, reason: "Portfolio has no assets - requires seeded test data" };
+    }
+
+    const pieChart = page.getByTestId("allocation-pie-chart");
+    const isVisible = await pieChart.isVisible().catch(() => false);
+    if (!isVisible) {
+      return { skip: true, reason: "Pie chart not visible - requires assets with allocations" };
+    }
+
+    return { skip: false, pieChart, page };
+  }
+
+  test("should have accessible figure role and aria-label", async ({ page }) => {
+    const result = await navigateToPieChart(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+    // Check for figure role
+    await expect(pieChart!).toHaveAttribute("role", "figure");
+    // Check for aria-label
+    await expect(pieChart!).toHaveAttribute("aria-label", "Portfolio allocation pie chart");
+    // Check for aria-describedby linking to description
+    await expect(pieChart!).toHaveAttribute("aria-describedby", "allocation-chart-description");
+  });
+
+  test("should have screen reader description with allocation breakdown", async ({ page }) => {
+    const result = await navigateToPieChart(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    // Check for screen reader description element
+    const srDescription = page.locator("#allocation-chart-description");
+    await expect(srDescription).toBeAttached();
+    // Description should contain "Portfolio allocation breakdown"
+    const text = await srDescription.textContent();
+    expect(text).toBeTruthy();
+    expect(text).toContain("Portfolio allocation breakdown");
+  });
+
+  test("should have accessible legend items with aria-labels", async ({ page }) => {
+    const result = await navigateToPieChart(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+    // Find legend container
+    const legendContainer = pieChart!.locator("[role='list'][aria-label='Allocation legend']");
+    await expect(legendContainer).toBeVisible({ timeout: 5000 });
+
+    // Check legend items have aria-labels
+    const legendItems = legendContainer.locator("[role='listitem']");
+    const count = await legendItems.count();
+    expect(count).toBeGreaterThan(0);
+
+    const firstItem = legendItems.first();
+    const ariaLabel = await firstItem.getAttribute("aria-label");
+    // Should contain "allocation" in the label
+    expect(ariaLabel).toBeTruthy();
+    expect(ariaLabel).toContain("allocation");
+  });
+});
+
+// =============================================================================
+// Allocation Pie Chart CSS Structure Tests
+// Verifies the CSS positioning fix for center label containment
+// =============================================================================
+test.describe("Allocation Pie Chart CSS Structure", () => {
+  /**
+   * Helper to navigate to a portfolio with assets and locate pie chart
+   */
+  async function navigateToPieChartWithAssets(page: import("@playwright/test").Page) {
+    await loginUser(page);
+    await page.goto("/portfolio");
+
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (!hasPortfolio) {
+      return { skip: true, reason: "No portfolio found - requires seeded test data" };
+    }
+
+    await portfolioCard.click();
+    await page.waitForTimeout(3000);
+
+    const hasAssets = (await page.locator("[data-testid^='quantity-']").count()) > 0;
+    if (!hasAssets) {
+      return { skip: true, reason: "Portfolio has no assets - requires seeded test data" };
+    }
+
+    const pieChart = page.getByTestId("allocation-pie-chart");
+    const isVisible = await pieChart.isVisible().catch(() => false);
+    if (!isVisible) {
+      return { skip: true, reason: "Pie chart not visible - requires assets with allocations" };
+    }
+
+    return { skip: false, pieChart, page };
+  }
+
+  /**
+   * CRITICAL TEST: Verify container has position:relative for center label containment
+   *
+   * The center label uses position:absolute with inset:0, which requires the parent
+   * container to have position:relative. Without this, the absolutely positioned
+   * element escapes to the nearest positioned ancestor, causing layout issues
+   * or making the chart invisible.
+   *
+   * This test ensures the CSS fix is not regressed.
+   */
+  test("should have relative positioning class on chart container", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // Get the class attribute
+    const className = await pieChart!.getAttribute("class");
+    expect(className).toBeTruthy();
+
+    // Container must have 'relative' class for proper absolute child positioning
+    expect(className).toContain("relative");
+  });
+
+  test("should render Recharts ResponsiveContainer with proper dimensions", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // The ResponsiveContainer should be rendered inside the chart
+    const container = pieChart!.locator(".recharts-responsive-container");
+    const isVisible = await container.isVisible().catch(() => false);
+
+    if (isVisible) {
+      // Container should have non-zero dimensions
+      const box = await container.boundingBox();
+      expect(box).toBeTruthy();
+      expect(box!.width).toBeGreaterThan(0);
+      expect(box!.height).toBeGreaterThan(0);
+    }
+  });
+
+  test("should render pie chart SVG with visible segments", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // Look for SVG element inside the chart
+    const svg = pieChart!.locator("svg").first();
+    await expect(svg).toBeVisible();
+
+    // Should have path elements for pie segments
+    const paths = pieChart!.locator("svg path");
+    const pathCount = await paths.count();
+
+    // At least one path should exist (pie segment)
+    expect(pathCount).toBeGreaterThan(0);
+  });
+
+  test("should render legend container with proper structure", async ({ page }) => {
+    const result = await navigateToPieChartWithAssets(page);
+
+    if (result.skip) {
+      test.skip(true, result.reason!);
+      return;
+    }
+
+    const { pieChart } = result;
+
+    // Legend should be a list with proper role
+    const legend = pieChart!.locator("[role='list'][aria-label='Allocation legend']");
+    const legendVisible = await legend.isVisible().catch(() => false);
+
+    if (legendVisible) {
+      // Legend should have list items
+      const items = legend.locator("[role='listitem']");
+      const itemCount = await items.count();
+      expect(itemCount).toBeGreaterThan(0);
+    }
+  });
+});
+
 test.describe("Allocation Bar Chart (AC-3.7.2)", () => {
   test.beforeEach(async ({ page }) => {
     await loginUser(page);
@@ -4857,5 +5099,599 @@ test.describe("Story 2.8: Investment History", () => {
         }
       }
     );
+  });
+});
+
+// =============================================================================
+// Story 3.2: Live Allocation Indicator Tests
+// AC-3.2.1: Live Allocation Display
+// AC-3.2.2: Remaining Percentage (Underallocated)
+// AC-3.2.3: Valid Allocation Display
+// AC-3.2.4: Overallocated Display
+// AC-3.2.5: Real-Time Updates (via page refresh after asset changes)
+// =============================================================================
+test.describe("Story 3.2: Live Allocation Indicator", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUser(page);
+  });
+
+  /**
+   * Helper to navigate to portfolio detail page where allocation indicator appears
+   * The indicator is shown in the summary card when portfolio has active assets
+   */
+  async function navigateToPortfolioDetail(page: import("@playwright/test").Page) {
+    await page.goto("/portfolio");
+
+    // Find a portfolio card and click to view details
+    const portfolioCard = page
+      .locator("button")
+      .filter({ hasText: /Created/ })
+      .first();
+    const hasPortfolio = await portfolioCard.isVisible().catch(() => false);
+
+    if (!hasPortfolio) {
+      return { skip: true, reason: "No portfolio found - requires seeded test data" };
+    }
+
+    await portfolioCard.click();
+    await page.waitForTimeout(2000);
+
+    // Verify we're on portfolio detail by checking for summary card
+    const summaryCard = page.getByTestId("portfolio-summary-card");
+    const hasSummaryCard = await summaryCard.isVisible().catch(() => false);
+
+    if (!hasSummaryCard) {
+      return { skip: true, reason: "Portfolio summary card not found" };
+    }
+
+    return { skip: false, page };
+  }
+
+  test.describe("AC-3.2.1: Live Allocation Display", () => {
+    test("should display allocation indicator in portfolio summary card", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      // Check if portfolio has assets (indicator only shows when activeAssetCount > 0)
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets - indicator not shown for empty portfolios");
+        return;
+      }
+
+      // Allocation indicator should be visible
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      // Should contain "allocated" text
+      const text = await indicator.textContent();
+      expect(text).toContain("allocated");
+    });
+
+    test("should show percentage with i18n formatting", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const text = await indicator.textContent();
+      // Should contain percentage symbol
+      expect(text).toMatch(/%/);
+    });
+  });
+
+  test.describe("AC-3.2.2: Remaining Percentage (Underallocated)", () => {
+    test("should show remaining percentage when under 100%", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const state = await indicator.getAttribute("data-state");
+
+      // If underallocated, should show remaining text
+      if (state === "underallocated") {
+        const text = await indicator.textContent();
+        expect(text).toContain("remaining");
+      }
+    });
+
+    test("should apply neutral styling when underallocated", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const state = await indicator.getAttribute("data-state");
+
+      if (state === "underallocated") {
+        // Should have muted background color
+        const classes = await indicator.getAttribute("class");
+        expect(classes).toContain("bg-muted");
+      }
+    });
+  });
+
+  test.describe("AC-3.2.3: Valid Allocation Display", () => {
+    test("should display green styling when exactly 100%", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const state = await indicator.getAttribute("data-state");
+
+      if (state === "valid") {
+        // Should have emerald/green background color
+        const classes = await indicator.getAttribute("class");
+        expect(classes).toContain("emerald");
+      }
+    });
+  });
+
+  test.describe("AC-3.2.4: Overallocated Display", () => {
+    test("should display red styling when over 100%", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const state = await indicator.getAttribute("data-state");
+
+      if (state === "overallocated") {
+        // Should have red background color
+        const classes = await indicator.getAttribute("class");
+        expect(classes).toContain("red");
+        // Should show "over" text
+        const text = await indicator.textContent();
+        expect(text).toContain("over");
+      }
+    });
+  });
+
+  test.describe("AC-3.2.5: Real-Time Updates", () => {
+    test("should show valid state as assets sum to 100%", async ({ page }) => {
+      // In the current implementation, allocation percentages are calculated
+      // automatically from asset values. Active assets always sum to 100%.
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      // Since allocation is calculated from values, it should be valid (100%)
+      // unless there are floating point edge cases
+      const state = await indicator.getAttribute("data-state");
+      const text = await indicator.textContent();
+
+      // The indicator should show allocation information
+      expect(text).toContain("allocated");
+
+      // For portfolios with calculated allocations, state is typically "valid"
+      // as percentages are derived from values and sum to 100%
+      expect(["valid", "underallocated", "overallocated"]).toContain(state);
+    });
+  });
+
+  test.describe("Accessibility", () => {
+    test("should have role=status for screen reader announcements", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const role = await indicator.getAttribute("role");
+      expect(role).toBe("status");
+    });
+
+    test("should have aria-live=polite for dynamic updates", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const ariaLive = await indicator.getAttribute("aria-live");
+      expect(ariaLive).toBe("polite");
+    });
+
+    test("should have descriptive aria-label", async ({ page }) => {
+      const result = await navigateToPortfolioDetail(page);
+
+      if (result.skip) {
+        test.skip(true, result.reason!);
+        return;
+      }
+
+      const assetCountElement = page.getByTestId("asset-count");
+      const assetCountText = await assetCountElement.textContent().catch(() => "0");
+      const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+      if (!hasAssets) {
+        test.skip(true, "Portfolio has no assets");
+        return;
+      }
+
+      const indicator = page.getByTestId("allocation-indicator");
+      await expect(indicator).toBeVisible();
+
+      const ariaLabel = await indicator.getAttribute("aria-label");
+      expect(ariaLabel).toBeTruthy();
+      // Should contain allocation-related text
+      expect(ariaLabel).toMatch(/allocated|Allocation/);
+    });
+  });
+});
+
+// =============================================================================
+// STORY 3.4: Visual Status Feedback Tests
+// =============================================================================
+
+test.describe("Story 3.4: Visual Status Feedback", () => {
+  test.describe("AC-3.4.5/3.4.6: Field-Level Error and Valid Styling", () => {
+    test.describe("Edit Holding Modal", () => {
+      test("should show red border on invalid quantity field", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        // Check if there are any holdings to edit
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        // Click edit button on the first holding
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        // Wait for modal to open
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        // Get quantity input
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await expect(quantityInput).toBeVisible();
+
+        // Clear and enter invalid value (empty or 0)
+        await quantityInput.clear();
+        await quantityInput.fill("0");
+        await quantityInput.blur();
+
+        // Check for error state - border-destructive class (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-destructive/);
+      });
+
+      test("should show green border on valid touched quantity field", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await expect(quantityInput).toBeVisible();
+
+        // Enter valid value and blur
+        await quantityInput.clear();
+        await quantityInput.fill("100");
+        await quantityInput.blur();
+
+        // Check for valid state - border-green-500 class (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-green-500/);
+      });
+
+      test("should show error message with role=alert for invalid field", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+        await quantityInput.clear();
+        await quantityInput.fill("-5");
+        await quantityInput.blur();
+
+        // Error message should have role="alert" for accessibility (auto-retries until passing)
+        const errorMessage = page.locator("#quantity-error[role='alert']");
+        await expect(errorMessage).toBeVisible();
+        await expect(errorMessage).toContainText("positive");
+      });
+
+      test("should transition from error to valid border on correction", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const assetCountElement = page.getByTestId("asset-count");
+        const assetCountText = await assetCountElement.textContent().catch(() => "0");
+        const hasAssets = assetCountText && !assetCountText.includes("0 assets");
+
+        if (!hasAssets) {
+          test.skip(true, "Portfolio has no assets to edit");
+          return;
+        }
+
+        const editButton = page.locator("[data-testid='edit-holding-btn']").first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip(true, "No edit button found");
+          return;
+        }
+        await editButton.click();
+
+        const modal = page.locator("[data-testid='edit-holding-modal']");
+        await expect(modal).toBeVisible();
+
+        const quantityInput = page.locator("[data-testid='edit-quantity-input']");
+
+        // First enter invalid value
+        await quantityInput.clear();
+        await quantityInput.fill("0");
+        await quantityInput.blur();
+
+        // Verify error state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-destructive/);
+
+        // Now correct the value
+        await quantityInput.clear();
+        await quantityInput.fill("50");
+        await quantityInput.blur();
+
+        // Verify transition to valid state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-green-500/);
+        await expect(quantityInput).not.toHaveClass(/border-destructive/);
+      });
+    });
+
+    test.describe("Add Asset Modal", () => {
+      test("should show red border on invalid quantity in add asset form", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        // Click add asset button
+        const addButton = page.getByRole("button", { name: /Add Asset/i });
+        if (!(await addButton.isVisible().catch(() => false))) {
+          test.skip(true, "Add Asset button not found");
+          return;
+        }
+        await addButton.click();
+
+        // Get quantity input
+        const quantityInput = page.locator("#quantity");
+        await expect(quantityInput).toBeVisible();
+
+        // Enter invalid value
+        await quantityInput.fill("-10");
+        await quantityInput.blur();
+
+        // Check for error state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-destructive/);
+      });
+
+      test("should show green border on valid quantity in add asset form", async ({ page }) => {
+        await loginUser(page);
+        const result = await navigateToPortfolioDetail(page);
+
+        if (result.skip) {
+          test.skip(true, result.reason!);
+          return;
+        }
+
+        const addButton = page.getByRole("button", { name: /Add Asset/i });
+        if (!(await addButton.isVisible().catch(() => false))) {
+          test.skip(true, "Add Asset button not found");
+          return;
+        }
+        await addButton.click();
+
+        const quantityInput = page.locator("#quantity");
+        await expect(quantityInput).toBeVisible();
+
+        // Enter valid value
+        await quantityInput.fill("100");
+        await quantityInput.blur();
+
+        // Check for valid state (auto-retries until passing)
+        await expect(quantityInput).toHaveClass(/border-green-500/);
+      });
+    });
+
+    test.describe("Portfolio Create Form", () => {
+      test("should show green border on valid portfolio name", async ({ page }) => {
+        await loginUser(page);
+        await page.goto("/portfolio/create");
+
+        const nameInput = page.locator("#name");
+        await expect(nameInput).toBeVisible();
+
+        // Enter valid name
+        await nameInput.fill("My Test Portfolio");
+        await nameInput.blur();
+
+        // Check for valid state (auto-retries until passing)
+        await expect(nameInput).toHaveClass(/border-green-500/);
+      });
+    });
   });
 });

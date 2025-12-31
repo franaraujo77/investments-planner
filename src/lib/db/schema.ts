@@ -42,6 +42,8 @@ export const users = pgTable("users", {
   emailVerifiedAt: timestamp("email_verified_at"),
   disclaimerAcknowledgedAt: timestamp("disclaimer_acknowledged_at"),
   locale: varchar("locale", { length: 10 }).notNull().default("en-US"),
+  onboardingTipsDismissed: jsonb("onboarding_tips_dismissed").default([]).$type<string[]>(),
+  onboardingCompletedAt: timestamp("onboarding_completed_at", { withTimezone: true }),
   deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

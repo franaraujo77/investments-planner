@@ -30,6 +30,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { getFieldBorderClassName } from "@/components/forms/form-field-status";
 import { type UpdateAssetInput } from "@/lib/validations/portfolio";
 import type { AssetWithValue } from "@/lib/services/portfolio-service";
 import { z } from "zod";
@@ -105,7 +107,7 @@ export function EditHoldingModal({
     register,
     handleSubmit,
     reset,
-    formState: { errors, isValid },
+    formState: { errors, isValid, touchedFields },
   } = useForm<EditHoldingFormValues>({
     resolver: zodResolver(editHoldingFormSchema),
     mode: "onChange",
@@ -113,6 +115,18 @@ export function EditHoldingModal({
       quantity: holding.quantity,
       purchasePrice: holding.purchasePrice,
     },
+  });
+
+  // Compute border classes for form fields (Story 3.4: Visual Status Feedback)
+  const quantityBorderClass = getFieldBorderClassName({
+    hasError: !!errors.quantity,
+    isTouched: !!touchedFields.quantity,
+    isValid: !errors.quantity && !!touchedFields.quantity,
+  });
+  const priceBorderClass = getFieldBorderClassName({
+    hasError: !!errors.purchasePrice,
+    isTouched: !!touchedFields.purchasePrice,
+    isValid: !errors.purchasePrice && !!touchedFields.purchasePrice,
   });
 
   /**
@@ -199,7 +213,7 @@ export function EditHoldingModal({
           </DialogHeader>
 
           <div className="py-4 space-y-4">
-            {/* Quantity Field */}
+            {/* Quantity Field - AC-3.4.5/3.4.6: Visual Status Feedback */}
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantity *</Label>
               <Input
@@ -211,16 +225,17 @@ export function EditHoldingModal({
                 aria-invalid={!!errors.quantity}
                 aria-describedby={errors.quantity ? "quantity-error" : undefined}
                 data-testid="edit-quantity-input"
+                className={cn("border", quantityBorderClass)}
                 {...register("quantity")}
               />
               {errors.quantity && (
-                <p id="quantity-error" className="text-sm text-destructive">
+                <p id="quantity-error" role="alert" className="text-sm text-destructive">
                   {errors.quantity.message}
                 </p>
               )}
             </div>
 
-            {/* Purchase Price Field */}
+            {/* Purchase Price Field - AC-3.4.5/3.4.6: Visual Status Feedback */}
             <div className="space-y-2">
               <Label htmlFor="purchasePrice">Purchase Price *</Label>
               <Input
@@ -232,10 +247,11 @@ export function EditHoldingModal({
                 aria-invalid={!!errors.purchasePrice}
                 aria-describedby={errors.purchasePrice ? "price-error" : undefined}
                 data-testid="edit-price-input"
+                className={cn("border", priceBorderClass)}
                 {...register("purchasePrice")}
               />
               {errors.purchasePrice && (
-                <p id="price-error" className="text-sm text-destructive">
+                <p id="price-error" role="alert" className="text-sm text-destructive">
                   {errors.purchasePrice.message}
                 </p>
               )}
