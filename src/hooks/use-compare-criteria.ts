@@ -27,6 +27,19 @@ interface APIError {
   details?: unknown;
 }
 
+interface UseCompareCriteriaReturn {
+  /** Function to compare two criteria sets */
+  compareCriteria: (setAId: string, setBId: string) => Promise<ComparisonResult | null>;
+  /** Whether currently comparing */
+  isComparing: boolean;
+  /** Error message if any */
+  error: string | null;
+  /** Comparison result */
+  result: ComparisonResult | null;
+  /** Reset state */
+  reset: () => void;
+}
+
 // =============================================================================
 // useCompareCriteria HOOK
 // =============================================================================
@@ -44,7 +57,7 @@ interface APIError {
  * - result: Comparison result when successful
  * - reset: Function to clear result and error
  */
-export function useCompareCriteria() {
+export function useCompareCriteria(): UseCompareCriteriaReturn {
   const [isComparing, setIsComparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ComparisonResult | null>(null);

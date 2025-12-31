@@ -790,6 +790,360 @@ test.describe("Compare Criteria Sets (Story 5.6)", () => {
 });
 
 // =============================================================================
+// PREVIEW CRITERIA IMPACT TESTS (Story 4.5 - AC-4.5.1, AC-4.5.3)
+// =============================================================================
+
+test.describe("Preview Criteria Impact (AC-4.5.1, AC-4.5.3)", () => {
+  /**
+   * @data-setup: Requires at least one criteria set with criteria
+   */
+  test(
+    "should show preview option in criteria set menu",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least one criteria set"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      // Wait for criteria sets to load
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+
+      // Open the dropdown menu for the first criteria set
+      const menuButton = page.locator("button").filter({ hasText: "" }).first();
+      await menuButton.click();
+
+      // Look for Preview Impact option
+      await expect(page.getByRole("menuitem", { name: /Preview Impact/i })).toBeVisible();
+    }
+  );
+
+  test(
+    "should open preview modal when clicking Preview Impact",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and criteria set with criteria"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      // Wait for criteria sets to load
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+
+      // Open the dropdown menu
+      const menuButton = page.locator("button").filter({ hasText: "" }).first();
+      await menuButton.click();
+
+      // Click Preview Impact
+      await page.getByRole("menuitem", { name: /Preview Impact/i }).click();
+
+      // Dialog should appear with Preview title
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByRole("heading", { name: /Preview/i })).toBeVisible();
+    }
+  );
+
+  test(
+    "should show loading state in preview modal",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and criteria set with criteria"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      // Wait for criteria sets to load
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+
+      // Open the dropdown menu
+      const menuButton = page.locator("button").filter({ hasText: "" }).first();
+      await menuButton.click();
+
+      // Click Preview Impact - should show loading initially
+      await page.getByRole("menuitem", { name: /Preview Impact/i }).click();
+
+      // Either loading spinner or results should appear
+      await expect(
+        page
+          .getByRole("dialog")
+          .getByText(/Loading|Top|Rank|Score/i)
+          .first()
+      ).toBeVisible({ timeout: 10000 });
+    }
+  );
+
+  test(
+    "should show top assets table after preview loads",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and criteria set with criteria"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      // Wait for criteria sets to load
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+
+      // Open the dropdown menu
+      const menuButton = page.locator("button").filter({ hasText: "" }).first();
+      await menuButton.click();
+
+      // Click Preview Impact
+      await page.getByRole("menuitem", { name: /Preview Impact/i }).click();
+
+      // Wait for results table to appear with headers (Rank, Symbol, Name, Score)
+      await expect(page.getByRole("columnheader", { name: /Rank/i })).toBeVisible({
+        timeout: 15000,
+      });
+      await expect(page.getByRole("columnheader", { name: /Symbol/i })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: /Score/i })).toBeVisible();
+    }
+  );
+
+  test(
+    "should close preview modal when clicking close button",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and criteria set with criteria"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      // Wait for criteria sets to load
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+
+      // Open the dropdown menu
+      const menuButton = page.locator("button").filter({ hasText: "" }).first();
+      await menuButton.click();
+
+      // Click Preview Impact
+      await page.getByRole("menuitem", { name: /Preview Impact/i }).click();
+
+      // Dialog should appear
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      // Click close button
+      await page.getByRole("button", { name: /Close/i }).click();
+
+      // Dialog should close
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+    }
+  );
+});
+
+// =============================================================================
+// COMPARE CRITERIA SETS DETAIL TESTS (Story 4.5 - AC-4.5.2)
+// =============================================================================
+
+test.describe("Compare Criteria Sets Details (AC-4.5.2)", () => {
+  /**
+   * @data-setup: Requires at least two criteria sets
+   */
+  test(
+    "should open compare dialog when clicking Compare button",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least two criteria sets"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      // Wait for criteria sets to load
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+
+      // Click Compare button
+      await page.getByRole("button", { name: /Compare/i }).click();
+
+      // Dialog should appear with Compare title
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByRole("heading", { name: /Compare/i })).toBeVisible();
+    }
+  );
+
+  test(
+    "should show Set A and Set B selection dropdowns",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least two criteria sets"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+      await page.getByRole("button", { name: /Compare/i }).click();
+
+      // Look for Set A and Set B selectors
+      await expect(page.getByLabel(/Set A/i)).toBeVisible();
+      await expect(page.getByLabel(/Set B/i)).toBeVisible();
+    }
+  );
+
+  test(
+    "should show compare button disabled until both sets selected",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least two criteria sets"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+      await page.getByRole("button", { name: /Compare/i }).click();
+
+      // Compare button inside dialog should be disabled
+      const compareButton = page.getByRole("dialog").getByRole("button", { name: /Compare/i });
+      await expect(compareButton).toBeDisabled();
+    }
+  );
+
+  test(
+    "should show comparison results after selecting both sets",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least two criteria sets"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+      await page.getByRole("button", { name: /Compare/i }).click();
+
+      // Select Set A
+      await page.getByLabel(/Set A/i).click();
+      await page.getByRole("option").first().click();
+
+      // Select Set B
+      await page.getByLabel(/Set B/i).click();
+      await page.getByRole("option").first().click();
+
+      // Click Compare
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: /Compare/i })
+        .click();
+
+      // Results should show up - look for comparison elements
+      await expect(
+        page
+          .getByRole("dialog")
+          .getByText(/differences|changes|identical/i)
+          .first()
+      ).toBeVisible({ timeout: 10000 });
+    }
+  );
+
+  test(
+    "should show score comparison cards after comparing",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least two criteria sets"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+      await page.getByRole("button", { name: /Compare/i }).click();
+
+      // Select Set A
+      await page.getByLabel(/Set A/i).click();
+      await page.getByRole("option").first().click();
+
+      // Select Set B
+      await page.getByLabel(/Set B/i).click();
+      await page.getByRole("option").first().click();
+
+      // Click Compare
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: /Compare/i })
+        .click();
+
+      // Look for Set A and Set B labels indicating score cards
+      await expect(page.getByText(/Set A/i).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(/Set B/i).first()).toBeVisible();
+    }
+  );
+
+  test(
+    "should close compare dialog when clicking close button",
+    {
+      tag: "@data-setup",
+    },
+    async ({ page }) => {
+      test.skip(
+        SKIP_DATA_SETUP_TESTS,
+        "Requires RUN_DATA_SETUP_TESTS=true and at least two criteria sets"
+      );
+
+      await loginUser(page);
+      await page.goto("/criteria");
+
+      await page.waitForSelector("text=criteria", { timeout: 10000 });
+      await page.getByRole("button", { name: /Compare/i }).click();
+
+      // Dialog should appear
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      // Click the close/X button
+      await page.getByTestId("dialog-close-button").click();
+
+      // Dialog should close
+      await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 5000 });
+    }
+  );
+});
+
+// =============================================================================
 // FILTER AND SEARCH TESTS (Story 5.4)
 // =============================================================================
 
