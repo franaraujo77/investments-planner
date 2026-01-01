@@ -1269,6 +1269,14 @@ So that **reliable dividend-paying assets score higher**.
 - Overnight pre-computation (before 6 AM)
 - Force refresh capability
 - Historical score storage
+- Industry/Sector classification cache (GICS standard)
+- Asset type classification cache (multi-jurisdiction: SEC, CVM)
+
+**Cross-Cutting Requirement (All Stories):**
+
+- All database tables storing cached data MUST use the `cached_` prefix
+- All cache records MUST include a `cache_updated_at` timestamp column
+- This enables easy identification of cacheable vs. transactional data
 
 **Standalone:** Complete data pipeline with automated processing
 
@@ -1494,6 +1502,70 @@ So that **users see instant results when they log in**.
 **When** overnight job completes
 **Then** metrics are recorded: duration, users processed, success rate
 **And** alerts are triggered if processing exceeds time limits
+
+### Story 5.7: Industry/Sector Classification Cache
+
+As a **system**,
+I want **to cache and maintain standardized industry/sector classifications using GICS (Global Industry Classification Standard) with a three-tier hierarchical key system**,
+So that **users can filter assets broadly (all Tech) or granularly (only SaaS companies) and the app aligns with institutional IR reporting standards**.
+
+**Acceptance Criteria:**
+
+**Given** the system needs to classify assets
+**When** the classification schema is implemented
+**Then** the system uses GICS three-tier hierarchy:
+
+- SectorID (2-digit): e.g., 45 for Information Technology
+- IndustryGroupID (4-digit): e.g., 4510 for Software & Services
+- IndustryID (6-digit): e.g., 451030 for Software
+
+**Given** assets are fetched via the Gemini provider
+**When** fundamentals data is retrieved
+**Then** sector and industry strings from Gemini are mapped to GICS codes
+**And** unmapped classifications are logged for review
+
+**Given** industry classification data is stored
+**When** the cache is populated
+**Then** data is stored in PostgreSQL as source of truth
+**And** Vercel KV cache provides fast lookups (< 50ms)
+
+**Given** a user wants to filter assets
+**When** they specify a classification level
+**Then** they can filter by Sector, Industry Group, or Industry
+**And** queries are optimized with appropriate indexes
+
+**Given** the overnight job runs
+**When** fundamentals are fetched
+**Then** asset classifications are updated from Gemini data
+**And** classification changes are logged for audit
+
+### Story 5.8: Asset Type Classification Cache
+
+As a **system**,
+I want **to cache and maintain standardized asset type classifications (REITs, Stocks, ETFs, etc.) with a localization overlay that accounts for regulatory differences between jurisdictions (SEC/US, CVM/Brazil)**,
+So that **the app can correctly classify assets across markets, link equivalent instruments via ISIN, and scale to new countries/regions without database schema changes**.
+
+**Acceptance Criteria:**
+
+**Given** the system needs to classify asset types
+**When** the schema is implemented
+**Then** canonical (universal) asset types are defined (COMMON_STOCK, ETF, REIT, etc.)
+**And** the schema is jurisdiction-agnostic
+
+**Given** different jurisdictions use different nomenclature
+**When** the localization overlay is implemented
+**Then** a separate table maps canonical types to local names per jurisdiction
+**And** jurisdictions include US-SEC, BR-CVM with extensibility for others
+
+**Given** assets may exist in multiple markets
+**When** asset data is fetched or parsed from IR reports
+**Then** ISIN (International Securities Identification Number) is stored as the universal identifier
+**And** assets with same ISIN are linked as equivalent instruments
+
+**Given** a new jurisdiction needs to be added
+**When** the configuration is updated
+**Then** only data inserts are required (no schema changes)
+**And** new localization mappings are added to overlay table
 
 ---
 

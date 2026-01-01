@@ -1,4 +1,4 @@
-# generated: 2025-12-31
+# generated: 2026-01-01
 # project: investments-planner
 # project_key: investments-planner
 # tracking_system: file-system
@@ -33,7 +33,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2025-12-31
+generated: 2026-01-01
 project: investments-planner
 project_key: investments-planner
 tracking_system: file-system
@@ -78,24 +78,26 @@ development_status:
   epic-3-retrospective: done
 
   # Epic 4: Investment Strategy Configuration
-  epic-4: done  # Completed 2025-12-31, retrospective done
+  epic-4: done
   4-1-asset-class-management: done
   4-2-allocation-range-configuration: done
   4-3-scoring-criteria-creation: done
   4-4-criteria-library-and-management: done
-  4-5-criteria-preview-and-comparison: done  # Code review completed 2025-12-31
-  4-6-historical-surplus-scoring: done  # Code review completed 2025-12-31
-  4-7-fix-number-formatting-lint-errors: done  # Tech debt: All 49 lint errors fixed
-  epic-4-retrospective: done  # Completed 2025-12-31
+  4-5-criteria-preview-and-comparison: done
+  4-6-historical-surplus-scoring: done
+  4-7-fix-number-formatting-lint-errors: done
+  epic-4-retrospective: done
 
   # Epic 5: Market Data & Scoring Engine
-  epic-5: backlog
-  5-1-market-data-fetching: backlog
+  epic-5: in-progress
+  5-1-market-data-fetching: ready-for-dev
   5-2-two-tier-refresh-architecture: backlog
   5-3-score-calculation-engine: backlog
   5-4-view-asset-scores: backlog
   5-5-manual-data-refresh: backlog
   5-6-overnight-pre-computation: backlog
+  5-7-industry-sector-classification-cache: ready-for-dev
+  5-8-asset-type-classification-cache: ready-for-dev
   epic-5-retrospective: optional
 
   # Epic 6: Investment Recommendations
