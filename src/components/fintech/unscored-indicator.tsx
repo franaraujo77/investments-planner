@@ -3,8 +3,8 @@
 /**
  * UnscoredIndicator Component
  *
- * Story 5.10: View Asset Score
- * AC-5.10.3: Unscored Asset Indicator
+ * Story 5.4: View Asset Scores
+ * AC-5.4.3: Missing Data Indicators
  *
  * Displays when an asset has no calculated score:
  * - Shows "Not scored" indicator instead of score badge

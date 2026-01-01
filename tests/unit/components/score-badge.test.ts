@@ -1,9 +1,9 @@
 /**
  * ScoreBadge Component Tests
  *
- * Story 5.10: View Asset Score
- * AC-5.10.1: Score Badge Display
- * AC-5.10.4: Score Freshness Timestamp
+ * Story 5.4: View Asset Scores
+ * AC-5.4.1: Score Display with color coding
+ * AC-5.4.4: Data Freshness Display
  *
  * Tests:
  * - Color coding thresholds (80+, 50-79, <50)
@@ -23,7 +23,7 @@ import {
 
 describe("ScoreBadge Utilities", () => {
   describe("getScoreLevel", () => {
-    // AC-5.10.1: Color thresholds
+    // AC-5.4.1: Color thresholds
 
     it("returns 'high' for scores >= 80", () => {
       expect(getScoreLevel(80)).toBe("high");
@@ -52,7 +52,7 @@ describe("ScoreBadge Utilities", () => {
   });
 
   describe("getScoreFreshnessLevel", () => {
-    // AC-5.10.4: Freshness thresholds
+    // AC-5.4.4: Freshness thresholds
 
     const now = Date.now();
     const oneHour = 60 * 60 * 1000;
@@ -106,7 +106,7 @@ describe("ScoreBadge Utilities", () => {
   });
 
   describe("normalizeScore", () => {
-    // AC-5.10.1: Scores display as integers (0-100 scale)
+    // AC-5.4.1: Scores display as integers (0-100 scale)
 
     it("rounds decimal scores to nearest integer", () => {
       expect(normalizeScore(85.5)).toBe(86);

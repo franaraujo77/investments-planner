@@ -1,7 +1,10 @@
 /**
  * Unit Tests for ScoreBreakdown Component Utilities
  *
- * Story 5.11: Score Breakdown View
+ * Story 5.4: View Asset Scores
+ * AC-5.4.2: Score Breakdown Panel
+ * AC-5.4.3: Missing Data Indicators
+ * AC-5.4.4: Data Freshness Display
  *
  * Tests cover utility functions used by the component:
  * - formatRelativeTime
