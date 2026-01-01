@@ -92,7 +92,7 @@ development_status:
   epic-5: in-progress
   5-1-market-data-fetching: done
   5-2-two-tier-refresh-architecture: review
-  5-3-score-calculation-engine: backlog
+  5-3-score-calculation-engine: done
   5-4-view-asset-scores: backlog
   5-5-manual-data-refresh: backlog
   5-6-overnight-pre-computation: backlog
