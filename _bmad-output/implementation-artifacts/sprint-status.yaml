@@ -94,7 +94,7 @@ development_status:
   5-2-two-tier-refresh-architecture: review
   5-3-score-calculation-engine: done
   5-4-view-asset-scores: done
-  5-5-manual-data-refresh: backlog
+  5-5-manual-data-refresh: done
   5-6-overnight-pre-computation: backlog
   5-7-industry-sector-classification-cache: ready-for-dev
   5-8-asset-type-classification-cache: ready-for-dev

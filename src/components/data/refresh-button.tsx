@@ -3,13 +3,17 @@
 /**
  * Refresh Button Component
  *
+ * Story 5.5: Manual Data Refresh
  * Story 6.6: Force Data Refresh
+ * AC-5.5.1: Single Asset/Portfolio Refresh with loading indicator
+ * AC-5.5.2: Bulk Refresh All shows asset count during refresh
  * AC-6.6.1: Refresh Button Available on Dashboard and Portfolio
  * AC-6.6.2: Loading Spinner Shown During Refresh
  * AC-6.6.5: Rate Limit Exceeded Shows Countdown
  *
  * A button component for triggering data refresh with:
  * - Loading spinner during refresh
+ * - Asset count display during bulk refresh (AC-5.5.2)
  * - Disabled state when rate limited
  * - Countdown display when rate limited
  * - Accessible with aria labels
@@ -96,8 +100,13 @@ export function RefreshButton({
   const shouldShowLabel = showLabel ?? !isIconSize;
 
   // Determine button text
+  // AC-5.5.2: Show asset count during bulk refresh
   const getButtonText = () => {
     if (isRefreshing) {
+      // Show asset count if refreshing multiple symbols
+      if (symbols && symbols.length > 1) {
+        return `Refreshing ${symbols.length} assets...`;
+      }
       return "Refreshing...";
     }
 
@@ -109,8 +118,12 @@ export function RefreshButton({
   };
 
   // Determine aria-label for accessibility
+  // AC-5.5.2: Include asset count in aria-label during bulk refresh
   const getAriaLabel = () => {
     if (isRefreshing) {
+      if (symbols && symbols.length > 1) {
+        return `Refreshing ${symbols.length} assets`;
+      }
       return "Data refresh in progress";
     }
 

@@ -7,6 +7,7 @@
  * Story 2.4: Delete Portfolio
  * Story 2.5: Add Holdings to Portfolio
  * Story 2.8: Investment History
+ * Story 5.5: Manual Data Refresh
  *
  * AC-2.2.1: Holdings list display with asset name, quantity, price, value
  * AC-2.2.2: Base currency display with allocation percentages
@@ -17,6 +18,7 @@
  * AC-2.5.1: Add Asset button prominently displayed
  * AC-2.5.7: Allocation recalculation after addition
  * AC-2.8.2: View Investment History Tab
+ * AC-5.5.1: Refresh button in portfolio header with loading indicator
  */
 
 import { useState, useCallback, useMemo } from "react";
@@ -24,6 +26,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, ArrowLeft, Pencil, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { RefreshButton } from "@/components/data/refresh-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -170,6 +173,11 @@ export function PortfolioDetailClient({
       .reduce((sum, asset) => sum + parseFloat(asset.allocationPercent), 0);
   }, [assets]);
 
+  // Story 5.5: Extract symbols for data refresh - AC-5.5.1
+  const portfolioSymbols = useMemo(() => {
+    return assets.map((asset) => asset.symbol);
+  }, [assets]);
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb Navigation - Task 1.4 */}
@@ -199,6 +207,18 @@ export function PortfolioDetailClient({
             </p>
           </div>
           <div className="flex gap-2">
+            {/* Story 5.5: Refresh Data - AC-5.5.1: Refresh button in portfolio header */}
+            {portfolioSymbols.length > 0 && (
+              <RefreshButton
+                type="all"
+                symbols={portfolioSymbols}
+                size="default"
+                variant="outline"
+                showLabel={true}
+                label="Refresh Data"
+                data-testid="portfolio-refresh-button"
+              />
+            )}
             {/* Story 2.5: Add Asset - AC-2.5.1: Add Asset button prominently displayed */}
             <AddAssetModal
               portfolioId={portfolio.id}
