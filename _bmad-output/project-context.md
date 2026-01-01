@@ -1,7 +1,7 @@
 ---
 project_name: "investments-planner"
 user_name: "Bmad"
-date: "2025-12-27"
+date: "2025-12-31"
 sections_completed:
   - technology_stack
   - language_rules
@@ -59,6 +59,23 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - NEVER use native `number` for money: `0.1 + 0.2 = 0.30000000000000004`
 - ALWAYS use `Decimal.js`: `new Decimal("0.1").plus("0.2")` = `0.3`
 - Import from `@/lib/calculations/decimal-utils.ts`
+
+**Decimal.js Edge Cases (CRITICAL):**
+
+| Issue               | Problem                                                               | Solution                                                             |
+| ------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `-0` vs `+0`        | `new Decimal(0).times(-2)` returns `-0`, which fails `toEqual(0)`     | Use explicit zero check: `result.isZero() ? new Decimal(0) : result` |
+| String comparison   | `new Decimal("10").eq("10.00")` is `true`, but `===` comparison fails | Always use `.eq()`, `.lt()`, `.gt()` methods, never `===`            |
+| Constructor strings | `new Decimal(0.1)` has precision issues                               | Always use string literals: `new Decimal("0.1")`                     |
+| Rounding modes      | Default rounding may differ from financial standards                  | Specify mode: `.toDecimalPlaces(2, Decimal.ROUND_HALF_UP)`           |
+
+```typescript
+// CORRECT - Handle -0 edge case
+const penalty = missingYears > 0 ? new Decimal(missingYears).times(-2) : new Decimal(0); // Explicit zero, not times(0)
+
+// WRONG - May produce -0
+const penalty = new Decimal(missingYears).times(-2); // When missingYears=0, returns -0
+```
 
 **Error Handling:**
 
@@ -290,4 +307,4 @@ User "Force Refresh" → API → PostgreSQL → KV invalidation
 
 ---
 
-_Last Updated: 2025-12-27_
+_Last Updated: 2025-12-31_

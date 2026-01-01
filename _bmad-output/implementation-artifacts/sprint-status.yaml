@@ -78,7 +78,7 @@ development_status:
   epic-3-retrospective: done
 
   # Epic 4: Investment Strategy Configuration
-  epic-4: in-progress
+  epic-4: done  # Completed 2025-12-31, retrospective done
   4-1-asset-class-management: done
   4-2-allocation-range-configuration: done
   4-3-scoring-criteria-creation: done
@@ -86,7 +86,7 @@ development_status:
   4-5-criteria-preview-and-comparison: done  # Code review completed 2025-12-31
   4-6-historical-surplus-scoring: done  # Code review completed 2025-12-31
   4-7-fix-number-formatting-lint-errors: done  # Tech debt: All 49 lint errors fixed
-  epic-4-retrospective: optional
+  epic-4-retrospective: done  # Completed 2025-12-31
 
   # Epic 5: Market Data & Scoring Engine
   epic-5: backlog
