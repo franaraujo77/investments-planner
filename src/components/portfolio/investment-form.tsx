@@ -92,7 +92,7 @@ function calculateTotal(quantity: string, pricePerUnit: string): string {
       return "0.0000";
     }
 
-    return qty.times(price).toFixed(4);
+    return qty.times(price).toFixed(4); // eslint-disable-line no-restricted-syntax
   } catch {
     return "0.0000";
   }

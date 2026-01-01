@@ -1,4 +1,4 @@
-# generated: 2025-12-29
+# generated: 2025-12-31
 # project: investments-planner
 # project_key: investments-planner
 # tracking_system: file-system
@@ -33,7 +33,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2025-12-29
+generated: 2025-12-31
 project: investments-planner
 project_key: investments-planner
 tracking_system: file-system
@@ -67,7 +67,7 @@ development_status:
   epic-2-retrospective: done
 
   # Epic 3: Visual Allocation Feedback
-  epic-3: in-progress
+  epic-3: done
   3-1-allocation-pie-chart-component: done
   3-2-live-allocation-indicator: done
   3-3-allocation-validation: done
@@ -75,17 +75,18 @@ development_status:
   3-5-onboarding-tips: done
   3-6-strategy-allocation-overview-chart: done
   3-7-strategy-allocation-balance-indicator: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   # Epic 4: Investment Strategy Configuration
-  epic-4: backlog
-  4-1-asset-class-management: backlog
-  4-2-allocation-range-configuration: backlog
-  4-3-scoring-criteria-creation: backlog
-  4-4-criteria-library-and-management: backlog
-  4-5-criteria-preview-and-comparison: backlog
-  4-6-historical-surplus-scoring: backlog
-  epic-4-retrospective: optional
+  epic-4: done  # Completed 2025-12-31, retrospective done
+  4-1-asset-class-management: done
+  4-2-allocation-range-configuration: done
+  4-3-scoring-criteria-creation: done
+  4-4-criteria-library-and-management: done
+  4-5-criteria-preview-and-comparison: done  # Code review completed 2025-12-31
+  4-6-historical-surplus-scoring: done  # Code review completed 2025-12-31
+  4-7-fix-number-formatting-lint-errors: done  # Tech debt: All 49 lint errors fixed
+  epic-4-retrospective: done  # Completed 2025-12-31
 
   # Epic 5: Market Data & Scoring Engine
   epic-5: backlog

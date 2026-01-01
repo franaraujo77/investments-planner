@@ -488,15 +488,49 @@ export const criteriaVersions = pgTable(
  * CriterionResult interface - breakdown of a single criterion evaluation
  *
  * Story 5.8: Score Calculation Engine
+ * Story 4.6: Historical Surplus Scoring
  * AC-5.8.5: breakdown includes criterionId, criterionName, matched, pointsAwarded, actualValue, skippedReason
+ * AC-4.6.3: surplusDetails for surplus scoring breakdown
  */
+
+/**
+ * Valid reasons for skipping criterion evaluation
+ *
+ * IMPORTANT: This type is used within CriterionResult interface, which is stored
+ * as JSONB in the assetScores.breakdown column (see line ~546). This is NOT a
+ * separate database column - it's part of the structured JSON breakdown data.
+ *
+ * The JSONB storage approach allows flexible criterion result storage without
+ * requiring schema migrations when adding new skip reasons.
+ *
+ * Must match Zod enum in score-schemas.ts for API validation.
+ *
+ * Values:
+ * - missing_fundamental: Required data point not available for evaluation
+ * - data_stale: Fundamental data is too old (exceeds freshness threshold)
+ * - invalid_value: Data exists but is invalid (e.g., negative P/E ratio)
+ * - evaluation_error: Runtime error during criterion evaluation
+ */
+export type SkippedReason =
+  | "missing_fundamental"
+  | "data_stale"
+  | "invalid_value"
+  | "evaluation_error";
+
 export interface CriterionResult {
   criterionId: string;
   criterionName: string;
   matched: boolean;
   pointsAwarded: number;
   actualValue?: string | null;
-  skippedReason?: string | null; // 'missing_fundamental', 'data_stale', etc.
+  skippedReason?: SkippedReason | null;
+  // Story 4.6: Surplus scoring details for breakdown display
+  surplusDetails?: {
+    yearsOfData: number;
+    consecutiveYears: number;
+    bonusApplied: number;
+    penaltyApplied: number;
+  } | null;
 }
 
 /**

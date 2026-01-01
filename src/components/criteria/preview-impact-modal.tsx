@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Eye, ArrowUp, ArrowDown, Minus, TrendingUp, TrendingDown } from "lucide-react";
 import { PreviewAssetsTable } from "@/components/criteria/preview-assets-table";
 import { cn } from "@/lib/utils";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import type { PreviewResult, ComparisonSummary } from "@/lib/calculations/quick-calc";
 
 // =============================================================================
@@ -92,11 +93,17 @@ function ComparisonSummaryCards({ comparison }: { comparison: ComparisonSummary 
 /**
  * Average score comparison between current and previous
  */
-function AverageScoreComparison({ comparison }: { comparison: ComparisonSummary }) {
+function AverageScoreComparison({
+  comparison,
+  formatNumber,
+}: {
+  comparison: ComparisonSummary;
+  formatNumber: (value: number) => string;
+}) {
   const currentScore = parseFloat(comparison.currentAverageScore);
   const previousScore = parseFloat(comparison.previousAverageScore);
   const diff = currentScore - previousScore;
-  const percentDiff = previousScore !== 0 ? ((diff / previousScore) * 100).toFixed(1) : "0";
+  const percentDiffValue = previousScore !== 0 ? (diff / previousScore) * 100 : 0;
   const isHigher = diff > 0;
   const isEqual = diff === 0;
 
@@ -121,7 +128,7 @@ function AverageScoreComparison({ comparison }: { comparison: ComparisonSummary 
           {isHigher ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
           <span className="text-sm font-medium">
             {isHigher ? "+" : ""}
-            {percentDiff}%
+            {formatNumber(percentDiffValue)}%
           </span>
         </div>
       )}
@@ -163,6 +170,8 @@ export function PreviewImpactModal({
   isLoading,
   error,
 }: PreviewImpactModalProps) {
+  const { formatNumber } = useNumberFormat();
+
   // Show comparison only when available
   const hasComparison = useMemo(() => result?.comparison !== undefined, [result?.comparison]);
 
@@ -202,7 +211,7 @@ export function PreviewImpactModal({
                 </Badge>
               </div>
               <ComparisonSummaryCards comparison={result.comparison} />
-              <AverageScoreComparison comparison={result.comparison} />
+              <AverageScoreComparison comparison={result.comparison} formatNumber={formatNumber} />
             </div>
           )}
 

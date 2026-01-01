@@ -475,6 +475,7 @@ describe("withErrorHandling", () => {
 - [ ] **Unused variables prefixed with `_`:** e.g., `_unusedParam` to indicate intentional non-use
 - [ ] **Use standardized API responses:** Import from `@/lib/api/responses.ts`
 - [ ] **Use standardized error codes:** Import from `@/lib/api/error-codes.ts`
+- [ ] **No direct number formatting:** Use `useNumberFormat()` hook, not `toFixed()` or `toLocaleString()` (enforced by ESLint)
 
 ### Database & Performance Checks
 
@@ -527,13 +528,16 @@ pnpm build
 
 ### Common Issues and Fixes
 
-| Issue          | Bad Pattern                   | Good Pattern                          |
-| -------------- | ----------------------------- | ------------------------------------- |
-| Logging        | `console.error("Failed")`     | `logger.error("Failed", { context })` |
-| DB Query       | `db.select().filter(...)`     | `db.select().where(eq(...))`          |
-| Error Response | `{ error: "msg", code: "X" }` | `errorResponse("msg", ERROR_CODES.X)` |
-| Unused Var     | `const data = ...` (unused)   | `const _data = ...` or remove         |
-| Mock Data      | Function in API route         | Import from `@/lib/mocks/`            |
+| Issue           | Bad Pattern                   | Good Pattern                               |
+| --------------- | ----------------------------- | ------------------------------------------ |
+| Logging         | `console.error("Failed")`     | `logger.error("Failed", { context })`      |
+| DB Query        | `db.select().filter(...)`     | `db.select().where(eq(...))`               |
+| Error Response  | `{ error: "msg", code: "X" }` | `errorResponse("msg", ERROR_CODES.X)`      |
+| Unused Var      | `const data = ...` (unused)   | `const _data = ...` or remove              |
+| Mock Data       | Function in API route         | Import from `@/lib/mocks/`                 |
+| Number Format   | `value.toFixed(2)`            | `formatNumber(value)` from useNumberFormat |
+| Locale String   | `n.toLocaleString('en-US')`   | `formatNumber(n)` from useNumberFormat     |
+| Currency Format | `new Intl.NumberFormat(...)`  | `formatCurrency(n)` from useNumberFormat   |
 
 # Architecture Patterns (PRD v2.0)
 
@@ -545,6 +549,16 @@ pnpm build
 - NEVER use `toFixed()` or `toLocaleString()` directly
 - Import from `@/lib/i18n/useNumberFormat`
 
+**ESLint Enforcement (Epic 3 Retrospective):**
+
+An ESLint rule automatically blocks commits containing:
+
+- `.toFixed()` in component files
+- `.toLocaleString()` with hardcoded locales
+- Direct `Intl.NumberFormat` usage
+
+Violations will show: "Avoid .toFixed() for display formatting. Use useNumberFormat() hook..."
+
 **Patterns:**
 
 ```typescript
@@ -552,7 +566,7 @@ pnpm build
 const { formatNumber, formatCurrency, formatPercent } = useNumberFormat();
 <span>{formatPercent(holding.percentage)}</span>
 
-// ❌ WRONG: Direct formatting
+// ❌ WRONG: Direct formatting (blocked by ESLint)
 <span>{holding.percentage.toFixed(2)}%</span>
 ```
 

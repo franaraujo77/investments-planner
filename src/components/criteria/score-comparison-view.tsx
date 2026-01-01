@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowUp, ArrowDown, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import type { CriteriaSetSummary, RankingChange } from "@/lib/services/criteria-comparison-service";
 
 // =============================================================================
@@ -83,7 +84,15 @@ function ScoreCard({
 /**
  * Score difference indicator
  */
-function ScoreDifferenceIndicator({ scoreA, scoreB }: { scoreA: string; scoreB: string }) {
+function ScoreDifferenceIndicator({
+  scoreA,
+  scoreB,
+  formatNumber,
+}: {
+  scoreA: string;
+  scoreB: string;
+  formatNumber: (value: number) => string;
+}) {
   const numA = parseFloat(scoreA);
   const numB = parseFloat(scoreB);
 
@@ -92,7 +101,7 @@ function ScoreDifferenceIndicator({ scoreA, scoreB }: { scoreA: string; scoreB: 
   }
 
   const diff = numB - numA;
-  const percentDiff = ((diff / numA) * 100).toFixed(1);
+  const percentDiffValue = Math.abs((diff / numA) * 100);
   const isHigher = diff > 0;
   const isEqual = diff === 0;
 
@@ -114,7 +123,7 @@ function ScoreDifferenceIndicator({ scoreA, scoreB }: { scoreA: string; scoreB: 
     >
       {isHigher ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
       <span className="text-sm font-medium">
-        Set B scores {Math.abs(parseFloat(percentDiff))}% {isHigher ? "higher" : "lower"} on average
+        Set B scores {formatNumber(percentDiffValue)}% {isHigher ? "higher" : "lower"} on average
       </span>
     </div>
   );
@@ -185,6 +194,7 @@ export function ScoreComparisonView({
   sampleSize,
   className,
 }: ScoreComparisonViewProps) {
+  const { formatNumber } = useNumberFormat();
   const significantChanges = rankingChanges.filter((c) => c.positionChange > 3);
 
   return (
@@ -209,7 +219,11 @@ export function ScoreComparisonView({
 
       {/* Score Difference */}
       <div className="flex flex-col items-center gap-2 py-4 border-y">
-        <ScoreDifferenceIndicator scoreA={setA.averageScore} scoreB={setB.averageScore} />
+        <ScoreDifferenceIndicator
+          scoreA={setA.averageScore}
+          scoreB={setB.averageScore}
+          formatNumber={formatNumber}
+        />
         <span className="text-xs text-muted-foreground">Based on {sampleSize} sample assets</span>
       </div>
 

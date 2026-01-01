@@ -47,6 +47,43 @@ const eslintConfig = defineConfig([
       "no-console": "error",
     },
   },
+  // ============================================
+  // i18n NUMBER FORMATTING ENFORCEMENT
+  // ============================================
+  // Epic 3 Retrospective: PR review identified inconsistent number formatting.
+  // See: docs/sprint-artifacts/epic-3-retrospective.md (Section: "PR Review Findings")
+  // Use useNumberFormat() hook instead of hardcoded formatting in React components.
+  // Added: 2025-12-31
+  {
+    files: ["src/components/**/*.tsx"],
+    ignores: [
+      // Allow in formatting infrastructure components (they implement the formatting)
+      "src/components/fintech/currency-display.tsx",
+      "src/components/fintech/number-display.tsx",
+      // Allow in data components that may need server-compatible formatting
+      "src/components/data/**",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='toFixed']",
+          message:
+            "Avoid .toFixed() for display formatting. Use useNumberFormat() hook from @/lib/i18n/useNumberFormat for i18n-compliant number formatting.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='toLocaleString'][arguments.length>0][arguments.0.type='Literal']",
+          message:
+            "Avoid .toLocaleString() with hardcoded locale. Use useNumberFormat() hook from @/lib/i18n/useNumberFormat for i18n-compliant formatting.",
+        },
+        {
+          selector: "NewExpression[callee.object.name='Intl'][callee.property.name='NumberFormat']",
+          message:
+            "Avoid direct Intl.NumberFormat usage. Use useNumberFormat() hook from @/lib/i18n/useNumberFormat for consistent i18n formatting.",
+        },
+      ],
+    },
+  },
   // Test files - allow explicit any for mocking and console for debugging
   {
     files: ["tests/**/*.ts", "tests/**/*.tsx"],

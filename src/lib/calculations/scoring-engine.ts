@@ -2,6 +2,7 @@
  * Scoring Engine
  *
  * Story 5.8: Score Calculation Engine
+ * Story 4.6: Historical Surplus Scoring
  * Implements ADR-002: Event-Sourced Calculations
  *
  * Core scoring logic using decimal.js for deterministic calculations.
@@ -14,11 +15,14 @@
  * AC-5.8.4: Event Emission for Audit Trail
  * AC-5.8.5: Score Storage with Audit Trail
  * AC-5.8.6: Missing Fundamentals Handling
+ * AC-4.6.1: Bonus Points for Consistent Surplus History (+5 for 5+ consecutive years)
+ * AC-4.6.2: Penalty Points for Missing Surplus Data (-2 per missing year)
  */
 
 import Decimal from "decimal.js";
 import type { CriterionRule, CriterionResult } from "@/lib/db/schema";
 import type { AssetWithFundamentals, ScoringEngineConfig } from "@/lib/validations/score-schemas";
+import { calculateSurplusScore, hasSurplusHistory } from "@/lib/calculations/surplus-scoring";
 import type {
   CalculationEvent,
   CalcStartedEvent,
@@ -270,6 +274,35 @@ export function calculateScores(
       if (result.matched) {
         assetData.totalScore = assetData.totalScore.plus(result.pointsAwarded);
       }
+    }
+  }
+
+  // Story 4.6: Apply surplus scoring for assets with surplus history
+  // AC-4.6.1: +5 bonus for 5+ consecutive years
+  // AC-4.6.2: -2 penalty per missing year
+  for (const asset of assets) {
+    if (hasSurplusHistory(asset.surplusHistory)) {
+      const assetData = assetScoreMap.get(asset.id)!;
+      const surplusResult = calculateSurplusScore(asset.surplusHistory);
+
+      // Add surplus scoring as a special criterion result
+      const surplusCriterionResult = {
+        criterionId: "surplus-consistency",
+        criterionName: "Surplus Consistency",
+        matched: surplusResult.totalPoints !== 0,
+        pointsAwarded: surplusResult.totalPoints,
+        actualValue: String(surplusResult.consecutiveYears),
+        skippedReason: null,
+        surplusDetails: {
+          yearsOfData: surplusResult.yearsOfData,
+          consecutiveYears: surplusResult.consecutiveYears,
+          bonusApplied: surplusResult.bonusApplied,
+          penaltyApplied: surplusResult.penaltyApplied,
+        },
+      } satisfies CriterionResult;
+
+      assetData.breakdown.push(surplusCriterionResult);
+      assetData.totalScore = assetData.totalScore.plus(surplusResult.totalPoints);
     }
   }
 

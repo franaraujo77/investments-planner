@@ -16,7 +16,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Decimal } from "@/lib/calculations/decimal-config";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { ChevronDown, ChevronRight, Package, Layers } from "lucide-react";
 
 export interface SubclassAllocation {
@@ -61,18 +61,6 @@ const SUBCLASS_COLORS = [
 ];
 
 /**
- * Format percentage with 1 decimal precision
- * AC-3.7.4: Percentages show with 1 decimal precision
- */
-function formatPercent(value: string): string {
-  try {
-    return new Decimal(value).toFixed(1);
-  } catch {
-    return value;
-  }
-}
-
-/**
  * Get color for subclass
  */
 function getSubclassColor(index: number): string {
@@ -110,6 +98,12 @@ function SubclassRow({
   color: string;
   onClick?: (() => void) | undefined;
 }) {
+  const { formatNumber } = useNumberFormat();
+
+  // Format percentage with 1 decimal precision (AC-3.7.4)
+  const formatPct = (value: string) =>
+    formatNumber(parseFloat(value), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
   return (
     <div
       className={cn(
@@ -138,12 +132,12 @@ function SubclassRow({
 
       {/* Percentage of class */}
       <span className="text-sm font-mono text-right min-w-12">
-        {formatPercent(subclass.percentageOfClass)}%
+        {formatPct(subclass.percentageOfClass)}%
       </span>
 
       {/* Percentage of portfolio (smaller, muted) */}
       <span className="text-xs font-mono text-muted-foreground text-right min-w-16">
-        ({formatPercent(subclass.percentageOfPortfolio)}% total)
+        ({formatPct(subclass.percentageOfPortfolio)}% total)
       </span>
 
       {/* Asset count */}
@@ -165,6 +159,12 @@ export function SubclassBreakdown({
   onSubclassClick,
   classNameProp,
 }: SubclassBreakdownProps) {
+  const { formatNumber } = useNumberFormat();
+
+  // Format percentage with 1 decimal precision (AC-3.7.4)
+  const formatPct = (value: string) =>
+    formatNumber(parseFloat(value), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
   // Sort subclasses by percentage (descending)
   const sortedSubclasses = useMemo(() => {
     return [...subclasses].sort((a, b) => {
@@ -206,7 +206,7 @@ export function SubclassBreakdown({
           <span className="font-medium">{className}</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold">{formatPercent(classPercentage)}%</span>
+          <span className="text-lg font-bold">{formatPct(classPercentage)}%</span>
           <span className="text-xs text-muted-foreground">
             {subclasses.length} subclass{subclasses.length !== 1 ? "es" : ""}
           </span>
@@ -235,7 +235,7 @@ export function SubclassBreakdown({
             {/* Total row */}
             <div className="flex items-center justify-between px-3 py-2 mt-2 border-t text-sm font-medium">
               <span className="text-muted-foreground">Total</span>
-              <span className="font-mono">{formatPercent(classPercentage)}%</span>
+              <span className="font-mono">{formatPct(classPercentage)}%</span>
             </div>
           </div>
         ) : (

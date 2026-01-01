@@ -162,7 +162,7 @@ export function HoldingDetailDrawer({
               {needsConversion && (
                 <DetailRow
                   label="Exchange Rate"
-                  value={`1 ${holding.currency} = ${parseFloat(holding.exchangeRate).toFixed(4)} ${baseCurrency}`}
+                  value={`1 ${holding.currency} = ${formatNumber(parseFloat(holding.exchangeRate), { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ${baseCurrency}`}
                   icon={<ArrowRightLeft className="h-4 w-4 text-muted-foreground" />}
                   testId="holding-exchange-rate"
                 />

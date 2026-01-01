@@ -34,7 +34,7 @@ import type {
   CalculationEvent,
 } from "@/lib/events/types";
 import type { CriterionRule } from "@/lib/db/schema";
-import type { AssetWithFundamentals } from "@/lib/validations/score-schemas";
+import type { AssetWithFundamentals, SurplusHistoryData } from "@/lib/validations/score-schemas";
 
 describe("ScoringEngine", () => {
   const engine = new ScoringEngine();
@@ -1398,6 +1398,332 @@ describe("Story 5.8: Score Calculation Engine", () => {
 
       expect(result.score).toBe("0.0000");
       expect(result.breakdown).toHaveLength(0);
+    });
+  });
+});
+
+// =============================================================================
+// STORY 4.6: HISTORICAL SURPLUS SCORING - INTEGRATION TESTS
+// =============================================================================
+
+describe("Story 4.6: Historical Surplus Scoring Integration", () => {
+  // Helper to create criterion rules
+  function createCriterionRule(overrides: Partial<CriterionRule>): CriterionRule {
+    return {
+      id: crypto.randomUUID(),
+      name: "Test Criterion",
+      metric: "dividend_yield",
+      operator: "gt",
+      value: "5.0",
+      value2: undefined,
+      points: 10,
+      requiredFundamentals: ["dividend_yield"],
+      sortOrder: 0,
+      ...overrides,
+    };
+  }
+
+  // Helper to create surplus history
+  function createSurplusHistory(
+    yearsAvailable: number,
+    consecutiveSurplusYears: number
+  ): SurplusHistoryData {
+    return {
+      yearsAvailable,
+      consecutiveSurplusYears,
+      surplusByYear: {},
+      dataSource: "Test Data",
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  // Helper to create asset with surplus history
+  function createAssetWithSurplus(
+    overrides: Partial<AssetWithFundamentals>,
+    surplusHistory?: SurplusHistoryData
+  ): AssetWithFundamentals {
+    return {
+      id: crypto.randomUUID(),
+      symbol: "TEST",
+      fundamentals: {},
+      surplusHistory,
+      ...overrides,
+    };
+  }
+
+  describe("AC-4.6.1: Bonus Points for Consistent Surplus History", () => {
+    it("applies +5 bonus for 5+ consecutive years of surplus", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "HIGH_SURPLUS" },
+          createSurplusHistory(5, 5) // 5 years, 5 consecutive
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("5.0000"); // +5 bonus only
+      expect(result.breakdown).toHaveLength(1);
+      expect(result.breakdown[0].criterionId).toBe("surplus-consistency");
+      expect(result.breakdown[0].criterionName).toBe("Surplus Consistency");
+      expect(result.breakdown[0].pointsAwarded).toBe(5);
+      expect(result.breakdown[0].surplusDetails?.bonusApplied).toBe(5);
+      expect(result.breakdown[0].surplusDetails?.penaltyApplied).toBe(0);
+    });
+
+    it("applies +5 bonus for 7+ consecutive years of surplus", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "VERY_HIGH" },
+          createSurplusHistory(10, 7) // 10 years, 7 consecutive
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("5.0000"); // +5 bonus (capped)
+      expect(result.breakdown[0].surplusDetails?.bonusApplied).toBe(5);
+      expect(result.breakdown[0].surplusDetails?.consecutiveYears).toBe(7);
+    });
+
+    it("does NOT apply bonus for 4 consecutive years", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "ALMOST" },
+          createSurplusHistory(5, 4) // 5 years data, only 4 consecutive
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("0.0000"); // No bonus
+      expect(result.breakdown[0].surplusDetails?.bonusApplied).toBe(0);
+    });
+  });
+
+  describe("AC-4.6.2: Penalty Points for Missing Surplus Data", () => {
+    it("applies -2 penalty for 1 missing year", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "PARTIAL" },
+          createSurplusHistory(4, 4) // Only 4 years data
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("-2.0000"); // -2 penalty for 1 missing year
+      expect(result.breakdown[0].surplusDetails?.penaltyApplied).toBe(-2);
+    });
+
+    it("applies -4 penalty for 2 missing years", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "LESS_DATA" },
+          createSurplusHistory(3, 3) // Only 3 years data
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("-4.0000"); // -4 penalty
+      expect(result.breakdown[0].surplusDetails?.penaltyApplied).toBe(-4);
+      expect(result.breakdown[0].surplusDetails?.yearsOfData).toBe(3);
+    });
+
+    it("applies -10 penalty for 0 years of data (worst case)", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "NO_DATA" },
+          createSurplusHistory(0, 0) // No data
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("-10.0000"); // -10 penalty (5 * -2)
+      expect(result.breakdown[0].surplusDetails?.penaltyApplied).toBe(-10);
+    });
+
+    it("applies NO penalty for 5+ years of data", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "FULL_DATA" },
+          createSurplusHistory(5, 0) // 5 years data, no consecutive streak
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("0.0000"); // No bonus, no penalty
+      expect(result.breakdown[0].surplusDetails?.penaltyApplied).toBe(0);
+    });
+  });
+
+  describe("Combined Bonus and Penalty", () => {
+    it("applies both bonus and penalty correctly", () => {
+      // Edge case: 5 consecutive years but only 4 years of data
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "EDGE_CASE" },
+          createSurplusHistory(4, 5) // 4 years data with 5 consecutive (data inconsistency)
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      // +5 bonus - 2 penalty = +3
+      expect(result.score).toBe("3.0000");
+      expect(result.breakdown[0].surplusDetails?.bonusApplied).toBe(5);
+      expect(result.breakdown[0].surplusDetails?.penaltyApplied).toBe(-2);
+    });
+  });
+
+  describe("Surplus Scoring with Regular Criteria", () => {
+    it("adds surplus score to regular criteria score", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          name: "High Dividend",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+          requiredFundamentals: ["dividend_yield"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          {
+            id: "asset-1",
+            symbol: "COMBO",
+            fundamentals: { dividend_yield: 5.0 },
+          },
+          createSurplusHistory(5, 5)
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      // 10 (dividend criterion) + 5 (surplus bonus) = 15
+      expect(result.score).toBe("15.0000");
+      expect(result.breakdown).toHaveLength(2);
+
+      // Regular criterion
+      expect(result.breakdown[0].criterionId).toBe("c1");
+      expect(result.breakdown[0].matched).toBe(true);
+      expect(result.breakdown[0].pointsAwarded).toBe(10);
+
+      // Surplus criterion
+      expect(result.breakdown[1].criterionId).toBe("surplus-consistency");
+      expect(result.breakdown[1].pointsAwarded).toBe(5);
+    });
+
+    it("subtracts surplus penalty from regular criteria score", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          name: "High Dividend",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+          requiredFundamentals: ["dividend_yield"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          {
+            id: "asset-1",
+            symbol: "PENALTY",
+            fundamentals: { dividend_yield: 5.0 },
+          },
+          createSurplusHistory(3, 3) // -4 penalty
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      // 10 (dividend criterion) - 4 (surplus penalty) = 6
+      expect(result.score).toBe("6.0000");
+    });
+  });
+
+  describe("Assets Without Surplus History", () => {
+    it("does NOT add surplus scoring for assets without surplus history", () => {
+      const criteria: CriterionRule[] = [
+        createCriterionRule({
+          id: "c1",
+          metric: "dividend_yield",
+          operator: "gt",
+          value: "3.0",
+          points: 10,
+          requiredFundamentals: ["dividend_yield"],
+        }),
+      ];
+
+      const assets: AssetWithFundamentals[] = [
+        {
+          id: crypto.randomUUID(),
+          symbol: "NO_SURPLUS",
+          fundamentals: { dividend_yield: 5.0 },
+          // No surplusHistory field
+        },
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("10.0000");
+      expect(result.breakdown).toHaveLength(1);
+      expect(result.breakdown[0].criterionId).toBe("c1");
+    });
+
+    it("handles undefined surplusHistory", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        {
+          id: crypto.randomUUID(),
+          symbol: "UNDEFINED",
+          fundamentals: {},
+          surplusHistory: undefined,
+        },
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      expect(result.score).toBe("0.0000");
+      expect(result.breakdown).toHaveLength(0);
+    });
+  });
+
+  describe("AC-4.6.3: Surplus Details in Breakdown", () => {
+    it("includes surplusDetails in breakdown for display", () => {
+      const criteria: CriterionRule[] = [];
+      const assets: AssetWithFundamentals[] = [
+        createAssetWithSurplus(
+          { id: "asset-1", symbol: "DETAILED" },
+          createSurplusHistory(4, 3) // 4 years data, 3 consecutive
+        ),
+      ];
+
+      const [result] = calculateScores(criteria, assets, "version-1");
+
+      const surplusBreakdown = result.breakdown[0];
+      expect(surplusBreakdown.surplusDetails).toBeDefined();
+      expect(surplusBreakdown.surplusDetails?.yearsOfData).toBe(4);
+      expect(surplusBreakdown.surplusDetails?.consecutiveYears).toBe(3);
+      expect(surplusBreakdown.surplusDetails?.bonusApplied).toBe(0); // 3 < 5
+      expect(surplusBreakdown.surplusDetails?.penaltyApplied).toBe(-2); // 1 missing year
     });
   });
 });

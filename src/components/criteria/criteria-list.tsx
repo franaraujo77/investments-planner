@@ -57,7 +57,16 @@ import { CriteriaBlock } from "@/components/fintech/criteria-block";
 import { cn } from "@/lib/utils";
 import type { CriteriaVersion, CriterionRule } from "@/lib/db/schema";
 import type { UpdateCriterionInput } from "@/lib/validations/criteria-schemas";
-import { Plus, FileQuestion, SearchX, MoreVertical, Copy, GitCompare, Eye } from "lucide-react";
+import {
+  Plus,
+  FileQuestion,
+  SearchX,
+  MoreVertical,
+  Copy,
+  GitCompare,
+  Eye,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -73,7 +82,10 @@ import {
 } from "@/components/criteria/copy-criteria-dialog";
 import { CompareCriteriaDialog } from "@/components/criteria/compare-criteria-dialog";
 import { PreviewImpactModal } from "@/components/criteria/preview-impact-modal";
+import { DeleteCriteriaSetDialog } from "@/components/criteria/delete-criteria-set-dialog";
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useCriteriaFilter } from "@/hooks/use-criteria-filter";
+import { useDeleteCriteriaSet } from "@/hooks/use-criteria";
 import { useCopyCriteria } from "@/hooks/use-copy-criteria";
 import { usePreviewCriteria } from "@/hooks/use-preview-criteria";
 
@@ -201,6 +213,15 @@ export function CriteriaList({
 
   // AC-5.6.1: Compare criteria functionality
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+
+  // AC-4.4.4: Delete criteria set functionality
+  const { deleteCriteriaSet, isDeleting } = useDeleteCriteriaSet();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetSet, setDeleteTargetSet] = useState<{
+    id: string;
+    name: string;
+    criteriaCount: number;
+  } | null>(null);
 
   // AC-5.7.1: Preview impact functionality
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -341,6 +362,31 @@ export function CriteriaList({
     },
     [resetPreview]
   );
+
+  /**
+   * Handle delete action click - AC-4.4.4
+   */
+  const handleDeleteClick = useCallback((set: CriteriaVersion, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent set selection
+    setDeleteTargetSet({
+      id: set.id,
+      name: set.name,
+      criteriaCount: set.criteria.length,
+    });
+    setDeleteDialogOpen(true);
+  }, []);
+
+  /**
+   * Handle delete confirmation - AC-4.4.4
+   */
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTargetSet) return;
+    const success = await deleteCriteriaSet(deleteTargetSet.id);
+    if (success) {
+      setDeleteDialogOpen(false);
+      setDeleteTargetSet(null);
+    }
+  }, [deleteTargetSet, deleteCriteriaSet]);
 
   // Empty state when no criteria exist at all
   if (assetTypes.length === 0) {
@@ -497,6 +543,16 @@ export function CriteriaList({
                                   <Copy className="mr-2 h-4 w-4" />
                                   Copy to...
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) =>
+                                    handleDeleteClick(set, e as unknown as React.MouseEvent)
+                                  }
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -588,6 +644,21 @@ export function CriteriaList({
         isLoading={isPreviewLoading}
         error={previewError}
       />
+
+      {/* AC-4.4.4: Delete Criteria Set Dialog */}
+      {deleteTargetSet && (
+        <DeleteCriteriaSetDialog
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) setDeleteTargetSet(null);
+          }}
+          criteriaSetName={deleteTargetSet.name}
+          criteriaCount={deleteTargetSet.criteriaCount}
+          onConfirm={handleDeleteConfirm}
+          isDeleting={isDeleting}
+        />
+      )}
     </div>
   );
 }

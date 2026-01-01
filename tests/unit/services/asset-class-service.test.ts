@@ -144,6 +144,8 @@ import {
   // Allocation imports (Story 4.3)
   validateAllocationRanges,
   getAllocationSummary,
+  // Subclass allocation imports (Story 4.4/4.2)
+  validateSubclassAllocationRanges,
 } from "@/lib/services/asset-class-service";
 
 describe("Asset Class Service", () => {
@@ -309,7 +311,16 @@ describe("Asset Class Service", () => {
     });
 
     it("should throw AssetClassLimitError when user has 10 asset classes", async () => {
-      mockAssetClassCountResult = [{ count: 10 }];
+      // Mock 10 existing asset classes to trigger limit
+      mockAssetClassesResult = Array(10)
+        .fill(null)
+        .map((_, i) => ({
+          id: `class-${i}`,
+          userId: mockUserId,
+          name: `Class ${i}`,
+          icon: null,
+          sortOrder: String(i),
+        }));
 
       await expect(createClass(mockUserId, { name: "New Class" })).rejects.toThrow(
         AssetClassLimitError
@@ -317,7 +328,16 @@ describe("Asset Class Service", () => {
     });
 
     it("should throw AssetClassLimitError with correct message", async () => {
-      mockAssetClassCountResult = [{ count: 10 }];
+      // Mock 10 existing asset classes to trigger limit
+      mockAssetClassesResult = Array(10)
+        .fill(null)
+        .map((_, i) => ({
+          id: `class-${i}`,
+          userId: mockUserId,
+          name: `Class ${i}`,
+          icon: null,
+          sortOrder: String(i),
+        }));
 
       await expect(createClass(mockUserId, { name: "New Class" })).rejects.toThrow(
         "Maximum of 10 asset classes allowed"
@@ -981,6 +1001,227 @@ describe("Asset Class Service", () => {
 
       expect(summary.totalMinimums).toBe("110.00");
       expect(summary.unallocatedMinimum).toBe("0.00"); // Can't be negative
+    });
+  });
+
+  // ==========================================================================
+  // SUBCLASS ALLOCATION VALIDATION TESTS (Story 4.2/4.4)
+  // ==========================================================================
+
+  describe("validateSubclassAllocationRanges", () => {
+    it("should throw AssetClassNotFoundError when class not found", async () => {
+      mockAssetClassesResult = [];
+
+      await expect(validateSubclassAllocationRanges(mockUserId, mockClassId)).rejects.toThrow(
+        AssetClassNotFoundError
+      );
+    });
+
+    it("should return valid=true when no subclasses (AC-4.2.2)", async () => {
+      const mockClass = {
+        id: mockClassId,
+        userId: mockUserId,
+        name: "Stocks",
+        targetMin: "40.00",
+        targetMax: "50.00",
+        sortOrder: "0",
+      };
+      mockAssetClassesResult = [mockClass];
+      mockSubclassesResult = [];
+
+      const result = await validateSubclassAllocationRanges(mockUserId, mockClassId);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should return valid=true when subclass max is within parent max (AC-4.2.2)", async () => {
+      const mockClass = {
+        id: mockClassId,
+        userId: mockUserId,
+        name: "Stocks",
+        targetMin: "40.00",
+        targetMax: "50.00",
+        sortOrder: "0",
+      };
+      const mockSubclass = {
+        id: mockSubclassId,
+        classId: mockClassId,
+        name: "ETFs",
+        targetMin: "10.00",
+        targetMax: "30.00",
+        sortOrder: "0",
+      };
+      mockAssetClassesResult = [mockClass];
+      mockSubclassesResult = [mockSubclass];
+
+      const result = await validateSubclassAllocationRanges(mockUserId, mockClassId);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    it("should return warning when subclass max exceeds parent max (AC-4.2.2 / AC-4.4.2)", async () => {
+      const mockClass = {
+        id: mockClassId,
+        userId: mockUserId,
+        name: "Stocks",
+        targetMin: "40.00",
+        targetMax: "50.00",
+        sortOrder: "0",
+      };
+      const mockSubclass = {
+        id: mockSubclassId,
+        classId: mockClassId,
+        name: "ETFs",
+        targetMin: "20.00",
+        targetMax: "60.00", // Exceeds parent max of 50%
+        sortOrder: "0",
+      };
+      mockAssetClassesResult = [mockClass];
+      mockSubclassesResult = [mockSubclass];
+
+      const result = await validateSubclassAllocationRanges(mockUserId, mockClassId);
+
+      expect(result.valid).toBe(true); // Still valid (warning, not error)
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0].type).toBe("SUBCLASS_EXCEEDS_PARENT_MAX");
+      expect(result.warnings[0].subclassName).toBe("ETFs");
+    });
+
+    it("should return warning when sum of subclass minimums exceeds parent max (AC-4.2.2 / AC-4.4.3)", async () => {
+      const mockClass = {
+        id: mockClassId,
+        userId: mockUserId,
+        name: "Stocks",
+        targetMin: "40.00",
+        targetMax: "50.00",
+        sortOrder: "0",
+      };
+      mockAssetClassesResult = [mockClass];
+      mockSubclassesResult = [
+        {
+          id: "sub-1",
+          classId: mockClassId,
+          name: "ETFs",
+          targetMin: "30.00",
+          targetMax: "40.00",
+          sortOrder: "0",
+        },
+        {
+          id: "sub-2",
+          classId: mockClassId,
+          name: "Index Funds",
+          targetMin: "25.00",
+          targetMax: "35.00",
+          sortOrder: "1",
+        },
+      ];
+
+      const result = await validateSubclassAllocationRanges(mockUserId, mockClassId);
+
+      expect(result.valid).toBe(true); // Still valid (warning, not error)
+      expect(result.warnings.some((w) => w.type === "SUBCLASS_SUM_EXCEEDS_PARENT_MAX")).toBe(true);
+      const sumWarning = result.warnings.find((w) => w.type === "SUBCLASS_SUM_EXCEEDS_PARENT_MAX");
+      expect(sumWarning?.totalMinimums).toBe("55.00");
+      expect(sumWarning?.parentMax).toBe("50.00");
+    });
+
+    it("should return no warning when sum of subclass minimums is within parent max", async () => {
+      const mockClass = {
+        id: mockClassId,
+        userId: mockUserId,
+        name: "Stocks",
+        targetMin: "40.00",
+        targetMax: "50.00",
+        sortOrder: "0",
+      };
+      mockAssetClassesResult = [mockClass];
+      mockSubclassesResult = [
+        {
+          id: "sub-1",
+          classId: mockClassId,
+          name: "ETFs",
+          targetMin: "20.00",
+          targetMax: "30.00",
+          sortOrder: "0",
+        },
+        {
+          id: "sub-2",
+          classId: mockClassId,
+          name: "Index Funds",
+          targetMin: "15.00",
+          targetMax: "20.00",
+          sortOrder: "1",
+        },
+      ];
+
+      const result = await validateSubclassAllocationRanges(mockUserId, mockClassId);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    it("should skip validation when parent has no targetMax", async () => {
+      const mockClass = {
+        id: mockClassId,
+        userId: mockUserId,
+        name: "Stocks",
+        targetMin: "40.00",
+        targetMax: null, // No max set
+        sortOrder: "0",
+      };
+      const mockSubclass = {
+        id: mockSubclassId,
+        classId: mockClassId,
+        name: "ETFs",
+        targetMin: "60.00",
+        targetMax: "70.00", // Would exceed parent if parent had max
+        sortOrder: "0",
+      };
+      mockAssetClassesResult = [mockClass];
+      mockSubclassesResult = [mockSubclass];
+
+      const result = await validateSubclassAllocationRanges(mockUserId, mockClassId);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toHaveLength(0); // No warnings when parent has no max
+    });
+
+    it("should handle subclasses without allocation ranges", async () => {
+      const mockClass = {
+        id: mockClassId,
+        userId: mockUserId,
+        name: "Stocks",
+        targetMin: "40.00",
+        targetMax: "50.00",
+        sortOrder: "0",
+      };
+      mockAssetClassesResult = [mockClass];
+      mockSubclassesResult = [
+        {
+          id: "sub-1",
+          classId: mockClassId,
+          name: "ETFs",
+          targetMin: null,
+          targetMax: null,
+          sortOrder: "0",
+        },
+        {
+          id: "sub-2",
+          classId: mockClassId,
+          name: "Index Funds",
+          targetMin: "20.00",
+          targetMax: "30.00",
+          sortOrder: "1",
+        },
+      ];
+
+      const result = await validateSubclassAllocationRanges(mockUserId, mockClassId);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toHaveLength(0);
     });
   });
 });

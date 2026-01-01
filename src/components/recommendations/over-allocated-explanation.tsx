@@ -58,8 +58,8 @@ export function calculateTargetRange(targetMidpoint: string): {
   max: string;
 } {
   const midpoint = parseFloat(targetMidpoint) || 0;
-  const min = Math.max(midpoint - 5, 0).toFixed(1);
-  const max = Math.min(midpoint + 5, 100).toFixed(1);
+  const min = Math.max(midpoint - 5, 0).toFixed(1); // eslint-disable-line no-restricted-syntax
+  const max = Math.min(midpoint + 5, 100).toFixed(1); // eslint-disable-line no-restricted-syntax
   return { min, max };
 }
 
@@ -72,6 +72,7 @@ export function generateGuidanceMessage(
   targetMax: string
 ): string {
   const current = parseFloat(currentAllocation) || 0;
+  // eslint-disable-next-line no-restricted-syntax
   return `This asset is currently over-allocated at ${current.toFixed(1)}%, above your target range of ${targetMin}%-${targetMax}%.
 
 No additional investment is recommended. Over time, as you continue contributing to other assets, your portfolio will naturally rebalance toward your target allocation without needing to sell.`;
@@ -140,6 +141,7 @@ export function OverAllocatedExplanation({
                 className="text-lg font-bold text-amber-700 dark:text-amber-300"
                 data-testid="current-allocation-value"
               >
+                {/* eslint-disable-next-line no-restricted-syntax */}
                 {currentValue.toFixed(1)}%
               </span>
             </div>

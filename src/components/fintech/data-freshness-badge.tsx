@@ -117,8 +117,10 @@ function formatRelativeTime(date: Date): string {
 
 /**
  * Format exact timestamp for tooltip
+ * Note: Uses hardcoded locale for consistent date display - not for numeric formatting
  */
 function formatExactTime(date: Date): string {
+  // eslint-disable-next-line no-restricted-syntax
   return date.toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",

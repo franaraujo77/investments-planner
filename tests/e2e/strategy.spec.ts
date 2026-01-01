@@ -18,6 +18,7 @@
  * AC-4.1.3: Edit asset class name (inline)
  * AC-4.1.4: Delete asset class (no assets)
  * AC-4.1.5: Delete asset class with warning (has assets)
+ * AC-4.1.10: Duplicate name prevention
  * AC-4.2.1: View list of subclasses within asset class
  * AC-4.2.2: Create subclass
  * AC-4.2.3: Edit subclass name
@@ -392,6 +393,56 @@ test.describe("Create Asset Class (AC-4.1.2)", () => {
       .locator('button:has-text("Save")')
       .or(page.locator("button svg.text-green-600").locator(".."));
     await expect(saveButton).toBeDisabled();
+  });
+
+  test("should show error when creating asset class with duplicate name (AC-4.1.10)", async ({
+    page,
+  }) => {
+    // Step 1: Create first asset class with a unique name
+    const duplicateName = `Duplicate Test ${Date.now()}`;
+
+    const addButton = page.getByRole("button", { name: /Add Class/i });
+    await addButton.click();
+
+    const nameInput = page.getByPlaceholder("Asset class name");
+    await nameInput.fill(duplicateName);
+
+    await page
+      .locator('button:has-text("Save")')
+      .or(page.locator("button svg.text-green-600").locator(".."))
+      .click();
+
+    // Wait for first creation to succeed
+    await expect(page.getByText("Asset class created")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(duplicateName)).toBeVisible();
+
+    // Step 2: Try to create another asset class with the same name
+    await addButton.click();
+
+    const nameInput2 = page.getByPlaceholder("Asset class name");
+    await nameInput2.fill(duplicateName);
+
+    await page
+      .locator('button:has-text("Save")')
+      .or(page.locator("button svg.text-green-600").locator(".."))
+      .click();
+
+    // Should show error message for duplicate name
+    await expect(page.getByText(/already exists/i)).toBeVisible({ timeout: 10000 });
+
+    // Cleanup: Cancel the duplicate form and delete the created asset class
+    await page
+      .locator('button:has-text("Cancel")')
+      .or(page.locator("button svg.text-muted-foreground").locator(".."))
+      .click();
+
+    // Find and delete the test asset class to prevent data pollution
+    const classCard = page.locator("div").filter({ hasText: duplicateName }).first();
+    const deleteButton = classCard.locator("[aria-label='Delete']");
+    await deleteButton.click();
+
+    // Wait for deletion success
+    await expect(page.getByText("Asset class deleted")).toBeVisible({ timeout: 10000 });
   });
 });
 

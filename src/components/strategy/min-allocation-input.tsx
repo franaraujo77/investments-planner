@@ -61,9 +61,11 @@ function isValidMinAllocation(value: string): boolean {
 
 /**
  * Get currency symbol for display
+ * Note: Uses Intl.NumberFormat directly for currency symbol extraction
  */
 function getCurrencySymbol(currency: string): string {
   try {
+    // eslint-disable-next-line no-restricted-syntax
     const formatter = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,

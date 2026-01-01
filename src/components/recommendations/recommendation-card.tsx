@@ -97,8 +97,8 @@ export function RecommendationCard({
   // Calculate target min/max from targetAllocation and allocationGap
   // For display purposes, we'll show a reasonable range around the target
   const targetValue = parseFloat(targetAllocation) || 0;
-  const targetMin = Math.max(targetValue - 5, 0).toFixed(1);
-  const targetMax = Math.min(targetValue + 5, 100).toFixed(1);
+  const targetMin = Math.max(targetValue - 5, 0).toFixed(1); // eslint-disable-line no-restricted-syntax
+  const targetMax = Math.min(targetValue + 5, 100).toFixed(1); // eslint-disable-line no-restricted-syntax
 
   // Format recommended amount
   const formattedAmount = formatCurrency(recommendedAmount, baseCurrency);

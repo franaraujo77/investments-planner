@@ -16,6 +16,7 @@
 import { Decimal } from "@/lib/calculations/decimal-config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Wallet } from "lucide-react";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import type { PortfolioAsset } from "@/types/portfolio";
 
 interface PortfolioAssetSummaryProps {
@@ -52,34 +53,23 @@ function calculateTotalValue(assets: PortfolioAsset[]): {
   let primaryTotal = new Decimal(0);
 
   for (const [currency, value] of Object.entries(byCurrency)) {
-    byCurrencyStr[currency] = value.toFixed(2);
+    byCurrencyStr[currency] = value.toFixed(2); // eslint-disable-line no-restricted-syntax
     // For now, just sum all values (proper currency conversion in Epic 6)
     primaryTotal = primaryTotal.plus(value);
   }
 
   return {
-    total: primaryTotal.toFixed(2),
+    total: primaryTotal.toFixed(2), // eslint-disable-line no-restricted-syntax
     byCurrency: byCurrencyStr,
   };
-}
-
-/**
- * Format currency amount for display
- */
-function formatCurrency(value: string, currency: string): string {
-  const num = parseFloat(value);
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num);
 }
 
 export function PortfolioAssetSummary({
   assets,
   baseCurrency = "USD",
 }: PortfolioAssetSummaryProps) {
+  const { formatCurrency } = useNumberFormat();
+
   // Total value includes ALL assets (even ignored ones) per AC-3.5.4
   const { byCurrency } = calculateTotalValue(assets);
   const currencies = Object.keys(byCurrency);
@@ -87,6 +77,12 @@ export function PortfolioAssetSummary({
   // Active assets exclude ignored ones (for future allocation calculations per AC-3.5.3)
   const activeAssetCount = assets.filter((a) => !a.isIgnored).length;
   const ignoredCount = assetCount - activeAssetCount;
+
+  // Format currency amount for display
+  const formatCurrencyValue = (value: string, currency: string): string => {
+    const num = parseFloat(value);
+    return formatCurrency(num, currency);
+  };
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -116,13 +112,13 @@ export function PortfolioAssetSummary({
         <CardContent>
           {currencies.length === 0 ? (
             <>
-              <div className="text-2xl font-bold">{formatCurrency("0", baseCurrency)}</div>
+              <div className="text-2xl font-bold">{formatCurrencyValue("0", baseCurrency)}</div>
               <p className="text-xs text-muted-foreground">Add assets to see value</p>
             </>
           ) : currencies.length === 1 && currencies[0] ? (
             <>
               <div className="text-2xl font-bold">
-                {formatCurrency(byCurrency[currencies[0]] ?? "0", currencies[0])}
+                {formatCurrencyValue(byCurrency[currencies[0]] ?? "0", currencies[0])}
               </div>
               <p className="text-xs text-muted-foreground">Total invested value</p>
             </>
@@ -131,7 +127,7 @@ export function PortfolioAssetSummary({
               <div className="space-y-1">
                 {currencies.map((currency) => (
                   <div key={currency} className="text-lg font-bold">
-                    {formatCurrency(byCurrency[currency] ?? "0", currency)}
+                    {formatCurrencyValue(byCurrency[currency] ?? "0", currency)}
                   </div>
                 ))}
               </div>
