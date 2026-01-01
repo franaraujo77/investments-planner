@@ -280,19 +280,19 @@ describe("SurplusScoreDetail Component Logic", () => {
       // Should not throw
       expect(minimalProps.totalPoints).toBeUndefined();
       expect(minimalProps.className).toBeUndefined();
-      expect(minimalProps.compact).toBeUndefined();
+      expect(minimalProps.displayMode).toBeUndefined();
     });
 
-    it("compact mode changes display behavior", () => {
+    it("displayMode='compact' changes display behavior", () => {
       const compactProps: SurplusScoreDetailProps = {
         yearsOfData: 5,
         consecutiveYears: 5,
         bonusApplied: 5,
         penaltyApplied: 0,
-        compact: true,
+        displayMode: "compact",
       };
 
-      expect(compactProps.compact).toBe(true);
+      expect(compactProps.displayMode).toBe("compact");
     });
   });
 

@@ -14,12 +14,14 @@ import { describe, it, expect } from "vitest";
 // TYPES (matching component props)
 // =============================================================================
 
+type IncompleteDataDisplayMode = "compact" | "detailed";
+
 interface IncompleteDataNoticeProps {
   yearsOfData: number;
   assetSymbol?: string;
   className?: string;
   variant?: "warning" | "info";
-  compact?: boolean;
+  displayMode?: IncompleteDataDisplayMode;
 }
 
 // =============================================================================
@@ -177,7 +179,7 @@ describe("IncompleteDataNotice Component Logic", () => {
       expect(minimalProps.assetSymbol).toBeUndefined();
       expect(minimalProps.className).toBeUndefined();
       expect(minimalProps.variant).toBeUndefined();
-      expect(minimalProps.compact).toBeUndefined();
+      expect(minimalProps.displayMode).toBeUndefined();
     });
 
     it("accepts warning variant", () => {

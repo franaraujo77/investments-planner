@@ -12,10 +12,12 @@ export {
   SurplusScoreDetail,
   getSurplusStatus,
   type SurplusScoreDetailProps,
+  type SurplusDisplayMode,
   type SurplusStatus,
 } from "./surplus-score-detail";
 export {
   IncompleteDataNotice,
   shouldShowIncompleteDataNotice,
   type IncompleteDataNoticeProps,
+  type IncompleteDataDisplayMode,
 } from "./incomplete-data-notice";

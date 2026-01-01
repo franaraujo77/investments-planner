@@ -47,8 +47,12 @@ const eslintConfig = defineConfig([
       "no-console": "error",
     },
   },
-  // i18n number formatting enforcement (Epic 3 Retrospective Action Item #1)
-  // Use useNumberFormat() hook instead of hardcoded formatting in React components
+  // ============================================
+  // i18n NUMBER FORMATTING ENFORCEMENT
+  // ============================================
+  // Epic 3 Retrospective: PR review identified inconsistent number formatting.
+  // See: docs/sprint-artifacts/epic-3-retrospective.md (Section: "PR Review Findings")
+  // Use useNumberFormat() hook instead of hardcoded formatting in React components.
   // Added: 2025-12-31
   {
     files: ["src/components/**/*.tsx"],

@@ -19,7 +19,7 @@
  * - Red: Penalty applied (missing years)
  *
  * Component Structure:
- * - SurplusScoreDetail: Main component with compact/detailed mode
+ * - SurplusScoreDetail: Main component with displayMode prop ('compact' | 'detailed')
  * - CompactSurplusView: Inline summary for tight spaces
  * - DetailedSurplusView: Full breakdown with bonus/penalty details
  */
@@ -34,6 +34,13 @@ import { EXPECTED_YEARS_OF_DATA } from "@/lib/calculations/surplus-scoring";
 // TYPES
 // =============================================================================
 
+/**
+ * Display mode for surplus score detail component
+ * - 'compact': Single-line summary for tight spaces (tables, inline)
+ * - 'detailed': Full card breakdown with bonus/penalty details
+ */
+export type SurplusDisplayMode = "compact" | "detailed";
+
 export interface SurplusScoreDetailProps {
   /** Years of data available */
   yearsOfData: number;
@@ -47,8 +54,8 @@ export interface SurplusScoreDetailProps {
   totalPoints?: number;
   /** Optional additional class names */
   className?: string;
-  /** Compact mode for inline display */
-  compact?: boolean;
+  /** Display mode: 'compact' for inline, 'detailed' for full breakdown */
+  displayMode?: SurplusDisplayMode;
 }
 
 // =============================================================================
@@ -291,7 +298,7 @@ function DetailedSurplusView({
  *
  * AC-4.6.3: Shows years of data, consecutive years, bonus/penalty applied
  *
- * Delegates to CompactSurplusView or DetailedSurplusView based on compact prop.
+ * Delegates to CompactSurplusView or DetailedSurplusView based on displayMode prop.
  */
 export function SurplusScoreDetail({
   yearsOfData,
@@ -300,7 +307,7 @@ export function SurplusScoreDetail({
   penaltyApplied,
   totalPoints,
   className,
-  compact = false,
+  displayMode = "detailed",
 }: SurplusScoreDetailProps) {
   const { formatNumber } = useNumberFormat();
   const netPoints = totalPoints ?? bonusApplied + penaltyApplied;
@@ -319,7 +326,7 @@ export function SurplusScoreDetail({
     className,
   };
 
-  if (compact) {
+  if (displayMode === "compact") {
     return <CompactSurplusView {...sharedProps} />;
   }
 

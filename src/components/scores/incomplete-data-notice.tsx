@@ -27,6 +27,13 @@ import {
 // TYPES
 // =============================================================================
 
+/**
+ * Display mode for incomplete data notice
+ * - 'compact': Single-line inline notice
+ * - 'detailed': Full alert card with title and description
+ */
+export type IncompleteDataDisplayMode = "compact" | "detailed";
+
 export interface IncompleteDataNoticeProps {
   /** Years of data available */
   yearsOfData: number;
@@ -36,8 +43,8 @@ export interface IncompleteDataNoticeProps {
   className?: string;
   /** Variant: warning (default) or info */
   variant?: "warning" | "info";
-  /** Compact mode for inline display */
-  compact?: boolean;
+  /** Display mode: 'compact' for inline, 'detailed' for full alert */
+  displayMode?: IncompleteDataDisplayMode;
 }
 
 // =============================================================================
@@ -103,7 +110,7 @@ export function IncompleteDataNotice({
   assetSymbol,
   className,
   variant = "warning",
-  compact = false,
+  displayMode = "detailed",
 }: IncompleteDataNoticeProps) {
   const { missingYears, totalPenalty, isComplete } = calculateMissingInfo(yearsOfData);
 
@@ -116,7 +123,7 @@ export function IncompleteDataNotice({
   const Icon = variant === "warning" ? AlertTriangle : Info;
   const alertVariant = variant === "warning" ? "destructive" : "default";
 
-  if (compact) {
+  if (displayMode === "compact") {
     return (
       <div
         className={cn(

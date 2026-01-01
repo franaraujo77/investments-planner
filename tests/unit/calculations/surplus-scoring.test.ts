@@ -119,62 +119,66 @@ describe("evaluateSurplusBonus", () => {
 // =============================================================================
 
 describe("evaluateSurplusPenalty", () => {
-  it("should apply NO penalty for 5 years of data", () => {
-    const history = createSurplusHistory(5, 5);
+  it("should apply NO penalty for complete years of data", () => {
+    const history = createSurplusHistory(EXPECTED_YEARS_OF_DATA, EXPECTED_YEARS_OF_DATA);
     const result = evaluateSurplusPenalty(history);
 
     expect(result.penaltyPoints).toBe(0);
     expect(result.missingYears).toBe(0);
-    expect(result.yearsAvailable).toBe(5);
+    expect(result.yearsAvailable).toBe(EXPECTED_YEARS_OF_DATA);
   });
 
-  it("should apply NO penalty for more than 5 years of data", () => {
-    const history = createSurplusHistory(10, 5);
+  it("should apply NO penalty for more than expected years of data", () => {
+    const history = createSurplusHistory(10, EXPECTED_YEARS_OF_DATA);
     const result = evaluateSurplusPenalty(history);
 
     expect(result.penaltyPoints).toBe(0);
     expect(result.missingYears).toBe(0);
   });
 
-  it("should apply -2 penalty for 4 years of data (1 missing)", () => {
-    const history = createSurplusHistory(4, 4);
+  it("should apply penalty for 1 missing year", () => {
+    const yearsAvailable = EXPECTED_YEARS_OF_DATA - 1;
+    const history = createSurplusHistory(yearsAvailable, yearsAvailable);
     const result = evaluateSurplusPenalty(history);
 
-    expect(result.penaltyPoints).toBe(-2);
+    expect(result.penaltyPoints).toBe(PENALTY_PER_MISSING_YEAR * 1);
     expect(result.missingYears).toBe(1);
-    expect(result.yearsAvailable).toBe(4);
+    expect(result.yearsAvailable).toBe(yearsAvailable);
   });
 
-  it("should apply -4 penalty for 3 years of data (2 missing)", () => {
-    const history = createSurplusHistory(3, 3);
+  it("should apply penalty for 2 missing years", () => {
+    const yearsAvailable = EXPECTED_YEARS_OF_DATA - 2;
+    const history = createSurplusHistory(yearsAvailable, yearsAvailable);
     const result = evaluateSurplusPenalty(history);
 
-    expect(result.penaltyPoints).toBe(-4);
+    expect(result.penaltyPoints).toBe(PENALTY_PER_MISSING_YEAR * 2);
     expect(result.missingYears).toBe(2);
   });
 
-  it("should apply -6 penalty for 2 years of data (3 missing)", () => {
-    const history = createSurplusHistory(2, 2);
+  it("should apply penalty for 3 missing years", () => {
+    const yearsAvailable = EXPECTED_YEARS_OF_DATA - 3;
+    const history = createSurplusHistory(yearsAvailable, yearsAvailable);
     const result = evaluateSurplusPenalty(history);
 
-    expect(result.penaltyPoints).toBe(-6);
+    expect(result.penaltyPoints).toBe(PENALTY_PER_MISSING_YEAR * 3);
     expect(result.missingYears).toBe(3);
   });
 
-  it("should apply -8 penalty for 1 year of data (4 missing)", () => {
-    const history = createSurplusHistory(1, 1);
+  it("should apply penalty for 4 missing years", () => {
+    const yearsAvailable = EXPECTED_YEARS_OF_DATA - 4;
+    const history = createSurplusHistory(yearsAvailable, yearsAvailable);
     const result = evaluateSurplusPenalty(history);
 
-    expect(result.penaltyPoints).toBe(-8);
+    expect(result.penaltyPoints).toBe(PENALTY_PER_MISSING_YEAR * 4);
     expect(result.missingYears).toBe(4);
   });
 
-  it("should apply -10 penalty for 0 years of data (5 missing)", () => {
+  it("should apply maximum penalty for 0 years of data", () => {
     const history = createSurplusHistory(0, 0);
     const result = evaluateSurplusPenalty(history);
 
-    expect(result.penaltyPoints).toBe(-10);
-    expect(result.missingYears).toBe(5);
+    expect(result.penaltyPoints).toBe(PENALTY_PER_MISSING_YEAR * EXPECTED_YEARS_OF_DATA);
+    expect(result.missingYears).toBe(EXPECTED_YEARS_OF_DATA);
   });
 });
 
@@ -183,19 +187,22 @@ describe("evaluateSurplusPenalty", () => {
 // =============================================================================
 
 describe("calculateSurplusScore", () => {
-  it("should return +5 for best case (5+ consecutive, no missing)", () => {
-    const history = createSurplusHistory(5, 5);
+  it("should return bonus for best case (consecutive years met, no missing)", () => {
+    const history = createSurplusHistory(
+      EXPECTED_YEARS_OF_DATA,
+      MINIMUM_CONSECUTIVE_YEARS_FOR_BONUS
+    );
     const result = calculateSurplusScore(history);
 
-    expect(result.totalPoints).toBe(5);
-    expect(result.bonusApplied).toBe(5);
+    expect(result.totalPoints).toBe(SURPLUS_CONSISTENCY_BONUS);
+    expect(result.bonusApplied).toBe(SURPLUS_CONSISTENCY_BONUS);
     expect(result.penaltyApplied).toBe(0);
-    expect(result.yearsOfData).toBe(5);
-    expect(result.consecutiveYears).toBe(5);
+    expect(result.yearsOfData).toBe(EXPECTED_YEARS_OF_DATA);
+    expect(result.consecutiveYears).toBe(MINIMUM_CONSECUTIVE_YEARS_FOR_BONUS);
   });
 
-  it("should return 0 for neutral case (5 years, no consecutive streak)", () => {
-    const history = createSurplusHistory(5, 0);
+  it("should return 0 for neutral case (complete years, no consecutive streak)", () => {
+    const history = createSurplusHistory(EXPECTED_YEARS_OF_DATA, 0);
     const result = calculateSurplusScore(history);
 
     expect(result.totalPoints).toBe(0);
@@ -203,44 +210,47 @@ describe("calculateSurplusScore", () => {
     expect(result.penaltyApplied).toBe(0);
   });
 
-  it("should return -10 for worst case (no data)", () => {
+  it("should return maximum penalty for worst case (no data)", () => {
     const history = createSurplusHistory(0, 0);
     const result = calculateSurplusScore(history);
 
-    expect(result.totalPoints).toBe(-10);
+    const maxPenalty = PENALTY_PER_MISSING_YEAR * EXPECTED_YEARS_OF_DATA;
+    expect(result.totalPoints).toBe(maxPenalty);
     expect(result.bonusApplied).toBe(0);
-    expect(result.penaltyApplied).toBe(-10);
+    expect(result.penaltyApplied).toBe(maxPenalty);
     expect(result.yearsOfData).toBe(0);
     expect(result.consecutiveYears).toBe(0);
   });
 
   it("should combine bonus and penalty correctly", () => {
-    // 4 years of data with all 4 consecutive
-    // 4 consecutive = no bonus
-    // 1 missing year = -2 penalty
-    const history = createSurplusHistory(4, 4);
+    // 1 year missing = 1 missing year penalty, 4 consecutive = no bonus
+    const yearsAvailable = EXPECTED_YEARS_OF_DATA - 1;
+    const history = createSurplusHistory(yearsAvailable, yearsAvailable);
     const result = calculateSurplusScore(history);
 
-    expect(result.totalPoints).toBe(-2);
+    const expectedPenalty = PENALTY_PER_MISSING_YEAR * 1;
+    expect(result.totalPoints).toBe(expectedPenalty);
     expect(result.bonusApplied).toBe(0);
-    expect(result.penaltyApplied).toBe(-2);
+    expect(result.penaltyApplied).toBe(expectedPenalty);
   });
 
-  it("should return -4 for 3 years data with no consecutive streak", () => {
-    const history = createSurplusHistory(3, 0);
+  it("should return penalty for missing years with no consecutive streak", () => {
+    const yearsAvailable = EXPECTED_YEARS_OF_DATA - 2;
+    const history = createSurplusHistory(yearsAvailable, 0);
     const result = calculateSurplusScore(history);
 
-    expect(result.totalPoints).toBe(-4);
+    const expectedPenalty = PENALTY_PER_MISSING_YEAR * 2;
+    expect(result.totalPoints).toBe(expectedPenalty);
     expect(result.bonusApplied).toBe(0);
-    expect(result.penaltyApplied).toBe(-4);
+    expect(result.penaltyApplied).toBe(expectedPenalty);
   });
 
-  it("should return +5 for 10 years with 7 consecutive", () => {
+  it("should return bonus for excess years with sufficient consecutive streak", () => {
     const history = createSurplusHistory(10, 7);
     const result = calculateSurplusScore(history);
 
-    expect(result.totalPoints).toBe(5);
-    expect(result.bonusApplied).toBe(5);
+    expect(result.totalPoints).toBe(SURPLUS_CONSISTENCY_BONUS);
+    expect(result.bonusApplied).toBe(SURPLUS_CONSISTENCY_BONUS);
     expect(result.penaltyApplied).toBe(0);
   });
 });
@@ -254,13 +264,14 @@ describe("Edge Cases", () => {
     const history = createSurplusHistory(50, 50);
     const result = calculateSurplusScore(history);
 
-    expect(result.totalPoints).toBe(5);
-    expect(result.bonusApplied).toBe(5);
+    expect(result.totalPoints).toBe(SURPLUS_CONSISTENCY_BONUS);
+    expect(result.bonusApplied).toBe(SURPLUS_CONSISTENCY_BONUS);
     expect(result.penaltyApplied).toBe(0);
   });
 
-  it("should handle 5 years data but only 4 consecutive", () => {
-    const history = createSurplusHistory(5, 4);
+  it("should handle complete years data but insufficient consecutive streak", () => {
+    const consecutiveYears = MINIMUM_CONSECUTIVE_YEARS_FOR_BONUS - 1;
+    const history = createSurplusHistory(EXPECTED_YEARS_OF_DATA, consecutiveYears);
     const result = calculateSurplusScore(history);
 
     expect(result.totalPoints).toBe(0);
@@ -268,18 +279,20 @@ describe("Edge Cases", () => {
     expect(result.penaltyApplied).toBe(0);
   });
 
-  it("should handle 5 consecutive years but only 4 years data (edge case)", () => {
+  it("should handle bonus-qualifying streak with missing data (edge case)", () => {
     // This is a data inconsistency but we should handle it gracefully
-    // If somehow consecutive years is 5 but only 4 years of data available
-    const history = createSurplusHistory(4, 5);
+    // If somehow consecutive years qualifies for bonus but years of data has penalty
+    const yearsAvailable = EXPECTED_YEARS_OF_DATA - 1;
+    const history = createSurplusHistory(yearsAvailable, MINIMUM_CONSECUTIVE_YEARS_FOR_BONUS);
     const result = calculateSurplusScore(history);
 
-    // Bonus: 5 consecutive = +5
-    // Penalty: 1 missing = -2
-    // Total: +3
-    expect(result.totalPoints).toBe(3);
-    expect(result.bonusApplied).toBe(5);
-    expect(result.penaltyApplied).toBe(-2);
+    // Bonus: meets consecutive threshold = +SURPLUS_CONSISTENCY_BONUS
+    // Penalty: 1 missing = PENALTY_PER_MISSING_YEAR
+    // Total: bonus + penalty
+    const expectedTotal = SURPLUS_CONSISTENCY_BONUS + PENALTY_PER_MISSING_YEAR;
+    expect(result.totalPoints).toBe(expectedTotal);
+    expect(result.bonusApplied).toBe(SURPLUS_CONSISTENCY_BONUS);
+    expect(result.penaltyApplied).toBe(PENALTY_PER_MISSING_YEAR);
   });
 });
 
@@ -289,7 +302,7 @@ describe("Edge Cases", () => {
 
 describe("hasSurplusHistory", () => {
   it("should return true for valid surplus history", () => {
-    const history = createSurplusHistory(5, 5);
+    const history = createSurplusHistory(EXPECTED_YEARS_OF_DATA, EXPECTED_YEARS_OF_DATA);
     expect(hasSurplusHistory(history)).toBe(true);
   });
 
