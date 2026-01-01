@@ -284,6 +284,68 @@ describe("Overnight Job Audit Trail Integration", () => {
       expect(result.metrics?.cacheWarmMs).toBe(2000);
     });
 
+    it("should record fundamentals fetch metrics (AC-5.1.7)", async () => {
+      // Story 5.1: Market Data Fetching
+      // Fundamentals metrics track how many symbols had fundamentals fetched
+      const metrics: JobRunMetrics = {
+        totalDurationMs: 12000,
+        fundamentalsFetched: 250,
+        fetchFundamentalsMs: 3500,
+        fetchPricesMs: 2000,
+        fetchRatesMs: 500,
+      };
+
+      const mockCompletedRun = {
+        id: "job-1",
+        status: JOB_STATUS.COMPLETED,
+        metrics,
+      };
+
+      mockDbReturning.mockResolvedValue([mockCompletedRun]);
+
+      const result = await jobService.completeJobRun("job-1", {
+        usersProcessed: 100,
+        metrics,
+      });
+
+      expect(result.metrics?.fundamentalsFetched).toBe(250);
+      expect(result.metrics?.fetchFundamentalsMs).toBe(3500);
+    });
+
+    it("should record market data cache metrics (AC-5.2.1, AC-5.2.2)", async () => {
+      // Story 5.2: Two-Tier Refresh Architecture
+      // Cache metrics track how many items were cached to both PostgreSQL and KV
+      const metrics: JobRunMetrics = {
+        totalDurationMs: 15000,
+        fetchPricesMs: 2000,
+        fetchRatesMs: 500,
+        fetchFundamentalsMs: 3500,
+        // Story 5.2 cache write metrics
+        pricesCached: 150,
+        ratesCached: 10,
+        fundamentalsCached: 150,
+        marketDataCacheMs: 450, // Total cache write time
+      };
+
+      const mockCompletedRun = {
+        id: "job-1",
+        status: JOB_STATUS.COMPLETED,
+        metrics,
+      };
+
+      mockDbReturning.mockResolvedValue([mockCompletedRun]);
+
+      const result = await jobService.completeJobRun("job-1", {
+        usersProcessed: 100,
+        metrics,
+      });
+
+      expect(result.metrics?.pricesCached).toBe(150);
+      expect(result.metrics?.ratesCached).toBe(10);
+      expect(result.metrics?.fundamentalsCached).toBe(150);
+      expect(result.metrics?.marketDataCacheMs).toBe(450);
+    });
+
     it("should record metrics even on partial failure", async () => {
       const metrics: JobRunMetrics = {
         totalDurationMs: 10000,

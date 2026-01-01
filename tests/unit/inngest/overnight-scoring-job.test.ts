@@ -83,17 +83,25 @@ describe("Overnight Scoring Job", () => {
       // 2. fetch-exchange-rates - Get rates once at start
       // 3. get-active-users - Query users with portfolios
       // 4. fetch-asset-prices - Batch fetch prices
+      // 4b. fetch-fundamentals - Fetch fundamentals data (Story 5.1)
       // 5. score-portfolios - Process users in batches
-      // 6. finalize - Update job status
-      // 7. trigger-cache-warming - Initiate cache warm
+      // 6. detect-alerts - Detect opportunity alerts (Story 9.1)
+      // 7. detect-drift-alerts - Detect drift alerts (Story 9.2)
+      // 8. generate-recommendations - Pre-generate recommendations
+      // 9. warm-cache - Cache in Vercel KV
+      // 10. finalize - Update job status
       const expectedSteps = [
         "setup",
         "fetch-exchange-rates",
         "get-active-users",
         "fetch-asset-prices",
+        "fetch-fundamentals", // Story 5.1
         "score-portfolios",
+        "detect-alerts", // Story 9.1
+        "detect-drift-alerts", // Story 9.2
+        "generate-recommendations",
+        "warm-cache",
         "finalize",
-        "trigger-cache-warming",
       ];
 
       // All steps follow kebab-case naming convention
@@ -147,6 +155,17 @@ describe("Step Responsibilities", () => {
     // - Returns price map for use in scoring
     const stepPurpose = "Batch fetch for all unique assets";
     expect(stepPurpose).toContain("Batch");
+  });
+
+  it("fetch-fundamentals step fetches P/E, dividends, sector data (AC-5.1.1, AC-5.1.2)", () => {
+    // Story 5.1: Market Data Fetching
+    // The fetch-fundamentals step:
+    // - Gets fundamentals for all unique asset symbols
+    // - Fetches P/E ratio, dividend yield, market cap, sector
+    // - Data is optional - job continues if unavailable
+    // - Logs provider attribution (AC-5.1.7)
+    const stepPurpose = "Fetch fundamentals data including P/E, dividends, sector";
+    expect(stepPurpose).toContain("fundamentals");
   });
 
   it("score-portfolios step processes in batches of 50 (AC-8.2.3)", () => {

@@ -66,9 +66,16 @@ import {
   type GeneratedRecommendation,
 } from "@/lib/services/batch-recommendation-service";
 import { cacheWarmerService } from "@/lib/services/cache-warmer-service";
-import { ExchangeRateService } from "@/lib/providers/exchange-rate-service";
-import { PriceService } from "@/lib/providers/price-service";
+import {
+  ExchangeRateService,
+  getExchangeRateService,
+  PriceService,
+  getPriceService,
+  FundamentalsService,
+  getFundamentalsService,
+} from "@/lib/providers";
 import { alertDetectionService } from "@/lib/services/alert-detection-service";
+import { marketDataCacheService } from "@/lib/services/data-access";
 
 /**
  * Default cron schedule for overnight scoring
@@ -98,6 +105,10 @@ interface SetupResult {
 interface ExchangeRatesResult {
   rates: ExchangeRatesMap;
   durationMs: number;
+  /** Story 5.2: Number of rates cached to both tiers */
+  ratesCached: number;
+  /** Story 5.2: Cache write duration in ms */
+  cacheWriteMs: number;
 }
 
 interface UsersResult {
@@ -109,7 +120,34 @@ interface PricesResult {
   prices: PricesMap;
   durationMs: number;
   symbolCount: number;
+  /** Story 5.2: Number of prices cached to both tiers */
+  pricesCached: number;
+  /** Story 5.2: Cache write duration in ms */
+  cacheWriteMs: number;
 }
+
+/**
+ * Story 5.1: Fundamentals fetch result
+ * AC-5.1.1: Fundamentals Data Fetching
+ * AC-5.1.2: IR Publications Data
+ * AC-5.1.7: Data Attribution
+ */
+interface FundamentalsStepResult {
+  fundamentalsCount: number;
+  durationMs: number;
+  errors: Array<{ symbol: string; message: string }>;
+  /** Story 5.2: Number of fundamentals cached to both tiers */
+  fundamentalsCached: number;
+  /** Story 5.2: Cache write duration in ms */
+  cacheWriteMs: number;
+}
+
+// TODO(story-5.3): Add FundamentalsMap type and pass fundamentals data to scoring step
+// Story 5.3 will implement fundamentals-based scoring using P/E, dividend yield, etc.
+// The fetch-fundamentals step already retrieves this data; it just needs to be passed through.
+
+// Story 5.2: Market data cache metrics are now tracked in individual step results
+// (ExchangeRatesResult, PricesResult, FundamentalsStepResult) and aggregated in finalize
 
 interface ScoringResult {
   usersProcessed: number;
@@ -180,29 +218,140 @@ function isProduction(): boolean {
 /**
  * Create exchange rate service (can be mocked in tests)
  *
- * In production: Returns configured service or throws if not configured
- * In development: Returns null to allow mock data usage
+ * Story 5.1: Market Data Fetching
+ * AC-5.1.4: Exchange Rate Fetching
+ * AC-5.1.5: Retry and Error Handling
+ *
+ * Uses the getExchangeRateService() factory function which auto-selects:
+ * - ExchangeRateAPIProvider (primary) when EXCHANGE_RATE_API_KEY is set
+ * - OpenExchangeRatesProvider (fallback) when OPEN_EXCHANGE_RATES_APP_ID is set
+ * - MockExchangeRateProvider (dev mode) when no API keys are configured
+ *
+ * In production: Returns configured service (throws if not configured)
+ * In development: Returns service with mock providers if no API keys set
  */
 function createExchangeRateService(): ExchangeRateService | null {
-  // TODO(epic-8): Implement actual exchange rate provider initialization
-  // Example: return new ExchangeRateService(process.env.EXCHANGE_RATE_API_KEY)
+  // Check if any exchange rate API key is configured
+  const hasExchangeRateApiKey = Boolean(process.env.EXCHANGE_RATE_API_KEY);
+  const hasOpenExchangeAppId = Boolean(process.env.OPEN_EXCHANGE_RATES_APP_ID);
 
-  // Return null for now - actual implementation pending provider setup
-  return null;
+  if (!hasExchangeRateApiKey && !hasOpenExchangeAppId && !isProduction()) {
+    // In development without API keys, return null to use mock data path
+    logger.info("No exchange rate API keys configured (development mode)", {
+      environment: process.env.NODE_ENV,
+    });
+    return null;
+  }
+
+  // Use factory function to create configured service
+  // Factory auto-selects providers based on environment variables
+  const service = getExchangeRateService();
+
+  logger.info("Exchange rate service initialized", {
+    hasExchangeRateApiKey,
+    hasOpenExchangeAppId,
+    environment: process.env.NODE_ENV,
+  });
+
+  return service;
 }
 
 /**
  * Create price service (can be mocked in tests)
  *
- * In production: Returns configured service or throws if not configured
- * In development: Returns null to allow mock data usage
+ * Story 5.1: Market Data Fetching
+ * AC-5.1.3: Price Data Fetching
+ * AC-5.1.5: Retry and Error Handling
+ * AC-5.1.6: Rate Limiting (50 symbols per request batch)
+ *
+ * Uses the getPriceService() factory function which auto-selects:
+ * - GeminiPriceProvider (primary) when GEMINI_API_KEY is set
+ * - YahooFinancePriceProvider (fallback) when YAHOO_FINANCE_API_KEY is set
+ * - MockPriceProvider (dev mode) when no API keys are configured
+ *
+ * In production: Returns configured service (throws if not configured)
+ * In development: Returns service with mock providers if no API keys set
  */
 function createPriceService(): PriceService | null {
-  // TODO(epic-8): Implement actual price provider initialization
-  // Example: return new PriceService(process.env.PRICE_API_KEY)
+  // Check if any price API key is configured
+  const hasGeminiApiKey = Boolean(process.env.GEMINI_API_KEY);
+  const hasYahooApiKey = Boolean(process.env.YAHOO_FINANCE_API_KEY);
 
-  // Return null for now - actual implementation pending provider setup
-  return null;
+  if (!hasGeminiApiKey && !hasYahooApiKey && !isProduction()) {
+    // In development without API keys, return null to use mock data path
+    logger.info("No price API keys configured (development mode)", {
+      environment: process.env.NODE_ENV,
+    });
+    return null;
+  }
+
+  // Use factory function to create configured service
+  // Factory auto-selects providers based on environment variables
+  const service = getPriceService();
+
+  logger.info("Price service initialized", {
+    hasGeminiApiKey,
+    hasYahooApiKey,
+    environment: process.env.NODE_ENV,
+  });
+
+  return service;
+}
+
+/**
+ * Create fundamentals service (can be mocked in tests)
+ *
+ * Story 5.1: Market Data Fetching
+ * AC-5.1.1: Fundamentals Data Fetching
+ * AC-5.1.2: IR Publications Data
+ * AC-5.1.5: Retry and Error Handling
+ *
+ * Uses the getFundamentalsService() factory function which auto-selects:
+ * - GeminiFundamentalsProvider (primary) when GEMINI_API_KEY is set
+ * - MockFundamentalsProvider (fallback) for development/testing
+ *
+ * In production: Returns configured service (throws if not configured)
+ * In development: Returns service with mock providers if no API keys set
+ */
+function createFundamentalsService(): FundamentalsService | null {
+  // Check if Gemini API key is configured (fundamentals use Gemini)
+  const hasGeminiApiKey = Boolean(process.env.GEMINI_API_KEY);
+
+  if (!hasGeminiApiKey && !isProduction()) {
+    // In development without API keys, return null to skip fundamentals fetch
+    logger.info("No fundamentals API key configured (development mode)", {
+      environment: process.env.NODE_ENV,
+    });
+    return null;
+  }
+
+  // Use factory function to create configured service
+  // Factory auto-selects providers based on environment variables
+  const service = getFundamentalsService();
+
+  logger.info("Fundamentals service initialized", {
+    hasGeminiApiKey,
+    environment: process.env.NODE_ENV,
+  });
+
+  return service;
+}
+
+/**
+ * Validate fundamentals service configuration for production
+ * Logs warning if not configured but does not throw (fundamentals are optional)
+ */
+function validateFundamentalsServiceOrWarn(
+  service: FundamentalsService | null,
+  correlationId: string
+): void {
+  if (!service && isProduction()) {
+    logger.warn("Fundamentals provider not configured in production", {
+      correlationId,
+      environment: process.env.NODE_ENV,
+      suggestion: "Set GEMINI_API_KEY to enable fundamentals fetching",
+    });
+  }
 }
 
 /**
@@ -234,7 +383,9 @@ function validatePriceServiceOrThrow(service: PriceService | null, correlationId
       correlationId,
       environment: process.env.NODE_ENV,
     });
-    throw new Error("Price provider not configured. Set PRICE_API_KEY environment variable.");
+    throw new Error(
+      "Price provider not configured. Set GEMINI_API_KEY or YAHOO_FINANCE_API_KEY environment variable."
+    );
   }
 }
 
@@ -299,6 +450,8 @@ export const overnightScoringJob = inngest.createFunction(
         async (): Promise<ExchangeRatesResult> => {
           const startMs = Date.now();
           const rates: ExchangeRatesMap = {};
+          let ratesCached = 0;
+          let cacheWriteMs = 0;
 
           logger.info("Fetching exchange rates", {
             correlationId: setupResult.correlationId,
@@ -323,6 +476,27 @@ export const overnightScoringJob = inngest.createFunction(
                   const result = await rateService.getRates(baseCurrency, targetCurrencies);
                   for (const [currency, rate] of Object.entries(result.rates.rates)) {
                     rates[`${baseCurrency}_${currency}`] = rate;
+                  }
+
+                  // Story 5.2: Store exchange rates in PostgreSQL and warm KV cache
+                  // AC-5.2.1: PostgreSQL as durable storage
+                  // AC-5.2.2: Vercel KV as hot cache
+                  if (Object.keys(result.rates.rates).length > 0) {
+                    const cacheStartMs = Date.now();
+                    const cacheResult = await marketDataCacheService.writeExchangeRates(
+                      result.rates
+                    );
+                    cacheWriteMs = Date.now() - cacheStartMs;
+                    ratesCached = cacheResult.pgWritten
+                      ? Object.keys(result.rates.rates).length
+                      : 0;
+                    logger.info("Exchange rates cached to both tiers", {
+                      correlationId: setupResult.correlationId,
+                      rateCount: Object.keys(result.rates.rates).length,
+                      pgWritten: cacheResult.pgWritten,
+                      kvWritten: cacheResult.kvWritten,
+                      cacheWriteMs,
+                    });
                   }
                 } else {
                   // No provider configured - use mock rates for development only
@@ -357,6 +531,8 @@ export const overnightScoringJob = inngest.createFunction(
           return {
             rates,
             durationMs,
+            ratesCached,
+            cacheWriteMs,
           };
         }
       );
@@ -390,6 +566,8 @@ export const overnightScoringJob = inngest.createFunction(
       const pricesResult = await step.run("fetch-asset-prices", async (): Promise<PricesResult> => {
         const startMs = Date.now();
         const prices: PricesMap = {};
+        let pricesCached = 0;
+        let cacheWriteMs = 0;
 
         logger.info("Fetching asset prices", {
           correlationId: setupResult.correlationId,
@@ -415,6 +593,23 @@ export const overnightScoringJob = inngest.createFunction(
                   fetchedAt: new Date(price.fetchedAt).toISOString(),
                   source: result.provider,
                 };
+              }
+
+              // Story 5.2: Store prices in PostgreSQL and warm KV cache
+              // AC-5.2.1: PostgreSQL as durable storage
+              // AC-5.2.2: Vercel KV as hot cache
+              if (result.prices.length > 0) {
+                const cacheStartMs = Date.now();
+                const cacheResult = await marketDataCacheService.writePrices(result.prices);
+                cacheWriteMs = Date.now() - cacheStartMs;
+                pricesCached = cacheResult.pgWritten ? result.prices.length : 0;
+                logger.info("Prices cached to both tiers", {
+                  correlationId: setupResult.correlationId,
+                  priceCount: result.prices.length,
+                  pgWritten: cacheResult.pgWritten,
+                  kvWritten: cacheResult.kvWritten,
+                  cacheWriteMs,
+                });
               }
             } else {
               // No provider configured - skip prices for development only
@@ -445,10 +640,115 @@ export const overnightScoringJob = inngest.createFunction(
           prices,
           durationMs,
           symbolCount: Object.keys(prices).length,
+          pricesCached,
+          cacheWriteMs,
         };
       });
 
       span.setAttribute(SpanAttributes.FETCH_PRICES_MS, pricesResult.durationMs);
+
+      // Step 4b: Fetch fundamentals data
+      // Story 5.1: Market Data Fetching
+      // AC-5.1.1: Fundamentals Data Fetching (P/E, dividend yield, market cap, sector)
+      // AC-5.1.2: IR Publications Data (revenue, earnings, etc.)
+      // AC-5.1.7: Data Attribution (source and date tracked)
+      // TODO(story-5.3): Pass fundamentals data to scoring step for fundamentals-based scoring.
+      // Currently fetches and logs metrics; actual data usage deferred to Story 5.3.
+      const fundamentalsResult = await step.run(
+        "fetch-fundamentals",
+        async (): Promise<FundamentalsStepResult> => {
+          const startMs = Date.now();
+          const errors: Array<{ symbol: string; message: string }> = [];
+          let fundamentalsCount = 0;
+          let fundamentalsCached = 0;
+          let cacheWriteMs = 0;
+
+          logger.info("Fetching fundamentals data", {
+            correlationId: setupResult.correlationId,
+            symbolCount: pricesResult.symbolCount,
+          });
+
+          try {
+            // Get unique symbols from all user portfolios (same as prices)
+            const symbols = await userQueryService.getUniqueAssetSymbols();
+
+            if (symbols.length > 0) {
+              const fundamentalsService = createFundamentalsService();
+
+              // Validate service configuration (warn but don't throw - fundamentals are optional)
+              validateFundamentalsServiceOrWarn(fundamentalsService, setupResult.correlationId);
+
+              if (fundamentalsService) {
+                // Fetch fundamentals for all symbols
+                // The service handles batching and rate limiting internally
+                const result = await fundamentalsService.getFundamentals(symbols);
+
+                fundamentalsCount = result.fundamentals.length;
+
+                logger.info("Fundamentals data fetched successfully", {
+                  correlationId: setupResult.correlationId,
+                  fundamentalsCount,
+                  provider: result.provider,
+                  symbolsRequested: symbols.length,
+                });
+
+                // Story 5.2: Store fundamentals in PostgreSQL and warm KV cache
+                // AC-5.2.1: PostgreSQL as durable storage
+                // AC-5.2.2: Vercel KV as hot cache
+                if (result.fundamentals.length > 0) {
+                  const cacheStartMs = Date.now();
+                  const cacheResult = await marketDataCacheService.writeFundamentalsBatch(
+                    result.fundamentals
+                  );
+                  cacheWriteMs = Date.now() - cacheStartMs;
+                  fundamentalsCached = cacheResult.pgWritten ? result.fundamentals.length : 0;
+                  logger.info("Fundamentals cached to both tiers", {
+                    correlationId: setupResult.correlationId,
+                    fundamentalsCount: result.fundamentals.length,
+                    pgWritten: cacheResult.pgWritten,
+                    kvWritten: cacheResult.kvWritten,
+                    cacheWriteMs,
+                  });
+                }
+              } else {
+                // No provider configured - skip fundamentals for development only
+                logger.info("No fundamentals provider configured (development mode)", {
+                  correlationId: setupResult.correlationId,
+                  environment: process.env.NODE_ENV,
+                  symbolsRequested: symbols.length,
+                });
+              }
+            }
+          } catch (error) {
+            // Fundamentals fetch failure is not critical - log and continue
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.warn("Failed to fetch fundamentals", {
+              correlationId: setupResult.correlationId,
+              error: errorMessage,
+            });
+            errors.push({ symbol: "*", message: errorMessage });
+          }
+
+          const durationMs = Date.now() - startMs;
+
+          logger.info("Fundamentals fetch step completed", {
+            correlationId: setupResult.correlationId,
+            fundamentalsCount,
+            errorCount: errors.length,
+            durationMs,
+          });
+
+          return {
+            fundamentalsCount,
+            durationMs,
+            errors,
+            fundamentalsCached,
+            cacheWriteMs,
+          };
+        }
+      );
+
+      span.setAttribute("fundamentals_count", fundamentalsResult.fundamentalsCount);
 
       // Step 5: Score portfolios
       // AC-8.2.3: Process users in batches of 50
@@ -990,10 +1290,22 @@ export const overnightScoringJob = inngest.createFunction(
 
         const metrics: JobRunMetrics = {
           fetchRatesMs: exchangeRatesResult.durationMs,
+          fetchPricesMs: pricesResult.durationMs,
           processUsersMs: scoringResult.durationMs,
           totalDurationMs,
           assetsScored: scoringResult.assetsScored,
           usersTotal: usersResult.count,
+          // Story 5.1: Add fundamentals fetch metrics
+          fundamentalsFetched: fundamentalsResult.fundamentalsCount,
+          fetchFundamentalsMs: fundamentalsResult.durationMs,
+          // Story 5.2: Add market data cache write metrics
+          pricesCached: pricesResult.pricesCached,
+          ratesCached: exchangeRatesResult.ratesCached,
+          fundamentalsCached: fundamentalsResult.fundamentalsCached,
+          marketDataCacheMs:
+            exchangeRatesResult.cacheWriteMs +
+            pricesResult.cacheWriteMs +
+            fundamentalsResult.cacheWriteMs,
           // Story 8.3: Add recommendation metrics
           recommendationsGenerated: recommendationResult.totalRecommendationsGenerated,
           usersWithRecommendations: recommendationResult.usersWithRecommendations,
@@ -1042,6 +1354,7 @@ export const overnightScoringJob = inngest.createFunction(
             correlationId: setupResult.correlationId,
             usersProcessed: scoringResult.usersProcessed,
             assetsScored: scoringResult.assetsScored,
+            fundamentalsFetched: fundamentalsResult.fundamentalsCount,
             usersCached: cacheWarmingResult.usersCached,
             alertsCreated: alertDetectionResult.alertsCreated,
             driftAlertsCreated: driftAlertDetectionResult.alertsCreated,
@@ -1064,6 +1377,8 @@ export const overnightScoringJob = inngest.createFunction(
         usersSuccess: scoringResult.usersSuccess,
         usersFailed: scoringResult.usersFailed,
         assetsScored: scoringResult.assetsScored,
+        // Story 5.1: Add fundamentals fetch counts
+        fundamentalsFetched: fundamentalsResult.fundamentalsCount,
         // Story 8.3: Add recommendation counts
         recommendationsGenerated: recommendationResult.totalRecommendationsGenerated,
         usersWithRecommendations: recommendationResult.usersWithRecommendations,
