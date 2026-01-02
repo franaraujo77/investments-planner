@@ -1,7 +1,7 @@
 # Development Setup Guide
 
 > Local development environment configuration
-> Last Updated: 2025-12-29
+> Last Updated: 2026-01-02
 
 ## Prerequisites
 
@@ -414,6 +414,100 @@ Splinter runs automatically in the GitHub Actions integration tests workflow:
 
 ---
 
+## Production Database Migrations
+
+Database migrations to production are automatically applied when a PR containing schema changes is merged to the `main` branch.
+
+### How It Works
+
+1. **Automatic Trigger:** When a PR with changes in `drizzle/` is merged to `main`, the `db-migrate-production` workflow runs automatically
+2. **Migration Detection:** The workflow checks if any files in `drizzle/` were changed
+3. **Safe Execution:** Migrations run with concurrency locks (only one migration at a time)
+4. **Audit Trail:** All migration runs are logged with job summaries and artifacts
+
+### Setting Up `DATABASE_URL_PRODUCTION` Secret
+
+This secret is **required** for production migrations. It must be separate from the integration test `DATABASE_URL`.
+
+**Navigate to:** Repository Settings > Secrets and variables > Actions > New repository secret
+
+| Secret Name               | Description                           | Format                                                                                    |
+| ------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `DATABASE_URL_PRODUCTION` | Production Supabase connection string | `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres` |
+
+**Important Notes:**
+
+- Use the **pooled connection** (port 6543) for better performance
+- Never reuse the integration test `DATABASE_URL` for production
+- The production password should be different from test environments
+
+### Manual Migration Trigger
+
+To manually trigger migrations (e.g., after a rollback or for debugging):
+
+1. Go to repository > Actions > "Production Database Migration"
+2. Click "Run workflow"
+3. Type `MIGRATE` in the confirmation field (required safety check)
+4. Click "Run workflow"
+
+### Troubleshooting Failed Migrations
+
+If a migration fails:
+
+1. **Check the job summary** - View the workflow run for detailed error output
+2. **Download artifacts** - Migration output is saved for 30 days
+3. **Review Supabase dashboard** - Check the database state and logs
+4. **Do NOT auto-retry** - The workflow intentionally doesn't retry to prevent cascading failures
+
+**Common Failure Causes:**
+
+| Issue                     | Cause                                   | Solution                                       |
+| ------------------------- | --------------------------------------- | ---------------------------------------------- |
+| "Secret not configured"   | `DATABASE_URL_PRODUCTION` missing       | Add secret in repository settings              |
+| "Connection refused"      | Database URL incorrect or network issue | Verify connection string and Supabase project  |
+| "Relation already exists" | Migration already applied manually      | Check migration state in `drizzle/__drizzle_*` |
+| "Permission denied"       | Database user lacks privileges          | Verify Supabase role permissions               |
+| "Syntax error in SQL"     | Invalid migration file                  | Fix locally and push new migration             |
+
+### Rollback Procedure
+
+Drizzle Kit does not have built-in rollback. If you need to revert a migration:
+
+**Option 1: Create a Reverse Migration**
+
+```bash
+# Create new migration that undoes the changes
+pnpm db:generate
+# Edit the generated SQL to reverse the schema change
+pnpm db:migrate
+```
+
+**Option 2: Manual SQL Execution**
+
+```sql
+-- Connect to Supabase SQL Editor
+-- Execute reverse SQL manually
+ALTER TABLE "table_name" DROP COLUMN "new_column";
+```
+
+**Option 3: Point-in-Time Recovery (Supabase Pro)**
+
+- Go to Supabase Dashboard > Database > Backups
+- Restore to a point before the migration
+
+### Workflow Security
+
+The production migration workflow includes these safety measures:
+
+1. **Separate Secret:** Uses `DATABASE_URL_PRODUCTION` (not integration test credentials)
+2. **PR Merge Only:** Does not trigger on direct pushes to main (requires PR workflow)
+3. **Concurrency Lock:** Only one migration runs at a time (`cancel-in-progress: false`)
+4. **Manual Confirmation:** Manual triggers require typing "MIGRATE" to confirm
+5. **No Auto-Retry:** Failed migrations require manual intervention
+6. **Audit Artifacts:** Migration output is preserved for 30 days
+
+---
+
 ## Troubleshooting
 
 ### "DATABASE_URL not set"
@@ -472,6 +566,7 @@ Navigate to: **Repository Settings → Secrets and variables → Actions → New
 | Secret Name                 | Description                                  | Example Value                         |
 | --------------------------- | -------------------------------------------- | ------------------------------------- |
 | `DATABASE_URL`              | PostgreSQL connection string (Supabase/Neon) | `postgresql://user:pass@host:5432/db` |
+| `DATABASE_URL_PRODUCTION`   | Production database for migrations           | `postgresql://postgres.[ref]:...`     |
 | `JWT_SECRET`                | 32+ character secret for auth tokens         | `your-secret-min-32-chars-here`       |
 | `JWT_ACCESS_TOKEN_EXPIRY`   | Access token lifetime                        | `15m`                                 |
 | `JWT_REFRESH_TOKEN_EXPIRY`  | Refresh token lifetime                       | `7d`                                  |

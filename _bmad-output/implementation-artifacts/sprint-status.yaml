@@ -108,12 +108,12 @@ development_status:
   6-4-recommendation-details: done
   6-5-investment-confirmation: done  # Gap completion: over-budget, success message, E2E tests, navigation
   6-6-before-after-comparison: done
-  6-7-production-database-migration-pipeline: ready-for-dev  # Infrastructure: auto-migrate on PR merge
+  6-7-production-database-migration-pipeline: done  # Infrastructure: auto-migrate on PR merge
   epic-6-retrospective: optional
 
   # Epic 7: Data Transparency & Alerts
-  epic-7: backlog
-  7-1-data-source-attribution: backlog
+  epic-7: in-progress
+  7-1-data-source-attribution: ready-for-dev
   7-2-calculation-transparency: backlog
   7-3-data-freshness-indicators: backlog
   7-4-financial-disclaimers: backlog
