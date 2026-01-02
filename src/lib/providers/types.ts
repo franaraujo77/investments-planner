@@ -357,3 +357,69 @@ export interface ProviderServiceResult<T> {
   /** Freshness information */
   freshness: FreshnessInfo;
 }
+
+// =============================================================================
+// CLASSIFICATION TYPES (Story 5.7)
+// =============================================================================
+
+/**
+ * Classification result from a provider
+ *
+ * Story 5.7: Industry/Sector Classification Cache
+ * AC-5.7.2: GICS Mapping - Get GICS codes from provider
+ *
+ * Maps an asset to its GICS classification with confidence score.
+ */
+export interface ClassificationResult {
+  /** Asset symbol (e.g., "AAPL", "PETR4") */
+  symbol: string;
+  /** GICS Industry ID (6-digit, e.g., "451030" for Software) */
+  gicsIndustryId: string;
+  /** GICS Industry Group ID (4-digit, derived from industryId) */
+  gicsIndustryGroupId: string;
+  /** GICS Sector ID (2-digit, derived from industryId) */
+  gicsSectorId: string;
+  /** Industry name (human readable) */
+  industryName: string;
+  /** Industry Group name (human readable) */
+  industryGroupName: string;
+  /** Sector name (human readable) */
+  sectorName: string;
+  /** Confidence score (0.0 to 1.0): 1.0 = exact match, 0.8 = fuzzy, 0.5 = sector only */
+  confidence: string;
+  /** Provider source name (e.g., "gemini-api", "b3-mapping") */
+  source: string;
+  /** Timestamp when data was fetched */
+  fetchedAt: Date;
+  /** Flag indicating if data is stale (from cache fallback) */
+  isStale?: boolean;
+}
+
+/**
+ * Classification provider interface
+ *
+ * Story 5.7: Industry/Sector Classification Cache
+ * AC-5.7.2: GICS Mapping
+ *
+ * Interface for providers that can classify assets into GICS categories.
+ */
+export interface ClassificationProvider {
+  /** Provider name for identification and logging */
+  readonly name: string;
+
+  /**
+   * Fetch classifications for multiple symbols
+   *
+   * @param symbols - Array of asset symbols to classify
+   * @returns Array of classification results
+   * @throws ProviderError on failure
+   */
+  fetchClassifications(symbols: string[]): Promise<ClassificationResult[]>;
+
+  /**
+   * Check if provider is healthy and responsive
+   *
+   * @returns true if provider is available, false otherwise
+   */
+  healthCheck(): Promise<boolean>;
+}

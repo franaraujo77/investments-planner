@@ -76,6 +76,7 @@ import {
 } from "@/lib/providers";
 import { alertDetectionService } from "@/lib/services/alert-detection-service";
 import { marketDataCacheService } from "@/lib/services/data-access";
+import { processClassificationsFromFundamentals } from "@/lib/services/classification";
 
 /**
  * Default cron schedule for overnight scoring
@@ -147,6 +148,8 @@ interface FundamentalsStepResult {
   fundamentalsCached: number;
   /** Story 5.2: Cache write duration in ms */
   cacheWriteMs: number;
+  /** Story 5.7: Number of classifications extracted from fundamentals */
+  classificationsExtracted: number;
 }
 
 // TODO(story-5.3): Add FundamentalsMap type and pass fundamentals data to scoring step
@@ -669,6 +672,7 @@ export const overnightScoringJob = inngest.createFunction(
           let fundamentalsCount = 0;
           let fundamentalsCached = 0;
           let cacheWriteMs = 0;
+          let classificationsExtracted = 0;
 
           logger.info("Fetching fundamentals data", {
             correlationId: setupResult.correlationId,
@@ -716,6 +720,32 @@ export const overnightScoringJob = inngest.createFunction(
                     kvWritten: cacheResult.kvWritten,
                     cacheWriteMs,
                   });
+
+                  // Story 5.7: Extract and cache GICS classifications from fundamentals
+                  // AC-5.7.6: Integration with Overnight Job
+                  try {
+                    const classifications = await processClassificationsFromFundamentals(
+                      result.fundamentals
+                    );
+                    classificationsExtracted = classifications.length;
+                    logger.info("Classifications extracted from fundamentals", {
+                      correlationId: setupResult.correlationId,
+                      classificationsExtracted,
+                      fundamentalsWithSectorInfo: result.fundamentals.filter(
+                        (f) => f.sector || f.industry
+                      ).length,
+                    });
+                  } catch (classificationError) {
+                    // Classification extraction is not critical - log and continue
+                    const classificationErrorMessage =
+                      classificationError instanceof Error
+                        ? classificationError.message
+                        : String(classificationError);
+                    logger.warn("Failed to extract classifications from fundamentals", {
+                      correlationId: setupResult.correlationId,
+                      error: classificationErrorMessage,
+                    });
+                  }
                 }
               } else {
                 // No provider configured - skip fundamentals for development only
@@ -741,6 +771,7 @@ export const overnightScoringJob = inngest.createFunction(
           logger.info("Fundamentals fetch step completed", {
             correlationId: setupResult.correlationId,
             fundamentalsCount,
+            classificationsExtracted,
             errorCount: errors.length,
             durationMs,
           });
@@ -751,11 +782,13 @@ export const overnightScoringJob = inngest.createFunction(
             errors,
             fundamentalsCached,
             cacheWriteMs,
+            classificationsExtracted,
           };
         }
       );
 
       span.setAttribute("fundamentals_count", fundamentalsResult.fundamentalsCount);
+      span.setAttribute("classifications_extracted", fundamentalsResult.classificationsExtracted);
 
       // Step 5: Score portfolios
       // AC-8.2.3: Process users in batches of 50
