@@ -4,7 +4,10 @@
  * Story 5.8: Asset Type Classification Cache
  * AC-5.8.4: Asset-to-Type Mapping with Jurisdiction
  *
- * GET /api/assets/[symbol]/classification - Get asset type classification
+ * GET /api/assets/[id]/classification - Get asset type classification by symbol/ticker
+ *
+ * Note: The route uses [id] for consistency with sibling routes, but the parameter
+ * is interpreted as a symbol/ticker for classification lookups.
  *
  * Returns:
  * - 200: Asset classification with type, jurisdiction, and localization
@@ -31,15 +34,18 @@ interface AssetClassificationResponse {
 
 interface RouteParams {
   params: Promise<{
-    symbol: string;
+    id: string;
   }>;
 }
 
 /**
- * GET /api/assets/[symbol]/classification
+ * GET /api/assets/[id]/classification
  *
  * Gets the asset type classification for a symbol.
  * This is a public endpoint - classification data is cached reference data.
+ *
+ * Note: Despite the [id] route parameter, this endpoint expects a stock symbol/ticker
+ * (e.g., AAPL, MSFT) for classification lookup, not an asset UUID.
  *
  * AC-5.8.4: Returns canonicalTypeId, canonicalTypeName, jurisdictionCode, localTypeName, etc.
  *
@@ -56,7 +62,7 @@ export async function GET(
   { params }: RouteParams
 ): Promise<NextResponse<AssetClassificationResponse | ErrorResponseBody>> {
   try {
-    const { symbol } = await params;
+    const { id: symbol } = await params;
     const searchParams = request.nextUrl.searchParams;
     const includeLinkedAssets = searchParams.get("includeLinkedAssets") === "true";
 
