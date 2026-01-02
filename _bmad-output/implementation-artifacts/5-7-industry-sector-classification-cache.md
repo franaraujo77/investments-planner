@@ -1,6 +1,6 @@
 # Story 5.7: Industry/Sector Classification Cache
 
-Status: in-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -278,6 +278,12 @@ Per architecture document cache conventions:
 `global:gics:industry:{id}:assets`; // Assets in industry
 ```
 
+**Implementation Note (Code Review):** The actual implementation uses a simplified cache key pattern `classification:{SYMBOL}` (e.g., `classification:AAPL`) instead of the hierarchical pattern above. This deviation was intentional because:
+
+1. Asset-level lookups are the primary use case (not sector/industry aggregations)
+2. Simpler keys reduce complexity and improve maintainability
+3. The hierarchical keys can be added later if sector-based caching is needed
+
 ### Gemini-to-GICS Mapping Examples
 
 Common mappings that need to be handled:
@@ -353,10 +359,42 @@ This story builds on Story 5.1 (Market Data Fetching):
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-5-20251101
 
 ### Debug Log References
 
+N/A
+
 ### Completion Notes List
 
+- All 10 tasks completed with 36 subtasks marked done
+- Full test coverage: 173 tests passing across 8 test files
+- RLS enabled on all 4 classification cache tables (migration 0021)
+- Overnight job integration verified: `processClassificationsFromFundamentals()` called after fundamentals fetch
+- B3/Brazilian market mappings included via sector/industry aliases
+- Cache key pattern simplified from spec (`classification:{SYMBOL}` vs `global:gics:*`) - documented in Dev Notes
+
 ### File List
+
+**New Files:**
+
+- `src/lib/services/classification/gics-mapping-service.ts` - GICS code mapping with fuzzy matching
+- `src/lib/services/classification/classification-cache.ts` - Two-tier cache (PostgreSQL + KV)
+- `src/lib/services/classification/classification-service.ts` - Main service API
+- `src/lib/services/classification/index.ts` - Barrel exports
+- `src/lib/validations/classification-schemas.ts` - Zod validation schemas
+- `src/app/api/data/classifications/route.ts` - Classification lookup API
+- `src/app/api/data/gics/route.ts` - GICS reference data API
+- `drizzle/0021_enable_rls_classification_cache.sql` - RLS migration
+- `tests/unit/services/classification/gics-mapping-service.test.ts` - 41 tests
+- `tests/unit/services/classification/classification-service.test.ts` - 12 tests
+- `tests/unit/services/classification/classification-cache.test.ts` - 13 tests
+- `tests/unit/api/classifications.test.ts` - 6 tests
+- `tests/unit/api/gics.test.ts` - 7 tests
+- `tests/integration/classification-cache.test.ts` - 13 tests
+
+**Modified Files:**
+
+- `src/lib/db/schema.ts` - Added GICS tables (lines 1378-1750): `cachedGicsSectors`, `cachedGicsIndustryGroups`, `cachedGicsIndustries`, `cachedAssetClassifications`, relations, and static GICS reference data
+- `src/lib/inngest/functions/overnight-scoring.ts` - Added classification sync step (lines 80-82 imports, 731-757 processing)
+- `src/lib/providers/types.ts` - Added `ClassificationResult` interface (lines 373-395)

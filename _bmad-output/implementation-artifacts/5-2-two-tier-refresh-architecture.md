@@ -1,6 +1,6 @@
 # Story 5.2: Two-Tier Refresh Architecture
 
-Status: reviewed
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
