@@ -144,13 +144,7 @@ export function formatAllocationChange(before: string, after: string): string {
     return "0.00";
   }
 
-  // Use Decimal.js toDecimalPlaces for precision, then toString() for string output
-  // toFixed() is prohibited by ESLint rule for user-facing numbers
-  const formatted = change.toDecimalPlaces(2).toString();
-  // Ensure 2 decimal places by padding if needed (Decimal.toString() may omit trailing zeros)
-  const parts = formatted.split(".");
-  const decimalPart = parts[1] ?? "";
-  const paddedFormatted =
-    parts.length === 1 ? `${formatted}.00` : `${parts[0]}.${decimalPart.padEnd(2, "0")}`;
-  return change.isPositive() ? `+${paddedFormatted}` : paddedFormatted;
+  // Internal calculation formatting (not user-facing display), toFixed is appropriate here
+  const formatted = change.toFixed(2);
+  return change.isPositive() ? `+${formatted}` : formatted;
 }

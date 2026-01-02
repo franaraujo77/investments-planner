@@ -40,6 +40,7 @@ import { Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 import { InvestmentAmountRow } from "./investment-amount-row";
 import { AllocationComparisonView } from "./allocation-comparison-view";
 import { formatCurrency } from "@/lib/utils/currency-format";
+import Decimal from "decimal.js";
 import type { RecommendationDisplayItem } from "@/hooks/use-recommendations";
 import type { ConfirmInvestmentResult } from "@/lib/types/recommendations";
 
@@ -84,13 +85,18 @@ export interface ConfirmationModalProps {
 // =============================================================================
 
 /**
- * Calculate total from all amounts
+ * Calculate total from all amounts using Decimal.js for precision
  */
-function calculateTotal(amounts: Record<string, string>): number {
+function calculateTotal(amounts: Record<string, string>): Decimal {
   return Object.values(amounts).reduce((sum, amt) => {
-    const num = parseFloat(amt);
-    return sum + (isNaN(num) ? 0 : num);
-  }, 0);
+    try {
+      const num = new Decimal(amt || "0");
+      return sum.plus(num);
+    } catch {
+      // Invalid decimal string, treat as 0
+      return sum;
+    }
+  }, new Decimal(0));
 }
 
 /**
@@ -150,11 +156,11 @@ export function ConfirmationModal({
     }
   }, [open, initialAmounts]);
 
-  // Calculate totals for real-time display (AC-7.8.2)
+  // Calculate totals for real-time display (AC-7.8.2) using Decimal.js for precision
   const currentTotal = useMemo(() => calculateTotal(amounts), [amounts]);
-  const availableCapital = parseFloat(totalInvestable);
-  const remaining = availableCapital - currentTotal;
-  const isOverBudget = remaining < -0.01; // Allow small floating point tolerance
+  const availableCapital = new Decimal(totalInvestable || "0");
+  const remaining = availableCapital.minus(currentTotal);
+  const isOverBudget = remaining.lessThan(new Decimal("-0.01")); // Allow small tolerance
 
   // Handle amount change
   const handleAmountChange = useCallback((assetId: string, amount: string) => {
@@ -217,7 +223,7 @@ export function ConfirmationModal({
   // Format values for display
   const formattedTotal = formatCurrency(currentTotal.toString(), baseCurrency);
   const formattedAvailable = formatCurrency(totalInvestable, baseCurrency);
-  const formattedRemaining = formatCurrency(Math.abs(remaining).toString(), baseCurrency);
+  const formattedRemaining = formatCurrency(remaining.abs().toString(), baseCurrency);
 
   // Count investable vs over-allocated
   const investableCount = items.filter((i) => !i.isOverAllocated).length;
@@ -285,7 +291,7 @@ export function ConfirmationModal({
             )}
 
             {/* Remaining indicator */}
-            {!isOverBudget && remaining > 0.01 && (
+            {!isOverBudget && remaining.greaterThan(new Decimal("0.01")) && (
               <Alert>
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription>{formattedRemaining} remaining to allocate.</AlertDescription>

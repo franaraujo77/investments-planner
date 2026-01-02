@@ -106,7 +106,8 @@ export const POST = withAuth<ConfirmResponseBody | ErrorResponseBody | AuthError
       }
 
       // AC-6.5.5: Over-budget is allowed - users may invest more than recommended if they have additional funds
-      // Total validation removed to allow confirming amounts exceeding available capital
+      // Previous validation: validateTotalDoesNotExceedAvailable(total, availableCapital) returned 400 if exceeded
+      // Removed to support flexible investment amounts (users may have funds from other sources beyond recommendations)
 
       // 7. Confirm investments
       const confirmResult = await confirmInvestments(userId, {

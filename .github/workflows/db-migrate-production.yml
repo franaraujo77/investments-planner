@@ -93,6 +93,11 @@ jobs:
             # This is acceptable because the path filter 'drizzle/**' in the trigger
             # already ensures migration files changed. This check is primarily for
             # manual triggers where path filtering doesn't apply.
+            #
+            # Edge cases handled safely:
+            # - Force-pushed rebases: Path filter catches migration changes, this is a secondary check
+            # - Amended commits on main: Should be prevented by branch protection rules
+            # - Squash merges: web-flow committer check ensures this came from a PR merge
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
 
             if [ -z "$CHANGED_FILES" ]; then
