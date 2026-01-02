@@ -48,6 +48,7 @@ import type {
 } from "@/lib/types/recommendations";
 import type { CriterionResult } from "@/hooks/use-asset-score";
 import Decimal from "decimal.js";
+import { DEFAULT_TOP_CRITERIA_COUNT } from "@/lib/calculations/recommendation-details";
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -152,7 +153,10 @@ function calculateTargetRange(targetMidpoint: string): { min: string; max: strin
  *
  * Story 6.4 AC-6.4.3: Top 3 criteria that contributed most to the score
  */
-function getTopCriteria(breakdown: CriterionResult[], count: number = 3): TopCriterion[] {
+function getTopCriteria(
+  breakdown: CriterionResult[],
+  count: number = DEFAULT_TOP_CRITERIA_COUNT
+): TopCriterion[] {
   return breakdown
     .filter((c) => !c.skippedReason && c.pointsAwarded !== 0)
     .sort((a, b) => Math.abs(b.pointsAwarded) - Math.abs(a.pointsAwarded))
@@ -349,11 +353,16 @@ export const GET = withAuth<GetResponseBody>(async (request, session, context) =
 
     // AC-6.4.3: Top 3 scoring criteria
     const topCriteria = assetScore?.breakdown
-      ? getTopCriteria(assetScore.breakdown as CriterionResult[], 3)
+      ? getTopCriteria(assetScore.breakdown as CriterionResult[], DEFAULT_TOP_CRITERIA_COUNT)
       : [];
 
     // AC-6.4.2: Calculate expected allocation after investment
     // Need to fetch portfolio value from recommendation items total
+    //
+    // TODO(optimization): For large portfolios (100+ assets), consider:
+    // 1. Aggregating portfolio total in recommendations table during generation
+    // 2. Using a database SUM query instead of fetching all items
+    // Current impact is minimal as most portfolios have <20 assets.
     const allItems = await db.query.recommendationItems.findMany({
       where: eq(recommendationItems.recommendationId, recommendationId),
     });

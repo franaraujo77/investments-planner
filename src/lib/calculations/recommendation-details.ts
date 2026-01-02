@@ -15,6 +15,16 @@ import Decimal from "decimal.js";
 import type { CriterionResult } from "@/hooks/use-asset-score";
 import type { TopCriterion, ScoreRanking } from "@/lib/types/recommendations";
 
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/**
+ * Default number of top criteria to display in recommendation details.
+ * Used in AC-6.4.3 for "Top N criteria that contributed most to the score".
+ */
+export const DEFAULT_TOP_CRITERIA_COUNT = 3;
+
 /**
  * Calculate expected allocation after investment
  *
@@ -44,7 +54,7 @@ export function calculateExpectedAllocation(
 
   // Handle edge case: zero portfolio value (new portfolio)
   if (portfolio.isZero()) {
-    if (investable.isZero()) return "0";
+    if (investable.isZero()) return "0.00";
     return recommended.dividedBy(investable).times(100).toDecimalPlaces(2).toString();
   }
 
@@ -54,14 +64,14 @@ export function calculateExpectedAllocation(
 
   // Handle edge case: no new portfolio value
   if (newPortfolio.isZero()) {
-    return "0";
+    return "0.00";
   }
 
   // Calculate expected allocation
   const expected = newValue.dividedBy(newPortfolio).times(100).toDecimalPlaces(2);
 
-  // Handle -0 edge case
-  return expected.isZero() ? "0" : expected.toString();
+  // Handle -0 edge case, standardize to "0.00" for financial data consistency
+  return expected.isZero() ? "0.00" : expected.toString();
 }
 
 /**
@@ -70,10 +80,13 @@ export function calculateExpectedAllocation(
  * Story 6.4 AC-6.4.3: Top 3 criteria that contributed most to the score
  *
  * @param breakdown - Array of criterion results from scoring
- * @param count - Number of top criteria to return (default: 3)
+ * @param count - Number of top criteria to return (default: DEFAULT_TOP_CRITERIA_COUNT)
  * @returns Array of top criteria sorted by absolute points
  */
-export function getTopCriteria(breakdown: CriterionResult[], count: number = 3): TopCriterion[] {
+export function getTopCriteria(
+  breakdown: CriterionResult[],
+  count: number = DEFAULT_TOP_CRITERIA_COUNT
+): TopCriterion[] {
   return breakdown
     .filter((c) => !c.skippedReason && c.pointsAwarded !== 0)
     .sort((a, b) => Math.abs(b.pointsAwarded) - Math.abs(a.pointsAwarded))

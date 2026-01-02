@@ -83,6 +83,11 @@ jobs:
             echo "migration_files=Manual trigger - applying all pending migrations" >> $GITHUB_OUTPUT
           else
             # Push trigger: check changed files
+            # NOTE: git diff HEAD~1 HEAD assumes linear history. With rebase merges,
+            # HEAD~1 is the previous commit on main, not the PR's base commit.
+            # This is acceptable because the path filter 'drizzle/**' in the trigger
+            # already ensures migration files changed. This check is primarily for
+            # manual triggers where path filtering doesn't apply.
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
 
             if [ -z "$CHANGED_FILES" ]; then
