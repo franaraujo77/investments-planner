@@ -96,13 +96,13 @@ development_status:
   5-4-view-asset-scores: done
   5-5-manual-data-refresh: done
   5-6-overnight-pre-computation: done
-  5-7-industry-sector-classification-cache: ready-for-dev
+  5-7-industry-sector-classification-cache: in-progress
   5-8-asset-type-classification-cache: ready-for-dev
   epic-5-retrospective: optional
 
   # Epic 6: Investment Recommendations
-  epic-6: backlog
-  6-1-monthly-contribution-input: backlog
+  epic-6: in-progress
+  6-1-monthly-contribution-input: ready-for-dev
   6-2-recommendation-generation: backlog
   6-3-recommendation-display: backlog
   6-4-recommendation-details: backlog
