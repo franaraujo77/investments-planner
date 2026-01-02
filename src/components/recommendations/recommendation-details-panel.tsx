@@ -400,7 +400,7 @@ export function RecommendationDetailsPanel({
                       )}
                     >
                       {gapValue > 0 ? "+" : ""}
-                      {/* eslint-disable-next-line no-restricted-syntax */}
+                      {/* eslint-disable-next-line no-restricted-syntax -- Internal gap calculation display, not user-facing currency/number that requires i18n formatting */}
                       {gapValue.toFixed(2)}%
                     </span>
                   </div>
@@ -502,6 +502,7 @@ export function RecommendationDetailsPanel({
                         {generatedAt && (
                           <div className="flex justify-between">
                             <span>Generated</span>
+                            {/* TODO: Consider adding date formatting to useNumberFormat hook for locale consistency */}
                             <span className="font-mono">
                               {new Date(generatedAt).toLocaleString(undefined, {
                                 dateStyle: "medium",
