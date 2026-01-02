@@ -1,8 +1,8 @@
 /**
  * UnscoredIndicator Component Tests
  *
- * Story 5.10: View Asset Score
- * AC-5.10.3: Unscored Asset Indicator
+ * Story 5.4: View Asset Scores
+ * AC-5.4.3: Missing Data Indicators
  *
  * Tests:
  * - "Not scored" display
@@ -16,7 +16,7 @@ import { getDefaultReason, type UnscoredReasonCode } from "@/components/fintech/
 
 describe("UnscoredIndicator Utilities", () => {
   describe("getDefaultReason", () => {
-    // AC-5.10.3: Indicator explains why
+    // AC-5.4.3: Indicator explains why
 
     it("returns correct reason for NO_CRITERIA code", () => {
       const reason = getDefaultReason("NO_CRITERIA");
@@ -65,7 +65,7 @@ describe("UnscoredIndicator Utilities", () => {
     });
 
     it("NO_CRITERIA is the only code with actionHref", () => {
-      // AC-5.10.3: Clicking shows option to configure criteria
+      // AC-5.4.3: Clicking shows option to configure criteria
       const noCriteria = getDefaultReason("NO_CRITERIA");
       const missingFundamentals = getDefaultReason("MISSING_FUNDAMENTALS");
       const notCalculated = getDefaultReason("NOT_CALCULATED");

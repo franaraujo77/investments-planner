@@ -4,14 +4,16 @@
  * Holdings Table Component
  *
  * Story 2.2: View Portfolio and Holdings
+ * Story 5.5: Manual Data Refresh
  *
  * AC-2.2.1: Display columns: Asset Symbol, Name, Quantity, Current Price, Value (native), Value (base), Allocation %
  * AC-2.2.2: Use useNumberFormat() hook for i18n formatting
  * AC-2.2.4: Row click opens holding detail drawer
+ * AC-5.5.3: Data freshness indicator with color-coded display
  */
 
 import { useMemo, useState, useCallback } from "react";
-import { ArrowUpDown, Clock, EyeOff } from "lucide-react";
+import { ArrowUpDown, AlertCircle, AlertTriangle, Clock, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +26,11 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
-import { formatRelativeTime, getFreshnessStatus } from "@/lib/types/freshness";
+import {
+  formatRelativeTime,
+  getFreshnessStatus,
+  getFreshnessColorClasses,
+} from "@/lib/types/freshness";
 import type { AssetWithValue } from "@/lib/services/portfolio-service";
 
 interface HoldingsTableProps {
@@ -222,9 +228,10 @@ function HoldingRow({
   const isIgnored = asset.isIgnored;
   const needsConversion = asset.currency !== baseCurrency;
 
-  // Calculate data freshness for this asset - use canonical freshness thresholds
+  // Story 5.5: Calculate data freshness for this asset - AC-5.5.3
   const freshnessStatus = getFreshnessStatus(new Date(asset.priceUpdatedAt));
-  const isFresh = freshnessStatus === "fresh";
+  const colorClasses = getFreshnessColorClasses(freshnessStatus);
+  const showFreshnessIndicator = freshnessStatus !== "fresh";
 
   return (
     <TableRow
@@ -268,14 +275,39 @@ function HoldingRow({
       <TableCell className="text-right font-mono">
         <div className="flex items-center justify-end gap-1">
           {formatCurrency(parseFloat(asset.currentPrice), asset.currency)}
-          {/* Task 2.6: Data freshness indicator */}
-          {!isFresh && (
+          {/* Story 5.5: Data freshness indicator with color-coded display - AC-5.5.3 */}
+          {showFreshnessIndicator && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Clock className="h-3 w-3 text-amber-500" />
+                <span
+                  className="inline-flex"
+                  data-testid="freshness-indicator"
+                  data-status={freshnessStatus}
+                >
+                  {freshnessStatus === "very-stale" ? (
+                    <AlertTriangle
+                      className={`h-3 w-3 ${colorClasses.text}`}
+                      aria-label="Data very stale"
+                    />
+                  ) : freshnessStatus === "stale" ? (
+                    <AlertCircle
+                      className={`h-3 w-3 ${colorClasses.text}`}
+                      aria-label="Data stale"
+                    />
+                  ) : (
+                    <Clock className={`h-3 w-3 ${colorClasses.text}`} aria-label="Data age" />
+                  )}
+                </span>
               </TooltipTrigger>
               <TooltipContent>
-                Price last updated: {formatRelativeTime(new Date(asset.priceUpdatedAt))}
+                <div className="text-xs">
+                  <p className="font-medium">
+                    Price data is {freshnessStatus === "stale" ? "stale" : "very stale"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Last updated: {formatRelativeTime(new Date(asset.priceUpdatedAt))}
+                  </p>
+                </div>
               </TooltipContent>
             </Tooltip>
           )}

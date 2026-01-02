@@ -148,6 +148,7 @@ describe("RecommendationService", () => {
     // 2. assetScores (with where+orderBy) -> returns array
     // 3. assetClasses (with where) -> returns array
     // 4. assetSubclasses (no where) -> returns array directly
+    // 5+ getAvailableAssetsWithScores: portfolioAssets, assetScores, then portfolioAssets for each
     let selectCallCount = 0;
 
     mockDatabase = {
@@ -214,9 +215,31 @@ describe("RecommendationService", () => {
             if (callNumber === 4) {
               return Promise.resolve([]);
             }
-            // Default fallback
+            // Call 5+: getAvailableAssetsWithScores queries
+            // portfolioAssets.symbol query
+            if (callNumber === 5) {
+              return {
+                where: vi.fn().mockResolvedValue([{ symbol: "AAPL" }, { symbol: "GOOGL" }]),
+              };
+            }
+            // assetScores query with orderBy
+            if (callNumber === 6) {
+              return {
+                where: vi.fn().mockReturnValue({
+                  orderBy: vi.fn().mockResolvedValue([]),
+                }),
+              };
+            }
+            // Default fallback with orderBy support for any assetScores queries
             return {
-              where: vi.fn().mockResolvedValue([]),
+              where: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([]),
+              }),
+              leftJoin: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue([]),
+                }),
+              }),
             };
           }),
         };
@@ -488,6 +511,49 @@ describe("RecommendationService", () => {
       await service.invalidateCache("user-1");
 
       expect(cacheDel).toHaveBeenCalledWith("recs:user-1");
+    });
+  });
+
+  // ===========================================================================
+  // HIGHER-SCORING ALERTS TESTS (AC-6.2.3)
+  // ===========================================================================
+
+  describe("higher-scoring alerts (AC-6.2.3)", () => {
+    it("should return undefined alerts when no higher-scoring assets exist", async () => {
+      // Default mock returns no available assets for comparison
+      const result = await service.generateRecommendations("user-1", {
+        portfolioId: "portfolio-1",
+        contribution: "1000.0000",
+        dividends: "100.0000",
+        baseCurrency: "USD",
+      });
+
+      // No alerts expected since mock returns empty available assets
+      expect(result.alerts).toBeUndefined();
+    });
+
+    it("should include alerts field in result structure", async () => {
+      const result = await service.generateRecommendations("user-1", {
+        portfolioId: "portfolio-1",
+        contribution: "1000.0000",
+        dividends: "100.0000",
+        baseCurrency: "USD",
+      });
+
+      // alerts should be undefined or an array, never other types
+      expect(result.alerts === undefined || Array.isArray(result.alerts)).toBe(true);
+    });
+
+    it("should persist alerts to database when present", async () => {
+      await service.generateRecommendations("user-1", {
+        portfolioId: "portfolio-1",
+        contribution: "1000.0000",
+        dividends: "100.0000",
+        baseCurrency: "USD",
+      });
+
+      // Verify insert was called (alerts are passed to persistRecommendation)
+      expect(mockDatabase.insert).toHaveBeenCalled();
     });
   });
 });

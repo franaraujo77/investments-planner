@@ -46,9 +46,14 @@ import type {
   GenerateRecommendationsResult,
   AssetWithContext,
   RecommendationItemResult,
+  HigherScoringAlert,
 } from "@/lib/types/recommendations";
 import { cacheSet, cacheGet, cacheDel } from "@/lib/cache/client";
 import { logger } from "@/lib/telemetry/logger";
+import {
+  findHigherScoringAssets,
+  type AssetWithScore,
+} from "@/lib/calculations/higher-scoring-alerts";
 
 // =============================================================================
 // CONSTANTS
@@ -127,6 +132,10 @@ export class RecommendationService {
         totalAllocated = add(totalAllocated, parseDecimal(item.recommendedAmount));
       }
 
+      // 5a. Generate higher-scoring asset alerts (AC-6.2.3)
+      const availableAssets = await this.getAvailableAssetsWithScores(userId, portfolioId);
+      const alerts = findHigherScoringAssets(assetsWithContext, availableAssets);
+
       // 6. Persist to database
       const recommendation = await this.persistRecommendation(
         userId,
@@ -136,7 +145,8 @@ export class RecommendationService {
         totalInvestable,
         baseCurrency,
         correlationId,
-        recommendationItems
+        recommendationItems,
+        alerts
       );
 
       // 7. Emit RECS_COMPUTED event
@@ -171,6 +181,7 @@ export class RecommendationService {
         expiresAt: recommendation.expiresAt,
         items: recommendationItems,
         durationMs,
+        alerts: alerts.length > 0 ? alerts : undefined,
       };
     } catch (error) {
       // Emit failure event
@@ -236,6 +247,9 @@ export class RecommendationService {
       sortOrder: item.sortOrder,
     }));
 
+    // Extract alerts from database (AC-6.2.3)
+    const alerts = rec.alerts?.higherScoring;
+
     return {
       id: rec.id,
       userId: rec.userId,
@@ -250,6 +264,7 @@ export class RecommendationService {
       expiresAt: rec.expiresAt,
       items,
       durationMs: 0, // Not stored, only relevant at generation time
+      alerts: alerts && alerts.length > 0 ? alerts : undefined,
     };
   }
 
@@ -528,6 +543,85 @@ export class RecommendationService {
       }));
   }
 
+  /**
+   * Get available assets with scores for higher-scoring alert detection
+   *
+   * AC-6.2.3: Higher-Scoring Asset Alert
+   * Retrieves scored assets from user's other portfolios that could serve
+   * as higher-scoring alternatives to assets in the current portfolio.
+   *
+   * Performance: Uses batched queries to avoid N+1 query issues.
+   */
+  private async getAvailableAssetsWithScores(
+    userId: string,
+    portfolioId: string
+  ): Promise<AssetWithScore[]> {
+    // Get current portfolio asset symbols to exclude
+    const currentPortfolioAssets = await this.database
+      .select({ symbol: portfolioAssets.symbol })
+      .from(portfolioAssets)
+      .where(eq(portfolioAssets.portfolioId, portfolioId));
+
+    const excludeSymbols = new Set(currentPortfolioAssets.map((a) => a.symbol));
+
+    // Get all scored assets for this user
+    const allScores = await this.database
+      .select({
+        assetId: assetScores.assetId,
+        symbol: assetScores.symbol,
+        score: assetScores.score,
+      })
+      .from(assetScores)
+      .where(eq(assetScores.userId, userId))
+      .orderBy(desc(assetScores.calculatedAt));
+
+    // Get latest score per asset (dedup by taking first occurrence)
+    // and filter out assets in current portfolio
+    const latestScoresByAsset = new Map<string, { symbol: string; score: string }>();
+    for (const s of allScores) {
+      if (!latestScoresByAsset.has(s.assetId) && !excludeSymbols.has(s.symbol)) {
+        latestScoresByAsset.set(s.assetId, { symbol: s.symbol, score: s.score });
+      }
+    }
+
+    // If no eligible assets, return early
+    if (latestScoresByAsset.size === 0) {
+      return [];
+    }
+
+    // Batch query: Get all asset details in a single query
+    const assetIds = Array.from(latestScoresByAsset.keys());
+    const assetDetails = await this.database
+      .select({
+        id: portfolioAssets.id,
+        symbol: portfolioAssets.symbol,
+        name: portfolioAssets.name,
+        classId: portfolioAssets.assetClassId,
+        className: assetClasses.name,
+      })
+      .from(portfolioAssets)
+      .leftJoin(assetClasses, eq(portfolioAssets.assetClassId, assetClasses.id))
+      .where(inArray(portfolioAssets.id, assetIds));
+
+    // Map asset details with their scores
+    const result: AssetWithScore[] = [];
+    for (const asset of assetDetails) {
+      const scoreInfo = latestScoresByAsset.get(asset.id);
+      if (scoreInfo) {
+        result.push({
+          id: asset.id,
+          symbol: asset.symbol,
+          name: asset.name ?? "",
+          score: scoreInfo.score,
+          classId: asset.classId,
+          className: asset.className,
+        });
+      }
+    }
+
+    return result;
+  }
+
   // ===========================================================================
   // PRIVATE METHODS - PERSISTENCE
   // ===========================================================================
@@ -543,12 +637,13 @@ export class RecommendationService {
     totalInvestable: string,
     baseCurrency: string,
     correlationId: string,
-    items: RecommendationItemResult[]
+    items: RecommendationItemResult[],
+    alerts: HigherScoringAlert[] = []
   ): Promise<{ id: string; generatedAt: Date; expiresAt: Date }> {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + RECOMMENDATION_EXPIRY_MS);
 
-    // Insert recommendation
+    // Insert recommendation with alerts (AC-6.2.3)
     const newRec: NewRecommendation = {
       userId,
       portfolioId,
@@ -558,6 +653,7 @@ export class RecommendationService {
       baseCurrency,
       correlationId,
       status: "active",
+      alerts: alerts.length > 0 ? { higherScoring: alerts } : null,
       generatedAt: now,
       expiresAt,
     };

@@ -3,18 +3,22 @@
 /**
  * ScoreBreakdown Component
  *
- * Story 5.11: Score Breakdown View
+ * Story 5.4: View Asset Scores
+ * AC-5.4.2: Score Breakdown Panel
+ * AC-5.4.3: Missing Data Indicators
+ * AC-5.4.4: Data Freshness Display
  *
  * Slide-over panel showing detailed score breakdown for an asset.
  * Opens when user clicks on a ScoreBadge.
  *
- * AC-5.11.1: Breakdown Panel Opens on Score Click
- * AC-5.11.2: Overall Score Display
- * AC-5.11.3: Criterion-by-Criterion Breakdown
- * AC-5.11.4: Visual Bar Chart of Point Contributions
- * AC-5.11.5: Skipped Criteria Display
- * AC-5.11.6: Edit Criteria Link
- * AC-5.11.7: Calculation History Link
+ * Features:
+ * - Breakdown Panel Opens on Score Click
+ * - Overall Score Display with color coding
+ * - Criterion-by-Criterion Breakdown
+ * - Visual Bar Chart of Point Contributions
+ * - Skipped Criteria Display (missing data)
+ * - Edit Criteria Link
+ * - Calculation History Link (placeholder)
  */
 
 import { useMemo, useState, useCallback } from "react";
@@ -183,7 +187,7 @@ function formatSkipReason(reason: string | null): string {
 /**
  * CriterionResultRow - displays a single criterion result
  *
- * AC-5.11.3: Shows name, condition, points awarded, pass/fail indicator, actual value
+ * AC-5.4.2: Shows name, condition, points awarded, pass/fail indicator, actual value
  */
 interface CriterionResultRowProps {
   criterion: CriterionResult;
@@ -246,7 +250,7 @@ function CriterionResultRow({ criterion, isSkipped }: CriterionResultRowProps) {
 /**
  * PointsContributionChart - horizontal bar chart of point contributions
  *
- * AC-5.11.4: Visual Bar Chart of Point Contributions
+ * AC-5.4.2: Visual Bar Chart of Point Contributions
  * - Positive points: green bars (right)
  * - Negative points: red bars (left)
  */
@@ -318,7 +322,7 @@ function PointsContributionChart({ breakdown, totalScore }: PointsContributionCh
 /**
  * SkippedCriteriaSection - collapsible section for skipped criteria
  *
- * AC-5.11.5: Skipped Criteria Display
+ * AC-5.4.3: Missing Data Indicators - Skipped Criteria Display
  */
 interface SkippedCriteriaSectionProps {
   skippedCriteria: CriterionResult[];
@@ -475,13 +479,15 @@ function CalculationInputsSection({ inputSources }: CalculationInputsSectionProp
 /**
  * ScoreBreakdown - slide-over panel showing detailed score breakdown
  *
- * AC-5.11.1: Opens as Sheet on score click
- * AC-5.11.2: Shows overall score prominently with color coding
- * AC-5.11.3: Shows criterion-by-criterion breakdown
- * AC-5.11.4: Includes bar chart visualization
- * AC-5.11.5: Shows skipped criteria with reasons
- * AC-5.11.6: Edit Criteria link
- * AC-5.11.7: Calculation History link (placeholder)
+ * AC-5.4.2: Score Breakdown Panel
+ * - Opens as Sheet on score click
+ * - Shows overall score prominently with color coding
+ * - Shows criterion-by-criterion breakdown
+ * - Includes bar chart visualization
+ * AC-5.4.3: Missing Data Indicators
+ * - Shows skipped criteria with reasons
+ * AC-5.4.4: Data Freshness Display
+ * - Shows calculation timestamp
  */
 export function ScoreBreakdown({
   open,

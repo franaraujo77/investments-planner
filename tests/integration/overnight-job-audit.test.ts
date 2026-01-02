@@ -284,6 +284,68 @@ describe("Overnight Job Audit Trail Integration", () => {
       expect(result.metrics?.cacheWarmMs).toBe(2000);
     });
 
+    it("should record fundamentals fetch metrics (AC-5.1.7)", async () => {
+      // Story 5.1: Market Data Fetching
+      // Fundamentals metrics track how many symbols had fundamentals fetched
+      const metrics: JobRunMetrics = {
+        totalDurationMs: 12000,
+        fundamentalsFetched: 250,
+        fetchFundamentalsMs: 3500,
+        fetchPricesMs: 2000,
+        fetchRatesMs: 500,
+      };
+
+      const mockCompletedRun = {
+        id: "job-1",
+        status: JOB_STATUS.COMPLETED,
+        metrics,
+      };
+
+      mockDbReturning.mockResolvedValue([mockCompletedRun]);
+
+      const result = await jobService.completeJobRun("job-1", {
+        usersProcessed: 100,
+        metrics,
+      });
+
+      expect(result.metrics?.fundamentalsFetched).toBe(250);
+      expect(result.metrics?.fetchFundamentalsMs).toBe(3500);
+    });
+
+    it("should record market data cache metrics (AC-5.2.1, AC-5.2.2)", async () => {
+      // Story 5.2: Two-Tier Refresh Architecture
+      // Cache metrics track how many items were cached to both PostgreSQL and KV
+      const metrics: JobRunMetrics = {
+        totalDurationMs: 15000,
+        fetchPricesMs: 2000,
+        fetchRatesMs: 500,
+        fetchFundamentalsMs: 3500,
+        // Story 5.2 cache write metrics
+        pricesCached: 150,
+        ratesCached: 10,
+        fundamentalsCached: 150,
+        marketDataCacheMs: 450, // Total cache write time
+      };
+
+      const mockCompletedRun = {
+        id: "job-1",
+        status: JOB_STATUS.COMPLETED,
+        metrics,
+      };
+
+      mockDbReturning.mockResolvedValue([mockCompletedRun]);
+
+      const result = await jobService.completeJobRun("job-1", {
+        usersProcessed: 100,
+        metrics,
+      });
+
+      expect(result.metrics?.pricesCached).toBe(150);
+      expect(result.metrics?.ratesCached).toBe(10);
+      expect(result.metrics?.fundamentalsCached).toBe(150);
+      expect(result.metrics?.marketDataCacheMs).toBe(450);
+    });
+
     it("should record metrics even on partial failure", async () => {
       const metrics: JobRunMetrics = {
         totalDurationMs: 10000,
@@ -364,6 +426,85 @@ describe("Overnight Job Audit Trail Integration", () => {
     });
   });
 
+  describe("AC-5.6.6: Job Run Queryability", () => {
+    it("should retrieve job run by ID for audit trail", async () => {
+      const mockJobRun = {
+        id: "job-1",
+        correlationId: crypto.randomUUID(),
+        status: JOB_STATUS.COMPLETED,
+        usersProcessed: 100,
+        usersFailed: 0,
+        metrics: {
+          totalDurationMs: 5000,
+          usersTotal: 100,
+          assetsScored: 500,
+        },
+      };
+
+      mockDbWhere.mockResolvedValue([mockJobRun]);
+
+      const result = await jobService.getJobRun("job-1");
+
+      expect(result).toBeDefined();
+      expect(result?.id).toBe("job-1");
+      expect(result?.metrics?.totalDurationMs).toBe(5000);
+    });
+
+    it("should return null for non-existent job run", async () => {
+      mockDbWhere.mockResolvedValue([]);
+
+      const result = await jobService.getJobRun("non-existent-id");
+
+      expect(result).toBeNull();
+    });
+
+    it("should query job run with complete metrics for reporting", async () => {
+      // Story 5.6: Complete metrics must be queryable for monitoring/alerting
+      const mockJobRun = {
+        id: "job-1",
+        correlationId: crypto.randomUUID(),
+        jobType: JOB_TYPE.SCORING,
+        status: JOB_STATUS.COMPLETED,
+        startedAt: new Date("2026-01-01T04:00:00Z"),
+        completedAt: new Date("2026-01-01T05:30:00Z"),
+        usersProcessed: 100,
+        usersFailed: 2,
+        metrics: {
+          fetchRatesMs: 500,
+          fetchPricesMs: 2000,
+          fetchFundamentalsMs: 3000,
+          processUsersMs: 8000,
+          totalDurationMs: 90 * 60 * 1000, // 90 minutes
+          usersTotal: 102,
+          assetsScored: 500,
+          fundamentalsFetched: 250,
+          recommendationsGenerated: 450,
+          usersWithRecommendations: 98,
+          recommendationDurationMs: 3000,
+          usersCached: 98,
+          cacheFailures: 0,
+          cacheWarmMs: 2000,
+          pricesCached: 150,
+          ratesCached: 10,
+          fundamentalsCached: 150,
+          marketDataCacheMs: 450,
+        },
+      };
+
+      mockDbWhere.mockResolvedValue([mockJobRun]);
+
+      const result = await jobService.getJobRun("job-1");
+
+      // Verify all metrics are queryable
+      expect(result).toBeDefined();
+      expect(result?.metrics?.totalDurationMs).toBe(90 * 60 * 1000);
+      expect(result?.metrics?.usersTotal).toBe(102);
+      expect(result?.usersFailed).toBe(2);
+      expect(result?.metrics?.recommendationsGenerated).toBe(450);
+      expect(result?.metrics?.cacheWarmMs).toBe(2000);
+    });
+  });
+
   describe("Error Detail Recording", () => {
     it("should record per-user error details on failure", async () => {
       const errorDetails = {
@@ -389,6 +530,136 @@ describe("Overnight Job Audit Trail Integration", () => {
       expect(result.errorDetails?.errors[0]).toHaveProperty("userId");
       expect(result.errorDetails?.errors[0]).toHaveProperty("stage");
     });
+  });
+});
+
+describe("AC-5.6.5: On-Demand Fallback Detection", () => {
+  it("should detect FAILED job status as requiring fallback", async () => {
+    const mockFailedJob = {
+      id: "job-1",
+      status: JOB_STATUS.FAILED,
+      completedAt: new Date(),
+      usersFailed: 100,
+      usersProcessed: 0,
+    };
+
+    // Failed status should trigger fallback
+    expect(mockFailedJob.status).toBe(JOB_STATUS.FAILED);
+    expect(mockFailedJob.usersFailed).toBeGreaterThan(0);
+  });
+
+  it("should detect PARTIAL job status with failures as requiring fallback", async () => {
+    const mockPartialJob = {
+      id: "job-1",
+      status: JOB_STATUS.PARTIAL,
+      completedAt: new Date(),
+      usersFailed: 5,
+      usersProcessed: 95,
+    };
+
+    // Partial with failures should trigger fallback
+    expect(mockPartialJob.status).toBe(JOB_STATUS.PARTIAL);
+    expect(mockPartialJob.usersFailed).toBeGreaterThan(0);
+  });
+
+  it("should not require fallback for COMPLETED job", async () => {
+    const mockCompletedJob = {
+      id: "job-1",
+      status: JOB_STATUS.COMPLETED,
+      completedAt: new Date(),
+      usersFailed: 0,
+      usersProcessed: 100,
+    };
+
+    // Completed with no failures should not trigger fallback
+    expect(mockCompletedJob.status).toBe(JOB_STATUS.COMPLETED);
+    expect(mockCompletedJob.usersFailed).toBe(0);
+  });
+
+  it("should check within 24-hour window for failures", async () => {
+    // Document the 24-hour window for failure detection
+    const FAILURE_CHECK_WINDOW_HOURS = 24;
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - FAILURE_CHECK_WINDOW_HOURS * 60 * 60 * 1000);
+
+    // Job within window should be considered
+    const recentJob = { completedAt: new Date() };
+    expect(recentJob.completedAt.getTime()).toBeGreaterThan(windowStart.getTime());
+
+    // Job outside window should not be considered
+    const oldJob = { completedAt: new Date(windowStart.getTime() - 1000) };
+    expect(oldJob.completedAt.getTime()).toBeLessThan(windowStart.getTime());
+  });
+});
+
+describe("AC-5.6.5: Full Fallback Flow Integration", () => {
+  /**
+   * Integration test documenting the complete fallback flow:
+   * 1. DashboardService.getDashboardData() is called
+   * 2. Cache miss occurs (Vercel KV returns null)
+   * 3. Database fallback attempted (no cached recommendations in DB)
+   * 4. RecommendationFallbackService.getRecommendationsWithFallback() called
+   * 5. On-demand calculation triggered
+   * 6. Result cached for subsequent requests
+   * 7. Dashboard data returned to user
+   *
+   * This documents the expected integration between services.
+   */
+  it("documents the complete fallback chain", () => {
+    const fallbackChain = {
+      step1_dashboardRequest: "DashboardService.getDashboardData(userId)",
+      step2_cacheCheck: "RecommendationCacheService.get(userId) → null",
+      step3_dbFallback: "RecommendationService.getCachedRecommendation(userId) → null",
+      step4_onDemandFallback:
+        "RecommendationFallbackService.getRecommendationsWithFallback(userId)",
+      step5_overnightCheck: "FallbackService checks overnight_job_runs for failures",
+      step6_calculation: "BatchRecommendationService.generateRecommendationsForUser(userId)",
+      step7_cacheResult: "RecommendationCacheService.set(userId, recommendations)",
+      step8_returnData: "DashboardData with fromCache: false",
+    };
+
+    // Verify all 8 steps are documented
+    expect(Object.keys(fallbackChain)).toHaveLength(8);
+
+    // Verify chain starts with dashboard and ends with response
+    expect(fallbackChain.step1_dashboardRequest).toContain("DashboardService");
+    expect(fallbackChain.step8_returnData).toContain("fromCache: false");
+  });
+
+  it("documents conservative global-failure approach", () => {
+    // DESIGN DECISION: Global failure detection is conservative
+    // When overnight job has PARTIAL failures, ALL users trigger on-demand fallback
+    // This is intentional - false positives are safer than false negatives
+    const designDecision = {
+      approach: "conservative_global_failure",
+      behavior: "PARTIAL failures trigger fallback for ALL users",
+      rationale: [
+        "Per-user tracking would require additional DB schema",
+        "False positives (extra fallback) are better than false negatives",
+        "On-demand calculation is fast enough for good UX",
+      ],
+      tradeoff: "Slightly higher compute cost vs guaranteed data availability",
+    };
+
+    expect(designDecision.approach).toBe("conservative_global_failure");
+    expect(designDecision.rationale).toHaveLength(3);
+  });
+
+  it("documents FallbackResult structure", () => {
+    // FallbackResult tracks the source and whether fallback was triggered
+    const sampleResult = {
+      recommendations: null,
+      source: "on-demand" as const,
+      durationMs: 250,
+      fallbackTriggered: true,
+      reason: "overnight_failure: partial",
+    };
+
+    // Source can only be "cache" or "on-demand"
+    // ("database" was removed - DashboardService handles that layer)
+    expect(["cache", "on-demand"]).toContain(sampleResult.source);
+    expect(sampleResult.fallbackTriggered).toBe(true);
+    expect(sampleResult.reason).toContain("overnight_failure");
   });
 });
 

@@ -4,7 +4,9 @@
  * RecommendationList Component
  *
  * Story 7.5: Display Recommendations (Focus Mode)
+ * Story 6.3: Recommendation Display
  * AC-7.5.3: Cards Sorted by Amount
+ * AC-6.3.4: Card Hover Tooltip with expected allocation
  *
  * Displays a list of recommendation cards:
  * - Renders RecommendationCards for each item
@@ -16,10 +18,13 @@
  * - Responsive grid layout
  * - Deterministic ordering (same order on refresh)
  * - Click handler propagation for breakdown panel
+ * - Expected allocation calculation for tooltip (AC-6.3.4)
  */
 
+import { useMemo } from "react";
 import { RecommendationCard } from "./recommendation-card";
 import { BalancedPortfolioState } from "./balanced-portfolio-state";
+import { calculateExpectedAllocation } from "./before-after-preview";
 import { cn } from "@/lib/utils";
 import type { RecommendationDisplayItem } from "@/hooks/use-recommendations";
 
@@ -34,6 +39,10 @@ export interface RecommendationListProps {
   baseCurrency: string;
   /** Click handler for individual cards (Story 7.7 placeholder) */
   onCardClick?: (assetId: string) => void;
+  /** Total investable amount (for calculating expected allocation) */
+  totalInvestable?: string;
+  /** Current portfolio value (for calculating expected allocation) */
+  currentPortfolioValue?: string;
   /** Additional CSS classes */
   className?: string;
 }
@@ -60,8 +69,28 @@ export function RecommendationList({
   items,
   baseCurrency,
   onCardClick,
+  totalInvestable,
+  currentPortfolioValue,
   className,
 }: RecommendationListProps) {
+  // Calculate expected allocations for each item (AC-6.3.4)
+  const expectedAllocations = useMemo(() => {
+    if (!totalInvestable || !currentPortfolioValue) {
+      return {};
+    }
+
+    const allocations: Record<string, string> = {};
+    for (const item of items) {
+      allocations[item.assetId] = calculateExpectedAllocation(
+        item.currentAllocation,
+        item.recommendedAmount,
+        totalInvestable,
+        currentPortfolioValue
+      );
+    }
+    return allocations;
+  }, [items, totalInvestable, currentPortfolioValue]);
+
   // Handle empty state - delegate to BalancedPortfolioState
   if (items.length === 0) {
     return <BalancedPortfolioState />;
@@ -85,6 +114,7 @@ export function RecommendationList({
             item={item}
             baseCurrency={baseCurrency}
             onClick={onCardClick ? () => onCardClick(item.assetId) : undefined}
+            expectedAllocation={expectedAllocations[item.assetId]}
           />
         </div>
       ))}

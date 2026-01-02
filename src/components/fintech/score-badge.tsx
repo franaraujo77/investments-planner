@@ -3,9 +3,9 @@
 /**
  * ScoreBadge Component
  *
- * Story 5.10: View Asset Score
- * AC-5.10.1: Score Badge Display
- * AC-5.10.4: Score Freshness Timestamp
+ * Story 5.4: View Asset Scores
+ * AC-5.4.1: Score Display with color coding
+ * AC-5.4.4: Data Freshness Display
  *
  * Displays asset scores with color-coded badges:
  * - Green: Score >= 80 (high)
@@ -58,7 +58,7 @@ export interface ScoreBadgeProps {
 /**
  * Get score level based on value
  *
- * AC-5.10.1: Color thresholds
+ * AC-5.4.1: Color thresholds
  * - green (80+): high score
  * - amber (50-79): medium score
  * - red (<50): low score
@@ -72,7 +72,7 @@ export function getScoreLevel(score: number): ScoreLevel {
 /**
  * Get freshness level based on calculatedAt timestamp
  *
- * AC-5.10.4: Freshness thresholds
+ * AC-5.4.4: Freshness thresholds
  * - fresh: < 24 hours (green)
  * - stale: 1-3 days (amber)
  * - very_stale: > 3 days (red)
@@ -162,7 +162,7 @@ function formatRelativeTime(date: Date): string {
 /**
  * Normalize score to integer for display
  *
- * AC-5.10.1: Scores display as integers (0-100 scale)
+ * AC-5.4.1: Scores display as integers (0-100 scale)
  */
 export function normalizeScore(score: number | string): number {
   const numericScore = typeof score === "string" ? parseFloat(score) : score;
@@ -286,7 +286,7 @@ export function ScoreBadge({
 }
 
 // =============================================================================
-// TOOLTIP CONTENT (Inline for Story 5.10.2)
+// TOOLTIP CONTENT (Inline for Story 5.4)
 // =============================================================================
 
 interface ScoreTooltipContentProps {
@@ -300,7 +300,7 @@ interface ScoreTooltipContentProps {
 /**
  * ScoreTooltipContent Component
  *
- * AC-5.10.2: Score Tooltip with Preview
+ * AC-5.4.1: Score Tooltip with Preview
  * - Shows "Score: 87 - Click for breakdown"
  * - Includes score freshness timestamp
  * - Shows brief summary (e.g., "5/8 criteria matched")

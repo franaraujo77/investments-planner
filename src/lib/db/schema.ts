@@ -1,11 +1,13 @@
 import {
   boolean,
+  char,
   date,
   index,
   integer,
   jsonb,
   numeric,
   pgTable,
+  text,
   timestamp,
   unique,
   uuid,
@@ -808,6 +810,28 @@ export interface RecommendationItemBreakdown {
 }
 
 /**
+ * RecommendationAlerts interface - higher-scoring asset alerts
+ *
+ * Story 6.2 AC-6.2.3: Higher-Scoring Asset Alert
+ * When portfolio is at capacity for an asset class but higher-scoring
+ * assets exist outside the portfolio, an alert is generated.
+ */
+export interface RecommendationAlerts {
+  higherScoring: Array<{
+    assetClassId: string;
+    assetClassName: string;
+    currentLowestScore: string;
+    currentLowestSymbol: string;
+    higherScoringAssets: Array<{
+      symbol: string;
+      name: string;
+      score: string;
+      scoreDifference: string;
+    }>;
+  }>;
+}
+
+/**
  * Recommendations table - stores recommendation generation sessions
  *
  * Story 7.4: Generate Investment Recommendations
@@ -836,6 +860,7 @@ export const recommendations = pgTable(
     baseCurrency: varchar("base_currency", { length: 3 }).notNull(),
     correlationId: uuid("correlation_id").notNull(), // Links to calculation_events
     status: varchar("status", { length: 20 }).notNull().default("active"), // pending, active, confirmed, expired
+    alerts: jsonb("alerts").$type<RecommendationAlerts>(), // Higher-scoring asset alerts (AC-6.2.3)
     generatedAt: timestamp("generated_at").notNull().defaultNow(),
     expiresAt: timestamp("expires_at").notNull(), // 24h TTL per ADR-004
     createdAt: timestamp("created_at").defaultNow(),
@@ -1334,3 +1359,697 @@ export type NewAlert = typeof alerts.$inferInsert;
 
 export type AlertPreference = typeof alertPreferences.$inferSelect;
 export type NewAlertPreference = typeof alertPreferences.$inferInsert;
+
+// =============================================================================
+// GICS REFERENCE DATA (Story 5.7)
+// =============================================================================
+
+/**
+ * GICS Sector interface - 2-digit sector codes
+ *
+ * Story 5.7: Industry/Sector Classification Cache
+ * AC-5.7.1: GICS three-tier hierarchy (Sector → Industry Group → Industry)
+ */
+export interface GicsSector {
+  id: string; // 2-digit code (e.g., "45")
+  name: string; // e.g., "Information Technology"
+  description?: string;
+}
+
+/**
+ * GICS Industry Group interface - 4-digit codes
+ */
+export interface GicsIndustryGroup {
+  id: string; // 4-digit code (e.g., "4510")
+  sectorId: string; // Parent sector ID
+  name: string; // e.g., "Software & Services"
+  description?: string;
+}
+
+/**
+ * GICS Industry interface - 6-digit codes
+ */
+export interface GicsIndustry {
+  id: string; // 6-digit code (e.g., "451030")
+  industryGroupId: string; // Parent industry group ID
+  name: string; // e.g., "Software"
+  description?: string;
+}
+
+/**
+ * All 11 GICS Sectors
+ * AC-5.7.1: All 11 GICS Sectors defined
+ */
+export const GICS_SECTORS: GicsSector[] = [
+  {
+    id: "10",
+    name: "Energy",
+    description: "Companies involved in the exploration, production, and refining of oil and gas",
+  },
+  {
+    id: "15",
+    name: "Materials",
+    description:
+      "Companies that manufacture chemicals, construction materials, glass, paper, and related products",
+  },
+  {
+    id: "20",
+    name: "Industrials",
+    description: "Companies that provide industrial goods and services",
+  },
+  {
+    id: "25",
+    name: "Consumer Discretionary",
+    description: "Companies that provide goods and services considered non-essential",
+  },
+  {
+    id: "30",
+    name: "Consumer Staples",
+    description:
+      "Companies that provide essential products like food, beverages, and household items",
+  },
+  {
+    id: "35",
+    name: "Health Care",
+    description: "Companies that provide medical services, manufacture medical equipment or drugs",
+  },
+  { id: "40", name: "Financials", description: "Companies that provide financial services" },
+  {
+    id: "45",
+    name: "Information Technology",
+    description: "Companies that provide technology products and services",
+  },
+  {
+    id: "50",
+    name: "Communication Services",
+    description:
+      "Companies that facilitate communication and offer related content and information",
+  },
+  { id: "55", name: "Utilities", description: "Companies that provide utility services" },
+  {
+    id: "60",
+    name: "Real Estate",
+    description: "Companies that own, develop, and manage real estate",
+  },
+];
+
+/**
+ * All 25 GICS Industry Groups
+ * AC-5.7.1: All 25 Industry Groups defined
+ */
+export const GICS_INDUSTRY_GROUPS: GicsIndustryGroup[] = [
+  // Energy (10)
+  { id: "1010", sectorId: "10", name: "Energy" },
+  // Materials (15)
+  { id: "1510", sectorId: "15", name: "Materials" },
+  // Industrials (20)
+  { id: "2010", sectorId: "20", name: "Capital Goods" },
+  { id: "2020", sectorId: "20", name: "Commercial & Professional Services" },
+  { id: "2030", sectorId: "20", name: "Transportation" },
+  // Consumer Discretionary (25)
+  { id: "2510", sectorId: "25", name: "Automobiles & Components" },
+  { id: "2520", sectorId: "25", name: "Consumer Durables & Apparel" },
+  { id: "2530", sectorId: "25", name: "Consumer Services" },
+  { id: "2550", sectorId: "25", name: "Consumer Discretionary Distribution & Retail" },
+  // Consumer Staples (30)
+  { id: "3010", sectorId: "30", name: "Consumer Staples Distribution & Retail" },
+  { id: "3020", sectorId: "30", name: "Food, Beverage & Tobacco" },
+  { id: "3030", sectorId: "30", name: "Household & Personal Products" },
+  // Health Care (35)
+  { id: "3510", sectorId: "35", name: "Health Care Equipment & Services" },
+  { id: "3520", sectorId: "35", name: "Pharmaceuticals, Biotechnology & Life Sciences" },
+  // Financials (40)
+  { id: "4010", sectorId: "40", name: "Banks" },
+  { id: "4020", sectorId: "40", name: "Financial Services" },
+  { id: "4030", sectorId: "40", name: "Insurance" },
+  // Information Technology (45)
+  { id: "4510", sectorId: "45", name: "Software & Services" },
+  { id: "4520", sectorId: "45", name: "Technology Hardware & Equipment" },
+  { id: "4530", sectorId: "45", name: "Semiconductors & Semiconductor Equipment" },
+  // Communication Services (50)
+  { id: "5010", sectorId: "50", name: "Telecommunication Services" },
+  { id: "5020", sectorId: "50", name: "Media & Entertainment" },
+  // Utilities (55)
+  { id: "5510", sectorId: "55", name: "Utilities" },
+  // Real Estate (60)
+  { id: "6010", sectorId: "60", name: "Equity Real Estate Investment Trusts (REITs)" },
+  { id: "6020", sectorId: "60", name: "Real Estate Management & Development" },
+];
+
+/**
+ * All 74 GICS Industries
+ * AC-5.7.1: All 74 Industries defined
+ */
+export const GICS_INDUSTRIES: GicsIndustry[] = [
+  // Energy (1010)
+  { id: "101010", industryGroupId: "1010", name: "Energy Equipment & Services" },
+  { id: "101020", industryGroupId: "1010", name: "Oil, Gas & Consumable Fuels" },
+  // Materials (1510)
+  { id: "151010", industryGroupId: "1510", name: "Chemicals" },
+  { id: "151020", industryGroupId: "1510", name: "Construction Materials" },
+  { id: "151030", industryGroupId: "1510", name: "Containers & Packaging" },
+  { id: "151040", industryGroupId: "1510", name: "Metals & Mining" },
+  { id: "151050", industryGroupId: "1510", name: "Paper & Forest Products" },
+  // Capital Goods (2010)
+  { id: "201010", industryGroupId: "2010", name: "Aerospace & Defense" },
+  { id: "201020", industryGroupId: "2010", name: "Building Products" },
+  { id: "201030", industryGroupId: "2010", name: "Construction & Engineering" },
+  { id: "201040", industryGroupId: "2010", name: "Electrical Equipment" },
+  { id: "201050", industryGroupId: "2010", name: "Industrial Conglomerates" },
+  { id: "201060", industryGroupId: "2010", name: "Machinery" },
+  { id: "201070", industryGroupId: "2010", name: "Trading Companies & Distributors" },
+  // Commercial & Professional Services (2020)
+  { id: "202010", industryGroupId: "2020", name: "Commercial Services & Supplies" },
+  { id: "202020", industryGroupId: "2020", name: "Professional Services" },
+  // Transportation (2030)
+  { id: "203010", industryGroupId: "2030", name: "Air Freight & Logistics" },
+  { id: "203020", industryGroupId: "2030", name: "Passenger Airlines" },
+  { id: "203030", industryGroupId: "2030", name: "Marine Transportation" },
+  { id: "203040", industryGroupId: "2030", name: "Ground Transportation" },
+  { id: "203050", industryGroupId: "2030", name: "Transportation Infrastructure" },
+  // Automobiles & Components (2510)
+  { id: "251010", industryGroupId: "2510", name: "Automobile Components" },
+  { id: "251020", industryGroupId: "2510", name: "Automobiles" },
+  // Consumer Durables & Apparel (2520)
+  { id: "252010", industryGroupId: "2520", name: "Household Durables" },
+  { id: "252020", industryGroupId: "2520", name: "Leisure Products" },
+  { id: "252030", industryGroupId: "2520", name: "Textiles, Apparel & Luxury Goods" },
+  // Consumer Services (2530)
+  { id: "253010", industryGroupId: "2530", name: "Hotels, Restaurants & Leisure" },
+  { id: "253020", industryGroupId: "2530", name: "Diversified Consumer Services" },
+  // Consumer Discretionary Distribution & Retail (2550)
+  { id: "255010", industryGroupId: "2550", name: "Distributors" },
+  { id: "255020", industryGroupId: "2550", name: "Internet & Direct Marketing Retail" },
+  { id: "255030", industryGroupId: "2550", name: "Broadline Retail" },
+  { id: "255040", industryGroupId: "2550", name: "Specialty Retail" },
+  // Consumer Staples Distribution & Retail (3010)
+  { id: "301010", industryGroupId: "3010", name: "Consumer Staples Distribution & Retail" },
+  // Food, Beverage & Tobacco (3020)
+  { id: "302010", industryGroupId: "3020", name: "Beverages" },
+  { id: "302020", industryGroupId: "3020", name: "Food Products" },
+  { id: "302030", industryGroupId: "3020", name: "Tobacco" },
+  // Household & Personal Products (3030)
+  { id: "303010", industryGroupId: "3030", name: "Household Products" },
+  { id: "303020", industryGroupId: "3030", name: "Personal Care Products" },
+  // Health Care Equipment & Services (3510)
+  { id: "351010", industryGroupId: "3510", name: "Health Care Equipment & Supplies" },
+  { id: "351020", industryGroupId: "3510", name: "Health Care Providers & Services" },
+  { id: "351030", industryGroupId: "3510", name: "Health Care Technology" },
+  // Pharmaceuticals, Biotechnology & Life Sciences (3520)
+  { id: "352010", industryGroupId: "3520", name: "Biotechnology" },
+  { id: "352020", industryGroupId: "3520", name: "Pharmaceuticals" },
+  { id: "352030", industryGroupId: "3520", name: "Life Sciences Tools & Services" },
+  // Banks (4010)
+  { id: "401010", industryGroupId: "4010", name: "Banks" },
+  // Financial Services (4020)
+  { id: "402010", industryGroupId: "4020", name: "Financial Services" },
+  { id: "402020", industryGroupId: "4020", name: "Consumer Finance" },
+  { id: "402030", industryGroupId: "4020", name: "Capital Markets" },
+  { id: "402040", industryGroupId: "4020", name: "Mortgage Real Estate Investment Trusts (REITs)" },
+  // Insurance (4030)
+  { id: "403010", industryGroupId: "4030", name: "Insurance" },
+  // Software & Services (4510)
+  { id: "451010", industryGroupId: "4510", name: "IT Services" },
+  { id: "451020", industryGroupId: "4510", name: "Internet Services & Infrastructure" },
+  { id: "451030", industryGroupId: "4510", name: "Software" },
+  // Technology Hardware & Equipment (4520)
+  { id: "452010", industryGroupId: "4520", name: "Communications Equipment" },
+  { id: "452020", industryGroupId: "4520", name: "Technology Hardware, Storage & Peripherals" },
+  { id: "452030", industryGroupId: "4520", name: "Electronic Equipment, Instruments & Components" },
+  // Semiconductors & Semiconductor Equipment (4530)
+  { id: "453010", industryGroupId: "4530", name: "Semiconductors & Semiconductor Equipment" },
+  // Telecommunication Services (5010)
+  { id: "501010", industryGroupId: "5010", name: "Diversified Telecommunication Services" },
+  { id: "501020", industryGroupId: "5010", name: "Wireless Telecommunication Services" },
+  // Media & Entertainment (5020)
+  { id: "502010", industryGroupId: "5020", name: "Media" },
+  { id: "502020", industryGroupId: "5020", name: "Entertainment" },
+  { id: "502030", industryGroupId: "5020", name: "Interactive Media & Services" },
+  // Utilities (5510)
+  { id: "551010", industryGroupId: "5510", name: "Electric Utilities" },
+  { id: "551020", industryGroupId: "5510", name: "Gas Utilities" },
+  { id: "551030", industryGroupId: "5510", name: "Multi-Utilities" },
+  { id: "551040", industryGroupId: "5510", name: "Water Utilities" },
+  {
+    id: "551050",
+    industryGroupId: "5510",
+    name: "Independent Power and Renewable Electricity Producers",
+  },
+  // Equity Real Estate Investment Trusts (REITs) (6010)
+  { id: "601010", industryGroupId: "6010", name: "Diversified REITs" },
+  { id: "601025", industryGroupId: "6010", name: "Industrial REITs" },
+  { id: "601030", industryGroupId: "6010", name: "Hotel & Resort REITs" },
+  { id: "601040", industryGroupId: "6010", name: "Office REITs" },
+  { id: "601050", industryGroupId: "6010", name: "Health Care REITs" },
+  { id: "601060", industryGroupId: "6010", name: "Residential REITs" },
+  { id: "601070", industryGroupId: "6010", name: "Retail REITs" },
+  { id: "601080", industryGroupId: "6010", name: "Specialized REITs" },
+  // Real Estate Management & Development (6020)
+  { id: "602010", industryGroupId: "6020", name: "Real Estate Management & Development" },
+];
+
+// =============================================================================
+// CACHED GICS TABLES (Story 5.7)
+// =============================================================================
+
+/**
+ * Cached GICS Sectors table - stores GICS sector reference data
+ *
+ * Story 5.7: Industry/Sector Classification Cache
+ * AC-5.7.1: GICS three-tier hierarchy - Sector level (2-digit)
+ * AC-5.7.8: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Uses char(2) for sector ID per GICS standard
+ * - cache_updated_at tracks last refresh
+ * - NOT user-scoped: Reference data shared across all users
+ */
+export const cachedGicsSectors = pgTable(
+  "cached_gics_sectors",
+  {
+    id: char("id", { length: 2 }).primaryKey(), // e.g., "45"
+    name: varchar("name", { length: 100 }).notNull(), // e.g., "Information Technology"
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("cached_gics_sectors_name_idx").on(table.name)]
+);
+
+/**
+ * Cached GICS Industry Groups table - stores GICS industry group reference data
+ *
+ * Story 5.7: Industry/Sector Classification Cache
+ * AC-5.7.1: GICS three-tier hierarchy - Industry Group level (4-digit)
+ * AC-5.7.8: Cache table naming convention with cached_ prefix
+ */
+export const cachedGicsIndustryGroups = pgTable(
+  "cached_gics_industry_groups",
+  {
+    id: char("id", { length: 4 }).primaryKey(), // e.g., "4510"
+    sectorId: char("sector_id", { length: 2 })
+      .notNull()
+      .references(() => cachedGicsSectors.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).notNull(), // e.g., "Software & Services"
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_gics_industry_groups_sector_id_idx").on(table.sectorId),
+    index("cached_gics_industry_groups_name_idx").on(table.name),
+  ]
+);
+
+/**
+ * Cached GICS Industries table - stores GICS industry reference data
+ *
+ * Story 5.7: Industry/Sector Classification Cache
+ * AC-5.7.1: GICS three-tier hierarchy - Industry level (6-digit)
+ * AC-5.7.8: Cache table naming convention with cached_ prefix
+ */
+export const cachedGicsIndustries = pgTable(
+  "cached_gics_industries",
+  {
+    id: char("id", { length: 6 }).primaryKey(), // e.g., "451030"
+    industryGroupId: char("industry_group_id", { length: 4 })
+      .notNull()
+      .references(() => cachedGicsIndustryGroups.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).notNull(), // e.g., "Software"
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_gics_industries_industry_group_id_idx").on(table.industryGroupId),
+    index("cached_gics_industries_name_idx").on(table.name),
+  ]
+);
+
+/**
+ * Cached Asset Classifications table - maps assets to GICS industries
+ *
+ * Story 5.7: Industry/Sector Classification Cache
+ * AC-5.7.4: Asset-to-Classification Mapping
+ * AC-5.7.8: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Uses symbol as primary key (unique per asset)
+ * - References industry (6-digit) which links up the hierarchy
+ * - confidence score indicates mapping quality (1.0 = exact, 0.8 = fuzzy, 0.5 = sector-only)
+ * - source tracks where classification came from
+ */
+export const cachedAssetClassifications = pgTable(
+  "cached_asset_classifications",
+  {
+    symbol: varchar("symbol", { length: 20 }).primaryKey(), // e.g., "AAPL", "PETR4"
+    gicsIndustryId: char("gics_industry_id", { length: 6 })
+      .notNull()
+      .references(() => cachedGicsIndustries.id),
+    confidence: numeric("confidence", { precision: 3, scale: 2 }).notNull(), // 0.00 to 1.00
+    source: varchar("source", { length: 50 }).notNull(), // "gemini-api", "manual", "b3-mapping"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_asset_classifications_gics_industry_id_idx").on(table.gicsIndustryId),
+    index("cached_asset_classifications_source_idx").on(table.source),
+  ]
+);
+
+// =============================================================================
+// GICS RELATIONS
+// =============================================================================
+
+export const cachedGicsSectorsRelations = relations(cachedGicsSectors, ({ many }) => ({
+  industryGroups: many(cachedGicsIndustryGroups),
+}));
+
+export const cachedGicsIndustryGroupsRelations = relations(
+  cachedGicsIndustryGroups,
+  ({ one, many }) => ({
+    sector: one(cachedGicsSectors, {
+      fields: [cachedGicsIndustryGroups.sectorId],
+      references: [cachedGicsSectors.id],
+    }),
+    industries: many(cachedGicsIndustries),
+  })
+);
+
+export const cachedGicsIndustriesRelations = relations(cachedGicsIndustries, ({ one, many }) => ({
+  industryGroup: one(cachedGicsIndustryGroups, {
+    fields: [cachedGicsIndustries.industryGroupId],
+    references: [cachedGicsIndustryGroups.id],
+  }),
+  assetClassifications: many(cachedAssetClassifications),
+}));
+
+export const cachedAssetClassificationsRelations = relations(
+  cachedAssetClassifications,
+  ({ one }) => ({
+    industry: one(cachedGicsIndustries, {
+      fields: [cachedAssetClassifications.gicsIndustryId],
+      references: [cachedGicsIndustries.id],
+    }),
+  })
+);
+
+// =============================================================================
+// GICS TYPE EXPORTS
+// =============================================================================
+
+export type CachedGicsSector = typeof cachedGicsSectors.$inferSelect;
+export type NewCachedGicsSector = typeof cachedGicsSectors.$inferInsert;
+
+export type CachedGicsIndustryGroup = typeof cachedGicsIndustryGroups.$inferSelect;
+export type NewCachedGicsIndustryGroup = typeof cachedGicsIndustryGroups.$inferInsert;
+
+export type CachedGicsIndustry = typeof cachedGicsIndustries.$inferSelect;
+export type NewCachedGicsIndustry = typeof cachedGicsIndustries.$inferInsert;
+
+export type CachedAssetClassification = typeof cachedAssetClassifications.$inferSelect;
+export type NewCachedAssetClassification = typeof cachedAssetClassifications.$inferInsert;
+
+// =============================================================================
+// ASSET TYPE CLASSIFICATION SYSTEM (Story 5.8)
+// =============================================================================
+
+/**
+ * Asset category enum for classification
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.1: Categories group canonical asset types
+ */
+export const ASSET_CATEGORIES = [
+  "EQUITY",
+  "FIXED_INCOME",
+  "FUND",
+  "COMMODITY",
+  "DERIVATIVE",
+] as const;
+
+export type AssetCategory = (typeof ASSET_CATEGORIES)[number];
+
+/**
+ * Canonical asset types - jurisdiction-agnostic instrument classifications
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.1: Universal asset types that work across all markets
+ */
+export const CANONICAL_ASSET_TYPES = [
+  // EQUITY
+  "COMMON_STOCK",
+  "PREFERRED_STOCK",
+  "DEPOSITARY_RECEIPT",
+  // FUND
+  "ETF",
+  "REIT",
+  "FIXED_INCOME_FUND",
+  "MONEY_MARKET_FUND",
+  "COMMODITY_ETF",
+  // FIXED_INCOME
+  "CORPORATE_BOND",
+  "GOVERNMENT_BOND",
+  "MUNICIPAL_BOND",
+  // DERIVATIVE
+  "OPTION",
+  "FUTURE",
+  "WARRANT",
+] as const;
+
+export type CanonicalAssetType = (typeof CANONICAL_ASSET_TYPES)[number];
+
+/**
+ * Cached Asset Types table - canonical (universal) asset type definitions
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.1: Canonical Asset Type Schema
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Uses varchar for ID (allows descriptive codes like "COMMON_STOCK")
+ * - cache_updated_at tracks last refresh
+ * - NOT user-scoped: Reference data shared across all users
+ */
+export const cachedAssetTypes = pgTable(
+  "cached_asset_types",
+  {
+    id: varchar("id", { length: 30 }).primaryKey(), // e.g., "COMMON_STOCK"
+    name: varchar("name", { length: 100 }).notNull(), // e.g., "Common Stock"
+    category: varchar("category", { length: 20 }).notNull(), // e.g., "EQUITY"
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_asset_types_category_idx").on(table.category),
+    index("cached_asset_types_name_idx").on(table.name),
+  ]
+);
+
+/**
+ * Cached Jurisdictions table - regulatory jurisdiction registry
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.2: Localization Overlay Table (jurisdiction is a key component)
+ * AC-5.8.8: Extensible Jurisdiction Support
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Uses format "COUNTRY-REGULATOR" (e.g., "US-SEC", "BR-CVM")
+ * - Designed for extensibility (EU-MiFID, UK-FCA, etc.)
+ * - NOT user-scoped: Reference data shared across all users
+ */
+export const cachedJurisdictions = pgTable(
+  "cached_jurisdictions",
+  {
+    code: varchar("code", { length: 10 }).primaryKey(), // e.g., "US-SEC", "BR-CVM"
+    name: varchar("name", { length: 100 }).notNull(), // e.g., "United States"
+    countryIso: varchar("country_iso", { length: 2 }).notNull(), // e.g., "US", "BR"
+    regulatoryBody: varchar("regulatory_body", { length: 50 }).notNull(), // e.g., "SEC", "CVM"
+    currencyDefault: varchar("currency_default", { length: 3 }).notNull(), // e.g., "USD", "BRL"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_jurisdictions_country_idx").on(table.countryIso),
+    index("cached_jurisdictions_name_idx").on(table.name),
+  ]
+);
+
+/**
+ * Cached Asset Type Localizations table - maps canonical types to local nomenclature
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.2: Localization Overlay Table
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Composite primary key (canonical_type_id, jurisdiction_code)
+ * - Stores local names, codes, and regulatory references
+ * - Enables jurisdiction-specific display while maintaining universal underlying model
+ */
+export const cachedAssetTypeLocalizations = pgTable(
+  "cached_asset_type_localizations",
+  {
+    canonicalTypeId: varchar("canonical_type_id", { length: 30 })
+      .notNull()
+      .references(() => cachedAssetTypes.id, { onDelete: "cascade" }),
+    jurisdictionCode: varchar("jurisdiction_code", { length: 10 })
+      .notNull()
+      .references(() => cachedJurisdictions.code, { onDelete: "cascade" }),
+    localName: varchar("local_name", { length: 100 }).notNull(), // e.g., "Ação Ordinária"
+    localCode: varchar("local_code", { length: 10 }).notNull(), // e.g., "ON"
+    regulatoryReference: varchar("regulatory_reference", { length: 100 }), // e.g., "Lei 6.404"
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Composite primary key
+    unique("cached_asset_type_localizations_pk").on(table.canonicalTypeId, table.jurisdictionCode),
+    index("cached_asset_type_localizations_type_idx").on(table.canonicalTypeId),
+    index("cached_asset_type_localizations_jurisdiction_idx").on(table.jurisdictionCode),
+  ]
+);
+
+/**
+ * Cached Asset Identifiers table - maps symbols to asset types with ISIN
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.3: ISIN as Universal Key
+ * AC-5.8.4: Asset-to-Type Mapping with Jurisdiction
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Symbol as primary key (one entry per symbol)
+ * - ISIN stored for cross-market linking (ISO 6166 format)
+ * - Confidence score indicates mapping quality
+ * - NOT user-scoped: Shared classification cache
+ */
+export const cachedAssetIdentifiers = pgTable(
+  "cached_asset_identifiers",
+  {
+    symbol: varchar("symbol", { length: 20 }).primaryKey(), // e.g., "AAPL", "PETR4.SA"
+    isin: varchar("isin", { length: 12 }), // ISO 6166: exactly 12 chars
+    canonicalTypeId: varchar("canonical_type_id", { length: 30 })
+      .notNull()
+      .references(() => cachedAssetTypes.id),
+    jurisdictionCode: varchar("jurisdiction_code", { length: 10 })
+      .notNull()
+      .references(() => cachedJurisdictions.code),
+    confidence: numeric("confidence", { precision: 3, scale: 2 }).notNull(), // 0.00 to 1.00
+    source: varchar("source", { length: 50 }).notNull(), // e.g., "gemini-api", "manual"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_asset_identifiers_isin_idx").on(table.isin),
+    index("cached_asset_identifiers_type_idx").on(table.canonicalTypeId),
+    index("cached_asset_identifiers_jurisdiction_idx").on(table.jurisdictionCode),
+    index("cached_asset_identifiers_source_idx").on(table.source),
+  ]
+);
+
+/**
+ * Cached Asset Aliases table - links assets across markets via ISIN
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.3: ISIN as Universal Key
+ * AC-5.8.5: Multi-Jurisdiction Asset Linking
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - One record per symbol-jurisdiction combination
+ * - ISIN links multiple symbols as equivalent instruments
+ * - is_primary marks the "home market" listing
+ * - Enables queries like "find all symbols for ISIN BRPETRACNOR9"
+ */
+export const cachedAssetAliases = pgTable(
+  "cached_asset_aliases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    isin: varchar("isin", { length: 12 }).notNull(), // ISO 6166 ISIN
+    symbol: varchar("symbol", { length: 20 }).notNull(), // e.g., "PETR4.SA", "PBR"
+    jurisdictionCode: varchar("jurisdiction_code", { length: 10 })
+      .notNull()
+      .references(() => cachedJurisdictions.code),
+    isPrimary: boolean("is_primary").notNull().default(false), // True for home market
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_asset_aliases_isin_idx").on(table.isin),
+    index("cached_asset_aliases_symbol_idx").on(table.symbol),
+    unique("cached_asset_aliases_symbol_jurisdiction_uniq").on(
+      table.symbol,
+      table.jurisdictionCode
+    ),
+  ]
+);
+
+// =============================================================================
+// ASSET TYPE RELATIONS (Story 5.8)
+// =============================================================================
+
+export const cachedAssetTypesRelations = relations(cachedAssetTypes, ({ many }) => ({
+  localizations: many(cachedAssetTypeLocalizations),
+  assetIdentifiers: many(cachedAssetIdentifiers),
+}));
+
+export const cachedJurisdictionsRelations = relations(cachedJurisdictions, ({ many }) => ({
+  localizations: many(cachedAssetTypeLocalizations),
+  assetIdentifiers: many(cachedAssetIdentifiers),
+  assetAliases: many(cachedAssetAliases),
+}));
+
+export const cachedAssetTypeLocalizationsRelations = relations(
+  cachedAssetTypeLocalizations,
+  ({ one }) => ({
+    assetType: one(cachedAssetTypes, {
+      fields: [cachedAssetTypeLocalizations.canonicalTypeId],
+      references: [cachedAssetTypes.id],
+    }),
+    jurisdiction: one(cachedJurisdictions, {
+      fields: [cachedAssetTypeLocalizations.jurisdictionCode],
+      references: [cachedJurisdictions.code],
+    }),
+  })
+);
+
+export const cachedAssetIdentifiersRelations = relations(cachedAssetIdentifiers, ({ one }) => ({
+  assetType: one(cachedAssetTypes, {
+    fields: [cachedAssetIdentifiers.canonicalTypeId],
+    references: [cachedAssetTypes.id],
+  }),
+  jurisdiction: one(cachedJurisdictions, {
+    fields: [cachedAssetIdentifiers.jurisdictionCode],
+    references: [cachedJurisdictions.code],
+  }),
+}));
+
+export const cachedAssetAliasesRelations = relations(cachedAssetAliases, ({ one }) => ({
+  jurisdiction: one(cachedJurisdictions, {
+    fields: [cachedAssetAliases.jurisdictionCode],
+    references: [cachedJurisdictions.code],
+  }),
+}));
+
+// =============================================================================
+// ASSET TYPE TYPE EXPORTS (Story 5.8)
+// =============================================================================
+
+export type CachedAssetType = typeof cachedAssetTypes.$inferSelect;
+export type NewCachedAssetType = typeof cachedAssetTypes.$inferInsert;
+
+export type CachedJurisdiction = typeof cachedJurisdictions.$inferSelect;
+export type NewCachedJurisdiction = typeof cachedJurisdictions.$inferInsert;
+
+export type CachedAssetTypeLocalization = typeof cachedAssetTypeLocalizations.$inferSelect;
+export type NewCachedAssetTypeLocalization = typeof cachedAssetTypeLocalizations.$inferInsert;
+
+export type CachedAssetIdentifier = typeof cachedAssetIdentifiers.$inferSelect;
+export type NewCachedAssetIdentifier = typeof cachedAssetIdentifiers.$inferInsert;
+
+export type CachedAssetAlias = typeof cachedAssetAliases.$inferSelect;
+export type NewCachedAssetAlias = typeof cachedAssetAliases.$inferInsert;

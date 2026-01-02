@@ -19,6 +19,10 @@ import {
   type CachedPortfolioSummary,
 } from "@/lib/cache/recommendation-cache";
 import { RecommendationService, recommendationService } from "./recommendation-service";
+import {
+  RecommendationFallbackService,
+  recommendationFallbackService,
+} from "./recommendation-fallback-service";
 import { db } from "@/lib/db";
 import { portfolios, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -110,7 +114,8 @@ export interface DashboardResult {
 export class DashboardService {
   constructor(
     private cacheService: RecommendationCacheService = recommendationCacheService,
-    private recService: RecommendationService = recommendationService
+    private recService: RecommendationService = recommendationService,
+    private fallbackService: RecommendationFallbackService = recommendationFallbackService
   ) {}
 
   /**
@@ -163,8 +168,29 @@ export class DashboardService {
         };
       }
 
-      // No data available from either source
-      logger.debug("No dashboard data available", { userId });
+      // Story 5.6: AC-5.6.5 - Try on-demand fallback before returning null
+      // This handles cases where overnight job failed for this user
+      logger.debug("No cached/DB data, trying on-demand fallback", { userId });
+
+      const fallbackResult = await this.tryOnDemandFallback(userId);
+
+      if (fallbackResult) {
+        const durationMs = Date.now() - startTime;
+        logger.info("Dashboard on-demand fallback success", {
+          userId,
+          durationMs,
+          recommendationCount: fallbackResult.recommendations.length,
+          fallbackReason: fallbackResult.dataFreshness.generatedAt,
+        });
+
+        return {
+          success: true,
+          data: fallbackResult,
+        };
+      }
+
+      // No data available from any source
+      logger.debug("No dashboard data available from any source", { userId });
 
       return {
         success: true,
@@ -261,6 +287,116 @@ export class DashboardService {
         ratesAsOf: cached.dataFreshness.ratesAsOf,
       },
       fromCache: true,
+    };
+  }
+
+  // ===========================================================================
+  // PRIVATE METHODS - ON-DEMAND FALLBACK (AC-5.6.5)
+  // ===========================================================================
+
+  /**
+   * Try on-demand calculation fallback
+   *
+   * Story 5.6: AC-5.6.5 - Graceful Failure Fallback
+   * Used when both cache and database miss, typically due to overnight job failure.
+   *
+   * @param userId - User ID
+   * @returns Dashboard data with fromCache: false, or null if fallback fails
+   */
+  private async tryOnDemandFallback(userId: string): Promise<DashboardData | null> {
+    try {
+      const fallbackResult = await this.fallbackService.getRecommendationsWithFallback(userId);
+
+      if (!fallbackResult.recommendations) {
+        logger.debug("On-demand fallback returned no recommendations", {
+          userId,
+          reason: fallbackResult.reason,
+        });
+        return null;
+      }
+
+      // Get user's base currency for transformation
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: { baseCurrency: true },
+      });
+
+      const baseCurrency = user?.baseCurrency || "USD";
+
+      // Transform the fallback result to dashboard format
+      // The result is either CachedRecommendations or GeneratedRecommendation
+      return this.transformFallbackToResponse(fallbackResult.recommendations, baseCurrency);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn("On-demand fallback failed", {
+        userId,
+        error: errorMessage,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Transform fallback result to DashboardData format
+   *
+   * AC-5.6.5: Handle both CachedRecommendations and GeneratedRecommendation
+   */
+  private transformFallbackToResponse(
+    result:
+      | CachedRecommendations
+      | import("./batch-recommendation-service").GeneratedRecommendation,
+    baseCurrency: string
+  ): DashboardData {
+    // Check if it's CachedRecommendations (has portfolioSummary) or GeneratedRecommendation (has allocationGaps)
+    if ("portfolioSummary" in result) {
+      // It's CachedRecommendations format - use existing transform logic
+      return this.transformCacheToResponse(result, null);
+    }
+
+    // It's GeneratedRecommendation format
+    const genResult = result as import("./batch-recommendation-service").GeneratedRecommendation;
+
+    // Build allocations map from allocationGaps
+    const allocations: Record<string, string> = {};
+    for (const gap of genResult.allocationGaps) {
+      allocations[gap.className] = gap.currentAllocation;
+    }
+
+    // Calculate total value from allocationGaps
+    let totalValue = 0;
+    for (const gap of genResult.allocationGaps) {
+      totalValue += parseFloat(gap.currentValue);
+    }
+
+    // Transform recommendations
+    const recommendations: DashboardRecommendationItem[] = genResult.items.map((item) => ({
+      assetId: item.assetId,
+      symbol: item.symbol,
+      score: item.score,
+      amount: item.recommendedAmount,
+      currency: baseCurrency,
+      allocationGap: item.allocationGap,
+      breakdown: {
+        criteriaCount: Object.keys(item.breakdown || {}).length,
+        topContributor: item.classAllocation?.className || "Unknown",
+      },
+    }));
+
+    return {
+      recommendations,
+      portfolioSummary: {
+        totalValue: totalValue.toFixed(4),
+        baseCurrency,
+        allocations,
+      },
+      totalInvestable: genResult.totalInvestable,
+      baseCurrency,
+      dataFreshness: {
+        generatedAt: genResult.generatedAt,
+        pricesAsOf: genResult.auditTrail?.pricesAsOf || genResult.generatedAt,
+        ratesAsOf: genResult.auditTrail?.ratesAsOf || genResult.generatedAt,
+      },
+      fromCache: false, // On-demand is not from cache
     };
   }
 

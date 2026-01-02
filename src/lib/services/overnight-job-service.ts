@@ -43,10 +43,14 @@ export type JobType = (typeof JOB_TYPE)[keyof typeof JOB_TYPE];
  */
 export interface JobRunMetrics {
   fetchRatesMs?: number;
+  fetchPricesMs?: number;
   processUsersMs?: number;
   totalDurationMs?: number;
   assetsScored?: number;
   usersTotal?: number;
+  // Story 5.1: Fundamentals fetch metrics
+  fundamentalsFetched?: number;
+  fetchFundamentalsMs?: number;
   // Story 8.3: Recommendation metrics
   recommendationsGenerated?: number;
   usersWithRecommendations?: number;
@@ -64,6 +68,14 @@ export interface JobRunMetrics {
   driftAlertsUpdated?: number;
   driftAlertsDismissed?: number;
   driftAlertDetectionMs?: number;
+  // Story 5.2: Market data cache metrics
+  marketDataCacheMs?: number;
+  pricesCached?: number;
+  ratesCached?: number;
+  fundamentalsCached?: number;
+  // Story 5.8: Asset type classification metrics
+  assetTypesClassified?: number;
+  assetTypesUnmapped?: number;
 }
 
 /**

@@ -148,6 +148,8 @@ export interface GenerateRecommendationsResult {
   items: RecommendationItemResult[];
   /** Calculation duration in milliseconds */
   durationMs: number;
+  /** Higher-scoring asset alerts (AC-6.2.3) */
+  alerts?: HigherScoringAlert[] | undefined;
 }
 
 // =============================================================================
@@ -158,6 +160,39 @@ export interface GenerateRecommendationsResult {
  * Recommendation status values
  */
 export type RecommendationStatus = "pending" | "active" | "confirmed" | "expired";
+
+// =============================================================================
+// ALERT TYPES (AC-6.2.3: Higher-Scoring Asset Alert)
+// =============================================================================
+
+/**
+ * Alert indicating higher-scoring assets are available outside the portfolio
+ *
+ * Story 6.2 AC-6.2.3: Higher-Scoring Asset Alert
+ * When portfolio is at capacity for an asset class but higher-scoring
+ * assets exist outside the portfolio, an alert is generated.
+ */
+export interface HigherScoringAlert {
+  /** Asset class ID */
+  assetClassId: string;
+  /** Asset class display name */
+  assetClassName: string;
+  /** Lowest score among portfolio assets in this class (decimal string) */
+  currentLowestScore: string;
+  /** Symbol of the lowest-scoring portfolio asset */
+  currentLowestSymbol: string;
+  /** Higher-scoring assets available outside the portfolio */
+  higherScoringAssets: Array<{
+    /** Asset ticker symbol */
+    symbol: string;
+    /** Asset name */
+    name: string;
+    /** Asset score (decimal string) */
+    score: string;
+    /** Score difference from lowest portfolio asset (decimal string) */
+    scoreDifference: string;
+  }>;
+}
 
 // =============================================================================
 // EVENT TYPES (for RECS_COMPUTED event)
@@ -290,6 +325,8 @@ export interface GenerateRecommendationsResponse {
       recommendedAmount: string;
       isOverAllocated: boolean;
     }>;
+    /** Higher-scoring asset alerts (AC-6.2.3) */
+    alerts?: HigherScoringAlert[] | undefined;
   };
 }
 

@@ -28,12 +28,11 @@ export type { RecommendationSummaryProps } from "./recommendation-summary";
 export { BalancedPortfolioState } from "./balanced-portfolio-state";
 export type { BalancedPortfolioStateProps } from "./balanced-portfolio-state";
 
+// Constants
+export { TARGET_ALLOCATION_RANGE, calculateTargetRange } from "./constants";
+
 // Story 7.6: Over-Allocated Explanation
-export {
-  OverAllocatedExplanation,
-  calculateTargetRange,
-  generateGuidanceMessage,
-} from "./over-allocated-explanation";
+export { OverAllocatedExplanation, generateGuidanceMessage } from "./over-allocated-explanation";
 export type { OverAllocatedExplanationProps } from "./over-allocated-explanation";
 
 // Story 7.7: Recommendation Breakdown
@@ -49,3 +48,14 @@ export type { InvestmentAmountRowProps } from "./investment-amount-row";
 
 export { ConfirmationModal } from "./confirmation-modal";
 export type { ConfirmationModalProps } from "./confirmation-modal";
+
+// Story 6.3: Recommendation Display - Pie Chart and Before/After Preview
+export { RecommendationPieChart, transformToChartData } from "./recommendation-pie-chart";
+export type { RecommendationPieChartProps } from "./recommendation-pie-chart";
+
+export {
+  BeforeAfterPreview,
+  calculateExpectedAllocation,
+  calculateAllocationChanges,
+} from "./before-after-preview";
+export type { BeforeAfterPreviewProps, AllocationChange } from "./before-after-preview";
