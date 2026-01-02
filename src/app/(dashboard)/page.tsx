@@ -209,9 +209,9 @@ function FocusModeSection() {
   const hasInvestableItems = data.items.some((item) => !item.isOverAllocated);
 
   // Portfolio value for before/after calculation
-  // TODO(epic-7): Replace with actual portfolio value from useDashboard hook
+  // TODO(epic-7): Replace with useDashboard().portfolioSummary.totalValue
   // For now, we pass undefined to hide the before/after preview and tooltip "After" values
-  // until portfolio value is available from a real data source
+  // until portfolio value is available from the dashboard data source
   const currentPortfolioValue: string | undefined = undefined;
 
   // Recommendations display

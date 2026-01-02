@@ -202,11 +202,14 @@ test.describe("Recommendation Display", () => {
         const tooltipContent = page.getByTestId("recommendation-tooltip-content");
 
         // Wait for tooltip to appear using proper Playwright API
-        // Shadcn tooltips have a default delay, so we need adequate timeout
+        // Shadcn tooltips have a default delay (~400ms), so we need adequate timeout
         try {
           await tooltipContent.waitFor({ state: "visible", timeout: 5000 });
         } catch {
-          // Tooltip may not appear in some environments (e.g., mobile viewport)
+          // Tooltip may not appear in certain conditions:
+          // - Mobile viewports where hover is not supported
+          // - Users with reduced motion/accessibility settings
+          // - CI environments with different rendering behavior
           // Skip further assertions if tooltip doesn't appear
           return;
         }
