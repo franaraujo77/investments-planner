@@ -97,6 +97,10 @@ export const NOT_FOUND_ERRORS = {
   RECOMMENDATIONS_NOT_FOUND: "NOT_FOUND_RECOMMENDATIONS",
   /** Alert not found (Story 9.1) */
   ALERT_NOT_FOUND: "NOT_FOUND_ALERT",
+  /** Asset type not found (Story 5.8) */
+  ASSET_TYPE_NOT_FOUND: "NOT_FOUND_ASSET_TYPE",
+  /** Asset classification not found (Story 5.8) */
+  ASSET_CLASSIFICATION_NOT_FOUND: "NOT_FOUND_ASSET_CLASSIFICATION",
 } as const;
 
 // =============================================================================

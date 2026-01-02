@@ -76,7 +76,10 @@ import {
 } from "@/lib/providers";
 import { alertDetectionService } from "@/lib/services/alert-detection-service";
 import { marketDataCacheService } from "@/lib/services/data-access";
-import { processClassificationsFromFundamentals } from "@/lib/services/classification";
+import {
+  processClassificationsFromFundamentals,
+  classifyAssetsFromFundamentals,
+} from "@/lib/services/classification";
 
 /**
  * Default cron schedule for overnight scoring
@@ -150,6 +153,10 @@ interface FundamentalsStepResult {
   cacheWriteMs: number;
   /** Story 5.7: Number of classifications extracted from fundamentals */
   classificationsExtracted: number;
+  /** Story 5.8: Number of asset types classified */
+  assetTypesClassified: number;
+  /** Story 5.8: Number of assets that could not be mapped to canonical types */
+  assetTypesUnmapped: number;
 }
 
 // TODO(story-5.3): Add FundamentalsMap type and pass fundamentals data to scoring step
@@ -673,6 +680,8 @@ export const overnightScoringJob = inngest.createFunction(
           let fundamentalsCached = 0;
           let cacheWriteMs = 0;
           let classificationsExtracted = 0;
+          let assetTypesClassified = 0;
+          let assetTypesUnmapped = 0;
 
           logger.info("Fetching fundamentals data", {
             correlationId: setupResult.correlationId,
@@ -746,6 +755,37 @@ export const overnightScoringJob = inngest.createFunction(
                       error: classificationErrorMessage,
                     });
                   }
+
+                  // Story 5.8: Extract and cache asset type classifications from fundamentals
+                  // AC-5.8.7: Integration with Overnight Job
+                  try {
+                    const assetTypeResult = await classifyAssetsFromFundamentals(
+                      result.fundamentals
+                    );
+                    assetTypesClassified = assetTypeResult.classified;
+                    assetTypesUnmapped = assetTypeResult.unmapped;
+                    logger.info("Asset types classified from fundamentals", {
+                      correlationId: setupResult.correlationId,
+                      classified: assetTypeResult.classified,
+                      alreadyCached: assetTypeResult.alreadyCached,
+                      unmapped: assetTypeResult.unmapped,
+                      errors: assetTypeResult.errors,
+                      unmappedTypes:
+                        assetTypeResult.unmappedTypes.length > 0
+                          ? assetTypeResult.unmappedTypes.join(", ")
+                          : undefined,
+                    });
+                  } catch (assetTypeError) {
+                    // Asset type classification is not critical - log and continue
+                    const assetTypeErrorMessage =
+                      assetTypeError instanceof Error
+                        ? assetTypeError.message
+                        : String(assetTypeError);
+                    logger.warn("Failed to classify asset types from fundamentals", {
+                      correlationId: setupResult.correlationId,
+                      error: assetTypeErrorMessage,
+                    });
+                  }
                 }
               } else {
                 // No provider configured - skip fundamentals for development only
@@ -772,6 +812,8 @@ export const overnightScoringJob = inngest.createFunction(
             correlationId: setupResult.correlationId,
             fundamentalsCount,
             classificationsExtracted,
+            assetTypesClassified,
+            assetTypesUnmapped,
             errorCount: errors.length,
             durationMs,
           });
@@ -783,12 +825,16 @@ export const overnightScoringJob = inngest.createFunction(
             fundamentalsCached,
             cacheWriteMs,
             classificationsExtracted,
+            assetTypesClassified,
+            assetTypesUnmapped,
           };
         }
       );
 
       span.setAttribute("fundamentals_count", fundamentalsResult.fundamentalsCount);
       span.setAttribute("classifications_extracted", fundamentalsResult.classificationsExtracted);
+      span.setAttribute("asset_types_classified", fundamentalsResult.assetTypesClassified);
+      span.setAttribute("asset_types_unmapped", fundamentalsResult.assetTypesUnmapped);
 
       // Step 5: Score portfolios
       // AC-8.2.3: Process users in batches of 50
@@ -1391,6 +1437,9 @@ export const overnightScoringJob = inngest.createFunction(
           driftAlertsUpdated: driftAlertDetectionResult.alertsUpdated,
           driftAlertsDismissed: driftAlertDetectionResult.alertsDismissed,
           driftAlertDetectionMs: driftAlertDetectionResult.durationMs,
+          // Story 5.8: Add asset type classification metrics
+          assetTypesClassified: fundamentalsResult.assetTypesClassified,
+          assetTypesUnmapped: fundamentalsResult.assetTypesUnmapped,
         };
 
         if (scoringResult.usersFailed > 0 && scoringResult.errors.length > 0) {

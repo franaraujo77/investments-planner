@@ -73,6 +73,9 @@ export interface JobRunMetrics {
   pricesCached?: number;
   ratesCached?: number;
   fundamentalsCached?: number;
+  // Story 5.8: Asset type classification metrics
+  assetTypesClassified?: number;
+  assetTypesUnmapped?: number;
 }
 
 /**

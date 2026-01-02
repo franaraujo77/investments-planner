@@ -1746,3 +1746,287 @@ export type NewCachedGicsIndustry = typeof cachedGicsIndustries.$inferInsert;
 
 export type CachedAssetClassification = typeof cachedAssetClassifications.$inferSelect;
 export type NewCachedAssetClassification = typeof cachedAssetClassifications.$inferInsert;
+
+// =============================================================================
+// ASSET TYPE CLASSIFICATION SYSTEM (Story 5.8)
+// =============================================================================
+
+/**
+ * Asset category enum for classification
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.1: Categories group canonical asset types
+ */
+export const ASSET_CATEGORIES = [
+  "EQUITY",
+  "FIXED_INCOME",
+  "FUND",
+  "COMMODITY",
+  "DERIVATIVE",
+] as const;
+
+export type AssetCategory = (typeof ASSET_CATEGORIES)[number];
+
+/**
+ * Canonical asset types - jurisdiction-agnostic instrument classifications
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.1: Universal asset types that work across all markets
+ */
+export const CANONICAL_ASSET_TYPES = [
+  // EQUITY
+  "COMMON_STOCK",
+  "PREFERRED_STOCK",
+  "DEPOSITARY_RECEIPT",
+  // FUND
+  "ETF",
+  "REIT",
+  "FIXED_INCOME_FUND",
+  "MONEY_MARKET_FUND",
+  "COMMODITY_ETF",
+  // FIXED_INCOME
+  "CORPORATE_BOND",
+  "GOVERNMENT_BOND",
+  "MUNICIPAL_BOND",
+  // DERIVATIVE
+  "OPTION",
+  "FUTURE",
+  "WARRANT",
+] as const;
+
+export type CanonicalAssetType = (typeof CANONICAL_ASSET_TYPES)[number];
+
+/**
+ * Cached Asset Types table - canonical (universal) asset type definitions
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.1: Canonical Asset Type Schema
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Uses varchar for ID (allows descriptive codes like "COMMON_STOCK")
+ * - cache_updated_at tracks last refresh
+ * - NOT user-scoped: Reference data shared across all users
+ */
+export const cachedAssetTypes = pgTable(
+  "cached_asset_types",
+  {
+    id: varchar("id", { length: 30 }).primaryKey(), // e.g., "COMMON_STOCK"
+    name: varchar("name", { length: 100 }).notNull(), // e.g., "Common Stock"
+    category: varchar("category", { length: 20 }).notNull(), // e.g., "EQUITY"
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_asset_types_category_idx").on(table.category),
+    index("cached_asset_types_name_idx").on(table.name),
+  ]
+);
+
+/**
+ * Cached Jurisdictions table - regulatory jurisdiction registry
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.2: Localization Overlay Table (jurisdiction is a key component)
+ * AC-5.8.8: Extensible Jurisdiction Support
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Uses format "COUNTRY-REGULATOR" (e.g., "US-SEC", "BR-CVM")
+ * - Designed for extensibility (EU-MiFID, UK-FCA, etc.)
+ * - NOT user-scoped: Reference data shared across all users
+ */
+export const cachedJurisdictions = pgTable(
+  "cached_jurisdictions",
+  {
+    code: varchar("code", { length: 10 }).primaryKey(), // e.g., "US-SEC", "BR-CVM"
+    name: varchar("name", { length: 100 }).notNull(), // e.g., "United States"
+    countryIso: varchar("country_iso", { length: 2 }).notNull(), // e.g., "US", "BR"
+    regulatoryBody: varchar("regulatory_body", { length: 50 }).notNull(), // e.g., "SEC", "CVM"
+    currencyDefault: varchar("currency_default", { length: 3 }).notNull(), // e.g., "USD", "BRL"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_jurisdictions_country_idx").on(table.countryIso),
+    index("cached_jurisdictions_name_idx").on(table.name),
+  ]
+);
+
+/**
+ * Cached Asset Type Localizations table - maps canonical types to local nomenclature
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.2: Localization Overlay Table
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Composite primary key (canonical_type_id, jurisdiction_code)
+ * - Stores local names, codes, and regulatory references
+ * - Enables jurisdiction-specific display while maintaining universal underlying model
+ */
+export const cachedAssetTypeLocalizations = pgTable(
+  "cached_asset_type_localizations",
+  {
+    canonicalTypeId: varchar("canonical_type_id", { length: 30 })
+      .notNull()
+      .references(() => cachedAssetTypes.id, { onDelete: "cascade" }),
+    jurisdictionCode: varchar("jurisdiction_code", { length: 10 })
+      .notNull()
+      .references(() => cachedJurisdictions.code, { onDelete: "cascade" }),
+    localName: varchar("local_name", { length: 100 }).notNull(), // e.g., "Ação Ordinária"
+    localCode: varchar("local_code", { length: 10 }).notNull(), // e.g., "ON"
+    regulatoryReference: varchar("regulatory_reference", { length: 100 }), // e.g., "Lei 6.404"
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Composite primary key
+    unique("cached_asset_type_localizations_pk").on(table.canonicalTypeId, table.jurisdictionCode),
+    index("cached_asset_type_localizations_type_idx").on(table.canonicalTypeId),
+    index("cached_asset_type_localizations_jurisdiction_idx").on(table.jurisdictionCode),
+  ]
+);
+
+/**
+ * Cached Asset Identifiers table - maps symbols to asset types with ISIN
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.3: ISIN as Universal Key
+ * AC-5.8.4: Asset-to-Type Mapping with Jurisdiction
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - Symbol as primary key (one entry per symbol)
+ * - ISIN stored for cross-market linking (ISO 6166 format)
+ * - Confidence score indicates mapping quality
+ * - NOT user-scoped: Shared classification cache
+ */
+export const cachedAssetIdentifiers = pgTable(
+  "cached_asset_identifiers",
+  {
+    symbol: varchar("symbol", { length: 20 }).primaryKey(), // e.g., "AAPL", "PETR4.SA"
+    isin: varchar("isin", { length: 12 }), // ISO 6166: exactly 12 chars
+    canonicalTypeId: varchar("canonical_type_id", { length: 30 })
+      .notNull()
+      .references(() => cachedAssetTypes.id),
+    jurisdictionCode: varchar("jurisdiction_code", { length: 10 })
+      .notNull()
+      .references(() => cachedJurisdictions.code),
+    confidence: numeric("confidence", { precision: 3, scale: 2 }).notNull(), // 0.00 to 1.00
+    source: varchar("source", { length: 50 }).notNull(), // e.g., "gemini-api", "manual"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_asset_identifiers_isin_idx").on(table.isin),
+    index("cached_asset_identifiers_type_idx").on(table.canonicalTypeId),
+    index("cached_asset_identifiers_jurisdiction_idx").on(table.jurisdictionCode),
+    index("cached_asset_identifiers_source_idx").on(table.source),
+  ]
+);
+
+/**
+ * Cached Asset Aliases table - links assets across markets via ISIN
+ *
+ * Story 5.8: Asset Type Classification Cache
+ * AC-5.8.3: ISIN as Universal Key
+ * AC-5.8.5: Multi-Jurisdiction Asset Linking
+ * AC-5.8.9: Cache table naming convention with cached_ prefix
+ *
+ * Key design decisions:
+ * - One record per symbol-jurisdiction combination
+ * - ISIN links multiple symbols as equivalent instruments
+ * - is_primary marks the "home market" listing
+ * - Enables queries like "find all symbols for ISIN BRPETRACNOR9"
+ */
+export const cachedAssetAliases = pgTable(
+  "cached_asset_aliases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    isin: varchar("isin", { length: 12 }).notNull(), // ISO 6166 ISIN
+    symbol: varchar("symbol", { length: 20 }).notNull(), // e.g., "PETR4.SA", "PBR"
+    jurisdictionCode: varchar("jurisdiction_code", { length: 10 })
+      .notNull()
+      .references(() => cachedJurisdictions.code),
+    isPrimary: boolean("is_primary").notNull().default(false), // True for home market
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cacheUpdatedAt: timestamp("cache_updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cached_asset_aliases_isin_idx").on(table.isin),
+    index("cached_asset_aliases_symbol_idx").on(table.symbol),
+    unique("cached_asset_aliases_symbol_jurisdiction_uniq").on(
+      table.symbol,
+      table.jurisdictionCode
+    ),
+  ]
+);
+
+// =============================================================================
+// ASSET TYPE RELATIONS (Story 5.8)
+// =============================================================================
+
+export const cachedAssetTypesRelations = relations(cachedAssetTypes, ({ many }) => ({
+  localizations: many(cachedAssetTypeLocalizations),
+  assetIdentifiers: many(cachedAssetIdentifiers),
+}));
+
+export const cachedJurisdictionsRelations = relations(cachedJurisdictions, ({ many }) => ({
+  localizations: many(cachedAssetTypeLocalizations),
+  assetIdentifiers: many(cachedAssetIdentifiers),
+  assetAliases: many(cachedAssetAliases),
+}));
+
+export const cachedAssetTypeLocalizationsRelations = relations(
+  cachedAssetTypeLocalizations,
+  ({ one }) => ({
+    assetType: one(cachedAssetTypes, {
+      fields: [cachedAssetTypeLocalizations.canonicalTypeId],
+      references: [cachedAssetTypes.id],
+    }),
+    jurisdiction: one(cachedJurisdictions, {
+      fields: [cachedAssetTypeLocalizations.jurisdictionCode],
+      references: [cachedJurisdictions.code],
+    }),
+  })
+);
+
+export const cachedAssetIdentifiersRelations = relations(cachedAssetIdentifiers, ({ one }) => ({
+  assetType: one(cachedAssetTypes, {
+    fields: [cachedAssetIdentifiers.canonicalTypeId],
+    references: [cachedAssetTypes.id],
+  }),
+  jurisdiction: one(cachedJurisdictions, {
+    fields: [cachedAssetIdentifiers.jurisdictionCode],
+    references: [cachedJurisdictions.code],
+  }),
+}));
+
+export const cachedAssetAliasesRelations = relations(cachedAssetAliases, ({ one }) => ({
+  jurisdiction: one(cachedJurisdictions, {
+    fields: [cachedAssetAliases.jurisdictionCode],
+    references: [cachedJurisdictions.code],
+  }),
+}));
+
+// =============================================================================
+// ASSET TYPE TYPE EXPORTS (Story 5.8)
+// =============================================================================
+
+export type CachedAssetType = typeof cachedAssetTypes.$inferSelect;
+export type NewCachedAssetType = typeof cachedAssetTypes.$inferInsert;
+
+export type CachedJurisdiction = typeof cachedJurisdictions.$inferSelect;
+export type NewCachedJurisdiction = typeof cachedJurisdictions.$inferInsert;
+
+export type CachedAssetTypeLocalization = typeof cachedAssetTypeLocalizations.$inferSelect;
+export type NewCachedAssetTypeLocalization = typeof cachedAssetTypeLocalizations.$inferInsert;
+
+export type CachedAssetIdentifier = typeof cachedAssetIdentifiers.$inferSelect;
+export type NewCachedAssetIdentifier = typeof cachedAssetIdentifiers.$inferInsert;
+
+export type CachedAssetAlias = typeof cachedAssetAliases.$inferSelect;
+export type NewCachedAssetAlias = typeof cachedAssetAliases.$inferInsert;
