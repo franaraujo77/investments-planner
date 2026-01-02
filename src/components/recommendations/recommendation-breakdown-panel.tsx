@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/sheet";
 import { AllocationGauge } from "./allocation-gauge";
 import { CalculationSteps } from "./calculation-steps";
+import { calculateTargetRange } from "./constants";
 import { ScoreBadge } from "@/components/fintech/score-badge";
 import { formatCurrency } from "@/lib/utils/currency-format";
 import { Clock, ExternalLink, FileText } from "lucide-react";
@@ -63,18 +64,8 @@ export interface RecommendationBreakdownPanelProps {
 // UTILITIES
 // =============================================================================
 
-/**
- * Calculate target range from midpoint (±5% with bounds)
- */
-function calculateTargetRange(targetMidpoint: string): {
-  min: string;
-  max: string;
-} {
-  const midpoint = parseFloat(targetMidpoint) || 0;
-  const min = Math.max(midpoint - 5, 0).toFixed(1); // eslint-disable-line no-restricted-syntax
-  const max = Math.min(midpoint + 5, 100).toFixed(1); // eslint-disable-line no-restricted-syntax
-  return { min, max };
-}
+// Note: calculateTargetRange is imported from ./constants to ensure consistent
+// TARGET_ALLOCATION_RANGE usage across all recommendation components
 
 /**
  * Build simplified calculation steps from item data

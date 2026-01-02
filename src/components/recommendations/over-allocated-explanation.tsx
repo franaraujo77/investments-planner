@@ -24,6 +24,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { AllocationGauge } from "./allocation-gauge";
+import { calculateTargetRange } from "./constants";
 import { AlertTriangle } from "lucide-react";
 
 // =============================================================================
@@ -49,19 +50,8 @@ export interface OverAllocatedExplanationProps {
 // UTILITIES
 // =============================================================================
 
-/**
- * Calculate target range from midpoint
- * Uses ±5% as default range (consistent with RecommendationCard)
- */
-export function calculateTargetRange(targetMidpoint: string): {
-  min: string;
-  max: string;
-} {
-  const midpoint = parseFloat(targetMidpoint) || 0;
-  const min = Math.max(midpoint - 5, 0).toFixed(1); // eslint-disable-line no-restricted-syntax
-  const max = Math.min(midpoint + 5, 100).toFixed(1); // eslint-disable-line no-restricted-syntax
-  return { min, max };
-}
+// Note: calculateTargetRange is imported from ./constants to ensure consistent
+// TARGET_ALLOCATION_RANGE usage across all recommendation components
 
 /**
  * Generate the rebalancing guidance message

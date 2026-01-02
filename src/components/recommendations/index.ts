@@ -28,12 +28,11 @@ export type { RecommendationSummaryProps } from "./recommendation-summary";
 export { BalancedPortfolioState } from "./balanced-portfolio-state";
 export type { BalancedPortfolioStateProps } from "./balanced-portfolio-state";
 
+// Constants
+export { TARGET_ALLOCATION_RANGE, calculateTargetRange } from "./constants";
+
 // Story 7.6: Over-Allocated Explanation
-export {
-  OverAllocatedExplanation,
-  calculateTargetRange,
-  generateGuidanceMessage,
-} from "./over-allocated-explanation";
+export { OverAllocatedExplanation, generateGuidanceMessage } from "./over-allocated-explanation";
 export type { OverAllocatedExplanationProps } from "./over-allocated-explanation";
 
 // Story 7.7: Recommendation Breakdown

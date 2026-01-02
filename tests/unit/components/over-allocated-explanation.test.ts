@@ -11,10 +11,8 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  calculateTargetRange,
-  generateGuidanceMessage,
-} from "@/components/recommendations/over-allocated-explanation";
+import { calculateTargetRange } from "@/components/recommendations/constants";
+import { generateGuidanceMessage } from "@/components/recommendations/over-allocated-explanation";
 import type { OverAllocatedExplanationProps } from "@/components/recommendations/over-allocated-explanation";
 
 describe("OverAllocatedExplanation", () => {

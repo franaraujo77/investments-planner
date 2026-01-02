@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ScoreBadge } from "@/components/fintech/score-badge";
 import { AllocationGauge } from "./allocation-gauge";
 import { OverAllocatedExplanation } from "./over-allocated-explanation";
+import { calculateTargetRange } from "./constants";
 import { formatCurrency } from "@/lib/utils/currency-format";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { cn } from "@/lib/utils";
@@ -105,11 +106,9 @@ export function RecommendationCard({
   // State for over-allocated explanation sheet (Story 7.6)
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
 
-  // Calculate target min/max from targetAllocation and allocationGap
-  // For display purposes, we'll show a reasonable range around the target
-  const targetValue = parseFloat(targetAllocation) || 0;
-  const targetMin = Math.max(targetValue - 5, 0).toFixed(1); // eslint-disable-line no-restricted-syntax
-  const targetMax = Math.min(targetValue + 5, 100).toFixed(1); // eslint-disable-line no-restricted-syntax
+  // Calculate target min/max from targetAllocation
+  // Uses centralized constant for target range (±TARGET_ALLOCATION_RANGE percentage points)
+  const { min: targetMin, max: targetMax } = calculateTargetRange(targetAllocation);
 
   // Format recommended amount
   const formattedAmount = formatCurrency(recommendedAmount, baseCurrency);

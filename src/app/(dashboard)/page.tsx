@@ -232,25 +232,31 @@ function FocusModeSection() {
 
       {/* AC-6.3.2: Pie Chart Visualization - Shows recommended allocation distribution */}
       {/* AC-6.3.3: Before/After Allocation Preview (only when portfolio value available) */}
-      {hasInvestableItems && (
-        <div className="grid gap-6 lg:grid-cols-2">
+      {hasInvestableItems &&
+        (currentPortfolioValue ? (
+          // Two-column grid when both pie chart and before/after preview are available
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RecommendationPieChart
+              items={data.items}
+              totalInvestable={data.totalInvestable}
+              baseCurrency={data.baseCurrency}
+              height={220}
+            />
+            <BeforeAfterPreview
+              items={data.items}
+              totalInvestable={data.totalInvestable}
+              currentPortfolioValue={currentPortfolioValue}
+            />
+          </div>
+        ) : (
+          // Single pie chart without grid when portfolio value not available (until epic-7)
           <RecommendationPieChart
             items={data.items}
             totalInvestable={data.totalInvestable}
             baseCurrency={data.baseCurrency}
             height={220}
           />
-
-          {/* Before/After preview requires portfolio value - hidden until epic-7 */}
-          {currentPortfolioValue && (
-            <BeforeAfterPreview
-              items={data.items}
-              totalInvestable={data.totalInvestable}
-              currentPortfolioValue={currentPortfolioValue}
-            />
-          )}
-        </div>
-      )}
+        ))}
 
       {/* AC-7.5.2 & AC-7.5.3: Recommendation Cards (sorted by amount) */}
       {/* AC-6.3.4: Cards have hover tooltip with expected allocation */}

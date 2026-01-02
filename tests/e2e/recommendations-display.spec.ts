@@ -176,11 +176,10 @@ test.describe("Recommendation Display", () => {
         // Hover over the card to trigger tooltip
         await firstCard.hover();
 
-        // Wait for tooltip to appear (shadcn tooltip has short delay)
+        // Wait for tooltip to appear using proper Playwright API
+        // Shadcn tooltips have a default delay (~400ms), allow adequate timeout
         const tooltipContent = page.getByTestId("recommendation-tooltip-content");
-
-        // Use a reasonable timeout for tooltip appearance
-        await expect(tooltipContent).toBeVisible({ timeout: 5000 });
+        await tooltipContent.waitFor({ state: "visible", timeout: 5000 });
 
         // Tooltip should contain allocation info (Current and Target are always shown)
         await expect(tooltipContent.getByText("Current:")).toBeVisible();
@@ -202,26 +201,29 @@ test.describe("Recommendation Display", () => {
 
         const tooltipContent = page.getByTestId("recommendation-tooltip-content");
 
-        // Wait for tooltip to appear
-        const isTooltipVisible = await tooltipContent
-          .isVisible({ timeout: 5000 })
-          .catch(() => false);
+        // Wait for tooltip to appear using proper Playwright API
+        // Shadcn tooltips have a default delay, so we need adequate timeout
+        try {
+          await tooltipContent.waitFor({ state: "visible", timeout: 5000 });
+        } catch {
+          // Tooltip may not appear in some environments (e.g., mobile viewport)
+          // Skip further assertions if tooltip doesn't appear
+          return;
+        }
 
-        if (isTooltipVisible) {
-          // "After:" field is conditional - only shown when portfolio value is available
-          // This test verifies the tooltip renders without errors
-          // The "After:" field will be enabled in epic-7 when portfolio value is wired up
-          const afterText = tooltipContent.getByText("After:");
-          const isAfterVisible = await afterText.isVisible().catch(() => false);
+        // "After:" field is conditional - only shown when portfolio value is available
+        // This test verifies the tooltip renders without errors
+        // The "After:" field will be enabled in epic-7 when portfolio value is wired up
+        const afterText = tooltipContent.getByText("After:");
+        const isAfterVisible = await afterText.isVisible();
 
-          // Log for debugging - After is expected to be hidden until epic-7
-          if (!isAfterVisible) {
-            // Expected: After is hidden because portfolio value is not yet available
-            expect(true).toBe(true);
-          } else {
-            // If After is visible, verify it has a percentage value
-            await expect(afterText).toBeVisible();
-          }
+        // After is expected to be hidden until epic-7 because portfolio value is not yet available
+        if (!isAfterVisible) {
+          // Expected: After is hidden because portfolio value is not yet available
+          expect(true).toBe(true);
+        } else {
+          // If After is visible, verify it has a percentage value
+          await expect(afterText).toBeVisible();
         }
       }
     });
