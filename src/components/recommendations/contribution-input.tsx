@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getCurrencySymbol } from "@/lib/services/exchange-rate-service";
 import { parseDecimal } from "@/lib/calculations/decimal-utils";
+import { validateContribution as schemaValidateContribution } from "@/lib/validations/recommendation-schemas";
 
 export interface ContributionInputProps {
   /** Current value as decimal string (e.g., "2000.00") */
@@ -128,37 +129,10 @@ function parseFormattedValue(formattedValue: string, currency: string): string {
 }
 
 /**
- * Validate contribution amount
- * Returns error message or undefined if valid
+ * Re-export validateContribution from schemas for backwards compatibility
+ * The canonical implementation is in @/lib/validations/recommendation-schemas
  */
-export function validateContribution(value: string): string | undefined {
-  if (!value || value.trim() === "") {
-    return "Contribution amount is required";
-  }
-
-  try {
-    const decimal = parseDecimal(value);
-
-    // Check if positive
-    if (decimal.isNegative() || decimal.isZero()) {
-      return "Contribution must be greater than 0";
-    }
-
-    // Check decimal places (max 2)
-    const decimalStr = decimal.toString();
-    const decimalPointIndex = decimalStr.indexOf(".");
-    if (decimalPointIndex !== -1) {
-      const decimalPlaces = decimalStr.length - decimalPointIndex - 1;
-      if (decimalPlaces > 2) {
-        return "Maximum 2 decimal places allowed";
-      }
-    }
-
-    return undefined;
-  } catch {
-    return "Please enter a valid number";
-  }
-}
+export const validateContribution = schemaValidateContribution;
 
 export function ContributionInput({
   value,
