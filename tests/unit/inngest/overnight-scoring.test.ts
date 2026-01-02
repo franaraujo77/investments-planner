@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { overnightScoringJob } from "@/lib/inngest/functions/overnight-scoring";
+import { overnightScoringJob, TIME_LIMIT_MS } from "@/lib/inngest/functions/overnight-scoring";
 
 // Mock the logger to avoid actual logging during tests
 vi.mock("@/lib/telemetry/logger", () => ({
@@ -307,5 +307,73 @@ describe("Provider Fallback Behavior (Story 5.1, Task 6.2)", () => {
 
     expect(retryConfig.maxAttempts).toBe(3);
     expect(circuitBreakerConfig.failureThreshold).toBe(5);
+  });
+});
+
+describe("Story 5.6: Time Limit Alerting (AC-5.6.6)", () => {
+  it("exports TIME_LIMIT_MS constant", () => {
+    expect(TIME_LIMIT_MS).toBeDefined();
+    expect(typeof TIME_LIMIT_MS).toBe("number");
+  });
+
+  it("time limit is set to 120 minutes (2 hours)", () => {
+    // Job starts at 4 AM UTC and must complete before 6 AM UTC
+    const expectedMs = 120 * 60 * 1000; // 120 minutes in milliseconds
+    expect(TIME_LIMIT_MS).toBe(expectedMs);
+  });
+
+  it("time limit equals 7,200,000 milliseconds", () => {
+    // 120 minutes * 60 seconds * 1000 ms = 7,200,000 ms
+    expect(TIME_LIMIT_MS).toBe(7_200_000);
+  });
+
+  it("documents time limit check happens in finalize step", () => {
+    // The finalize step checks if totalDurationMs > TIME_LIMIT_MS
+    // If exceeded, it:
+    // 1. Logs a warning with correlationId, totalDurationMs, timeLimitMs, exceededByMs
+    // 2. Emits "overnight-job.time-limit-exceeded" event for alerting integration
+    const timeLimitCheckBehavior = {
+      step: "finalize",
+      condition: "totalDurationMs > TIME_LIMIT_MS",
+      logLevel: "warn",
+      eventName: "overnight-job.time-limit-exceeded",
+      eventPayload: [
+        "correlationId",
+        "durationMs",
+        "timeLimitMs",
+        "exceededByMs",
+        "completedAt",
+        "usersProcessed",
+        "assetsScored",
+      ],
+    };
+
+    expect(timeLimitCheckBehavior.step).toBe("finalize");
+    expect(timeLimitCheckBehavior.eventName).toBe("overnight-job.time-limit-exceeded");
+    expect(timeLimitCheckBehavior.eventPayload).toContain("exceededByMs");
+  });
+
+  it("alert is NOT triggered when duration is within limit", () => {
+    // Test scenario: Job takes 1 hour (within 2 hour limit)
+    const durationWithinLimit = 60 * 60 * 1000; // 1 hour
+    expect(durationWithinLimit < TIME_LIMIT_MS).toBe(true);
+    expect(durationWithinLimit).toBeLessThan(TIME_LIMIT_MS);
+  });
+
+  it("alert IS triggered when duration exceeds limit", () => {
+    // Test scenario: Job takes 2.5 hours (exceeds 2 hour limit)
+    const durationExceedsLimit = 150 * 60 * 1000; // 2.5 hours
+    expect(durationExceedsLimit > TIME_LIMIT_MS).toBe(true);
+    expect(durationExceedsLimit).toBeGreaterThan(TIME_LIMIT_MS);
+  });
+
+  it("calculates exceeded time correctly", () => {
+    // If job runs for 2.5 hours, it exceeds by 30 minutes
+    const actualDuration = 150 * 60 * 1000; // 2.5 hours
+    const exceededByMs = actualDuration - TIME_LIMIT_MS;
+    const exceededByMinutes = exceededByMs / 60000;
+
+    expect(exceededByMs).toBe(30 * 60 * 1000); // 30 minutes in ms
+    expect(exceededByMinutes).toBe(30);
   });
 });

@@ -90,6 +90,13 @@ const DEFAULT_CRON = "0 4 * * *";
  */
 const USER_BATCH_SIZE = 50;
 
+/**
+ * Story 5.6: Time limit for overnight job execution
+ * AC-5.6.6: Alert if job exceeds time limit
+ * Job starts at 4 AM UTC and must complete before 6 AM (2 hours = 120 minutes)
+ */
+export const TIME_LIMIT_MS = 120 * 60 * 1000; // 120 minutes = 2 hours
+
 // Note: Context is passed between steps via step results
 // Each step returns its result which is available to subsequent steps
 
@@ -1285,8 +1292,36 @@ export const overnightScoringJob = inngest.createFunction(
       span.setAttribute("cache_failures", cacheWarmingResult.cacheFailures);
 
       // Step 8: Finalize - Update job status with all metrics
+      // Story 5.6: Also check time limit and emit alert if exceeded
       await step.run("finalize", async () => {
         const totalDurationMs = Date.now() - jobStartTime;
+
+        // Story 5.6: Time limit alerting (AC-5.6.6)
+        // Check if job duration exceeded the time limit threshold
+        if (totalDurationMs > TIME_LIMIT_MS) {
+          logger.warn("Overnight job exceeded time limit", {
+            correlationId: setupResult.correlationId,
+            totalDurationMs,
+            timeLimitMs: TIME_LIMIT_MS,
+            exceededByMs: totalDurationMs - TIME_LIMIT_MS,
+            exceededByMinutes: Math.round((totalDurationMs - TIME_LIMIT_MS) / 60000),
+          });
+
+          // Emit event for alerting system integration
+          // This allows external systems to subscribe and send notifications
+          await inngest.send({
+            name: "overnight-job.time-limit-exceeded",
+            data: {
+              correlationId: setupResult.correlationId,
+              durationMs: totalDurationMs,
+              timeLimitMs: TIME_LIMIT_MS,
+              exceededByMs: totalDurationMs - TIME_LIMIT_MS,
+              completedAt: new Date().toISOString(),
+              usersProcessed: scoringResult.usersProcessed,
+              assetsScored: scoringResult.assetsScored,
+            },
+          });
+        }
 
         const metrics: JobRunMetrics = {
           fetchRatesMs: exchangeRatesResult.durationMs,
