@@ -49,3 +49,14 @@ export type { InvestmentAmountRowProps } from "./investment-amount-row";
 
 export { ConfirmationModal } from "./confirmation-modal";
 export type { ConfirmationModalProps } from "./confirmation-modal";
+
+// Story 6.3: Recommendation Display - Pie Chart and Before/After Preview
+export { RecommendationPieChart, transformToChartData } from "./recommendation-pie-chart";
+export type { RecommendationPieChartProps } from "./recommendation-pie-chart";
+
+export {
+  BeforeAfterPreview,
+  calculateExpectedAllocation,
+  calculateAllocationChanges,
+} from "./before-after-preview";
+export type { BeforeAfterPreviewProps, AllocationChange } from "./before-after-preview";

@@ -47,6 +47,8 @@ import {
   BalancedPortfolioState,
   RecommendationBreakdownPanel,
   ConfirmationModal,
+  RecommendationPieChart,
+  BeforeAfterPreview,
 } from "@/components/recommendations";
 import { DataFreshnessBadge } from "@/components/fintech/data-freshness-badge";
 import { useRecommendations, type RecommendationDisplayItem } from "@/hooks/use-recommendations";
@@ -206,6 +208,12 @@ function FocusModeSection() {
   // Check if there are any investable items (not over-allocated)
   const hasInvestableItems = data.items.some((item) => !item.isOverAllocated);
 
+  // Portfolio value for before/after calculation
+  // TODO(epic-7): Replace with actual portfolio value from useDashboard hook
+  // For now, we pass undefined to hide the before/after preview and tooltip "After" values
+  // until portfolio value is available from a real data source
+  const currentPortfolioValue: string | undefined = undefined;
+
   // Recommendations display
   return (
     <div className="space-y-6" data-testid="focus-mode-section">
@@ -222,11 +230,36 @@ function FocusModeSection() {
         />
       </div>
 
+      {/* AC-6.3.2: Pie Chart Visualization - Shows recommended allocation distribution */}
+      {/* AC-6.3.3: Before/After Allocation Preview (only when portfolio value available) */}
+      {hasInvestableItems && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <RecommendationPieChart
+            items={data.items}
+            totalInvestable={data.totalInvestable}
+            baseCurrency={data.baseCurrency}
+            height={220}
+          />
+
+          {/* Before/After preview requires portfolio value - hidden until epic-7 */}
+          {currentPortfolioValue && (
+            <BeforeAfterPreview
+              items={data.items}
+              totalInvestable={data.totalInvestable}
+              currentPortfolioValue={currentPortfolioValue}
+            />
+          )}
+        </div>
+      )}
+
       {/* AC-7.5.2 & AC-7.5.3: Recommendation Cards (sorted by amount) */}
+      {/* AC-6.3.4: Cards have hover tooltip with expected allocation */}
       <RecommendationList
         items={data.items}
         baseCurrency={data.baseCurrency}
         onCardClick={handleCardClick}
+        totalInvestable={data.totalInvestable}
+        {...(currentPortfolioValue ? { currentPortfolioValue } : {})}
       />
 
       {/* AC-7.5.5: Total Summary */}

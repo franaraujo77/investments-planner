@@ -3,16 +3,18 @@
  *
  * Story 7.5: Display Recommendations (Focus Mode)
  * Story 7.6: Zero Buy Signal for Over-Allocated
+ * Story 6.3: Recommendation Display
  *
  * AC-7.5.2: RecommendationCard Display
  * AC-7.6.1: Over-Allocated Asset Shows $0 with Label
  * AC-7.6.2: Over-Allocated Card Visual Treatment
  * AC-7.6.3: Click Shows Explanation
+ * AC-6.3.4: Card Hover Tooltip (current %, target range, expected after %)
  *
  * Tests the component interface and type safety.
  * Note: Since @testing-library/react is not installed,
  * we test the interface contracts and data transformations.
- * Component rendering tests would be E2E tests in Playwright.
+ * Component rendering tests are in E2E tests (Playwright).
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -496,5 +498,98 @@ describe("RecommendationCardProps with Over-Allocated Items", () => {
     // Card should still be clickable (isOverAllocated makes it clickable)
     const isClickable = props.item.isOverAllocated || !!props.onClick;
     expect(isClickable).toBe(true);
+  });
+});
+
+// =============================================================================
+// Story 6.3: Card Hover Tooltip Tests (AC-6.3.4)
+// =============================================================================
+
+describe("RecommendationCard Tooltip Content (Story 6.3)", () => {
+  describe("AC-6.3.4: expectedAllocation prop", () => {
+    it("accepts expectedAllocation prop", () => {
+      const item: RecommendationDisplayItem = {
+        assetId: "tooltip-test-1",
+        symbol: "AAPL",
+        score: "85.0",
+        currentAllocation: "15.0",
+        targetAllocation: "20.0",
+        allocationGap: "5.0",
+        recommendedAmount: "500.00",
+        isOverAllocated: false,
+      };
+
+      const props: RecommendationCardProps = {
+        item,
+        baseCurrency: "USD",
+        expectedAllocation: "18.18",
+      };
+
+      expect(props.expectedAllocation).toBe("18.18");
+    });
+
+    it("expectedAllocation is optional (undefined when portfolio value unknown)", () => {
+      const item: RecommendationDisplayItem = {
+        assetId: "tooltip-test-2",
+        symbol: "MSFT",
+        score: "90.0",
+        currentAllocation: "10.0",
+        targetAllocation: "15.0",
+        allocationGap: "5.0",
+        recommendedAmount: "300.00",
+        isOverAllocated: false,
+      };
+
+      const props: RecommendationCardProps = {
+        item,
+        baseCurrency: "USD",
+        // expectedAllocation not provided
+      };
+
+      expect(props.expectedAllocation).toBeUndefined();
+    });
+  });
+
+  describe("AC-6.3.4: Tooltip content data availability", () => {
+    it("has all data needed for tooltip: current allocation, target range", () => {
+      const item: RecommendationDisplayItem = {
+        assetId: "tooltip-data-test",
+        symbol: "GOOGL",
+        score: "75.0",
+        currentAllocation: "12.5",
+        targetAllocation: "18.0",
+        allocationGap: "5.5",
+        recommendedAmount: "400.00",
+        isOverAllocated: false,
+      };
+
+      // Tooltip shows: Current %, Target range (target ± 5%), Expected after %
+      expect(item.currentAllocation).toBeDefined();
+      expect(item.targetAllocation).toBeDefined();
+
+      // Calculate target range (as component does)
+      const targetValue = parseFloat(item.targetAllocation);
+      const targetMin = Math.max(targetValue - 5, 0).toFixed(1);
+      const targetMax = Math.min(targetValue + 5, 100).toFixed(1);
+
+      expect(targetMin).toBe("13.0");
+      expect(targetMax).toBe("23.0");
+    });
+
+    it("target range clamps to 0-100", () => {
+      // Test low target (< 5)
+      const lowTarget = 3.0;
+      const lowMin = Math.max(lowTarget - 5, 0).toFixed(1);
+      const lowMax = Math.min(lowTarget + 5, 100).toFixed(1);
+      expect(lowMin).toBe("0.0"); // Clamped to 0
+      expect(lowMax).toBe("8.0");
+
+      // Test high target (> 95)
+      const highTarget = 98.0;
+      const highMin = Math.max(highTarget - 5, 0).toFixed(1);
+      const highMax = Math.min(highTarget + 5, 100).toFixed(1);
+      expect(highMin).toBe("93.0");
+      expect(highMax).toBe("100.0"); // Clamped to 100
+    });
   });
 });

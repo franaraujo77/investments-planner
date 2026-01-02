@@ -5,30 +5,36 @@
  *
  * Story 7.5: Display Recommendations (Focus Mode)
  * Story 7.6: Zero Buy Signal for Over-Allocated
+ * Story 6.3: Recommendation Display
  *
  * AC-7.5.2: RecommendationCard Display
  * AC-7.6.1: Over-Allocated Asset Shows $0 with Label
  * AC-7.6.2: Over-Allocated Card Visual Treatment
  * AC-7.6.3: Click Shows Explanation
+ * AC-6.3.4: Card Hover Tooltip (current %, target range, expected after %)
  *
  * Displays individual recommendation with:
  * - Ticker symbol prominently displayed
  * - Score badge with color coding (green: 80+, amber: 50-79, red: <50)
  * - Recommended amount in base currency
  * - AllocationGauge showing current vs target allocation
+ * - Hover tooltip showing allocation details (AC-6.3.4)
  *
  * Features:
  * - Hover state styling
  * - Click handler for breakdown panel (Story 7.7 placeholder)
  * - Over-allocated indicator with explanation panel (Story 7.6)
+ * - Hover tooltip with allocation details (Story 6.3)
  */
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScoreBadge } from "@/components/fintech/score-badge";
 import { AllocationGauge } from "./allocation-gauge";
 import { OverAllocatedExplanation } from "./over-allocated-explanation";
 import { formatCurrency } from "@/lib/utils/currency-format";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { cn } from "@/lib/utils";
 import type { RecommendationDisplayItem } from "@/hooks/use-recommendations";
 
@@ -43,6 +49,8 @@ export interface RecommendationCardProps {
   baseCurrency: string;
   /** Click handler for viewing breakdown (Story 7.7) */
   onClick?: (() => void) | undefined;
+  /** Expected allocation after investment (AC-6.3.4) */
+  expectedAllocation?: string | undefined;
   /** Additional CSS classes */
   className?: string | undefined;
 }
@@ -78,6 +86,7 @@ export function RecommendationCard({
   item,
   baseCurrency,
   onClick,
+  expectedAllocation,
   className,
 }: RecommendationCardProps) {
   const {
@@ -90,6 +99,8 @@ export function RecommendationCard({
     recommendedAmount,
     isOverAllocated,
   } = item;
+
+  const { formatNumber } = useNumberFormat();
 
   // State for over-allocated explanation sheet (Story 7.6)
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
@@ -105,6 +116,10 @@ export function RecommendationCard({
 
   // Check if amount is zero (over-allocated assets)
   const isZeroAmount = parseFloat(recommendedAmount) === 0;
+
+  // Format percentage for tooltip (AC-6.3.4)
+  const formatPct = (val: string) =>
+    formatNumber(parseFloat(val), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   /**
    * Handle card click
@@ -124,92 +139,122 @@ export function RecommendationCard({
   // Determine if card should be clickable
   const isClickable = isOverAllocated || !!onClick;
 
-  return (
-    <>
-      <Card
-        className={cn(
-          "transition-all duration-200",
-          isClickable && "cursor-pointer hover:shadow-md hover:border-primary/20",
-          isOverAllocated &&
-            "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20",
-          className
-        )}
-        onClick={handleClick}
-        data-testid="recommendation-card"
-        data-asset-id={assetId}
-        data-over-allocated={isOverAllocated}
-        role={isClickable ? "button" : undefined}
-        tabIndex={isClickable ? 0 : undefined}
-        onKeyDown={(e) => {
-          if (isClickable && (e.key === "Enter" || e.key === " ")) {
-            e.preventDefault();
-            handleClick();
-          }
-        }}
-      >
-        <CardContent className="pt-6">
-          {/* Header: Symbol and Score */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              {/* Ticker Symbol */}
-              <span className="text-lg font-bold tracking-tight" data-testid="ticker-symbol">
-                {symbol}
-              </span>
+  // Tooltip content for AC-6.3.4
+  const tooltipContent = (
+    <div className="space-y-1 text-left" data-testid="recommendation-tooltip-content">
+      <div className="font-semibold">{symbol}</div>
+      <div>
+        <span className="text-muted-foreground">Current:</span>{" "}
+        <span className="font-mono">{formatPct(currentAllocation)}%</span>
+      </div>
+      <div>
+        <span className="text-muted-foreground">Target:</span>{" "}
+        <span className="font-mono">
+          {formatPct(targetMin)}% - {formatPct(targetMax)}%
+        </span>
+      </div>
+      {expectedAllocation && (
+        <div>
+          <span className="text-muted-foreground">After:</span>{" "}
+          <span className="font-mono">{formatPct(expectedAllocation)}%</span>
+        </div>
+      )}
+    </div>
+  );
 
-              {/* Over-allocated indicator */}
-              {isOverAllocated && (
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                  data-testid="over-allocated-badge"
-                >
-                  Over-allocated
-                </span>
-              )}
-            </div>
+  const cardElement = (
+    <Card
+      className={cn(
+        "transition-all duration-200",
+        isClickable && "cursor-pointer hover:shadow-md hover:border-primary/20",
+        isOverAllocated &&
+          "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20",
+        className
+      )}
+      onClick={handleClick}
+      data-testid="recommendation-card"
+      data-asset-id={assetId}
+      data-over-allocated={isOverAllocated}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (isClickable && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
+      <CardContent className="pt-6">
+        {/* Header: Symbol and Score */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            {/* Ticker Symbol */}
+            <span className="text-lg font-bold tracking-tight" data-testid="ticker-symbol">
+              {symbol}
+            </span>
 
-            {/* Score Badge */}
-            <ScoreBadge score={score} assetId={assetId} size="md" interactive={false} />
-          </div>
-
-          {/* Recommended Amount */}
-          <div className="mb-4">
-            <div className="text-sm text-muted-foreground mb-1">Recommended Investment</div>
-            <div
-              className={cn("text-2xl font-semibold", isZeroAmount && "text-muted-foreground")}
-              data-testid="recommended-amount"
-            >
-              {isZeroAmount ? "No buy needed" : formattedAmount}
-            </div>
-            {/* Over-allocated label next to amount (AC-7.6.1) */}
-            {isOverAllocated && isZeroAmount && (
-              <div
-                className="text-xs text-amber-600 dark:text-amber-400 mt-1"
-                data-testid="over-allocated-amount-label"
+            {/* Over-allocated indicator */}
+            {isOverAllocated && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                data-testid="over-allocated-badge"
               >
-                (over-allocated)
-              </div>
+                Over-allocated
+              </span>
             )}
           </div>
 
-          {/* Allocation Gauge */}
-          <AllocationGauge
-            current={currentAllocation}
-            targetMin={targetMin}
-            targetMax={targetMax}
-            size="sm"
-          />
+          {/* Score Badge */}
+          <ScoreBadge score={score} assetId={assetId} size="md" interactive={false} />
+        </div>
 
-          {/* Click hint for over-allocated cards */}
-          {isOverAllocated && (
+        {/* Recommended Amount */}
+        <div className="mb-4">
+          <div className="text-sm text-muted-foreground mb-1">Recommended Investment</div>
+          <div
+            className={cn("text-2xl font-semibold", isZeroAmount && "text-muted-foreground")}
+            data-testid="recommended-amount"
+          >
+            {isZeroAmount ? "No buy needed" : formattedAmount}
+          </div>
+          {/* Over-allocated label next to amount (AC-7.6.1) */}
+          {isOverAllocated && isZeroAmount && (
             <div
-              className="text-xs text-muted-foreground mt-3 text-center"
-              data-testid="click-hint"
+              className="text-xs text-amber-600 dark:text-amber-400 mt-1"
+              data-testid="over-allocated-amount-label"
             >
-              Tap for details
+              (over-allocated)
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Allocation Gauge */}
+        <AllocationGauge
+          current={currentAllocation}
+          targetMin={targetMin}
+          targetMax={targetMax}
+          size="sm"
+        />
+
+        {/* Click hint for over-allocated cards */}
+        {isOverAllocated && (
+          <div className="text-xs text-muted-foreground mt-3 text-center" data-testid="click-hint">
+            Tap for details
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <>
+      {/* AC-6.3.4: Wrap card in tooltip for hover information */}
+      <Tooltip>
+        <TooltipTrigger asChild>{cardElement}</TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          {tooltipContent}
+        </TooltipContent>
+      </Tooltip>
 
       {/* Over-allocated explanation sheet (Story 7.6) */}
       <OverAllocatedExplanation
