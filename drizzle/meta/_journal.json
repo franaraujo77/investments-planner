@@ -155,6 +155,27 @@
       "when": 1767317840328,
       "tag": "0021_curvy_network",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1767321037000,
+      "tag": "0022_asset_type_classification_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1767321137000,
+      "tag": "0023_enable_rls_asset_type_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1767349064360,
+      "tag": "0024_recommendations_alerts",
+      "breakpoints": true
     }
   ]
 }

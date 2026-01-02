@@ -155,6 +155,8 @@ export const POST = withAuth<GenerateResponseBody | RecommendationValidationErro
           recommendedAmount: item.recommendedAmount,
           isOverAllocated: item.isOverAllocated,
         })),
+        // AC-6.2.3: Include higher-scoring asset alerts if available
+        alerts: result.alerts,
       };
 
       return successResponse(responseData);

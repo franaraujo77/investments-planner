@@ -810,6 +810,28 @@ export interface RecommendationItemBreakdown {
 }
 
 /**
+ * RecommendationAlerts interface - higher-scoring asset alerts
+ *
+ * Story 6.2 AC-6.2.3: Higher-Scoring Asset Alert
+ * When portfolio is at capacity for an asset class but higher-scoring
+ * assets exist outside the portfolio, an alert is generated.
+ */
+export interface RecommendationAlerts {
+  higherScoring: Array<{
+    assetClassId: string;
+    assetClassName: string;
+    currentLowestScore: string;
+    currentLowestSymbol: string;
+    higherScoringAssets: Array<{
+      symbol: string;
+      name: string;
+      score: string;
+      scoreDifference: string;
+    }>;
+  }>;
+}
+
+/**
  * Recommendations table - stores recommendation generation sessions
  *
  * Story 7.4: Generate Investment Recommendations
@@ -838,6 +860,7 @@ export const recommendations = pgTable(
     baseCurrency: varchar("base_currency", { length: 3 }).notNull(),
     correlationId: uuid("correlation_id").notNull(), // Links to calculation_events
     status: varchar("status", { length: 20 }).notNull().default("active"), // pending, active, confirmed, expired
+    alerts: jsonb("alerts").$type<RecommendationAlerts>(), // Higher-scoring asset alerts (AC-6.2.3)
     generatedAt: timestamp("generated_at").notNull().defaultNow(),
     expiresAt: timestamp("expires_at").notNull(), // 24h TTL per ADR-004
     createdAt: timestamp("created_at").defaultNow(),
