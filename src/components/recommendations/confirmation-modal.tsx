@@ -179,10 +179,8 @@ export function ConfirmationModal({
       return;
     }
 
-    // Validate total <= available (AC-7.8.5)
-    if (isOverBudget) {
-      return; // Button should already be disabled
-    }
+    // AC-6.5.5: Over-budget is allowed - users may have additional funds beyond the recommendation
+    // No longer block confirmation based on isOverBudget
 
     // Build investment data
     const investmentData = items
@@ -198,7 +196,7 @@ export function ConfirmationModal({
       }));
 
     await onConfirm(investmentData);
-  }, [amounts, items, isOverBudget, onConfirm]);
+  }, [amounts, items, onConfirm]);
 
   // Sort items: investable assets first, then over-allocated
   const sortedItems = useMemo(() => {
@@ -261,20 +259,20 @@ export function ConfirmationModal({
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Your Total</p>
                 <p
-                  className={`text-lg font-semibold ${isOverBudget ? "text-destructive" : "text-green-600"}`}
+                  className={`text-lg font-semibold ${isOverBudget ? "text-blue-600" : "text-green-600"}`}
                 >
                   {formattedTotal}
                 </p>
               </div>
             </div>
 
-            {/* Over-budget warning */}
+            {/* Over-budget info - AC-6.5.5: System accepts higher amounts */}
             {isOverBudget && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+              <Alert>
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
                 <AlertDescription>
-                  Your total exceeds available capital by {formattedRemaining}. Please reduce
-                  amounts.
+                  You&apos;re investing {formattedRemaining} more than your available capital. This
+                  is allowed if you have additional funds.
                 </AlertDescription>
               </Alert>
             )}
@@ -338,7 +336,7 @@ export function ConfirmationModal({
               </Button>
               <Button
                 onClick={handleConfirm}
-                disabled={isSubmitting || isOverBudget || Object.keys(errors).length > 0}
+                disabled={isSubmitting || Object.keys(errors).length > 0}
               >
                 {isSubmitting ? (
                   <>

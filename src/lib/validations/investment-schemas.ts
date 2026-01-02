@@ -98,7 +98,9 @@ export function validateConfirmInvestment(input: unknown): {
 /**
  * Validate that total does not exceed available capital
  *
- * AC-7.8.5: Total cannot exceed available capital
+ * @deprecated AC-6.5.5 allows over-budget investments. This function is no longer
+ * used in the confirmation flow but kept for backward compatibility.
+ * Users may invest more than the recommended amount if they have additional funds.
  *
  * @param investments - Array of investment items with amounts
  * @param availableCapital - Maximum available capital (decimal string)

@@ -277,7 +277,18 @@ describe("POST /api/investments/confirm", () => {
       } as any);
     });
 
-    it("should return 400 if total exceeds available capital", async () => {
+    it("should allow over-budget investments per AC-6.5.5", async () => {
+      // AC-6.5.5: System should accept higher amounts - users may have additional funds
+      vi.mocked(confirmInvestments).mockResolvedValue({
+        success: true,
+        investmentIds: ["inv-1", "inv-2"],
+        summary: {
+          totalInvested: "1100.0000",
+          assetsUpdated: 2,
+        },
+        allocations: { before: {}, after: {} },
+      });
+
       const request = createRequest({
         recommendationId: mockRecommendationId,
         investments: [
@@ -297,10 +308,11 @@ describe("POST /api/investments/confirm", () => {
       });
 
       const response = await POST(request, { params: Promise.resolve({}) });
-      expect(response.status).toBe(400);
+      // Over-budget should be accepted (200), not rejected (400)
+      expect(response.status).toBe(200);
 
       const body = await response.json();
-      expect(body.error).toBe("Total exceeds available capital");
+      expect(body.data.success).toBe(true);
     });
   });
 

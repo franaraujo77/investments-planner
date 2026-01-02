@@ -82,7 +82,8 @@ export function calculateDelta(
   const delta = afterValue - beforeValue;
 
   // Format with sign and 1 decimal place
-  // Note: This is a calculation helper, uses eslint-disable
+  // Note: toFixed is acceptable here as this is a calculation helper for delta formatting,
+  // not user-facing currency/number display (which should use useNumberFormat hook)
   const sign = delta > 0 ? "+" : "";
   const formatted = `${sign}${delta.toFixed(1)}%`; // eslint-disable-line no-restricted-syntax
 
@@ -216,12 +217,19 @@ export function AllocationComparisonView({
     [deltas]
   );
 
+  // AC-6.5.4: Use "{Month} investments recorded" format
+  // Use undefined locale to respect user's browser/system locale preference
+  const monthName = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { month: "long" }).format(new Date()),
+    []
+  );
+
   return (
     <Card className="w-full" data-testid="allocation-comparison-view">
       <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5 text-green-600" />
-          <CardTitle className="text-lg">Investments Confirmed!</CardTitle>
+          <CardTitle className="text-lg">{monthName} Investments Recorded</CardTitle>
         </div>
         <p className="text-sm text-muted-foreground mt-1">
           Your portfolio allocations have been updated.

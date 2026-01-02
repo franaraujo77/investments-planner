@@ -35,6 +35,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -134,6 +135,7 @@ function RecommendationsError({ message, onRetry }: RecommendationsErrorProps) {
 // =============================================================================
 
 function FocusModeSection() {
+  const router = useRouter();
   const { data, isLoading, error, isEmpty, itemCount, refetch, isStale } = useRecommendations();
 
   // State for breakdown panel (Story 7.7)
@@ -147,13 +149,19 @@ function FocusModeSection() {
   const {
     isConfirming,
     error: confirmError,
+    result: confirmResult,
     confirmInvestments,
   } = useConfirmInvestments({
     onSuccess: () => {
-      setConfirmModalOpen(false);
+      // Don't close modal - keep it open to show success state with before/after comparison
       refetch(); // Refresh recommendations after confirmation
     },
   });
+
+  // AC-6.5.4: Navigate to portfolio after confirmation
+  const handleNavigateToPortfolio = useCallback(() => {
+    router.push("/portfolio");
+  }, [router]);
 
   // Handle card click to open breakdown panel
   const handleCardClick = useCallback(
@@ -304,6 +312,7 @@ function FocusModeSection() {
       )}
 
       {/* AC-7.8.1-7.8.5: Confirmation Modal (Story 7.8) */}
+      {/* AC-6.5.4: Pass navigation callback and result for success state */}
       <ConfirmationModal
         open={confirmModalOpen}
         onOpenChange={setConfirmModalOpen}
@@ -314,6 +323,8 @@ function FocusModeSection() {
         onConfirm={handleConfirm}
         isSubmitting={isConfirming}
         submitError={confirmError}
+        confirmationResult={confirmResult}
+        onNavigateToPortfolio={handleNavigateToPortfolio}
       />
     </div>
   );

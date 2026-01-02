@@ -25,7 +25,6 @@ import {
 import { NOT_FOUND_ERRORS, VALIDATION_ERRORS, CONFLICT_ERRORS } from "@/lib/api/error-codes";
 import {
   confirmInvestmentSchema,
-  validateTotalDoesNotExceedAvailable,
   validateNoNegativeAmounts,
 } from "@/lib/validations/investment-schemas";
 import { confirmInvestments } from "@/lib/services/investment-service";
@@ -105,16 +104,10 @@ export const POST = withAuth<ConfirmResponseBody | ErrorResponseBody | AuthError
         return errorResponse(negativeError, VALIDATION_ERRORS.OUT_OF_RANGE);
       }
 
-      // 7. AC-7.8.5: Validate total <= available capital
-      const totalError = validateTotalDoesNotExceedAvailable(
-        investments,
-        recommendation.totalInvestable
-      );
-      if (totalError) {
-        return errorResponse(totalError, VALIDATION_ERRORS.OUT_OF_RANGE);
-      }
+      // AC-6.5.5: Over-budget is allowed - users may invest more than recommended if they have additional funds
+      // Total validation removed to allow confirming amounts exceeding available capital
 
-      // 8. Confirm investments
+      // 7. Confirm investments
       const confirmResult = await confirmInvestments(userId, {
         recommendationId,
         investments,
