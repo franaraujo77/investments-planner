@@ -63,3 +63,21 @@ export type { BeforeAfterPreviewProps, AllocationChange } from "./before-after-p
 // Story 6.4: Recommendation Details Panel
 export { RecommendationDetailsPanel } from "./recommendation-details-panel";
 export type { RecommendationDetailsPanelProps } from "./recommendation-details-panel";
+
+// Story 7.10/6.6: Allocation Comparison
+export {
+  AllocationComparisonView,
+  calculateAllocationDeltas,
+  calculateTargetMovement,
+  transformToPieChartData,
+  parsePercentage,
+  calculateDelta,
+  isImproved,
+  getDirection,
+  getColorClasses,
+} from "./allocation-comparison-view";
+export type {
+  AllocationComparisonViewProps,
+  AllocationDelta,
+  PortfolioSummaryData,
+} from "./allocation-comparison-view";

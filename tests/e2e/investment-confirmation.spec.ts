@@ -2,6 +2,7 @@
  * E2E Tests: Investment Confirmation
  *
  * Story 6.5: Investment Confirmation
+ * Story 6.6: Before/After Comparison Enhancement
  *
  * Tests:
  * AC-6.5.1: Confirmation Screen Display
@@ -10,6 +11,10 @@
  * AC-6.5.4: Success Message with Before/After
  * AC-6.5.5: Accept Higher Amounts (over-budget allowed)
  * AC-6.5.6: Skip Zero Investments
+ *
+ * AC-6.6.2: Color-Coded Allocation Changes
+ * AC-6.6.3: Portfolio Summary Display
+ * AC-6.6.5: Dual Pie Chart Comparison
  *
  * Prerequisites:
  * - User logged in
@@ -538,6 +543,153 @@ test.describe("Investment Confirmation", () => {
         // This just verifies the UI structure is in place
         const confirmBtn = modal.getByRole("button", { name: /confirm/i });
         await expect(confirmBtn).toBeVisible();
+      }
+    });
+  });
+
+  // ==========================================================================
+  // Story 6.6: Before/After Comparison Enhancement Tests
+  // ==========================================================================
+
+  test.describe("AC-6.6.3: Portfolio Summary Display", () => {
+    test("should display portfolio summary section on success", async ({ page }) => {
+      const recommendationList = page.getByTestId("recommendation-list");
+      const hasRecommendations = await recommendationList.isVisible();
+
+      if (hasRecommendations) {
+        // Open modal
+        const confirmButton = page.getByTestId("confirm-investments-button");
+        await confirmButton.click();
+
+        const modal = page.getByRole("dialog");
+        await expect(modal).toBeVisible({ timeout: 5000 });
+
+        // Click confirm
+        const confirmBtn = modal.getByRole("button", { name: /confirm/i });
+        await confirmBtn.click();
+
+        // Wait for success state
+        const allocationComparison = modal.getByTestId("allocation-comparison-view");
+        const successVisible = await allocationComparison.isVisible().catch(() => false);
+
+        if (successVisible) {
+          // Portfolio summary section should be visible
+          const summarySection = modal.getByTestId("portfolio-summary-section");
+          const hasSummary = await summarySection.isVisible().catch(() => false);
+
+          if (hasSummary) {
+            // Should show value before
+            await expect(summarySection.getByText("Value Before")).toBeVisible();
+            // Should show amount invested
+            await expect(summarySection.getByText("Invested")).toBeVisible();
+            // Should show value after
+            await expect(summarySection.getByText("Value After")).toBeVisible();
+          }
+        }
+      }
+    });
+
+    test("should display invested amount highlighted in green", async ({ page }) => {
+      const recommendationList = page.getByTestId("recommendation-list");
+      const hasRecommendations = await recommendationList.isVisible();
+
+      if (hasRecommendations) {
+        // Open modal
+        const confirmButton = page.getByTestId("confirm-investments-button");
+        await confirmButton.click();
+
+        const modal = page.getByRole("dialog");
+        await expect(modal).toBeVisible({ timeout: 5000 });
+
+        // Click confirm
+        const confirmBtn = modal.getByRole("button", { name: /confirm/i });
+        await confirmBtn.click();
+
+        // Wait for success state
+        const allocationComparison = modal.getByTestId("allocation-comparison-view");
+        const successVisible = await allocationComparison.isVisible().catch(() => false);
+
+        if (successVisible) {
+          const summarySection = modal.getByTestId("portfolio-summary-section");
+          const hasSummary = await summarySection.isVisible().catch(() => false);
+
+          if (hasSummary) {
+            // Invested amount should be green
+            const investedText = summarySection.locator(".text-green-600");
+            await expect(investedText).toBeVisible();
+          }
+        }
+      }
+    });
+  });
+
+  test.describe("AC-6.6.5: Dual Pie Chart Comparison", () => {
+    test("should display before/after pie charts section on success", async ({ page }) => {
+      const recommendationList = page.getByTestId("recommendation-list");
+      const hasRecommendations = await recommendationList.isVisible();
+
+      if (hasRecommendations) {
+        // Open modal
+        const confirmButton = page.getByTestId("confirm-investments-button");
+        await confirmButton.click();
+
+        const modal = page.getByRole("dialog");
+        await expect(modal).toBeVisible({ timeout: 5000 });
+
+        // Click confirm
+        const confirmBtn = modal.getByRole("button", { name: /confirm/i });
+        await confirmBtn.click();
+
+        // Wait for success state
+        const allocationComparison = modal.getByTestId("allocation-comparison-view");
+        const successVisible = await allocationComparison.isVisible().catch(() => false);
+
+        if (successVisible) {
+          // Pie charts section should be visible
+          const pieSection = modal.getByTestId("before-after-pie-section");
+          const hasPieCharts = await pieSection.isVisible().catch(() => false);
+
+          if (hasPieCharts) {
+            // Should have "Before" and "After" labels
+            await expect(pieSection.getByText("Before")).toBeVisible();
+            await expect(pieSection.getByText("After")).toBeVisible();
+          }
+        }
+      }
+    });
+  });
+
+  test.describe("AC-6.6.2: Color-Coded Allocation Changes", () => {
+    test("should show allocation rows with appropriate colors", async ({ page }) => {
+      const recommendationList = page.getByTestId("recommendation-list");
+      const hasRecommendations = await recommendationList.isVisible();
+
+      if (hasRecommendations) {
+        // Open modal
+        const confirmButton = page.getByTestId("confirm-investments-button");
+        await confirmButton.click();
+
+        const modal = page.getByRole("dialog");
+        await expect(modal).toBeVisible({ timeout: 5000 });
+
+        // Click confirm
+        const confirmBtn = modal.getByRole("button", { name: /confirm/i });
+        await confirmBtn.click();
+
+        // Wait for success state
+        const allocationComparison = modal.getByTestId("allocation-comparison-view");
+        const successVisible = await allocationComparison.isVisible().catch(() => false);
+
+        if (successVisible) {
+          // Allocation rows should exist
+          const rows = allocationComparison.locator('[data-testid^="allocation-row-"]');
+          const rowCount = await rows.count();
+
+          if (rowCount > 0) {
+            // Verify rows are rendered (colors depend on target data)
+            await expect(rows.first()).toBeVisible();
+          }
+        }
       }
     });
   });

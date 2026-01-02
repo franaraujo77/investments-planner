@@ -155,6 +155,8 @@ function FocusModeSection() {
     onSuccess: () => {
       // Don't close modal - keep it open to show success state with before/after comparison
       refetch(); // Refresh recommendations after confirmation
+      // AC-6.6.4: Trigger client-side router refresh to ensure portfolio page shows updated data
+      router.refresh();
     },
   });
 

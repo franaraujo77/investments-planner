@@ -14,6 +14,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { withAuth } from "@/lib/auth/middleware";
 import {
   successResponse,
@@ -119,6 +120,11 @@ export const POST = withAuth<ConfirmResponseBody | ErrorResponseBody | AuthError
         investmentCount: confirmResult.investmentIds.length,
         totalInvested: confirmResult.summary.totalInvested,
       });
+
+      // 8. Revalidate portfolio page for SSR (AC-6.6.4)
+      // This ensures allocations immediately reflect confirmed investments without page refresh
+      revalidatePath("/portfolio");
+      revalidatePath("/recommendations");
 
       // 9. Return success response
       // AC-7.8.4: Return data that can be used for toast notification

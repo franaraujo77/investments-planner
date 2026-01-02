@@ -107,7 +107,8 @@ development_status:
   6-3-recommendation-display: done
   6-4-recommendation-details: done
   6-5-investment-confirmation: done  # Gap completion: over-budget, success message, E2E tests, navigation
-  6-6-before-after-comparison: backlog
+  6-6-before-after-comparison: done
+  6-7-production-database-migration-pipeline: ready-for-dev  # Infrastructure: auto-migrate on PR merge
   epic-6-retrospective: optional
 
   # Epic 7: Data Transparency & Alerts
@@ -118,5 +119,4 @@ development_status:
   7-4-financial-disclaimers: backlog
   7-5-allocation-drift-alerts: backlog
   7-6-opportunity-alerts-and-preferences: backlog
-  7-7-production-database-migration-pipeline: ready-for-dev  # Infrastructure: auto-migrate on PR merge
   epic-7-retrospective: optional

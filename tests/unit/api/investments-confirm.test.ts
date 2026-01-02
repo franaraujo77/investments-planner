@@ -73,6 +73,11 @@ vi.mock("@/lib/telemetry/logger", () => ({
   },
 }));
 
+// Mock Next.js cache functions (AC-6.6.4)
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 // Import after mocks are set up
 import { POST } from "@/app/api/investments/confirm/route";
 import { db } from "@/lib/db";

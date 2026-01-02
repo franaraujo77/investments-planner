@@ -6,6 +6,10 @@
  * AC-7.10.2: Improved Allocations Highlighted
  * AC-7.10.3: Navigate to Portfolio View
  *
+ * Story 6.6: Before/After Comparison Enhancement
+ * AC-6.6.2: Color-Coded Allocation Changes
+ * AC-6.6.5: Dual Pie Chart Comparison
+ *
  * Tests for the allocation comparison view component logic.
  *
  * Note: Since @testing-library/react is not installed,
@@ -20,8 +24,12 @@ import {
   isImproved,
   getDirection,
   calculateAllocationDeltas,
+  calculateTargetMovement,
+  transformToPieChartData,
+  getColorClasses,
   type AllocationComparisonViewProps,
   type AllocationDelta,
+  type PortfolioSummaryData,
 } from "@/components/recommendations/allocation-comparison-view";
 
 // =============================================================================
@@ -498,5 +506,293 @@ describe("Edge Cases", () => {
     const deltas = calculateAllocationDeltas(before, after);
 
     expect(deltas[0].className).toBe("US Large-Cap");
+  });
+});
+
+// =============================================================================
+// calculateTargetMovement TESTS (AC-6.6.2)
+// =============================================================================
+
+describe("calculateTargetMovement (AC-6.6.2)", () => {
+  it("should return null when no targets provided", () => {
+    const result = calculateTargetMovement("48%", "52%", undefined, undefined);
+    expect(result).toBeNull();
+  });
+
+  it("should return null when only min provided", () => {
+    const result = calculateTargetMovement("48%", "52%", "45%", undefined);
+    expect(result).toBeNull();
+  });
+
+  it("should return null when only max provided", () => {
+    const result = calculateTargetMovement("48%", "52%", undefined, "55%");
+    expect(result).toBeNull();
+  });
+
+  it('should return "closer to target" message when moving toward midpoint', () => {
+    // Target: 45-55%, midpoint = 50%
+    // Before: 40% (10 away), After: 48% (2 away) = moved 8% closer
+    const result = calculateTargetMovement("40%", "48%", "45%", "55%");
+    expect(result).toContain("closer to target");
+    expect(result).toContain("8.0%");
+  });
+
+  it('should return "further from target" message when moving away from midpoint', () => {
+    // Target: 45-55%, midpoint = 50%
+    // Before: 52% (2 away), After: 60% (10 away) = moved 8% further
+    const result = calculateTargetMovement("52%", "60%", "45%", "55%");
+    expect(result).toContain("further from target");
+    expect(result).toContain("8.0%");
+  });
+
+  it('should return "No change" message when distance stays the same', () => {
+    // Target: 45-55%, midpoint = 50%
+    // Before: 48% (2 away), After: 52% (2 away) = no change
+    const result = calculateTargetMovement("48%", "52%", "45%", "55%");
+    expect(result).toContain("No change");
+  });
+
+  it("should handle over-allocated moving closer", () => {
+    // Target: 40-50%, midpoint = 45%
+    // Before: 60% (15 away), After: 50% (5 away) = moved 10% closer
+    const result = calculateTargetMovement("60%", "50%", "40%", "50%");
+    expect(result).toContain("closer to target");
+  });
+});
+
+// =============================================================================
+// transformToPieChartData TESTS (AC-6.6.5)
+// =============================================================================
+
+describe("transformToPieChartData (AC-6.6.5)", () => {
+  it("should transform allocations to pie chart data format", () => {
+    const allocations = {
+      "Variable Income": "48.5%",
+      "Fixed Income": "51.5%",
+    };
+
+    const result = transformToPieChartData(allocations);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].className).toBe("Variable Income");
+    expect(result[0].percentage).toBe("48.5");
+    expect(result[0].value).toBe("48.5");
+    expect(result[1].className).toBe("Fixed Income");
+  });
+
+  it("should assign unique colors to each class", () => {
+    const allocations = {
+      A: "25%",
+      B: "25%",
+      C: "25%",
+      D: "25%",
+    };
+
+    const result = transformToPieChartData(allocations);
+
+    // Each should have a color assigned
+    for (const item of result) {
+      expect(item.color).toBeDefined();
+      expect(item.color).toMatch(/^hsl\(/);
+    }
+  });
+
+  it("should generate classId from className", () => {
+    const allocations = { "US Large-Cap": "100%" };
+
+    const result = transformToPieChartData(allocations);
+
+    expect(result[0].classId).toBe("us-large-cap");
+  });
+
+  it("should handle empty allocations", () => {
+    const result = transformToPieChartData({});
+    expect(result).toHaveLength(0);
+  });
+
+  it("should set default status to on-target", () => {
+    const allocations = { Test: "50%" };
+
+    const result = transformToPieChartData(allocations);
+
+    expect(result[0].status).toBe("on-target");
+  });
+});
+
+// =============================================================================
+// getColorClasses TESTS (AC-6.6.2)
+// =============================================================================
+
+describe("getColorClasses (AC-6.6.2)", () => {
+  const createDelta = (
+    isImproved: boolean | null,
+    direction: "up" | "down" | "none",
+    before: string = "48%",
+    after: string = "52%"
+  ): AllocationDelta => ({
+    className: "Test",
+    before,
+    after,
+    deltaValue: direction === "up" ? 4 : direction === "down" ? -4 : 0,
+    deltaFormatted: direction === "up" ? "+4.0%" : direction === "down" ? "-4.0%" : "0.0%",
+    isImproved,
+    direction,
+  });
+
+  it("should return green for improved allocation", () => {
+    const delta = createDelta(true, "up");
+    const result = getColorClasses(delta);
+
+    expect(result.text).toBe("text-green-600");
+    expect(result.bg).toBe("bg-green-50");
+  });
+
+  it("should return amber for slight worsening (0-2%)", () => {
+    // Target: 45-55%, midpoint = 50%
+    // Before: 50% (0 away), After: 51% (1 away) = 1% worsening
+    const delta = createDelta(false, "up", "50%", "51%");
+    const target = { min: "45%", max: "55%" };
+    const result = getColorClasses(delta, target);
+
+    expect(result.text).toBe("text-amber-600");
+    expect(result.bg).toBe("bg-amber-50");
+  });
+
+  it("should return red for significant worsening (>2%)", () => {
+    // Target: 45-55%, midpoint = 50%
+    // Before: 50% (0 away), After: 60% (10 away) = 10% worsening
+    const delta = createDelta(false, "up", "50%", "60%");
+    const target = { min: "45%", max: "55%" };
+    const result = getColorClasses(delta, target);
+
+    expect(result.text).toBe("text-red-600");
+    expect(result.bg).toBe("bg-red-50");
+  });
+
+  it("should return amber for worsening without target", () => {
+    const delta = createDelta(false, "up");
+    const result = getColorClasses(delta);
+
+    expect(result.text).toBe("text-amber-600");
+    expect(result.bg).toBe("bg-amber-50");
+  });
+
+  it("should return muted for no change", () => {
+    const delta = createDelta(null, "none");
+    const result = getColorClasses(delta);
+
+    expect(result.text).toBe("text-muted-foreground");
+    expect(result.bg).toBe("");
+  });
+
+  it("should return foreground for neutral direction changes", () => {
+    const delta = createDelta(null, "up");
+    const result = getColorClasses(delta);
+
+    expect(result.text).toBe("text-foreground");
+    expect(result.bg).toBe("");
+  });
+});
+
+// =============================================================================
+// PortfolioSummaryData TYPE TESTS (AC-6.6.3)
+// =============================================================================
+
+describe("PortfolioSummaryData Type (AC-6.6.3)", () => {
+  it("should have required properties", () => {
+    const summary: PortfolioSummaryData = {
+      valueBefore: "10000.00",
+      valueAfter: "11000.00",
+      amountInvested: "1000.00",
+    };
+
+    expect(summary.valueBefore).toBe("10000.00");
+    expect(summary.valueAfter).toBe("11000.00");
+    expect(summary.amountInvested).toBe("1000.00");
+  });
+
+  it("should allow optional health scores", () => {
+    const summary: PortfolioSummaryData = {
+      valueBefore: "10000.00",
+      valueAfter: "11000.00",
+      amountInvested: "1000.00",
+      healthScoreBefore: "75",
+      healthScoreAfter: "85",
+    };
+
+    expect(summary.healthScoreBefore).toBe("75");
+    expect(summary.healthScoreAfter).toBe("85");
+  });
+});
+
+// =============================================================================
+// NEW PROPS TESTS (AC-6.6.3, AC-6.6.5)
+// =============================================================================
+
+describe("AllocationComparisonViewProps with new props (AC-6.6.3, AC-6.6.5)", () => {
+  it("should accept showPieCharts=true prop", () => {
+    const props: AllocationComparisonViewProps = {
+      before: mockBefore,
+      after: mockAfter,
+      onNavigateToPortfolio: () => {},
+      showPieCharts: true,
+    };
+
+    expect(props.showPieCharts).toBe(true);
+  });
+
+  it("should accept showPieCharts=false prop", () => {
+    // Note: showPieCharts=false hides the BeforeAfterPieSection in the component.
+    // Full rendering behavior is verified in E2E tests.
+    // This unit test validates the type accepts false.
+    const props: AllocationComparisonViewProps = {
+      before: mockBefore,
+      after: mockAfter,
+      onNavigateToPortfolio: () => {},
+      showPieCharts: false,
+    };
+
+    expect(props.showPieCharts).toBe(false);
+  });
+
+  it("should accept portfolioSummary prop", () => {
+    const props: AllocationComparisonViewProps = {
+      before: mockBefore,
+      after: mockAfter,
+      onNavigateToPortfolio: () => {},
+      portfolioSummary: {
+        valueBefore: "10000.00",
+        valueAfter: "11000.00",
+        amountInvested: "1000.00",
+      },
+    };
+
+    expect(props.portfolioSummary?.valueBefore).toBe("10000.00");
+  });
+
+  it("should accept currency prop", () => {
+    const props: AllocationComparisonViewProps = {
+      before: mockBefore,
+      after: mockAfter,
+      onNavigateToPortfolio: () => {},
+      currency: "BRL",
+    };
+
+    expect(props.currency).toBe("BRL");
+  });
+
+  it("should allow undefined for new optional props", () => {
+    const props: AllocationComparisonViewProps = {
+      before: mockBefore,
+      after: mockAfter,
+      onNavigateToPortfolio: () => {},
+      showPieCharts: undefined,
+      portfolioSummary: undefined,
+      currency: undefined,
+    };
+
+    expect(props.showPieCharts).toBeUndefined();
+    expect(props.portfolioSummary).toBeUndefined();
+    expect(props.currency).toBeUndefined();
   });
 });

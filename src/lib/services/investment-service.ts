@@ -418,8 +418,8 @@ export async function confirmInvestments(
     }
   }
 
-  // 3. Calculate before allocations
-  const beforeAllocations = await calculateAllocations(userId, recommendation.portfolioId);
+  // 3. Calculate before allocations (includes total value for portfolio summary)
+  const beforeResult = await calculateAllocations(userId, recommendation.portfolioId);
 
   // 4. Execute transaction: create investments + update quantities + mark confirmed
   const investmentIds: string[] = [];
@@ -488,8 +488,8 @@ export async function confirmInvestments(
       .where(eq(recommendations.id, recommendationId));
   });
 
-  // 5. Calculate after allocations
-  const afterAllocations = await calculateAllocations(userId, recommendation.portfolioId);
+  // 5. Calculate after allocations (includes total value for portfolio summary)
+  const afterResult = await calculateAllocations(userId, recommendation.portfolioId);
 
   // 6. Calculate total invested
   let totalInvested = new Decimal(0);
@@ -507,8 +507,8 @@ export async function confirmInvestments(
     investmentIds,
     investmentInputs,
     recommendation.items,
-    beforeAllocations,
-    afterAllocations
+    beforeResult.allocations,
+    afterResult.allocations
   );
 
   // 8. Invalidate cache (AC-7.9.3: invalidate recs, portfolio, and allocation keys)
@@ -522,6 +522,12 @@ export async function confirmInvestments(
     correlationId,
   });
 
+  // 9. Calculate health scores (AC-6.6.3: portfolio health score change)
+  const targets = await getTargetRanges(userId);
+  const healthScoreBefore = calculateHealthScore(beforeResult.allocations, targets);
+  const healthScoreAfter = calculateHealthScore(afterResult.allocations, targets);
+
+  // 10. Return result with portfolio summary (AC-6.6.3)
   return {
     success: true,
     investmentIds,
@@ -530,19 +536,125 @@ export async function confirmInvestments(
       assetsUpdated: investmentIds.length,
     },
     allocations: {
-      before: beforeAllocations,
-      after: afterAllocations,
+      before: beforeResult.allocations,
+      after: afterResult.allocations,
+    },
+    portfolioSummary: {
+      valueBefore: beforeResult.totalValue,
+      valueAfter: afterResult.totalValue,
+      amountInvested: totalInvested.toFixed(4),
+      // Only include health scores if targets are configured (AC-6.6.3)
+      ...(healthScoreBefore !== undefined && { healthScoreBefore }),
+      ...(healthScoreAfter !== undefined && { healthScoreAfter }),
     },
   };
 }
 
 /**
+ * Result of allocation calculation including total value
+ *
+ * Story 6.6: Before/After Comparison
+ * AC-6.6.3: Portfolio Summary Display
+ */
+interface AllocationResult {
+  /** Allocation percentages by class (class name -> "X.X%") */
+  allocations: Record<string, string>;
+  /** Total portfolio value (decimal string) */
+  totalValue: string;
+}
+
+/**
+ * Calculate portfolio health score based on distance from targets
+ *
+ * Story 6.6: Before/After Comparison
+ * AC-6.6.3: Portfolio health score calculation
+ *
+ * Health Score = 100 - average deviation from target midpoints
+ * - 100 = perfectly on target for all classes
+ * - Lower scores indicate greater deviation from targets
+ *
+ * @param allocations - Current allocations (className -> "X.X%")
+ * @param targets - Target ranges by class name (className -> { min, max })
+ * @returns Health score as string (0-100), or undefined if no targets
+ */
+function calculateHealthScore(
+  allocations: Record<string, string>,
+  targets: Record<string, { min: string; max: string }>
+): string | undefined {
+  const classNames = Object.keys(targets);
+  if (classNames.length === 0) {
+    return undefined;
+  }
+
+  let totalDeviation = new Decimal(0);
+  let classCount = 0;
+
+  for (const className of classNames) {
+    const target = targets[className];
+    if (!target) continue;
+
+    const currentStr = allocations[className] ?? "0%";
+    const current = parseDecimal(currentStr.replace("%", ""));
+    const min = parseDecimal(target.min.replace("%", ""));
+    const max = parseDecimal(target.max.replace("%", ""));
+    const midpoint = add(min, max).dividedBy(2);
+
+    // Calculate absolute deviation from midpoint
+    const deviation = current.minus(midpoint).abs();
+    totalDeviation = add(totalDeviation, deviation);
+    classCount++;
+  }
+
+  if (classCount === 0) {
+    return undefined;
+  }
+
+  // Average deviation, capped at 50 (since max deviation from 0-100 target would be ~50)
+  const avgDeviation = totalDeviation.dividedBy(classCount);
+  // Health score: 100 - (deviation * 2), capped at 0-100
+  // Factor of 2 makes 25% deviation = 50 health score
+  const healthScore = new Decimal(100).minus(avgDeviation.times(2));
+  const clampedScore = Decimal.max(0, Decimal.min(100, healthScore));
+
+  return clampedScore.toFixed(0);
+}
+
+/**
+ * Get target allocation ranges for a portfolio's asset classes
+ *
+ * @param userId - User ID for asset class lookup
+ * @returns Map of className to target range { min, max }
+ */
+async function getTargetRanges(
+  userId: string
+): Promise<Record<string, { min: string; max: string }>> {
+  const userClasses = await db
+    .select({
+      name: assetClasses.name,
+      targetMin: assetClasses.targetMin,
+      targetMax: assetClasses.targetMax,
+    })
+    .from(assetClasses)
+    .where(eq(assetClasses.userId, userId));
+
+  const targets: Record<string, { min: string; max: string }> = {};
+  for (const cls of userClasses) {
+    if (cls.targetMin && cls.targetMax) {
+      targets[cls.name] = { min: cls.targetMin, max: cls.targetMax };
+    }
+  }
+  return targets;
+}
+
+/**
  * Calculate current allocation percentages by asset class
+ *
+ * Story 6.6: Extended to return total value for summary display
  */
 async function calculateAllocations(
   userId: string,
   portfolioId: string
-): Promise<Record<string, string>> {
+): Promise<AllocationResult> {
   // Get all assets with their classes
   const assets = await db
     .select({
@@ -581,7 +693,7 @@ async function calculateAllocations(
   }
 
   if (totalValue.isZero()) {
-    return {};
+    return { allocations: {}, totalValue: "0.00" };
   }
 
   // Calculate allocation per class
@@ -607,7 +719,7 @@ async function calculateAllocations(
     allocations[className] = `${percentage.toFixed(1)}%`;
   }
 
-  return allocations;
+  return { allocations, totalValue: totalValue.toFixed(2) };
 }
 
 /**

@@ -559,6 +559,9 @@ export interface ConfirmInvestmentInput {
  *
  * Story 7.8: Confirm Recommendations
  * AC-7.8.3: Investments Recorded Successfully
+ *
+ * Story 6.6: Before/After Comparison
+ * AC-6.6.3: Portfolio Summary Display
  */
 export interface ConfirmInvestmentResult {
   /** Whether confirmation succeeded */
@@ -578,6 +581,19 @@ export interface ConfirmInvestmentResult {
     before: Record<string, string>;
     /** Allocation percentages after investment */
     after: Record<string, string>;
+  };
+  /** Portfolio summary for before/after comparison (AC-6.6.3) */
+  portfolioSummary?: {
+    /** Total portfolio value before investment (decimal string) */
+    valueBefore: string;
+    /** Total portfolio value after investment (decimal string) */
+    valueAfter: string;
+    /** Total amount invested this cycle (decimal string) */
+    amountInvested: string;
+    /** Portfolio health score before (optional - calculated from allocation gaps) */
+    healthScoreBefore?: string;
+    /** Portfolio health score after */
+    healthScoreAfter?: string;
   };
 }
 

@@ -233,11 +233,14 @@ export function ConfirmationModal({
           after confirmation completes successfully
         */}
         {showSuccess && confirmationResult ? (
-          /* SUCCESS STATE - AC-7.10.1, AC-7.10.2, AC-7.10.3 */
+          /* SUCCESS STATE - AC-7.10.1, AC-7.10.2, AC-7.10.3, AC-6.6.3, AC-6.6.5 */
           <AllocationComparisonView
             before={confirmationResult.allocations.before}
             after={confirmationResult.allocations.after}
             onNavigateToPortfolio={handleNavigateToPortfolio}
+            showPieCharts={true}
+            portfolioSummary={confirmationResult.portfolioSummary}
+            currency={baseCurrency}
           />
         ) : (
           /* CONFIRMATION FORM STATE */
