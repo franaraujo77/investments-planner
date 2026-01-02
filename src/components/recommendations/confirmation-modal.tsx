@@ -192,7 +192,11 @@ export function ConfirmationModal({
         assetId: item.assetId,
         ticker: item.symbol,
         actualAmount: amounts[item.assetId] ?? "0",
-        pricePerUnit: "1.00", // TODO: Get actual price from market data
+        // TODO(epic-7): Integrate real-time market price data
+        // Currently hardcoded to 1.00 as placeholder. When market data integration
+        // is complete (Story 5.1), fetch actual pricePerUnit from asset_prices table.
+        // Tracking: This affects investment unit calculations for portfolio history.
+        pricePerUnit: "1.00",
       }));
 
     await onConfirm(investmentData);

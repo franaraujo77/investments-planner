@@ -73,7 +73,8 @@ describe("Recommendation Details Helper Functions (Story 6.4)", () => {
     it("avoids -0 edge case", () => {
       const result = calculateExpectedAllocation("0.00", "0.00", "10000.00", "0.00");
 
-      expect(result).toBe("0");
+      // Returns "0.00" for financial data consistency (standardized decimal format)
+      expect(result).toBe("0.00");
       expect(Object.is(parseFloat(result), -0)).toBe(false);
     });
   });

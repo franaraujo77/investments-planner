@@ -24,14 +24,19 @@ jobs:
 
     # Only run if:
     # 1. Manual trigger with confirmation, OR
-    # 2. Push from merged PR (detected via GitHub web-flow committer or merge commit patterns)
-    # Note: This checks multiple merge patterns to handle merge commits, squash merges, and rebase merges
+    # 2. Push from merged PR (detected via GitHub web-flow committer or merge commit message)
+    #
+    # Detection methods:
+    # - web-flow: GitHub's official merge bot (handles all merge types from GitHub UI)
+    # - "Merge pull request": Traditional merge commit message pattern
+    #
+    # Note: Removed generic '(#' pattern as it could match unintended commits.
+    # The web-flow check covers squash and rebase merges done via GitHub UI.
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && (
         github.event.head_commit.committer.username == 'web-flow' ||
-        contains(github.event.head_commit.message, 'Merge pull request') ||
-        contains(github.event.head_commit.message, '(#')
+        contains(github.event.head_commit.message, 'Merge pull request')
       ))
 
     env:
