@@ -2011,6 +2011,34 @@ So that **I can discover opportunities and control notification frequency**.
 **Then** I am not alerted again for that specific asset
 **Unless** the score difference increases significantly
 
+### Story 7.7: API Precision i18n Refactoring
+
+As a **user with non-US locale**,
+I want **calculation breakdowns and API responses to respect my locale settings**,
+So that **numbers are displayed with my preferred decimal and thousand separators**.
+
+**Acceptance Criteria:**
+
+**Given** the `/api/recommendations/:id/breakdown` endpoint returns calculation steps
+**When** I call the API
+**Then** values should include raw numeric data alongside display strings
+**And** the response should include a `type` field ("percent", "currency", "number")
+
+**Given** the CalculationSteps component receives raw numeric values
+**When** rendering values for pt-BR locale
+**Then** percentages display with comma separator (e.g., "15,50%")
+**And** currency displays with locale-appropriate formatting
+
+**Given** existing consumers of these API endpoints
+**When** the refactoring is deployed
+**Then** pre-formatted `value` strings remain available for backward compatibility
+**And** new `rawValue` and `type` fields are additive (non-breaking)
+
+**Given** the `/api/scores/:assetId/inputs` endpoint returns score data
+**When** I call the API
+**Then** `percentage` and `maxPossible` fields include raw numeric values
+**And** client-side formatting respects user locale
+
 ---
 
 ## Summary
@@ -2023,5 +2051,5 @@ So that **I can discover opportunities and control notification frequency**.
 | 4         | Investment Strategy Configuration        | 6              | 15         |
 | 5         | Market Data & Scoring Engine             | 6              | 15         |
 | 6         | Investment Recommendations               | 6              | 13         |
-| 7         | Data Transparency & Alerts               | 6              | 9          |
-| **Total** |                                          | **43 stories** | **95 FRs** |
+| 7         | Data Transparency & Alerts               | 7              | 9          |
+| **Total** |                                          | **44 stories** | **95 FRs** |
