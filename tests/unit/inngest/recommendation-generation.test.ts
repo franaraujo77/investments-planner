@@ -110,6 +110,7 @@ vi.mock("@/lib/providers/price-service", () => ({
 }));
 
 // Story 9.1: Mock alert detection service (added to overnight job)
+// Story 9.2: Added detectDriftAlerts mock
 vi.mock("@/lib/services/alert-detection-service", () => ({
   alertDetectionService: {
     detectOpportunityAlerts: vi.fn(() =>
@@ -121,6 +122,17 @@ vi.mock("@/lib/services/alert-detection-service", () => ({
         alertsCreated: 0,
         alertsUpdated: 0,
         alertsSkipped: 0,
+        durationMs: 5,
+      })
+    ),
+    detectDriftAlerts: vi.fn(() =>
+      Promise.resolve({
+        userId: "",
+        portfolioId: "",
+        classesAnalyzed: 0,
+        alertsCreated: 0,
+        alertsUpdated: 0,
+        alertsDismissed: 0,
         durationMs: 5,
       })
     ),
@@ -138,6 +150,40 @@ vi.mock("@/lib/services/cache-warmer-service", () => ({
       })
     ),
   },
+}));
+
+// Story 7.8: Mock dismissed pairs service (cleanup step)
+vi.mock("@/lib/services/dismissed-pairs-service", () => ({
+  dismissedPairsService: {
+    cleanupOldPairs: vi.fn(() => Promise.resolve(0)),
+  },
+}));
+
+// Story 5.2: Mock market data cache service (exchange rates, prices, fundamentals caching)
+// Story 7.10: Added read methods for completeness
+vi.mock("@/lib/services/data-access", () => ({
+  marketDataCacheService: {
+    writeExchangeRates: vi.fn(() => Promise.resolve({ pgWritten: true, kvWritten: true })),
+    writePrices: vi.fn(() => Promise.resolve({ pgWritten: true, kvWritten: true })),
+    writeFundamentalsBatch: vi.fn(() => Promise.resolve({ pgWritten: true, kvWritten: true })),
+    readExchangeRates: vi.fn(() => Promise.resolve(null)),
+    readPrices: vi.fn(() => Promise.resolve(null)),
+    readFundamentals: vi.fn(() => Promise.resolve(null)),
+  },
+}));
+
+// Story 5.7/5.8: Mock classification services
+vi.mock("@/lib/services/classification", () => ({
+  processClassificationsFromFundamentals: vi.fn(() => Promise.resolve([])),
+  classifyAssetsFromFundamentals: vi.fn(() =>
+    Promise.resolve({
+      classified: 0,
+      alreadyCached: 0,
+      unmapped: 0,
+      errors: 0,
+      unmappedTypes: [],
+    })
+  ),
 }));
 
 // Import after mocks
@@ -535,8 +581,8 @@ describe("Overnight Job - Recommendation Generation Step", () => {
       expect(result.recommendationsGenerated).toBe(3);
     });
 
-    // TODO(Story-7.10): Fix test timeout - pre-existing issue unrelated to Story 7-8
-    it.skip("should handle batch failure gracefully", async () => {
+    // Story 7.10: Fixed test timeout (missing service mocks added)
+    it("should handle batch failure gracefully", async () => {
       vi.mocked(userQueryService.getActiveUsersWithPortfolios).mockResolvedValue([
         {
           userId: "user-1",

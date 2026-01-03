@@ -122,6 +122,6 @@ development_status:
   7-7-api-precision-i18n-refactoring: done  # Refactoring: locale-aware formatting for calculation breakdowns
   7-8-opportunity-alerts-enhancements: done  # Completed: bulk dismiss, sidebar nav, cleanup job
   7-9-server-side-number-formatting: done  # Enhancement: i18n-aware formatting for backend services
-  7-10-fix-recommendation-test-timeout: ready-for-dev  # Tech debt: fix flaky test timeout
-  7-11-overnight-cleanup-test-coverage: ready-for-dev  # Tech debt: add cleanup step test coverage
+  7-10-fix-recommendation-test-timeout: done  # Tech debt: fix flaky test timeout
+  7-11-overnight-cleanup-test-coverage: done  # Tech debt: add cleanup step test coverage (code review complete)
   epic-7-retrospective: optional
