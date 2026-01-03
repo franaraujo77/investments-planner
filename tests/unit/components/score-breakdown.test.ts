@@ -16,12 +16,12 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  formatRelativeTime,
   getScoreColorClasses,
   getSensitivityLabel,
   FormulaExplanationSection,
   ThresholdComparisonBar,
 } from "@/components/fintech/score-breakdown";
+import { formatRelativeTime } from "@/lib/types/freshness";
 import { getScoreLevel } from "@/components/fintech/score-badge";
 import type { CriterionResult } from "@/hooks/use-asset-score";
 
@@ -69,22 +69,22 @@ describe("ScoreBreakdown Utilities", () => {
 
     it("formats 1 minute ago correctly", () => {
       const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
-      expect(formatRelativeTime(oneMinuteAgo)).toBe("1 minute ago");
+      expect(formatRelativeTime(oneMinuteAgo)).toBe("1m ago");
     });
 
     it("formats minutes ago correctly", () => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      expect(formatRelativeTime(fiveMinutesAgo)).toBe("5 minutes ago");
+      expect(formatRelativeTime(fiveMinutesAgo)).toBe("5m ago");
     });
 
     it("formats 1 hour ago correctly", () => {
       const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
-      expect(formatRelativeTime(oneHourAgo)).toBe("1 hour ago");
+      expect(formatRelativeTime(oneHourAgo)).toBe("1h ago");
     });
 
     it("formats hours ago correctly", () => {
       const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
-      expect(formatRelativeTime(threeHoursAgo)).toBe("3 hours ago");
+      expect(formatRelativeTime(threeHoursAgo)).toBe("3h ago");
     });
 
     it("formats 1 day ago correctly", () => {

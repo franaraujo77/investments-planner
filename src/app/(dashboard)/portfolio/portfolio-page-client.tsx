@@ -7,6 +7,7 @@
  * Story 3.2: Add Asset to Portfolio
  * Story 3.6: Portfolio Overview with Values
  * Story 3.7: Allocation Percentage View
+ * Story 7.5: Allocation Drift Alerts
  *
  * Handles client-side interactivity for portfolio page
  * AC-3.2.1: Add Asset button visible when viewing portfolio
@@ -15,10 +16,11 @@
  * AC-3.6.4: Total portfolio value prominently displayed
  * AC-3.6.7: Data freshness indicator
  * AC-3.7.1-3.7.7: Allocation visualization
+ * AC-7.5.3: Highlight drifted asset class from alert navigation
  */
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Briefcase, Plus, ChevronDown, ChevronUp, Wallet } from "lucide-react";
 
 import { PortfolioEmptyState } from "@/components/portfolio/portfolio-empty-state";
@@ -26,7 +28,7 @@ import { parseDatesInObject, parseDatesInArray } from "@/lib/utils/date-parser";
 import { CreatePortfolioModal } from "@/components/portfolio/create-portfolio-modal";
 import { PortfolioTableWithValues } from "@/components/portfolio/portfolio-table";
 import { AddAssetModal } from "@/components/portfolio/add-asset-modal";
-import { DataFreshnessBadge } from "@/components/fintech/data-freshness-badge";
+import { DataFreshnessBadge, createFreshnessInfo } from "@/components/data";
 import { CompactCurrencyDisplay } from "@/components/fintech/currency-display";
 import {
   AllocationSection,
@@ -50,10 +52,19 @@ export function PortfolioPageClient({
   baseCurrency = "USD",
 }: PortfolioPageClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // AC-7.5.3: Read highlighted class from URL query param (from drift alert click)
+  const highlightClassId = searchParams.get("highlightClass");
+
   const [expandedPortfolioId, setExpandedPortfolioId] = useState<string | null>(
-    // Expand first portfolio by default if there's only one
-    initialPortfolios.length === 1 && initialPortfolios[0] ? initialPortfolios[0].id : null
+    // Expand first portfolio by default if there's only one, or if highlighting a class
+    initialPortfolios.length === 1 && initialPortfolios[0]
+      ? initialPortfolios[0].id
+      : highlightClassId && initialPortfolios[0]
+        ? initialPortfolios[0].id
+        : null
   );
 
   const handleCreateSuccess = () => {
@@ -98,6 +109,7 @@ export function PortfolioPageClient({
             isExpanded={expandedPortfolioId === portfolio.id}
             onToggle={() => togglePortfolio(portfolio.id)}
             baseCurrency={baseCurrency}
+            highlightClassId={highlightClassId}
           />
         ))}
 
@@ -169,13 +181,16 @@ function PortfolioValueSummary({
         </CardContent>
       </Card>
 
-      {/* Data Freshness - AC-3.6.7 */}
+      {/* Data Freshness - AC-3.6.7, AC-7.3.1 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Data Updated</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataFreshnessBadge updatedAt={dataFreshness} source="Price & Rate" size="md" />
+          <DataFreshnessBadge
+            freshnessInfo={createFreshnessInfo(dataFreshness, "Price & Rate")}
+            size="default"
+          />
           <p className="text-xs text-muted-foreground mt-2">Last price/rate update</p>
         </CardContent>
       </Card>
@@ -196,11 +211,14 @@ function PortfolioCardWithValues({
   isExpanded,
   onToggle,
   baseCurrency,
+  highlightClassId,
 }: {
   portfolio: PortfolioWithAssetTypes;
   isExpanded: boolean;
   onToggle: () => void;
   baseCurrency: string;
+  /** AC-7.5.3: Asset class ID to highlight (from drift alert navigation) */
+  highlightClassId?: string | null;
 }) {
   const router = useRouter();
   const [portfolioWithValues, setPortfolioWithValues] = useState<PortfolioWithValues | null>(null);
@@ -387,12 +405,13 @@ function PortfolioCardWithValues({
                 <PortfolioValueSummary portfolioWithValues={portfolioWithValues} />
               )}
 
-              {/* Allocation Section - AC-3.7.1 to AC-3.7.7 */}
+              {/* Allocation Section - AC-3.7.1 to AC-3.7.7, AC-7.5.3 */}
               {portfolioWithValues.assets.length > 0 && (
                 <AllocationSection
                   data={allocationData}
                   isLoading={isLoadingAllocation}
                   error={allocationError}
+                  highlightClassId={highlightClassId ?? null}
                 />
               )}
 

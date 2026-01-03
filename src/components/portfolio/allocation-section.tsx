@@ -4,7 +4,9 @@
  * AllocationSection Component
  *
  * Story 3.7: Allocation Percentage View
+ * Story 7.5: Allocation Drift Alerts
  * AC-3.7.1 - AC-3.7.7: Combined allocation visualization
+ * AC-7.5.3: Highlight drifted asset class from alert navigation
  *
  * Combines all allocation visualizations:
  * - Pie/donut chart for allocation overview
@@ -13,7 +15,7 @@
  * - Subclass breakdown expansion
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,6 +85,8 @@ export interface AllocationSectionProps {
   error?: string | null;
   /** Additional CSS classes */
   className?: string;
+  /** AC-7.5.3: Asset class ID to highlight (from drift alert navigation) */
+  highlightClassId?: string | null;
 }
 
 /**
@@ -164,11 +168,44 @@ export function AllocationSection({
   isLoading = false,
   error = null,
   className,
+  highlightClassId,
 }: AllocationSectionProps) {
   // Track which class is expanded for subclass breakdown
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   // Track selected class in pie chart
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  // Active tab - default to gauges if highlighting a class
+  const [activeTab, setActiveTab] = useState<string>(highlightClassId ? "gauges" : "overview");
+  // Ref for scrolling to highlighted class
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  // AC-7.5.3: Auto-expand and scroll to highlighted class on mount
+  // Uses requestAnimationFrame to defer setState calls and avoid lint warning
+  useEffect(() => {
+    if (highlightClassId && data) {
+      // Defer state updates to next frame to avoid sync setState in effect
+      const frameId = requestAnimationFrame(() => {
+        // Switch to gauges tab for best visibility
+        setActiveTab("gauges");
+        // Set the class as expanded and selected
+        setExpandedClassId(highlightClassId);
+        setSelectedClassId(highlightClassId);
+      });
+
+      // Scroll to the element after a short delay to ensure rendering
+      const timeout = setTimeout(() => {
+        highlightRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 150);
+
+      return () => {
+        cancelAnimationFrame(frameId);
+        clearTimeout(timeout);
+      };
+    }
+  }, [highlightClassId, data]);
 
   // Handle class click from any chart
   const handleClassClick = useCallback((classId: string) => {
@@ -251,7 +288,7 @@ export function AllocationSection({
       </div>
 
       {/* Tabs for different views */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4 max-w-md">
           <TabsTrigger value="overview" className="flex items-center gap-1.5">
             <PieChart className="h-4 w-4" />
@@ -313,22 +350,34 @@ export function AllocationSection({
               <CardTitle className="text-base">Allocation Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {classAllocations.map((alloc) => (
-                <AllocationGauge
-                  key={alloc.classId}
-                  className={alloc.className}
-                  currentPercent={alloc.percentage}
-                  targetMin={alloc.targetMin}
-                  targetMax={alloc.targetMax}
-                  status={alloc.status}
-                  onClick={() => handleClassClick(alloc.classId)}
-                  isExpanded={expandedClassId === alloc.classId}
-                  hasSubclasses={
-                    (data.classes.find((c) => c.classId === alloc.classId)?.subclasses.length ??
-                      0) > 0
-                  }
-                />
-              ))}
+              {classAllocations.map((alloc) => {
+                const isHighlighted = highlightClassId === alloc.classId;
+                return (
+                  <div
+                    key={alloc.classId}
+                    ref={isHighlighted ? highlightRef : undefined}
+                    className={cn(
+                      "transition-all duration-300",
+                      // AC-7.5.3: Highlight the drifted class with visual emphasis
+                      isHighlighted && "ring-2 ring-primary ring-offset-2 rounded-lg"
+                    )}
+                  >
+                    <AllocationGauge
+                      className={alloc.className}
+                      currentPercent={alloc.percentage}
+                      targetMin={alloc.targetMin}
+                      targetMax={alloc.targetMax}
+                      status={alloc.status}
+                      onClick={() => handleClassClick(alloc.classId)}
+                      isExpanded={expandedClassId === alloc.classId}
+                      hasSubclasses={
+                        (data.classes.find((c) => c.classId === alloc.classId)?.subclasses.length ??
+                          0) > 0
+                      }
+                    />
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </TabsContent>

@@ -249,4 +249,6 @@ export function DataFreshnessBadge({
 // =============================================================================
 
 export { FreshnessIcon };
+// Re-export adapter function from freshness utilities
+export { createFreshnessInfo } from "@/lib/types/freshness";
 export type { FreshnessStatus } from "@/lib/types/freshness";

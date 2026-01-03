@@ -13,7 +13,7 @@ export { RefreshButton, RefreshIconButton } from "./refresh-button";
 export type { RefreshButtonProps } from "./refresh-button";
 
 // Freshness display
-export { DataFreshnessBadge, FreshnessIcon } from "./data-freshness-badge";
+export { DataFreshnessBadge, FreshnessIcon, createFreshnessInfo } from "./data-freshness-badge";
 export type { DataFreshnessBadgeProps } from "./data-freshness-badge";
 export type { FreshnessStatus } from "./data-freshness-badge";
 
@@ -47,3 +47,7 @@ export {
   DocumentReferenceDisplay,
 } from "./data-with-attribution";
 export type { DataWithAttributionProps } from "./data-with-attribution";
+
+// Allocation status indicator (Story 7.5)
+export { AllocationStatusBadge } from "./allocation-status-badge";
+export type { AllocationStatusBadgeProps } from "./allocation-status-badge";

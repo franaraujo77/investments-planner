@@ -198,3 +198,50 @@ export function getFreshnessAriaLabel(status: FreshnessStatus, relativeTime: str
 
   return `${statusDescriptions[status]}, last updated ${relativeTime}`;
 }
+
+// =============================================================================
+// ADAPTER FUNCTIONS
+// =============================================================================
+
+// Import FreshnessInfo type for createFreshnessInfo return type
+import type { FreshnessInfo } from "@/lib/providers/types";
+
+/**
+ * Create FreshnessInfo from a Date and optional source
+ *
+ * Story 7.3: Data Freshness Indicators
+ * AC-7.3.1: Adapter function to bridge old updatedAt prop to new freshnessInfo prop
+ *
+ * This adapter function allows components using the old DataFreshnessBadge
+ * pattern (with updatedAt: Date) to easily migrate to the new canonical
+ * component (with freshnessInfo: FreshnessInfo).
+ *
+ * @param fetchedAt - When the data was fetched
+ * @param source - Data source name (defaults to "Market Data")
+ * @param now - Current time for testing (defaults to new Date())
+ * @returns FreshnessInfo object ready for DataFreshnessBadge
+ *
+ * @example
+ * ```tsx
+ * // Old pattern:
+ * <OldDataFreshnessBadge updatedAt={dataFreshness} source="Prices" />
+ *
+ * // New pattern using adapter:
+ * <DataFreshnessBadge
+ *   freshnessInfo={createFreshnessInfo(dataFreshness, "Prices")}
+ * />
+ * ```
+ */
+export function createFreshnessInfo(
+  fetchedAt: Date,
+  source: string = "Market Data",
+  now: Date = new Date()
+): FreshnessInfo {
+  const ageMs = now.getTime() - fetchedAt.getTime();
+
+  return {
+    source,
+    fetchedAt,
+    isStale: ageMs >= FRESHNESS_THRESHOLDS.FRESH_MS,
+  };
+}

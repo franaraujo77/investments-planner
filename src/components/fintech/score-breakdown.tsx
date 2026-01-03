@@ -58,6 +58,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getScoreLevel, type ScoreLevel } from "@/components/fintech/score-badge";
+import { DataFreshnessBadge, createFreshnessInfo } from "@/components/data";
+// Note: formatRelativeTime moved to @/lib/types/freshness - import from there if needed
 import type { CriterionResult } from "@/hooks/use-asset-score";
 import { SourceAttributionLabel, DataWithAttribution } from "@/components/data";
 import type { CalculationInputSources, SourceAttribution } from "@/lib/types/source-attribution";
@@ -73,6 +75,7 @@ import {
   triggerDownload,
 } from "@/lib/utils/export-calculation";
 import { CalculationStepsModal } from "./calculation-steps-modal";
+import { DisclaimerFooter } from "@/components/disclaimer";
 
 // =============================================================================
 // TYPES
@@ -139,29 +142,7 @@ function getScoreColorClasses(level: ScoreLevel): {
   }
 }
 
-/**
- * Format relative time for display
- */
-function formatRelativeTime(date: Date): string {
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-
-  const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) {
-    return days === 1 ? "1 day ago" : `${days} days ago`;
-  }
-  if (hours > 0) {
-    return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
-  }
-  if (minutes > 0) {
-    return minutes === 1 ? "1 minute ago" : `${minutes} minutes ago`;
-  }
-  return "just now";
-}
+// formatRelativeTime imported from @/lib/types/freshness
 
 /**
  * Normalize score to integer for display
@@ -726,7 +707,6 @@ export function ScoreBreakdown({
   const displayScore = useMemo(() => normalizeScore(score), [score]);
   const scoreLevel = useMemo(() => getScoreLevel(displayScore), [displayScore]);
   const scoreColors = useMemo(() => getScoreColorClasses(scoreLevel), [scoreLevel]);
-  const relativeTime = useMemo(() => formatRelativeTime(calculatedAt), [calculatedAt]);
 
   /**
    * Handle export button click
@@ -881,11 +861,16 @@ export function ScoreBreakdown({
           </div>
 
           {/* AC-5.11.2: Data freshness timestamp */}
+          {/* AC-7.3.1: Enhanced freshness display with DataFreshnessBadge */}
           <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
             <span>
               {matchedCount}/{totalEvaluated} criteria matched
             </span>
-            <span data-testid="freshness-timestamp">Calculated {relativeTime}</span>
+            <DataFreshnessBadge
+              freshnessInfo={createFreshnessInfo(calculatedAt, "Score Calculation")}
+              size="sm"
+              data-testid="freshness-timestamp"
+            />
           </div>
         </SheetHeader>
 
@@ -991,6 +976,10 @@ export function ScoreBreakdown({
           </Button>
         </div>
 
+        {/* Story 7.4: AC-7.4.4 - Subtle disclaimer footer */}
+        <Separator className="my-4" />
+        <DisclaimerFooter variant="compact" />
+
         {/* Debug info for development */}
         <div className="mt-4 text-xs text-muted-foreground hidden">
           <div>Asset ID: {assetId}</div>
@@ -1018,10 +1007,10 @@ export {
   PointsContributionChart,
   SkippedCriteriaSection,
   CalculationInputsSection,
-  formatRelativeTime,
   getScoreColorClasses,
   // Story 7.2: Calculation Transparency
   FormulaExplanationSection,
   ThresholdComparisonBar,
   getSensitivityLabel,
 };
+// Note: formatRelativeTime is now imported from @/lib/types/freshness

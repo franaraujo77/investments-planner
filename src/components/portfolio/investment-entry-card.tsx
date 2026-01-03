@@ -16,7 +16,7 @@ import { useMemo } from "react";
 import { ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DataFreshnessBadge } from "@/components/fintech/data-freshness-badge";
+import { DataFreshnessBadge, createFreshnessInfo } from "@/components/data";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { cn } from "@/lib/utils";
 import type { InvestmentWithContext } from "./investment-history-tab";
@@ -105,7 +105,11 @@ export function InvestmentEntryCard({
               )}
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <DataFreshnessBadge updatedAt={investedDate} source="Investment" size="sm" />
+              {/* AC-7.3.1: Freshness badge on investment entry */}
+              <DataFreshnessBadge
+                freshnessInfo={createFreshnessInfo(investedDate, "Investment")}
+                size="sm"
+              />
               <span>•</span>
               <span>{formatNumber(quantity)} units</span>
             </div>
