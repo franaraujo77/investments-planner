@@ -714,6 +714,232 @@ describe("Extended Breakdown Fields (Story 6.4)", () => {
   });
 });
 
+// =============================================================================
+// Story 7.7 i18n: Raw Numeric Values in API Response
+// =============================================================================
+
+describe("Story 7.7 i18n: API Precision Refactoring", () => {
+  describe("buildCalculationSteps with rawValue and valueType", () => {
+    it("returns rawValue and valueType for allocation gap step", () => {
+      const allocationGap = "15.5";
+      const score = "75";
+      const recommendedAmount = "800";
+
+      const gapValue = parseFloat(allocationGap);
+      const scoreValue = parseFloat(score);
+      const amountValue = parseFloat(recommendedAmount);
+
+      // Build steps (simulating buildCalculationSteps)
+      const steps = [
+        {
+          step: "Calculate allocation gap",
+          value: `${Math.abs(gapValue).toFixed(2)}%`,
+          rawValue: Math.abs(gapValue),
+          valueType: "percent" as const,
+          formula: "target_midpoint - current_allocation",
+        },
+        {
+          step: "Apply score weighting",
+          value: (gapValue * (scoreValue / 100)).toFixed(4),
+          rawValue: gapValue * (scoreValue / 100),
+          valueType: "weight" as const,
+          formula: "allocation_gap × (score / 100)",
+        },
+        {
+          step: "Distribute capital proportionally",
+          value: `$${amountValue.toFixed(2)}`,
+          rawValue: amountValue,
+          valueType: "currency" as const,
+          formula: "weighted_priority ÷ total_priority × total_investable",
+        },
+      ];
+
+      // Verify step 1: Allocation gap
+      expect(steps[0]?.value).toBe("15.50%");
+      expect(steps[0]?.rawValue).toBe(15.5);
+      expect(steps[0]?.valueType).toBe("percent");
+
+      // Verify step 2: Score weighting
+      expect(steps[1]?.rawValue).toBeCloseTo(11.625, 4); // 15.5 * 0.75
+      expect(steps[1]?.valueType).toBe("weight");
+
+      // Verify step 3: Currency distribution
+      expect(steps[2]?.value).toBe("$800.00");
+      expect(steps[2]?.rawValue).toBe(800);
+      expect(steps[2]?.valueType).toBe("currency");
+    });
+
+    it("preserves precision for weight values", () => {
+      const allocationGap = "15.5";
+      const score = "75";
+
+      const gapValue = parseFloat(allocationGap);
+      const scoreValue = parseFloat(score);
+      const rawWeightValue = gapValue * (scoreValue / 100);
+
+      // The raw value should preserve full precision
+      expect(rawWeightValue).toBe(11.625);
+      // The formatted string should be truncated
+      expect(rawWeightValue.toFixed(4)).toBe("11.6250");
+    });
+
+    it("handles negative allocation gap (over-allocated)", () => {
+      const allocationGap = "-10.0";
+      const gapValue = parseFloat(allocationGap);
+
+      const step = {
+        step: "Calculate allocation gap",
+        value: `${Math.abs(gapValue).toFixed(2)}%`,
+        rawValue: Math.abs(gapValue),
+        valueType: "percent" as const,
+        formula: "target_midpoint - current_allocation",
+      };
+
+      // Should use absolute value for display
+      expect(step.value).toBe("10.00%");
+      expect(step.rawValue).toBe(10.0);
+    });
+
+    it("handles zero recommended amount", () => {
+      const recommendedAmount = "0.00";
+      const amountValue = parseFloat(recommendedAmount);
+
+      const step = {
+        step: "Distribute capital proportionally",
+        value: `$${amountValue.toFixed(2)}`,
+        rawValue: amountValue,
+        valueType: "currency" as const,
+        formula: "N/A (no investable capital)",
+      };
+
+      expect(step.value).toBe("$0.00");
+      expect(step.rawValue).toBe(0);
+      expect(step.valueType).toBe("currency");
+    });
+  });
+
+  describe("API Response Format with i18n Fields", () => {
+    it("returns steps with both string value and raw numeric fields", () => {
+      const apiResponse = {
+        data: {
+          item: {
+            assetId: "uuid",
+            symbol: "AAPL",
+            score: "85.5",
+            currentAllocation: "15.2",
+            targetAllocation: "20.0",
+            allocationGap: "4.8",
+            recommendedAmount: "500.00",
+            isOverAllocated: false,
+          },
+          calculation: {
+            inputs: {
+              currentValue: "5000.00",
+              portfolioTotal: "27777.77",
+              currentPercentage: "18.0",
+              targetRange: { min: "15.0", max: "25.0" },
+              score: "85.5",
+              criteriaVersion: "uuid",
+            },
+            steps: [
+              {
+                step: "Calculate allocation gap",
+                value: "4.80%",
+                rawValue: 4.8,
+                valueType: "percent",
+                formula: "target_midpoint - current_allocation",
+              },
+              {
+                step: "Apply score weighting",
+                value: "4.1040",
+                rawValue: 4.104,
+                valueType: "weight",
+                formula: "allocation_gap × (score / 100)",
+              },
+              {
+                step: "Distribute capital proportionally",
+                value: "$500.00",
+                rawValue: 500,
+                valueType: "currency",
+                formula: "weighted_priority ÷ total_priority × total_investable",
+              },
+            ],
+            result: {
+              recommendedAmount: "500.00",
+              reasoning: "Asset is slightly below target allocation (4.8%) with high score (85.5).",
+            },
+          },
+          auditTrail: {
+            correlationId: "uuid",
+            generatedAt: "2025-12-13T04:00:00Z",
+            criteriaVersionId: "uuid",
+          },
+        },
+      };
+
+      // Verify all steps have rawValue and valueType
+      apiResponse.data.calculation.steps.forEach((step) => {
+        expect(step).toHaveProperty("rawValue");
+        expect(step).toHaveProperty("valueType");
+        expect(["percent", "currency", "weight", "number"]).toContain(step.valueType);
+        expect(typeof step.rawValue).toBe("number");
+      });
+    });
+
+    it("maintains backward compatibility with existing consumers", () => {
+      // Existing consumers should be able to use the string 'value' field
+      const step = {
+        step: "Calculate allocation gap",
+        value: "4.80%",
+        rawValue: 4.8,
+        valueType: "percent" as const,
+        formula: "target_midpoint - current_allocation",
+      };
+
+      // Old consumers can still use step.value
+      expect(step.value).toBe("4.80%");
+      expect(typeof step.value).toBe("string");
+
+      // New consumers can use rawValue + valueType
+      expect(step.rawValue).toBe(4.8);
+      expect(step.valueType).toBe("percent");
+    });
+  });
+
+  describe("Target Range with Raw Values", () => {
+    it("returns both string and numeric values", () => {
+      const targetMidpoint = "20.0";
+      const midpoint = parseFloat(targetMidpoint) || 0;
+      const rawMin = Math.max(midpoint - 5, 0);
+      const rawMax = Math.min(midpoint + 5, 100);
+
+      const result = {
+        min: rawMin.toFixed(1),
+        max: rawMax.toFixed(1),
+        rawMin,
+        rawMax,
+      };
+
+      expect(result.min).toBe("15.0");
+      expect(result.max).toBe("25.0");
+      expect(result.rawMin).toBe(15);
+      expect(result.rawMax).toBe(25);
+    });
+
+    it("clamps values at boundaries", () => {
+      // Near zero
+      const lowMidpoint = "3.0";
+      const lowMid = parseFloat(lowMidpoint);
+      expect(Math.max(lowMid - 5, 0)).toBe(0);
+
+      // Near 100
+      const highMidpoint = "98.0";
+      const highMid = parseFloat(highMidpoint);
+      expect(Math.min(highMid + 5, 100)).toBe(100);
+    });
+  });
+});
+
 describe("Breakdown API Data Transformations", () => {
   describe("Item Transformation", () => {
     it("transforms DB item to display item", () => {

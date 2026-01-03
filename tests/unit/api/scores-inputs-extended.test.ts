@@ -362,4 +362,142 @@ describe("GET /api/scores/[assetId]/inputs - Extended Response", () => {
       max: "20",
     });
   });
+
+  // Story 7.7 i18n: Raw Numeric Values in Score Response
+  it("should include raw numeric values in score response (Story 7.7 i18n)", async () => {
+    mockScoreService.getAssetScore.mockResolvedValue({
+      assetId: "550e8400-e29b-41d4-a716-446655440000",
+      symbol: "AAPL",
+      score: "75.0000",
+      breakdown: [
+        {
+          criterionId: "crit-1",
+          criterionName: "P/E Ratio",
+          matched: true,
+          pointsAwarded: 10,
+          actualValue: "20.5",
+          skippedReason: null,
+        },
+      ],
+      criteriaVersionId: "cv-123",
+      calculatedAt: new Date("2025-12-11T10:00:00Z"),
+      isFresh: true,
+    });
+
+    const mockSelectChain = {
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn(),
+    };
+
+    mockSelectChain.limit
+      .mockResolvedValueOnce([]) // prices
+      .mockResolvedValueOnce([]) // fundamentals
+      .mockResolvedValueOnce([]) // rates
+      .mockResolvedValueOnce([
+        {
+          id: "cv-123",
+          name: "Growth Criteria",
+          version: 2,
+          createdAt: new Date(),
+          criteria: [
+            {
+              id: "crit-1",
+              name: "P/E Ratio",
+              metric: "pe_ratio",
+              operator: "lt",
+              value: "30",
+              points: 10,
+              requiredFundamentals: ["pe_ratio"],
+              sortOrder: 1,
+            },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([{ correlationId: "corr-456" }]);
+
+    mockDb.db.select.mockReturnValue(
+      mockSelectChain as unknown as ReturnType<typeof mockDb.db.select>
+    );
+
+    const request = createMockRequest();
+    const params = createMockParams();
+
+    const response = await GET(request, params);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+
+    // Verify score object structure
+    expect(body.data.score).toBeDefined();
+    expect(body.data.score.final).toBe("75.0000");
+    expect(body.data.score.maxPossible).toBeDefined();
+    expect(body.data.score.percentage).toBeDefined();
+
+    // Story 7.7 i18n: Verify raw numeric values are present
+    expect(body.data.score.raw).toBeDefined();
+    expect(typeof body.data.score.raw.final).toBe("number");
+    expect(typeof body.data.score.raw.maxPossible).toBe("number");
+    expect(typeof body.data.score.raw.percentage).toBe("number");
+
+    // Verify raw values match parsed string values
+    expect(body.data.score.raw.final).toBe(75);
+    expect(body.data.score.raw.maxPossible).toBe(10); // Only one criterion with 10 points
+    expect(body.data.score.raw.percentage).toBe(750); // 75/10 * 100 = 750%
+  });
+
+  it("should maintain backward compatibility with string score values (Story 7.7 i18n)", async () => {
+    mockScoreService.getAssetScore.mockResolvedValue({
+      assetId: "550e8400-e29b-41d4-a716-446655440000",
+      symbol: "AAPL",
+      score: "85.5000",
+      breakdown: [],
+      criteriaVersionId: "cv-123",
+      calculatedAt: new Date("2025-12-11T10:00:00Z"),
+      isFresh: true,
+    });
+
+    const mockSelectChain = {
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn(),
+    };
+
+    mockSelectChain.limit
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "cv-123",
+          name: "Criteria",
+          version: 1,
+          createdAt: new Date(),
+          criteria: [],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    mockDb.db.select.mockReturnValue(
+      mockSelectChain as unknown as ReturnType<typeof mockDb.db.select>
+    );
+
+    const request = createMockRequest();
+    const params = createMockParams();
+
+    const response = await GET(request, params);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+
+    // Backward compat: String values should still be present
+    expect(typeof body.data.score.final).toBe("string");
+    expect(typeof body.data.score.maxPossible).toBe("string");
+    expect(typeof body.data.score.percentage).toBe("string");
+
+    // New: Raw values should also be present
+    expect(body.data.score.raw).toBeDefined();
+  });
 });

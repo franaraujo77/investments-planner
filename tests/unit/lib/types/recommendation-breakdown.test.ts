@@ -16,6 +16,7 @@ import { describe, it, expect } from "vitest";
 import type {
   DetailedBreakdown,
   CalculationStep,
+  CalculationValueType,
   AuditTrailInfo,
   CalculationInputs,
   CalculationResult,
@@ -55,6 +56,96 @@ describe("Recommendation Breakdown Types", () => {
       };
 
       expect(step.value).toBe("$800.00");
+    });
+
+    // Story 7.7 i18n: Extended CalculationStep tests
+    it("accepts step with rawValue and valueType for i18n support", () => {
+      const step: CalculationStep = {
+        step: "Calculate allocation gap",
+        value: "15.50%", // Backward compat
+        rawValue: 15.5, // New: Raw numeric value
+        valueType: "percent", // New: Type hint
+        formula: "target_midpoint - current_allocation",
+      };
+
+      expect(step.step).toBe("Calculate allocation gap");
+      expect(step.value).toBe("15.50%");
+      expect(step.rawValue).toBe(15.5);
+      expect(step.valueType).toBe("percent");
+    });
+
+    it("accepts step with currency rawValue and valueType", () => {
+      const step: CalculationStep = {
+        step: "Distribute capital proportionally",
+        value: "$800.00",
+        rawValue: 800,
+        valueType: "currency",
+        formula: "weighted_priority ÷ total_priority × total_investable",
+      };
+
+      expect(step.rawValue).toBe(800);
+      expect(step.valueType).toBe("currency");
+    });
+
+    it("accepts step with weight rawValue and valueType", () => {
+      const step: CalculationStep = {
+        step: "Apply score weighting",
+        value: "0.1163",
+        rawValue: 0.11625,
+        valueType: "weight",
+        formula: "allocation_gap × (score / 100)",
+      };
+
+      expect(step.rawValue).toBeCloseTo(0.11625, 5);
+      expect(step.valueType).toBe("weight");
+    });
+
+    it("accepts step with number valueType", () => {
+      const step: CalculationStep = {
+        step: "Calculate priority score",
+        value: "75",
+        rawValue: 75,
+        valueType: "number",
+        formula: "base_score × multiplier",
+      };
+
+      expect(step.rawValue).toBe(75);
+      expect(step.valueType).toBe("number");
+    });
+
+    it("maintains backward compatibility without rawValue and valueType", () => {
+      // Steps without rawValue and valueType should still be valid
+      const legacyStep: CalculationStep = {
+        step: "Legacy calculation step",
+        value: "10.00%",
+        formula: "legacy_formula",
+      };
+
+      expect(legacyStep.rawValue).toBeUndefined();
+      expect(legacyStep.valueType).toBeUndefined();
+      expect(legacyStep.value).toBe("10.00%");
+    });
+  });
+
+  describe("CalculationValueType Type", () => {
+    it("accepts percent type", () => {
+      const valueType: CalculationValueType = "percent";
+      expect(valueType).toBe("percent");
+    });
+
+    it("accepts currency type", () => {
+      const valueType: CalculationValueType = "currency";
+      expect(valueType).toBe("currency");
+    });
+
+    it("accepts weight type", () => {
+      const valueType: CalculationValueType = "weight";
+      expect(valueType).toBe("weight");
+    });
+
+    it("accepts number type", () => {
+      const valueType: CalculationValueType = "number";
+      expect(valueType).toBe("number");
     });
   });
 

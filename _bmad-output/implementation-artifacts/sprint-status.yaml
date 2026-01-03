@@ -119,5 +119,5 @@ development_status:
   7-4-financial-disclaimers: done
   7-5-allocation-drift-alerts: done
   7-6-opportunity-alerts-and-preferences: done
-  7-7-api-precision-i18n-refactoring: backlog  # Refactoring: locale-aware formatting for calculation breakdowns
+  7-7-api-precision-i18n-refactoring: done  # Refactoring: locale-aware formatting for calculation breakdowns
   epic-7-retrospective: optional
