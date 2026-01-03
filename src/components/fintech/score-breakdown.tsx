@@ -58,8 +58,8 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getScoreLevel, type ScoreLevel } from "@/components/fintech/score-badge";
 import type { CriterionResult } from "@/hooks/use-asset-score";
-import { SourceAttributionLabel } from "@/components/data/source-attribution-label";
-import type { CalculationInputSources } from "@/lib/types/source-attribution";
+import { SourceAttributionLabel, DataWithAttribution } from "@/components/data";
+import type { CalculationInputSources, SourceAttribution } from "@/lib/types/source-attribution";
 import type { CalculationBreakdown, CriterionOperator } from "@/lib/types/calculation-breakdown";
 import {
   exportCalculationAsJSON,
@@ -393,12 +393,37 @@ interface CalculationInputsSectionProps {
 }
 
 function CalculationInputsSection({ inputSources }: CalculationInputsSectionProps) {
+  // Build attribution objects for DataWithAttribution tooltips (Story 7.1)
+  const priceAttribution: SourceAttribution | undefined = inputSources.price
+    ? {
+        dataType: "price",
+        source: inputSources.price.source,
+        timestamp: new Date(inputSources.price.fetchedAt),
+      }
+    : undefined;
+
+  const rateAttribution: SourceAttribution | undefined = inputSources.exchangeRate
+    ? {
+        dataType: "rate",
+        source: inputSources.exchangeRate.source,
+        timestamp: new Date(inputSources.exchangeRate.fetchedAt),
+      }
+    : undefined;
+
+  const fundamentalsAttribution: SourceAttribution | undefined = inputSources.fundamentals
+    ? {
+        dataType: "fundamentals",
+        source: inputSources.fundamentals.source,
+        timestamp: new Date(inputSources.fundamentals.fetchedAt),
+      }
+    : undefined;
+
   return (
     <div className="space-y-2" data-testid="calculation-inputs-section">
       <h3 className="text-sm font-medium">Calculation Inputs</h3>
       <div className="space-y-1.5 text-sm">
-        {/* Price source */}
-        {inputSources.price && (
+        {/* Price source (AC-7.1.1, AC-7.1.2) */}
+        {inputSources.price && priceAttribution && (
           <div
             className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
             data-testid="input-source-price"
@@ -409,14 +434,16 @@ function CalculationInputsSection({ inputSources }: CalculationInputsSectionProp
               showIcon
               size="sm"
             />
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {inputSources.price.value} {inputSources.price.currency}
-            </span>
+            <DataWithAttribution attribution={priceAttribution}>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {inputSources.price.value} {inputSources.price.currency}
+              </span>
+            </DataWithAttribution>
           </div>
         )}
 
-        {/* Exchange rate source */}
-        {inputSources.exchangeRate && (
+        {/* Exchange rate source (AC-7.1.1, AC-7.1.2) */}
+        {inputSources.exchangeRate && rateAttribution && (
           <div
             className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
             data-testid="input-source-rate"
@@ -427,15 +454,17 @@ function CalculationInputsSection({ inputSources }: CalculationInputsSectionProp
               showIcon
               size="sm"
             />
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {inputSources.exchangeRate.from}/{inputSources.exchangeRate.to}:{" "}
-              {inputSources.exchangeRate.rate}
-            </span>
+            <DataWithAttribution attribution={rateAttribution}>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {inputSources.exchangeRate.from}/{inputSources.exchangeRate.to}:{" "}
+                {inputSources.exchangeRate.rate}
+              </span>
+            </DataWithAttribution>
           </div>
         )}
 
-        {/* Fundamentals source */}
-        {inputSources.fundamentals && (
+        {/* Fundamentals source (AC-7.1.1, AC-7.1.2) */}
+        {inputSources.fundamentals && fundamentalsAttribution && (
           <div
             className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
             data-testid="input-source-fundamentals"
@@ -446,14 +475,16 @@ function CalculationInputsSection({ inputSources }: CalculationInputsSectionProp
               showIcon
               size="sm"
             />
-            <span className="text-xs text-muted-foreground">
-              {
-                Object.keys(inputSources.fundamentals.metrics).filter(
-                  (k) => inputSources.fundamentals!.metrics[k] !== null
-                ).length
-              }{" "}
-              metrics
-            </span>
+            <DataWithAttribution attribution={fundamentalsAttribution}>
+              <span className="text-xs text-muted-foreground">
+                {
+                  Object.keys(inputSources.fundamentals.metrics).filter(
+                    (k) => inputSources.fundamentals!.metrics[k] !== null
+                  ).length
+                }{" "}
+                metrics
+              </span>
+            </DataWithAttribution>
           </div>
         )}
 

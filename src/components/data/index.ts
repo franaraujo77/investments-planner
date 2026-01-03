@@ -29,3 +29,21 @@ export type {
   CompactSourceLabelProps,
   SourceBadgeProps,
 } from "./source-attribution-label";
+
+// Multi-source attribution (Story 7.1)
+export {
+  MultiSourceAttribution,
+  getPrimarySource,
+  getSourceCount,
+  formatSourceCountLabel,
+  shouldShowExpandButton,
+} from "./multi-source-attribution";
+export type { MultiSourceAttributionProps } from "./multi-source-attribution";
+
+// Data with attribution tooltip (Story 7.1)
+export {
+  DataWithAttribution,
+  AttributionTooltipContent,
+  DocumentReferenceDisplay,
+} from "./data-with-attribution";
+export type { DataWithAttributionProps } from "./data-with-attribution";

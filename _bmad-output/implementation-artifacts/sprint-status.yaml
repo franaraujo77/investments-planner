@@ -113,7 +113,7 @@ development_status:
 
   # Epic 7: Data Transparency & Alerts
   epic-7: in-progress
-  7-1-data-source-attribution: ready-for-dev
+  7-1-data-source-attribution: done
   7-2-calculation-transparency: backlog
   7-3-data-freshness-indicators: backlog
   7-4-financial-disclaimers: backlog

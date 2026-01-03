@@ -17,7 +17,16 @@
  */
 
 import { useCallback, useState } from "react";
-import { Edit, Trash2, EyeOff, Eye, ArrowRightLeft, TrendingUp, Clock } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  EyeOff,
+  Eye,
+  ArrowRightLeft,
+  TrendingUp,
+  Clock,
+  Database,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -29,7 +38,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
-import { formatRelativeTime } from "@/lib/types/freshness";
+import { formatRelativeTime, formatExactTime } from "@/lib/types/freshness";
+import { getProviderDisplayName } from "@/lib/types/source-attribution";
 import { useToggleIgnore } from "@/hooks/use-toggle-ignore";
 import { useDeleteAsset } from "@/hooks/use-delete-asset";
 import { DeleteAssetDialog } from "./delete-asset-dialog";
@@ -184,14 +194,28 @@ export function HoldingDetailDrawer({
 
           <Separator />
 
-          {/* Data Freshness */}
-          <section className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>Price updated: {formatRelativeTime(new Date(holding.priceUpdatedAt))}</span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {new Date(holding.priceUpdatedAt).toLocaleString()}
+          {/* Data Freshness - Story 7.1: AC-7.1.1, AC-7.1.2 */}
+          <section className="space-y-3" data-testid="data-freshness-section">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Data Source
+            </h3>
+            <div className="space-y-2">
+              {/* Relative time */}
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span>Updated {formatRelativeTime(new Date(holding.priceUpdatedAt))}</span>
+              </div>
+              {/* Exact timestamp */}
+              <div className="text-xs text-muted-foreground pl-6">
+                {formatExactTime(new Date(holding.priceUpdatedAt))}
+              </div>
+              {/* Source provider - AC-7.1.1: Show data source */}
+              <div className="flex items-center gap-2 text-sm">
+                <Database className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  Source: {getProviderDisplayName(holding.priceSource)}
+                </span>
+              </div>
             </div>
           </section>
 

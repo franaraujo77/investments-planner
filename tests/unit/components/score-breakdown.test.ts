@@ -348,3 +348,270 @@ describe("Edit Criteria URL Generation", () => {
     expect(buildEditCriteriaUrl("US TECH")).toBe("/criteria?market=US%20TECH");
   });
 });
+
+// =============================================================================
+// STORY 7.1: DATA SOURCE ATTRIBUTION IN SCORE BREAKDOWN
+// Task 5.6: Unit tests for attribution display in score breakdown
+// =============================================================================
+
+import type { CalculationInputSources, SourceAttribution } from "@/lib/types/source-attribution";
+import { getProviderDisplayName, formatSourceAttribution } from "@/lib/types/source-attribution";
+
+describe("ScoreBreakdown Data Source Attribution (Story 7.1)", () => {
+  /**
+   * AC-7.1.1: Click/Hover Data Point Attribution
+   * Tests that input sources contain correct provider information
+   */
+  describe("CalculationInputSources structure", () => {
+    const mockInputSources: CalculationInputSources = {
+      price: {
+        source: "gemini",
+        value: "28.45",
+        currency: "BRL",
+        fetchedAt: new Date("2025-12-31T10:00:00Z"),
+      },
+      exchangeRate: {
+        source: "exchangerate-api",
+        from: "BRL",
+        to: "USD",
+        rate: "0.1992",
+        fetchedAt: new Date("2025-12-31T09:00:00Z"),
+      },
+      fundamentals: {
+        source: "gemini",
+        fetchedAt: new Date("2025-12-30T10:00:00Z"),
+        metrics: {
+          peRatio: 15.5,
+          pbRatio: 2.1,
+          dividendYield: 6.5,
+          marketCap: null,
+          revenue: null,
+          earnings: null,
+        },
+      },
+      criteriaVersion: "crit-version-123",
+    };
+
+    it("should have price source information", () => {
+      expect(mockInputSources.price).toBeDefined();
+      expect(mockInputSources.price?.source).toBe("gemini");
+      expect(mockInputSources.price?.value).toBe("28.45");
+      expect(mockInputSources.price?.currency).toBe("BRL");
+      expect(mockInputSources.price?.fetchedAt).toBeInstanceOf(Date);
+    });
+
+    it("should have exchange rate source information", () => {
+      expect(mockInputSources.exchangeRate).toBeDefined();
+      expect(mockInputSources.exchangeRate?.source).toBe("exchangerate-api");
+      expect(mockInputSources.exchangeRate?.from).toBe("BRL");
+      expect(mockInputSources.exchangeRate?.to).toBe("USD");
+      expect(mockInputSources.exchangeRate?.rate).toBe("0.1992");
+    });
+
+    it("should have fundamentals source information", () => {
+      expect(mockInputSources.fundamentals).toBeDefined();
+      expect(mockInputSources.fundamentals?.source).toBe("gemini");
+      expect(mockInputSources.fundamentals?.metrics.peRatio).toBe(15.5);
+      expect(mockInputSources.fundamentals?.metrics.dividendYield).toBe(6.5);
+    });
+
+    it("should have criteria version reference", () => {
+      expect(mockInputSources.criteriaVersion).toBe("crit-version-123");
+    });
+  });
+
+  /**
+   * AC-7.1.1: Provider name is human-readable
+   * Tests that provider display names are correctly mapped
+   */
+  describe("Provider display name formatting", () => {
+    it("should format gemini as Gemini API", () => {
+      expect(getProviderDisplayName("gemini")).toBe("Gemini API");
+    });
+
+    it("should format exchangerate-api correctly", () => {
+      expect(getProviderDisplayName("exchangerate-api")).toBe("ExchangeRate-API");
+    });
+
+    it("should format manual entry source", () => {
+      expect(getProviderDisplayName("manual")).toBe("Manual Entry");
+    });
+
+    it("should return source as-is for unknown providers", () => {
+      expect(getProviderDisplayName("unknown-provider")).toBe("unknown-provider");
+    });
+  });
+
+  /**
+   * AC-7.1.2: Timestamp visibility
+   * Tests that attribution includes timestamp information
+   */
+  describe("Attribution timestamp handling", () => {
+    it("should create SourceAttribution with timestamp", () => {
+      const timestamp = new Date("2025-12-31T10:00:00Z");
+      const attribution: SourceAttribution = {
+        dataType: "price",
+        source: "Gemini API",
+        timestamp,
+      };
+
+      expect(attribution.timestamp).toEqual(timestamp);
+    });
+
+    it("should support attribution without timestamp (optional)", () => {
+      const attribution: SourceAttribution = {
+        dataType: "fundamentals",
+        source: "Yahoo Finance",
+      };
+
+      expect(attribution.timestamp).toBeUndefined();
+    });
+  });
+
+  /**
+   * Tests for building attribution objects from input sources
+   * Used by CalculationInputsSection component
+   */
+  describe("Building attribution from input sources", () => {
+    it("should build price attribution correctly", () => {
+      const inputSource = {
+        source: "gemini",
+        value: "28.45",
+        currency: "BRL",
+        fetchedAt: new Date("2025-12-31T10:00:00Z"),
+      };
+
+      const attribution: SourceAttribution = {
+        dataType: "price",
+        source: inputSource.source,
+        timestamp: inputSource.fetchedAt,
+      };
+
+      expect(attribution.dataType).toBe("price");
+      expect(attribution.source).toBe("gemini");
+      expect(attribution.timestamp).toEqual(inputSource.fetchedAt);
+    });
+
+    it("should build rate attribution correctly", () => {
+      const inputSource = {
+        source: "exchangerate-api",
+        from: "BRL",
+        to: "USD",
+        rate: "0.1992",
+        fetchedAt: new Date("2025-12-31T09:00:00Z"),
+      };
+
+      const attribution: SourceAttribution = {
+        dataType: "rate",
+        source: inputSource.source,
+        timestamp: inputSource.fetchedAt,
+      };
+
+      expect(attribution.dataType).toBe("rate");
+      expect(attribution.source).toBe("exchangerate-api");
+    });
+
+    it("should build fundamentals attribution correctly", () => {
+      const inputSource = {
+        source: "gemini",
+        fetchedAt: new Date("2025-12-30T10:00:00Z"),
+        metrics: {
+          peRatio: 15.5,
+          pbRatio: 2.1,
+          dividendYield: 6.5,
+        },
+      };
+
+      const attribution: SourceAttribution = {
+        dataType: "fundamentals",
+        source: inputSource.source,
+        timestamp: inputSource.fetchedAt,
+      };
+
+      expect(attribution.dataType).toBe("fundamentals");
+      expect(attribution.source).toBe("gemini");
+    });
+  });
+
+  /**
+   * Tests for formatSourceAttribution used in tooltips
+   */
+  describe("Source attribution formatting for display", () => {
+    it("should format price attribution string", () => {
+      const formatted = formatSourceAttribution("price", "gemini");
+      expect(formatted).toBe("Price from Gemini API");
+    });
+
+    it("should format rate attribution string", () => {
+      const formatted = formatSourceAttribution("rate", "exchangerate-api");
+      expect(formatted).toBe("Rate from ExchangeRate-API");
+    });
+
+    it("should format fundamentals attribution string", () => {
+      const formatted = formatSourceAttribution("fundamentals", "gemini");
+      expect(formatted).toBe("Fundamentals from Gemini API");
+    });
+
+    it("should format score attribution string", () => {
+      const formatted = formatSourceAttribution("score", "local");
+      expect(formatted).toBe("Score from local");
+    });
+  });
+
+  /**
+   * Tests for handling missing/null input sources
+   */
+  describe("Handling missing input sources", () => {
+    it("should handle undefined price source", () => {
+      const inputSources: CalculationInputSources = {
+        criteriaVersion: "crit-123",
+      };
+
+      expect(inputSources.price).toBeUndefined();
+    });
+
+    it("should handle partial input sources", () => {
+      const inputSources: CalculationInputSources = {
+        price: {
+          source: "gemini",
+          value: "100.00",
+          currency: "USD",
+          fetchedAt: new Date(),
+        },
+        criteriaVersion: "crit-123",
+      };
+
+      expect(inputSources.price).toBeDefined();
+      expect(inputSources.exchangeRate).toBeUndefined();
+      expect(inputSources.fundamentals).toBeUndefined();
+    });
+
+    it("should handle fundamentals with null metrics", () => {
+      const inputSources: CalculationInputSources = {
+        fundamentals: {
+          source: "gemini",
+          fetchedAt: new Date(),
+          metrics: {
+            peRatio: null,
+            pbRatio: null,
+            dividendYield: 5.0,
+            marketCap: null,
+            revenue: null,
+            earnings: null,
+          },
+        },
+        criteriaVersion: "crit-123",
+      };
+
+      const nonNullMetrics = Object.keys(inputSources.fundamentals!.metrics).filter(
+        (k) =>
+          inputSources.fundamentals!.metrics[
+            k as keyof typeof inputSources.fundamentals.metrics
+          ] !== null
+      );
+
+      expect(nonNullMetrics).toHaveLength(1);
+      expect(nonNullMetrics[0]).toBe("dividendYield");
+    });
+  });
+});

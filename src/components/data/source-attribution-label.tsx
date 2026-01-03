@@ -16,12 +16,14 @@
  * @module @/components/data/source-attribution-label
  */
 
-import { Database, Globe, TrendingUp, Calculator } from "lucide-react";
+import { Database, Globe, TrendingUp, Calculator, ExternalLink, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type SourceDataType,
+  type DocumentReference,
   formatSourceAttribution,
   getProviderDisplayName,
+  getDocumentTypeLabel,
 } from "@/lib/types/source-attribution";
 
 // =============================================================================
@@ -41,6 +43,10 @@ export interface SourceAttributionLabelProps {
   className?: string;
   /** Size variant for the label */
   size?: "sm" | "default";
+  /** Document reference for IR documents (Story 7.1, AC-7.1.3) */
+  documentRef?: DocumentReference;
+  /** Whether to show verification link when URL is present (AC-7.1.5) */
+  showVerificationLink?: boolean;
 }
 
 // =============================================================================
@@ -139,12 +145,23 @@ export function SourceAttributionLabel({
   showIcon = false,
   className,
   size = "default",
+  documentRef,
+  showVerificationLink = false,
 }: SourceAttributionLabelProps) {
   const formattedAttribution = formatSourceAttribution(dataType, source);
 
   // Size classes
   const sizeClasses = size === "sm" ? "text-[10px]" : "text-xs";
   const iconSize = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5";
+
+  // Format document publication date
+  const formatDocDate = (date: Date): string => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   return (
     <span
@@ -157,6 +174,39 @@ export function SourceAttributionLabel({
       <span>{formattedAttribution}</span>
       {timestamp && (
         <span className="text-muted-foreground/70">({formatTimestamp(timestamp)})</span>
+      )}
+
+      {/* Document Reference Display (Story 7.1, AC-7.1.3) */}
+      {documentRef && (
+        <span className="flex items-center gap-1 ml-1">
+          <FileText className={cn(iconSize, "flex-shrink-0")} aria-hidden="true" />
+          <span className="font-medium">{documentRef.title}</span>
+          <span className="text-muted-foreground/70">
+            ({getDocumentTypeLabel(documentRef.type)}, {formatDocDate(documentRef.publicationDate)})
+          </span>
+
+          {/* Verification Link (AC-7.1.5) */}
+          {showVerificationLink && documentRef.url && (
+            <a
+              href={documentRef.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+              data-testid="verification-link"
+              aria-label={`View source document: ${documentRef.title}`}
+            >
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              <span className="sr-only">Open in new tab</span>
+            </a>
+          )}
+
+          {/* Filing ID (AC-7.1.5) */}
+          {documentRef.filingId && (
+            <span className="text-muted-foreground/50 text-[10px]">
+              Ref: {documentRef.filingId}
+            </span>
+          )}
+        </span>
       )}
     </span>
   );
