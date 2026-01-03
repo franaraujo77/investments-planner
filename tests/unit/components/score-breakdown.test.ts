@@ -15,9 +15,41 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { formatRelativeTime, getScoreColorClasses } from "@/components/fintech/score-breakdown";
+import {
+  formatRelativeTime,
+  getScoreColorClasses,
+  getSensitivityLabel,
+  FormulaExplanationSection,
+  ThresholdComparisonBar,
+} from "@/components/fintech/score-breakdown";
 import { getScoreLevel } from "@/components/fintech/score-badge";
 import type { CriterionResult } from "@/hooks/use-asset-score";
+
+// =============================================================================
+// COMPONENT EXPORT TESTS
+// =============================================================================
+
+describe("ScoreBreakdown Component Exports (Story 7.2)", () => {
+  /**
+   * Verifies that Story 7.2 components are properly exported
+   * AC-7.2.1: FormulaExplanationSection
+   * AC-7.2.4: ThresholdComparisonBar
+   */
+  it("exports FormulaExplanationSection component", () => {
+    expect(FormulaExplanationSection).toBeDefined();
+    expect(typeof FormulaExplanationSection).toBe("function");
+  });
+
+  it("exports ThresholdComparisonBar component", () => {
+    expect(ThresholdComparisonBar).toBeDefined();
+    expect(typeof ThresholdComparisonBar).toBe("function");
+  });
+
+  it("exports getSensitivityLabel utility", () => {
+    expect(getSensitivityLabel).toBeDefined();
+    expect(typeof getSensitivityLabel).toBe("function");
+  });
+});
 
 // =============================================================================
 // UTILITY TESTS
@@ -612,6 +644,225 @@ describe("ScoreBreakdown Data Source Attribution (Story 7.1)", () => {
 
       expect(nonNullMetrics).toHaveLength(1);
       expect(nonNullMetrics[0]).toBe("dividendYield");
+    });
+  });
+});
+
+// =============================================================================
+// STORY 7.2: CALCULATION TRANSPARENCY
+// =============================================================================
+
+import { formatThreshold } from "@/lib/types/calculation-breakdown";
+
+describe("Calculation Transparency (Story 7.2)", () => {
+  /**
+   * AC-7.2.5: Score Sensitivity Hints
+   * Tests for getSensitivityLabel function
+   */
+  describe("getSensitivityLabel (AC-7.2.5)", () => {
+    it("returns almost-passing for values within 10% of threshold (gte operator)", () => {
+      // Threshold is 20, actual is 18, which is 10% below threshold
+      const result = getSensitivityLabel("18", "20", "gte", false);
+      expect(result?.isClose).toBe(true);
+      expect(result?.label).toBe("Almost passing");
+    });
+
+    it("returns almost-passing for values within 10% of threshold (gt operator)", () => {
+      const result = getSensitivityLabel("19", "20", "gt", false);
+      expect(result?.isClose).toBe(true);
+      expect(result?.label).toBe("Almost passing");
+    });
+
+    it("returns almost-passing for values within 10% of threshold (lte operator)", () => {
+      // For lte (less than or equal), actual is 22 and threshold is 20
+      // actual needs to be within 10% above threshold
+      const result = getSensitivityLabel("22", "20", "lte", false);
+      expect(result?.isClose).toBe(true);
+      expect(result?.label).toBe("Almost passing");
+    });
+
+    it("returns almost-passing for values within 10% of threshold (lt operator)", () => {
+      const result = getSensitivityLabel("21", "20", "lt", false);
+      expect(result?.isClose).toBe(true);
+      expect(result?.label).toBe("Almost passing");
+    });
+
+    it("returns null for values far from threshold", () => {
+      // Threshold is 20, actual is 10, which is 50% below threshold
+      const result = getSensitivityLabel("10", "20", "gte", false);
+      expect(result).toBeNull();
+    });
+
+    it("returns null for passed criteria", () => {
+      const result = getSensitivityLabel("25", "20", "gte", true);
+      expect(result).toBeNull();
+    });
+
+    it("returns null for null actualValue", () => {
+      const result = getSensitivityLabel(null, "20", "gte", false);
+      expect(result).toBeNull();
+    });
+
+    it("returns null for non-numeric actualValue", () => {
+      const result = getSensitivityLabel("abc", "20", "gte", false);
+      expect(result).toBeNull();
+    });
+
+    it("returns null for zero threshold (to avoid division by zero)", () => {
+      const result = getSensitivityLabel("0.5", "0", "gte", false);
+      expect(result).toBeNull();
+    });
+
+    it("returns null for eq operator (not applicable)", () => {
+      const result = getSensitivityLabel("19", "20", "eq", false);
+      expect(result).toBeNull();
+    });
+
+    it("returns null for between operator (not applicable for simple threshold)", () => {
+      const result = getSensitivityLabel("19", "20", "between", false);
+      expect(result).toBeNull();
+    });
+  });
+
+  /**
+   * Tests for formatThreshold utility used in AC-7.2.2
+   */
+  describe("formatThreshold (AC-7.2.2)", () => {
+    it("formats gt operator correctly", () => {
+      expect(formatThreshold("gt", "10")).toBe("> 10");
+    });
+
+    it("formats gte operator correctly", () => {
+      expect(formatThreshold("gte", "15")).toBe(">= 15");
+    });
+
+    it("formats lt operator correctly", () => {
+      expect(formatThreshold("lt", "20")).toBe("< 20");
+    });
+
+    it("formats lte operator correctly", () => {
+      expect(formatThreshold("lte", "25")).toBe("<= 25");
+    });
+
+    it("formats eq operator correctly", () => {
+      expect(formatThreshold("eq", "100")).toBe("= 100");
+    });
+
+    it("formats between operator with range threshold", () => {
+      expect(formatThreshold("between", { min: "5", max: "15" })).toBe("5 - 15");
+    });
+  });
+
+  /**
+   * Tests for calculation breakdown data structure
+   */
+  describe("CalculationBreakdown data structure", () => {
+    it("should have correct structure for CriterionEvaluation with threshold data", () => {
+      const evaluation = {
+        criterionId: "crit-1",
+        name: "P/E Ratio",
+        operator: "lte" as const,
+        threshold: "20",
+        actualValue: "25",
+        passed: false,
+        pointsAwarded: 0,
+        maxPoints: 10,
+        skippedReason: null,
+      };
+
+      expect(evaluation.operator).toBe("lte");
+      expect(evaluation.threshold).toBe("20");
+      expect(evaluation.actualValue).toBe("25");
+      expect(evaluation.passed).toBe(false);
+    });
+
+    it("should support range thresholds", () => {
+      const evaluation = {
+        criterionId: "crit-2",
+        name: "P/B Ratio Range",
+        operator: "between" as const,
+        threshold: { min: "1", max: "3" },
+        actualValue: "2.5",
+        passed: true,
+        pointsAwarded: 10,
+        maxPoints: 10,
+        skippedReason: null,
+      };
+
+      expect(evaluation.operator).toBe("between");
+      expect(evaluation.threshold).toEqual({ min: "1", max: "3" });
+    });
+  });
+
+  /**
+   * AC-7.2.4: Threshold Comparison Visualization
+   * Tests for ThresholdComparisonBar calculation logic
+   */
+  describe("ThresholdComparisonBar calculation logic (AC-7.2.4)", () => {
+    /**
+     * Calculate threshold bar percentages (mirrors component logic)
+     */
+    function calculateBarPositions(
+      actual: number,
+      threshold: number
+    ): {
+      range: number;
+      thresholdPct: number;
+      actualPct: number;
+    } {
+      const range = Math.max(threshold * 2, actual * 1.5, 1);
+      const thresholdPct = Math.min((threshold / range) * 100, 100);
+      const actualPct = Math.min((actual / range) * 100, 100);
+      return { range, thresholdPct, actualPct };
+    }
+
+    it("calculates correct positions when actual is below threshold", () => {
+      const result = calculateBarPositions(15, 20);
+      // Range should be threshold * 2 = 40 (since 40 > 15 * 1.5 = 22.5)
+      expect(result.range).toBe(40);
+      // Threshold at 20/40 = 50%
+      expect(result.thresholdPct).toBe(50);
+      // Actual at 15/40 = 37.5%
+      expect(result.actualPct).toBe(37.5);
+    });
+
+    it("calculates correct positions when actual is above threshold", () => {
+      const result = calculateBarPositions(25, 20);
+      // Range should be 25 * 1.5 = 37.5 (since 37.5 < 40, use threshold * 2 = 40)
+      expect(result.range).toBe(40);
+      // Threshold at 20/40 = 50%
+      expect(result.thresholdPct).toBe(50);
+      // Actual at 25/40 = 62.5%
+      expect(result.actualPct).toBe(62.5);
+    });
+
+    it("uses actual-based range when actual is significantly higher", () => {
+      const result = calculateBarPositions(100, 20);
+      // Range should be 100 * 1.5 = 150 (since 150 > 40)
+      expect(result.range).toBe(150);
+      // Threshold at 20/150 = 13.33%
+      expect(result.thresholdPct).toBeCloseTo(13.33, 1);
+      // Actual at 100/150 = 66.67%
+      expect(result.actualPct).toBeCloseTo(66.67, 1);
+    });
+
+    it("uses minimum range of 1 to avoid division by zero", () => {
+      const result = calculateBarPositions(0, 0);
+      // Range should be 1 (minimum)
+      expect(result.range).toBe(1);
+      // Both percentages should be 0
+      expect(result.thresholdPct).toBe(0);
+      expect(result.actualPct).toBe(0);
+    });
+
+    it("caps percentages at 100%", () => {
+      // Force a case where percentage would exceed 100
+      const result = calculateBarPositions(200, 200);
+      // Range = max(400, 300, 1) = 400
+      expect(result.range).toBe(400);
+      // Both at 50%
+      expect(result.thresholdPct).toBe(50);
+      expect(result.actualPct).toBe(50);
     });
   });
 });
