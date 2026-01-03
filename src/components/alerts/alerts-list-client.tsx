@@ -33,6 +33,16 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 // =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/** Maximum number of alerts to fetch from API */
+const MAX_ALERTS_FETCH = 100;
+
+/** Number of hours to snooze an alert */
+const SNOOZE_DURATION_HOURS = 24;
+
+// =============================================================================
 // TYPES
 // =============================================================================
 
@@ -172,15 +182,13 @@ export function AlertsListClient() {
   // Fetch alerts
   const fetchAlerts = useCallback(async () => {
     try {
-      const response = await fetch("/api/alerts?limit=100&isDismissed=false");
+      const response = await fetch(`/api/alerts?limit=${MAX_ALERTS_FETCH}&isDismissed=false`);
       if (!response.ok) throw new Error("Failed to fetch alerts");
       const result: AlertsResponse = await response.json();
       setAlerts(result.data);
-    } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console -- Dev-only logging
-        console.error("[AlertsListClient] Failed to fetch alerts:", error);
-      }
+    } catch (_error) {
+      // Error handled via UI state - show empty alerts list
+      // Server-side logging happens in the API route
       setAlerts([]);
     } finally {
       setIsLoading(false);
@@ -225,7 +233,7 @@ export function AlertsListClient() {
     setSnoozing(alertId);
     try {
       const snoozedUntil = new Date();
-      snoozedUntil.setHours(snoozedUntil.getHours() + 24);
+      snoozedUntil.setHours(snoozedUntil.getHours() + SNOOZE_DURATION_HOURS);
 
       const response = await fetch(`/api/alerts/${alertId}`, {
         method: "PATCH",
@@ -239,11 +247,9 @@ export function AlertsListClient() {
       setAlerts((prev) =>
         prev.map((a) => (a.id === alertId ? { ...a, snoozedUntil: snoozedUntil.toISOString() } : a))
       );
-    } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console -- Dev-only logging
-        console.error("[AlertsListClient] Failed to snooze alert:", error);
-      }
+    } catch (_error) {
+      // Error handled silently - alert remains visible, user can retry
+      // Server-side logging happens in the API route
     } finally {
       setSnoozing(null);
     }
@@ -265,11 +271,9 @@ export function AlertsListClient() {
 
       // Remove from local state
       setAlerts((prev) => prev.filter((a) => a.id !== alertId));
-    } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console -- Dev-only logging
-        console.error("[AlertsListClient] Failed to dismiss alert:", error);
-      }
+    } catch (_error) {
+      // Error handled silently - alert remains visible, user can retry
+      // Server-side logging happens in the API route
     } finally {
       setDismissing(null);
     }

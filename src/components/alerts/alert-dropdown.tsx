@@ -100,13 +100,9 @@ export function AlertDropdown() {
       }
       const result = await response.json();
       setAlerts(result.data || []);
-    } catch (error) {
-      // Log error in development for debugging (intentional dev-only logging)
-      if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console -- Dev-only logging for debugging client fetch errors
-        console.error("[AlertDropdown] Failed to fetch alerts:", error);
-      }
-      // Gracefully degrade - show empty state instead of breaking UI
+    } catch (_error) {
+      // Error handled via UI state - show empty state instead of breaking UI
+      // Server-side logging happens in the API route
       setAlerts([]);
     } finally {
       setIsLoading(false);

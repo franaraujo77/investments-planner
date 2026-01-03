@@ -9,6 +9,10 @@
  * - Stores score difference at dismissal time
  * - Re-alerts only if score difference increases by >10 points
  * - Pairs older than 90 days are eligible for cleanup
+ *
+ * TODO(epic-8): Integrate cleanupOldPairs() into overnight job
+ * - Add step to overnight-scoring.ts to call cleanupOldPairs() after scoring
+ * - This prevents unbounded table growth from old dismissals
  */
 
 import { db, type Database } from "@/lib/db";
