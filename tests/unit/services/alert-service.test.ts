@@ -1034,4 +1034,130 @@ describe("AlertService", () => {
       });
     });
   });
+
+  // ===========================================================================
+  // UPDATE ALERT TESTS (Story 7.6: AC-7.6.6 Dismissal Memory)
+  // ===========================================================================
+
+  describe("updateAlert", () => {
+    describe("AC-7.6.5: Snooze functionality", () => {
+      it("should update snoozedUntil field", async () => {
+        const snoozedAlert = {
+          ...mockAlert,
+          snoozedUntil: new Date("2025-01-02T12:00:00Z"),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([snoozedAlert]));
+
+        const result = await service.updateAlert("alert-123", "user-123", {
+          snoozedUntil: "2025-01-02T12:00:00Z",
+        });
+
+        expect(result).toEqual(snoozedAlert);
+        expect(mockDb.update).toHaveBeenCalled();
+      });
+
+      it("should clear snoozedUntil when set to null", async () => {
+        const unsnoozedAlert = { ...mockAlert, snoozedUntil: null };
+        mockDb.update.mockReturnValue(createUpdateChain([unsnoozedAlert]));
+
+        const result = await service.updateAlert("alert-123", "user-123", {
+          snoozedUntil: null,
+        });
+
+        expect(result?.snoozedUntil).toBeNull();
+      });
+    });
+
+    describe("AC-7.6.6: Dismissal memory for opportunity alerts", () => {
+      it("should record dismissed pair when dismissing opportunity alert via updateAlert", async () => {
+        const dismissedAlert = {
+          ...mockAlert,
+          isDismissed: true,
+          dismissedAt: new Date(),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
+
+        // Mock insert for recording dismissed pair (upsert)
+        mockDb.insert.mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          }),
+        });
+
+        await service.updateAlert("alert-123", "user-123", { isDismissed: true });
+
+        // Verify dismissed pair was recorded (insert was called)
+        expect(mockDb.insert).toHaveBeenCalled();
+      });
+
+      it("should NOT record dismissed pair for non-opportunity alerts", async () => {
+        const driftAlert = {
+          ...mockAlert,
+          type: ALERT_TYPES.ALLOCATION_DRIFT,
+          isDismissed: true,
+          dismissedAt: new Date(),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([driftAlert]));
+
+        await service.updateAlert("drift-alert-123", "user-123", { isDismissed: true });
+
+        // Verify dismissed pair was NOT recorded (insert not called)
+        expect(mockDb.insert).not.toHaveBeenCalled();
+      });
+
+      it("should NOT record dismissed pair when just marking as read", async () => {
+        const readAlert = { ...mockAlert, isRead: true, readAt: new Date() };
+        mockDb.update.mockReturnValue(createUpdateChain([readAlert]));
+
+        await service.updateAlert("alert-123", "user-123", { isRead: true });
+
+        // Verify dismissed pair was NOT recorded
+        expect(mockDb.insert).not.toHaveBeenCalled();
+      });
+
+      it("should continue update even if dismissed pair recording fails", async () => {
+        const dismissedAlert = {
+          ...mockAlert,
+          isDismissed: true,
+          dismissedAt: new Date(),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
+
+        // Mock insert to fail
+        mockDb.insert.mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockRejectedValue(new Error("DB error")),
+          }),
+        });
+
+        // Should not throw, update should still succeed
+        const result = await service.updateAlert("alert-123", "user-123", { isDismissed: true });
+
+        expect(result).toEqual(dismissedAlert);
+      });
+    });
+
+    it("should return null if alert not found", async () => {
+      mockDb.update.mockReturnValue(createUpdateChain([]));
+
+      const result = await service.updateAlert("nonexistent", "user-123", { isRead: true });
+
+      expect(result).toBeNull();
+    });
+
+    it("should set dismissedAt timestamp when isDismissed is true", async () => {
+      const dismissedAlert = {
+        ...mockAlert,
+        isDismissed: true,
+        dismissedAt: new Date(),
+        type: ALERT_TYPES.ALLOCATION_DRIFT, // Use drift to avoid dismissed pair recording
+      };
+      mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
+
+      const result = await service.updateAlert("alert-123", "user-123", { isDismissed: true });
+
+      expect(result?.isDismissed).toBe(true);
+      expect(result?.dismissedAt).toBeDefined();
+    });
+  });
 });

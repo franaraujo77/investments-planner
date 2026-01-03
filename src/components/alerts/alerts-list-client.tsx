@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
+import { toast } from "sonner";
 import {
   Bell,
   Loader2,
@@ -189,8 +190,8 @@ export function AlertsListClient() {
       const result: AlertsResponse = await response.json();
       setAlerts(result.data);
     } catch (_error) {
-      // Error handled via UI state - show empty alerts list
-      // Server-side logging happens in the API route
+      // Show user-friendly error feedback
+      toast.error("Failed to load alerts. Please try again.");
       setAlerts([]);
     } finally {
       setIsLoading(false);
@@ -250,8 +251,8 @@ export function AlertsListClient() {
         prev.map((a) => (a.id === alertId ? { ...a, snoozedUntil: snoozedUntil.toISOString() } : a))
       );
     } catch (_error) {
-      // Error handled silently - alert remains visible, user can retry
-      // Server-side logging happens in the API route
+      // Show user-friendly error feedback
+      toast.error("Failed to snooze alert. Please try again.");
     } finally {
       setSnoozing(null);
     }
@@ -274,8 +275,8 @@ export function AlertsListClient() {
       // Remove from local state
       setAlerts((prev) => prev.filter((a) => a.id !== alertId));
     } catch (_error) {
-      // Error handled silently - alert remains visible, user can retry
-      // Server-side logging happens in the API route
+      // Show user-friendly error feedback
+      toast.error("Failed to dismiss alert. Please try again.");
     } finally {
       setDismissing(null);
     }

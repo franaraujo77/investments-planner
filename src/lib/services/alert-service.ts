@@ -1012,6 +1012,7 @@ export class AlertService {
    * Update alert with partial updates
    *
    * Story 7.6: AC-7.6.5 - Snooze functionality
+   * Story 7.6: AC-7.6.6 - Dismissal memory for opportunity alerts
    * Supports updating: isRead, isDismissed, snoozedUntil
    *
    * @param alertId - Alert ID to update
@@ -1067,6 +1068,28 @@ export class AlertService {
         userId,
         updatedFields: updatedFields.join(", "),
       });
+
+      // Story 7.6 AC-7.6.6: Record dismissed pair for opportunity alerts
+      if (updates.isDismissed && updated.type === ALERT_TYPES.OPPORTUNITY) {
+        const metadata = updated.metadata as OpportunityAlertMetadata;
+        if (metadata.currentAssetId && metadata.betterAssetId && metadata.scoreDifference) {
+          try {
+            await this.recordDismissedOpportunityPair(
+              userId,
+              metadata.currentAssetId,
+              metadata.betterAssetId,
+              metadata.scoreDifference
+            );
+          } catch (error) {
+            // Log but don't fail the update
+            logger.warn("Failed to record dismissed opportunity pair in updateAlert", {
+              alertId,
+              userId,
+              errorMessage: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+      }
     } else {
       logger.warn("Alert not found for update", { alertId, userId });
     }
