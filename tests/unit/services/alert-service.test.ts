@@ -39,25 +39,6 @@ describe("AlertService", () => {
     update: ReturnType<typeof vi.fn>;
   };
 
-  // Helper to create mock database chain (available for future use)
-  const _createSelectChain = (result: unknown[]) => ({
-    from: vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        orderBy: vi.fn().mockReturnValue({
-          limit: vi.fn().mockReturnValue({
-            offset: vi.fn().mockResolvedValue(result),
-          }),
-        }),
-        limit: vi.fn().mockResolvedValue(result),
-      }),
-      orderBy: vi.fn().mockReturnValue({
-        limit: vi.fn().mockReturnValue({
-          offset: vi.fn().mockResolvedValue(result),
-        }),
-      }),
-    }),
-  });
-
   const createInsertChain = (result: unknown[]) => ({
     values: vi.fn().mockReturnValue({
       returning: vi.fn().mockResolvedValue(result),
@@ -198,6 +179,43 @@ describe("AlertService", () => {
         const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
         expect(insertCall.metadata.currentAssetSymbol).toBe("AAPL");
         expect(insertCall.metadata.betterAssetSymbol).toBe("VOO");
+      });
+    });
+
+    describe("Story 7.9 AC-7.9.2: Locale-aware formatting", () => {
+      it("should format scores with pt-BR locale conventions", async () => {
+        mockDb.insert.mockReturnValue(createInsertChain([mockAlert]));
+
+        await service.createOpportunityAlert(
+          "user-123",
+          { id: "asset-1", symbol: "AAPL", score: "1070.1234" },
+          { id: "asset-2", symbol: "VOO", score: "1085.5678" },
+          { id: "class-1", name: "US Stocks" },
+          "pt-BR"
+        );
+
+        const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // pt-BR uses comma for decimal separator and dot for thousands
+        expect(insertCall.message).toBe(
+          "VOO scores 1.085,57 vs your AAPL (1.070,12). Consider swapping?"
+        );
+      });
+
+      it("should default to en-US format when no locale provided", async () => {
+        mockDb.insert.mockReturnValue(createInsertChain([mockAlert]));
+
+        await service.createOpportunityAlert(
+          "user-123",
+          { id: "asset-1", symbol: "AAPL", score: "1070.1234" },
+          { id: "asset-2", symbol: "VOO", score: "1085.5678" },
+          { id: "class-1", name: "US Stocks" }
+        );
+
+        const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // en-US uses dot for decimal separator and comma for thousands
+        expect(insertCall.message).toBe(
+          "VOO scores 1,085.57 vs your AAPL (1,070.12). Consider swapping?"
+        );
       });
     });
   });
@@ -801,8 +819,9 @@ describe("AlertService", () => {
         );
 
         const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // Story 7.9: Uses formatPercent for each value (each gets its own %)
         expect(insertCall.message).toContain("US Stocks at 65.12%");
-        expect(insertCall.message).toContain("target is 40.00-50.00%");
+        expect(insertCall.message).toContain("target is 40.00%-50.00%");
       });
 
       it("should include direction-specific suggestion for over-allocation", async () => {
@@ -839,6 +858,30 @@ describe("AlertService", () => {
 
         const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
         expect(insertCall.message).toContain("Increase contributions here");
+      });
+
+      it("should format drift percentages with pt-BR locale conventions", async () => {
+        mockDb.insert.mockReturnValue(createInsertChain([mockDriftAlert]));
+
+        const assetClass: AssetClassDriftDetails = {
+          id: "class-1",
+          name: "US Stocks",
+          targetMin: "40",
+          targetMax: "50",
+        };
+
+        await service.createDriftAlert(
+          "user-123",
+          assetClass,
+          new Decimal("65.1234"),
+          new Decimal("5"),
+          "pt-BR"
+        );
+
+        const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // pt-BR uses comma for decimal separator
+        expect(insertCall.message).toContain("US Stocks at 65,12%");
+        expect(insertCall.message).toContain("target is 40,00%-50,00%");
       });
     });
 

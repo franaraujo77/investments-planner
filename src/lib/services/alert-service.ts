@@ -28,6 +28,7 @@ import {
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "@/lib/telemetry/logger";
 import Decimal from "decimal.js";
+import { formatNumber, formatPercent } from "@/lib/i18n/serverNumberFormat";
 
 // =============================================================================
 // TYPES
@@ -166,26 +167,30 @@ export class AlertService {
    *
    * AC-9.1.1: Alert created when better asset exists (10+ points higher)
    * AC-9.1.2: Message format: "[BETTER_SYMBOL] scores [BETTER_SCORE] vs your [CURRENT_SYMBOL] ([CURRENT_SCORE]). Consider swapping?"
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param userId - User ID (tenant isolation)
    * @param currentAsset - User's current asset details
    * @param betterAsset - Better scoring asset details
    * @param assetClass - Asset class details for context
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Created alert
    */
   async createOpportunityAlert(
     userId: string,
     currentAsset: AssetAlertDetails,
     betterAsset: AssetAlertDetails,
-    assetClass: AssetClassAlertDetails
+    assetClass: AssetClassAlertDetails,
+    locale?: string
   ): Promise<Alert> {
     const currentScore = new Decimal(currentAsset.score.toString());
     const betterScore = new Decimal(betterAsset.score.toString());
     const scoreDifference = betterScore.minus(currentScore);
 
     // AC-9.1.2: Generate title and message
+    // Story 7.9 AC-7.9.2: Format scores according to user's locale
     const title = `${betterAsset.symbol} scores higher than your ${currentAsset.symbol}`;
-    const message = `${betterAsset.symbol} scores ${betterScore.toFixed(2)} vs your ${currentAsset.symbol} (${currentScore.toFixed(2)}). Consider swapping?`;
+    const message = `${betterAsset.symbol} scores ${formatNumber(betterScore.toNumber(), locale)} vs your ${currentAsset.symbol} (${formatNumber(currentScore.toNumber(), locale)}). Consider swapping?`;
 
     // AC-9.1.1: Build metadata with all required fields
     const metadata: OpportunityAlertMetadata = {
@@ -555,18 +560,21 @@ export class AlertService {
    * Update alert if score difference changed significantly
    *
    * AC-9.1.4: Existing alert is updated if score difference changes significantly (>5 point change)
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param alertId - Alert ID to update
    * @param newScoreDifference - New score difference to check
    * @param currentAsset - Updated current asset details
    * @param betterAsset - Updated better asset details
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Updated alert or null if no significant change
    */
   async updateAlertIfChanged(
     alertId: string,
     newScoreDifference: Decimal,
     currentAsset: AssetAlertDetails,
-    betterAsset: AssetAlertDetails
+    betterAsset: AssetAlertDetails,
+    locale?: string
   ): Promise<Alert | null> {
     // Get existing alert
     const [existing] = await this.database.select().from(alerts).where(eq(alerts.id, alertId));
@@ -593,10 +601,11 @@ export class AlertService {
     }
 
     // Update alert with new scores
+    // Story 7.9 AC-7.9.2: Format scores according to user's locale
     const currentScore = new Decimal(currentAsset.score.toString());
     const betterScore = new Decimal(betterAsset.score.toString());
 
-    const message = `${betterAsset.symbol} scores ${betterScore.toFixed(2)} vs your ${currentAsset.symbol} (${currentScore.toFixed(2)}). Consider swapping?`;
+    const message = `${betterAsset.symbol} scores ${formatNumber(betterScore.toNumber(), locale)} vs your ${currentAsset.symbol} (${formatNumber(currentScore.toNumber(), locale)}). Consider swapping?`;
 
     const updatedMetadata: OpportunityAlertMetadata = {
       ...existingMetadata,
@@ -694,18 +703,21 @@ export class AlertService {
    * AC-9.2.1: Alert created when allocation drifts outside target range
    * AC-9.2.2: Message format: "[CLASS_NAME] at [CURRENT]%, target is [MIN]-[MAX]%"
    * AC-9.2.3: Severity based on drift magnitude (warning vs critical)
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param userId - User ID (tenant isolation)
    * @param assetClass - Asset class with target allocation details
    * @param currentAllocation - Current allocation percentage
    * @param driftThreshold - User's configured drift threshold (default 5%)
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Created alert
    */
   async createDriftAlert(
     userId: string,
     assetClass: AssetClassDriftDetails,
     currentAllocation: Decimal,
-    driftThreshold: Decimal
+    driftThreshold: Decimal,
+    locale?: string
   ): Promise<Alert> {
     const targetMin = new Decimal(assetClass.targetMin);
     const targetMax = new Decimal(assetClass.targetMax);
@@ -737,7 +749,8 @@ export class AlertService {
     const suggestion =
       direction === "over" ? "Consider not adding to this class" : "Increase contributions here";
 
-    const message = `${assetClass.name} at ${currentAllocation.toFixed(2)}%, target is ${targetMin.toFixed(2)}-${targetMax.toFixed(2)}%. ${suggestion}`;
+    // Story 7.9 AC-7.9.2: Format percentages according to user's locale
+    const message = `${assetClass.name} at ${formatPercent(currentAllocation.toNumber(), locale)}, target is ${formatPercent(targetMin.toNumber(), locale)}-${formatPercent(targetMax.toNumber(), locale)}. ${suggestion}`;
 
     // AC-9.2.1: Build metadata with all required fields
     const metadata: DriftAlertMetadata = {
@@ -813,18 +826,21 @@ export class AlertService {
    * Update drift alert if drift amount changed significantly
    *
    * AC-9.2.7: Update existing alert if drift changes by >2%
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param alertId - Alert ID to update
    * @param newDriftAmount - New drift amount
    * @param newCurrentAllocation - New current allocation
    * @param driftThreshold - User's configured drift threshold
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Updated alert or null if no significant change
    */
   async updateDriftAlertIfChanged(
     alertId: string,
     newDriftAmount: Decimal,
     newCurrentAllocation: Decimal,
-    driftThreshold: Decimal
+    driftThreshold: Decimal,
+    locale?: string
   ): Promise<Alert | null> {
     // Get existing alert
     const [existing] = await this.database.select().from(alerts).where(eq(alerts.id, alertId));
@@ -861,7 +877,10 @@ export class AlertService {
     const suggestion =
       direction === "over" ? "Consider not adding to this class" : "Increase contributions here";
 
-    const message = `${existingMetadata.assetClassName} at ${newCurrentAllocation.toFixed(2)}%, target is ${existingMetadata.targetMin}-${existingMetadata.targetMax}%. ${suggestion}`;
+    // Story 7.9 AC-7.9.2: Format percentages according to user's locale
+    const targetMin = new Decimal(existingMetadata.targetMin);
+    const targetMax = new Decimal(existingMetadata.targetMax);
+    const message = `${existingMetadata.assetClassName} at ${formatPercent(newCurrentAllocation.toNumber(), locale)}, target is ${formatPercent(targetMin.toNumber(), locale)}-${formatPercent(targetMax.toNumber(), locale)}. ${suggestion}`;
 
     const updatedMetadata: DriftAlertMetadata = {
       ...existingMetadata,
