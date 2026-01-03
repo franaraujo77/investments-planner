@@ -47,6 +47,8 @@ const updateAlertPreferencesSchema = z
   .object({
     opportunityAlertsEnabled: z.boolean().optional(),
     driftAlertsEnabled: z.boolean().optional(),
+    // Story 7.6: AC-7.6.3 - Data freshness warnings toggle
+    dataFreshnessWarningsEnabled: z.boolean().optional(),
     driftThreshold: z
       .string()
       .refine(
@@ -142,6 +144,10 @@ export const PATCH = withAuth<AlertPreferencesResponse>(async (request, session)
     }
     if (updates.driftAlertsEnabled !== undefined) {
       serviceUpdates.driftAlertsEnabled = updates.driftAlertsEnabled;
+    }
+    // Story 7.6: AC-7.6.3 - Data freshness warnings toggle
+    if (updates.dataFreshnessWarningsEnabled !== undefined) {
+      serviceUpdates.dataFreshnessWarningsEnabled = updates.dataFreshnessWarningsEnabled;
     }
     if (updates.driftThreshold !== undefined) {
       serviceUpdates.driftThreshold = updates.driftThreshold;

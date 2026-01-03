@@ -112,11 +112,11 @@ development_status:
   epic-6-retrospective: done
 
   # Epic 7: Data Transparency & Alerts
-  epic-7: in-progress
+  epic-7: done
   7-1-data-source-attribution: done
   7-2-calculation-transparency: done
   7-3-data-freshness-indicators: done
   7-4-financial-disclaimers: done
   7-5-allocation-drift-alerts: done
-  7-6-opportunity-alerts-and-preferences: backlog
+  7-6-opportunity-alerts-and-preferences: done
   epic-7-retrospective: optional

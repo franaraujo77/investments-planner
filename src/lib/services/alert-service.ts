@@ -19,6 +19,7 @@ import { db, type Database } from "@/lib/db";
 import {
   alerts,
   portfolioAssets,
+  dismissedOpportunityPairs,
   type Alert,
   type NewAlert,
   type OpportunityAlertMetadata,
@@ -364,6 +365,7 @@ export class AlertService {
    * Dismiss alert
    *
    * AC-9.1.5: Alert auto-clears when resolved (isDismissed=true, dismissedAt=timestamp)
+   * Story 7.6 AC-7.6.6: For opportunity alerts, records the dismissed pair
    *
    * @param userId - User ID (tenant isolation)
    * @param alertId - Alert ID to dismiss
@@ -371,6 +373,19 @@ export class AlertService {
    */
   async dismissAlert(userId: string, alertId: string): Promise<Alert | null> {
     const now = new Date();
+
+    // First, get the alert to check if it's an opportunity alert
+    const [existingAlert] = await this.database
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)));
+
+    if (!existingAlert) {
+      logger.warn("Alert not found for dismissal", { alertId, userId });
+      return null;
+    }
+
+    // Dismiss the alert
     const [updated] = await this.database
       .update(alerts)
       .set({
@@ -381,13 +396,84 @@ export class AlertService {
       .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)))
       .returning();
 
-    if (updated) {
-      logger.debug("Alert dismissed", { alertId, userId });
-    } else {
-      logger.warn("Alert not found for dismissal", { alertId, userId });
+    if (!updated) {
+      return null;
     }
 
-    return updated ?? null;
+    // Story 7.6 AC-7.6.6: Record dismissed pair for opportunity alerts
+    if (updated.type === ALERT_TYPES.OPPORTUNITY) {
+      const metadata = updated.metadata as OpportunityAlertMetadata;
+      if (metadata.currentAssetId && metadata.betterAssetId && metadata.scoreDifference) {
+        try {
+          await this.recordDismissedOpportunityPair(
+            userId,
+            metadata.currentAssetId,
+            metadata.betterAssetId,
+            metadata.scoreDifference
+          );
+        } catch (error) {
+          // Log but don't fail the dismissal
+          logger.warn("Failed to record dismissed opportunity pair", {
+            alertId,
+            userId,
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    }
+
+    logger.debug("Alert dismissed", { alertId, userId, type: updated.type });
+
+    return updated;
+  }
+
+  /**
+   * Record a dismissed opportunity pair
+   *
+   * Story 7.6 AC-7.6.6: Dismissal Memory
+   * Prevents re-alerting for the same asset pair unless score increases by >10 points
+   *
+   * @param userId - User ID
+   * @param currentAssetId - Current asset in portfolio
+   * @param betterAssetId - Better scoring asset
+   * @param scoreDifference - Score difference at dismissal
+   */
+  private async recordDismissedOpportunityPair(
+    userId: string,
+    currentAssetId: string,
+    betterAssetId: string,
+    scoreDifference: string
+  ): Promise<void> {
+    const now = new Date();
+
+    // Upsert: insert or update if exists
+    await this.database
+      .insert(dismissedOpportunityPairs)
+      .values({
+        userId,
+        currentAssetId,
+        betterAssetId,
+        lastScoreDifference: scoreDifference,
+        dismissedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [
+          dismissedOpportunityPairs.userId,
+          dismissedOpportunityPairs.currentAssetId,
+          dismissedOpportunityPairs.betterAssetId,
+        ],
+        set: {
+          lastScoreDifference: scoreDifference,
+          dismissedAt: now,
+        },
+      });
+
+    logger.debug("Recorded dismissed opportunity pair", {
+      userId,
+      currentAssetId,
+      betterAssetId,
+      scoreDifference,
+    });
   }
 
   /**
@@ -920,6 +1006,72 @@ export class AlertService {
     }
 
     return alertsToDismiss.length;
+  }
+
+  /**
+   * Update alert with partial updates
+   *
+   * Story 7.6: AC-7.6.5 - Snooze functionality
+   * Supports updating: isRead, isDismissed, snoozedUntil
+   *
+   * @param alertId - Alert ID to update
+   * @param userId - User ID (tenant isolation)
+   * @param updates - Partial update fields
+   * @returns Updated alert or null if not found
+   */
+  async updateAlert(
+    alertId: string,
+    userId: string,
+    updates: {
+      isRead?: boolean;
+      isDismissed?: boolean;
+      snoozedUntil?: string | null;
+    }
+  ): Promise<Alert | null> {
+    const now = new Date();
+    const updateData: Record<string, unknown> = {
+      updatedAt: now,
+    };
+
+    if (updates.isRead !== undefined) {
+      updateData.isRead = updates.isRead;
+      if (updates.isRead) {
+        updateData.readAt = now;
+      }
+    }
+
+    if (updates.isDismissed !== undefined) {
+      updateData.isDismissed = updates.isDismissed;
+      if (updates.isDismissed) {
+        updateData.dismissedAt = now;
+      }
+    }
+
+    // Story 7.6: AC-7.6.5 - Snooze functionality
+    if (updates.snoozedUntil !== undefined) {
+      updateData.snoozedUntil = updates.snoozedUntil ? new Date(updates.snoozedUntil) : null;
+    }
+
+    const [updated] = await this.database
+      .update(alerts)
+      .set(updateData)
+      .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)))
+      .returning();
+
+    if (updated) {
+      const updatedFields = Object.keys(updates).filter(
+        (k) => updates[k as keyof typeof updates] !== undefined
+      );
+      logger.debug("Alert updated", {
+        alertId,
+        userId,
+        updatedFields: updatedFields.join(", "),
+      });
+    } else {
+      logger.warn("Alert not found for update", { alertId, userId });
+    }
+
+    return updated ?? null;
   }
 }
 

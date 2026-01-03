@@ -176,6 +176,13 @@
       "when": 1767349064360,
       "tag": "0024_recommendations_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1767453156072,
+      "tag": "0025_outstanding_tarantula",
+      "breakpoints": true
     }
   ]
 }

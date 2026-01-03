@@ -388,6 +388,12 @@ describe("AlertService", () => {
     describe("AC-9.1.3: Alert dismissible by user", () => {
       it("should dismiss alert and set dismissedAt timestamp", async () => {
         const dismissedAlert = { ...mockAlert, isDismissed: true, dismissedAt: new Date() };
+        // Story 7.6: dismissAlert now first selects the alert to check if it's an opportunity alert
+        mockDb.select.mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockAlert]),
+          }),
+        });
         mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
 
         const result = await service.dismissAlert("user-123", "alert-123");
@@ -398,7 +404,12 @@ describe("AlertService", () => {
       });
 
       it("should return null if alert not found", async () => {
-        mockDb.update.mockReturnValue(createUpdateChain([]));
+        // Story 7.6: dismissAlert now first selects the alert - return empty to simulate not found
+        mockDb.select.mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        });
 
         const result = await service.dismissAlert("user-123", "nonexistent");
 
