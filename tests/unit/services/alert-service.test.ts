@@ -1160,4 +1160,138 @@ describe("AlertService", () => {
       expect(result?.dismissedAt).toBeDefined();
     });
   });
+
+  /**
+   * Story 7.8: Opportunity Alerts Enhancements
+   * AC-7.8.1: Dismiss All in Group Action
+   */
+  describe("dismissMultipleAlerts", () => {
+    const createSelectChainForBulkDismiss = (result: unknown[]) => ({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(result),
+      }),
+    });
+
+    const createUpdateChainForBulkDismiss = (result: unknown[]) => ({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue(result),
+        }),
+      }),
+    });
+
+    it("should return empty result when no alert IDs provided", async () => {
+      const result = await service.dismissMultipleAlerts("user-123", []);
+
+      expect(result.dismissedCount).toBe(0);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should dismiss multiple valid alerts", async () => {
+      const alertIds = ["alert-1", "alert-2", "alert-3"];
+      const existingAlerts = alertIds.map((id) => ({
+        ...mockAlert,
+        id,
+        type: ALERT_TYPES.ALLOCATION_DRIFT, // Use drift to skip dismissed pair recording
+      }));
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss(existingAlerts));
+      mockDb.update.mockReturnValue(
+        createUpdateChainForBulkDismiss(alertIds.map((id) => ({ id })))
+      );
+
+      const result = await service.dismissMultipleAlerts("user-123", alertIds);
+
+      expect(result.dismissedCount).toBe(3);
+      expect(result.errors).toHaveLength(0);
+      expect(mockDb.update).toHaveBeenCalled();
+    });
+
+    it("should report errors for non-existent alerts", async () => {
+      const alertIds = ["alert-1", "nonexistent-1", "nonexistent-2"];
+      const existingAlerts = [{ ...mockAlert, id: "alert-1", type: ALERT_TYPES.ALLOCATION_DRIFT }];
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss(existingAlerts));
+      mockDb.update.mockReturnValue(createUpdateChainForBulkDismiss([{ id: "alert-1" }]));
+
+      const result = await service.dismissMultipleAlerts("user-123", alertIds);
+
+      expect(result.dismissedCount).toBe(1);
+      expect(result.errors).toHaveLength(2);
+      expect(result.errors[0].alertId).toBe("nonexistent-1");
+      expect(result.errors[1].alertId).toBe("nonexistent-2");
+    });
+
+    it("should handle case when all alerts are invalid", async () => {
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss([]));
+
+      const result = await service.dismissMultipleAlerts("user-123", ["invalid-1", "invalid-2"]);
+
+      expect(result.dismissedCount).toBe(0);
+      expect(result.errors).toHaveLength(2);
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("should record dismissed pairs for opportunity alerts (AC-7.8.1)", async () => {
+      // Use OPPORTUNITY type to test dismissed pair recording
+      const opportunityAlert = {
+        ...mockAlert,
+        id: "opp-alert-1",
+        type: ALERT_TYPES.OPPORTUNITY,
+        metadata: {
+          currentAssetId: "asset-1",
+          currentAssetSymbol: "AAPL",
+          currentScore: "70",
+          betterAssetId: "asset-2",
+          betterAssetSymbol: "VOO",
+          betterScore: "85",
+          scoreDifference: "15",
+          assetClassId: "class-1",
+          assetClassName: "US Stocks",
+        },
+      };
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss([opportunityAlert]));
+      mockDb.update.mockReturnValue(createUpdateChainForBulkDismiss([{ id: "opp-alert-1" }]));
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        }),
+      });
+
+      const result = await service.dismissMultipleAlerts("user-123", ["opp-alert-1"]);
+
+      expect(result.dismissedCount).toBe(1);
+      expect(result.errors).toHaveLength(0);
+      // Verify dismissed pair was recorded for opportunity alert
+      expect(mockDb.insert).toHaveBeenCalled();
+    });
+
+    it("should NOT record dismissed pairs for non-opportunity alerts in bulk dismiss", async () => {
+      const driftAlert = {
+        ...mockAlert,
+        id: "drift-alert-1",
+        type: ALERT_TYPES.ALLOCATION_DRIFT,
+        metadata: {
+          assetClassId: "class-1",
+          assetClassName: "US Stocks",
+          currentAllocation: "65",
+          targetMin: "40",
+          targetMax: "50",
+          driftAmount: "15",
+          direction: "over" as const,
+        },
+      };
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss([driftAlert]));
+      mockDb.update.mockReturnValue(createUpdateChainForBulkDismiss([{ id: "drift-alert-1" }]));
+
+      const result = await service.dismissMultipleAlerts("user-123", ["drift-alert-1"]);
+
+      expect(result.dismissedCount).toBe(1);
+      expect(result.errors).toHaveLength(0);
+      // Verify dismissed pair was NOT recorded for drift alert
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+  });
 });

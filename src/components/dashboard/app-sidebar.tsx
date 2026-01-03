@@ -9,6 +9,7 @@
  * Story 2.4: User Logout - Added LogoutButton to footer
  * Story 9.4: Financial Disclaimers - Added disclaimer link to footer (AC-9.4.5)
  * Story 9.5: Terms of Service & Privacy Policy - Added ToS and Privacy links to footer (AC-9.5.4)
+ * Story 7.8: Opportunity Alerts Enhancements - Added Alerts link (AC-7.8.2)
  */
 
 import Link from "next/link";
@@ -23,6 +24,7 @@ import {
   AlertTriangle,
   FileText,
   Shield,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +57,8 @@ const navItems: NavItem[] = [
   { label: "Portfolio", path: "/portfolio", icon: Briefcase },
   { label: "Strategy", path: "/strategy", icon: Target },
   { label: "Criteria", path: "/criteria", icon: ListChecks },
+  // Story 7.8: AC-7.8.2 - Alerts navigation link
+  { label: "Alerts", path: "/alerts", icon: Bell },
   { label: "History", path: "/history", icon: History },
   { label: "Settings", path: "/settings", icon: Settings },
 ];

@@ -1009,6 +1009,98 @@ export class AlertService {
   }
 
   /**
+   * Dismiss multiple alerts by ID
+   *
+   * Story 7.8: AC-7.8.1 - Bulk dismiss functionality
+   * Dismisses all specified alerts and records dismissed pairs for opportunity alerts.
+   *
+   * @param userId - User ID (tenant isolation)
+   * @param alertIds - Array of alert IDs to dismiss
+   * @returns Result with dismissed count and any errors
+   */
+  async dismissMultipleAlerts(
+    userId: string,
+    alertIds: string[]
+  ): Promise<{
+    dismissedCount: number;
+    errors: Array<{ alertId: string; error: string }>;
+  }> {
+    if (alertIds.length === 0) {
+      return { dismissedCount: 0, errors: [] };
+    }
+
+    const now = new Date();
+    const errors: Array<{ alertId: string; error: string }> = [];
+
+    // First, get all the alerts to check ownership and get metadata
+    const existingAlerts = await this.database
+      .select()
+      .from(alerts)
+      .where(
+        and(eq(alerts.userId, userId), inArray(alerts.id, alertIds), eq(alerts.isDismissed, false))
+      );
+
+    // Filter out alerts that don't exist or don't belong to user
+    const validAlertIds = existingAlerts.map((a) => a.id);
+    const invalidAlertIds = alertIds.filter((id) => !validAlertIds.includes(id));
+
+    for (const invalidId of invalidAlertIds) {
+      errors.push({ alertId: invalidId, error: "Alert not found or already dismissed" });
+    }
+
+    if (validAlertIds.length === 0) {
+      return { dismissedCount: 0, errors };
+    }
+
+    // Batch dismiss all valid alerts
+    const result = await this.database
+      .update(alerts)
+      .set({
+        isDismissed: true,
+        dismissedAt: now,
+        updatedAt: now,
+      })
+      .where(inArray(alerts.id, validAlertIds))
+      .returning({ id: alerts.id });
+
+    const dismissedCount = result.length;
+
+    // Record dismissed pairs for opportunity alerts (Story 7.6 AC-7.6.6)
+    const opportunityAlerts = existingAlerts.filter((a) => a.type === ALERT_TYPES.OPPORTUNITY);
+
+    for (const alert of opportunityAlerts) {
+      const metadata = alert.metadata as OpportunityAlertMetadata;
+      if (metadata.currentAssetId && metadata.betterAssetId && metadata.scoreDifference) {
+        try {
+          await this.recordDismissedOpportunityPair(
+            userId,
+            metadata.currentAssetId,
+            metadata.betterAssetId,
+            metadata.scoreDifference
+          );
+        } catch (error) {
+          // Log but don't fail the bulk dismiss
+          logger.warn("Failed to record dismissed opportunity pair in bulk dismiss", {
+            alertId: alert.id,
+            userId,
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    }
+
+    logger.info("Bulk dismissed alerts", {
+      userId,
+      requestedCount: alertIds.length,
+      dismissedCount,
+      opportunityAlertsProcessed: opportunityAlerts.length,
+      errorCount: errors.length,
+    });
+
+    return { dismissedCount, errors };
+  }
+
+  /**
    * Update alert with partial updates
    *
    * Story 7.6: AC-7.6.5 - Snooze functionality

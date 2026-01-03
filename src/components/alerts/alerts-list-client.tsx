@@ -7,6 +7,9 @@
  * AC-7.6.5: Alert grouping by asset class, snooze button
  * AC-7.6.2: Alert click navigation
  *
+ * Story 7.8: Opportunity Alerts Enhancements
+ * AC-7.8.1: Dismiss All in Group Action
+ *
  * Displays user's alerts grouped by asset class with snooze and dismiss functionality.
  */
 
@@ -26,10 +29,21 @@ import {
   AlarmClock,
   X,
   Settings,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EmptyAlerts } from "@/components/empty-states";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -181,6 +195,9 @@ export function AlertsListClient() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [snoozing, setSnoozing] = useState<string | null>(null);
   const [dismissing, setDismissing] = useState<string | null>(null);
+  // Story 7.8: AC-7.8.1 - Track bulk dismissing groups
+  const [bulkDismissing, setBulkDismissing] = useState<string | null>(null);
+  const [showDismissConfirm, setShowDismissConfirm] = useState<string | null>(null);
 
   // Fetch alerts
   const fetchAlerts = useCallback(async () => {
@@ -283,6 +300,46 @@ export function AlertsListClient() {
   }, []);
 
   /**
+   * Story 7.8: AC-7.8.1 - Dismiss all alerts in a group
+   */
+  const handleBulkDismiss = useCallback(
+    async (groupId: string) => {
+      // Find the group and get all alert IDs
+      const group = alertGroups.find((g) => g.assetClassId === groupId);
+      if (!group || group.alerts.length === 0) return;
+
+      const alertIds = group.alerts.map((a) => a.id);
+
+      setBulkDismissing(groupId);
+      setShowDismissConfirm(null);
+
+      try {
+        const response = await fetch("/api/alerts/bulk-dismiss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ alertIds }),
+        });
+
+        if (!response.ok) throw new Error("Failed to dismiss alerts");
+
+        const result = await response.json();
+
+        // Remove dismissed alerts from local state
+        setAlerts((prev) => prev.filter((a) => !alertIds.includes(a.id)));
+
+        // Show success toast with count
+        const dismissedCount = result.data?.dismissedCount ?? alertIds.length;
+        toast.success(`${dismissedCount} alert${dismissedCount !== 1 ? "s" : ""} dismissed`);
+      } catch (_error) {
+        toast.error("Failed to dismiss alerts. Please try again.");
+      } finally {
+        setBulkDismissing(null);
+      }
+    },
+    [alertGroups]
+  );
+
+  /**
    * AC-7.6.2: Handle alert click navigation
    */
   const handleAlertClick = useCallback(
@@ -363,23 +420,40 @@ export function AlertsListClient() {
               open={expandedGroups.has(group.assetClassId)}
               onOpenChange={() => toggleGroup(group.assetClassId)}
             >
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-4">
-                  <CardTitle className="flex items-center justify-between text-base font-medium">
-                    <div className="flex items-center gap-3">
-                      {expandedGroups.has(group.assetClassId) ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <span>{group.assetClassName}</span>
-                    </div>
+              <CardHeader className="py-4">
+                <CardTitle className="flex items-center justify-between text-base font-medium">
+                  <CollapsibleTrigger className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded transition-colors p-1 -m-1">
+                    {expandedGroups.has(group.assetClassId) ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span>{group.assetClassName}</span>
                     <span className="text-sm font-normal text-muted-foreground">
-                      {group.totalCount} alert{group.totalCount !== 1 ? "s" : ""}
+                      ({group.totalCount} alert{group.totalCount !== 1 ? "s" : ""})
                     </span>
-                  </CardTitle>
-                </CardHeader>
-              </CollapsibleTrigger>
+                  </CollapsibleTrigger>
+                  {/* Story 7.8: AC-7.8.1 - Dismiss All button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDismissConfirm(group.assetClassId);
+                    }}
+                    disabled={bulkDismissing === group.assetClassId}
+                    className="text-muted-foreground hover:text-foreground"
+                    data-testid={`dismiss-all-${group.assetClassId}`}
+                  >
+                    {bulkDismissing === group.assetClassId ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <XCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Dismiss All
+                  </Button>
+                </CardTitle>
+              </CardHeader>
 
               <CollapsibleContent>
                 <CardContent className="pt-0">
@@ -461,6 +535,41 @@ export function AlertsListClient() {
           </Card>
         ))}
       </div>
+
+      {/* Story 7.8: AC-7.8.1 - Confirmation dialog for bulk dismiss */}
+      <AlertDialog
+        open={showDismissConfirm !== null}
+        onOpenChange={(open) => !open && setShowDismissConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dismiss all alerts in this group?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will dismiss{" "}
+              {alertGroups.find((g) => g.assetClassId === showDismissConfirm)?.totalCount ?? 0}{" "}
+              alert
+              {(alertGroups.find((g) => g.assetClassId === showDismissConfirm)?.totalCount ?? 0) !==
+              1
+                ? "s"
+                : ""}{" "}
+              in the{" "}
+              <strong>
+                {alertGroups.find((g) => g.assetClassId === showDismissConfirm)?.assetClassName}
+              </strong>{" "}
+              category. Dismissed alerts will not reappear unless the score difference increases
+              significantly.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => showDismissConfirm && handleBulkDismiss(showDismissConfirm)}
+            >
+              Dismiss All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

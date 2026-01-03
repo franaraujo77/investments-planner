@@ -76,6 +76,7 @@ import {
 } from "@/lib/providers";
 import { alertDetectionService } from "@/lib/services/alert-detection-service";
 import { marketDataCacheService } from "@/lib/services/data-access";
+import { dismissedPairsService } from "@/lib/services/dismissed-pairs-service";
 import {
   processClassificationsFromFundamentals,
   classifyAssetsFromFundamentals,
@@ -221,6 +222,15 @@ interface DriftAlertDetectionResult {
   alertsUpdated: number;
   alertsDismissed: number;
   usersFailed: number;
+  durationMs: number;
+}
+
+/**
+ * Story 7.8: Dismissed pairs cleanup result
+ * AC-7.8.3: Cleanup job for old dismissed pairs
+ */
+interface DismissedPairsCleanupResult {
+  pairsDeleted: number;
   durationMs: number;
 }
 
@@ -1158,6 +1168,50 @@ export const overnightScoringJob = inngest.createFunction(
       span.setAttribute("drift_alerts_created", driftAlertDetectionResult.alertsCreated);
       span.setAttribute("drift_alerts_dismissed", driftAlertDetectionResult.alertsDismissed);
 
+      // Step 5d: Cleanup old dismissed opportunity pairs (Story 7.8)
+      // AC-7.8.3: Removes pairs older than 90 days to prevent unbounded table growth
+      // Runs after alert detection to ensure current dismissals are preserved
+      const dismissedPairsCleanupResult = await step.run(
+        "cleanup-dismissed-pairs",
+        async (): Promise<DismissedPairsCleanupResult> => {
+          const startMs = Date.now();
+
+          logger.info("Starting dismissed pairs cleanup", {
+            correlationId: setupResult.correlationId,
+          });
+
+          try {
+            const pairsDeleted = await dismissedPairsService.cleanupOldPairs();
+            const durationMs = Date.now() - startMs;
+
+            logger.info("Dismissed pairs cleanup completed", {
+              correlationId: setupResult.correlationId,
+              pairsDeleted,
+              durationMs,
+            });
+
+            return {
+              pairsDeleted,
+              durationMs,
+            };
+          } catch (error) {
+            // Don't fail entire job for cleanup errors
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.warn("Dismissed pairs cleanup failed", {
+              correlationId: setupResult.correlationId,
+              error: errorMessage,
+            });
+
+            return {
+              pairsDeleted: 0,
+              durationMs: Date.now() - startMs,
+            };
+          }
+        }
+      );
+
+      span.setAttribute("dismissed_pairs_deleted", dismissedPairsCleanupResult.pairsDeleted);
+
       // Step 6: Generate recommendations for each user (Story 8.3)
       // AC-8.3.1: Recommendations generated using latest scores, allocation targets, portfolio allocations
       // AC-8.3.2: Uses default contribution amount
@@ -1440,6 +1494,9 @@ export const overnightScoringJob = inngest.createFunction(
           // Story 5.8: Add asset type classification metrics
           assetTypesClassified: fundamentalsResult.assetTypesClassified,
           assetTypesUnmapped: fundamentalsResult.assetTypesUnmapped,
+          // Story 7.8: Add dismissed pairs cleanup metrics
+          dismissedPairsDeleted: dismissedPairsCleanupResult.pairsDeleted,
+          dismissedPairsCleanupMs: dismissedPairsCleanupResult.durationMs,
         };
 
         if (scoringResult.usersFailed > 0 && scoringResult.errors.length > 0) {

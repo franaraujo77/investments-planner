@@ -4,15 +4,14 @@
  * Story 7.6: Opportunity Alerts and Preferences
  * AC-7.6.6: Dismissal Memory - prevents re-alerting for dismissed opportunities
  *
+ * Story 7.8: Opportunity Alerts Enhancements
+ * AC-7.8.3: Cleanup integrated into overnight job (overnight-scoring.ts)
+ *
  * Key design:
  * - Tracks dismissed current/better asset pairs per user
  * - Stores score difference at dismissal time
  * - Re-alerts only if score difference increases by >10 points
- * - Pairs older than 90 days are eligible for cleanup
- *
- * TODO(epic-8): Integrate cleanupOldPairs() into overnight job
- * - Add step to overnight-scoring.ts to call cleanupOldPairs() after scoring
- * - This prevents unbounded table growth from old dismissals
+ * - Pairs older than 90 days are cleaned up by overnight job
  */
 
 import { db, type Database } from "@/lib/db";

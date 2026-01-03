@@ -521,3 +521,300 @@ test.describe("Settings Page Integration", () => {
     }
   });
 });
+
+/**
+ * Story 7.8: Opportunity Alerts Enhancements
+ * AC-7.8.1: Dismiss All in Group Action
+ * AC-7.8.2: Sidebar Navigation Link
+ */
+test.describe("Bulk Dismiss Alerts (AC-7.8.1)", () => {
+  test("should show Dismiss All button in alert group header", async ({ page }) => {
+    // Mock alerts response with multiple alerts in a group
+    await page.route("**/api/alerts*", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: [
+              {
+                id: "alert-1",
+                type: "opportunity",
+                title: "Better Asset Found: AAPL",
+                message: "AAPL scores 15 points higher",
+                severity: "info",
+                metadata: {
+                  currentAssetId: "asset-1",
+                  currentAssetSymbol: "MSFT",
+                  betterAssetId: "asset-2",
+                  betterAssetSymbol: "AAPL",
+                  assetClassId: "class-tech",
+                  assetClassName: "Technology",
+                  scoreDifference: "15",
+                },
+                isRead: false,
+                isDismissed: false,
+                createdAt: new Date().toISOString(),
+              },
+              {
+                id: "alert-2",
+                type: "opportunity",
+                title: "Better Asset Found: GOOG",
+                message: "GOOG scores 12 points higher",
+                severity: "info",
+                metadata: {
+                  currentAssetId: "asset-3",
+                  currentAssetSymbol: "META",
+                  betterAssetId: "asset-4",
+                  betterAssetSymbol: "GOOG",
+                  assetClassId: "class-tech",
+                  assetClassName: "Technology",
+                  scoreDifference: "12",
+                },
+                isRead: false,
+                isDismissed: false,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            meta: { page: 1, limit: 100, totalCount: 2, totalPages: 1 },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.goto("/alerts");
+
+    // Wait for alerts to load
+    await expect(page.getByText("Technology")).toBeVisible({ timeout: 5000 });
+
+    // Check that Dismiss All button is visible in the group header
+    const dismissAllButton = page.getByTestId("dismiss-all-class-tech");
+    await expect(dismissAllButton).toBeVisible();
+    await expect(dismissAllButton).toHaveText(/Dismiss All/);
+  });
+
+  test("should show confirmation dialog when clicking Dismiss All", async ({ page }) => {
+    // Mock alerts response
+    await page.route("**/api/alerts*", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: [
+              {
+                id: "alert-1",
+                type: "opportunity",
+                title: "Better Asset Found",
+                message: "Test message",
+                severity: "info",
+                metadata: {
+                  currentAssetId: "asset-1",
+                  betterAssetId: "asset-2",
+                  assetClassId: "class-stocks",
+                  assetClassName: "US Stocks",
+                  scoreDifference: "15",
+                },
+                isRead: false,
+                isDismissed: false,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            meta: { page: 1, limit: 100, totalCount: 1, totalPages: 1 },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.goto("/alerts");
+
+    // Wait for alerts to load
+    await expect(page.getByText("US Stocks")).toBeVisible({ timeout: 5000 });
+
+    // Click Dismiss All button
+    const dismissAllButton = page.getByTestId("dismiss-all-class-stocks");
+    await dismissAllButton.click();
+
+    // Confirmation dialog should appear
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    await expect(page.getByText("Dismiss all alerts in this group?")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Dismiss All" })).toBeVisible();
+  });
+
+  test("should dismiss all alerts in group when confirmed", async ({ page }) => {
+    let bulkDismissCallCount = 0;
+
+    // Mock alerts response
+    await page.route("**/api/alerts*", async (route) => {
+      if (route.request().method() === "GET") {
+        // Return empty after bulk dismiss
+        const alerts =
+          bulkDismissCallCount > 0
+            ? []
+            : [
+                {
+                  id: "alert-1",
+                  type: "opportunity",
+                  title: "Better Asset Found",
+                  message: "Test message",
+                  severity: "info",
+                  metadata: {
+                    currentAssetId: "asset-1",
+                    betterAssetId: "asset-2",
+                    assetClassId: "class-stocks",
+                    assetClassName: "US Stocks",
+                    scoreDifference: "15",
+                  },
+                  isRead: false,
+                  isDismissed: false,
+                  createdAt: new Date().toISOString(),
+                },
+              ];
+
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: alerts,
+            meta: {
+              page: 1,
+              limit: 100,
+              totalCount: alerts.length,
+              totalPages: alerts.length > 0 ? 1 : 0,
+            },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    // Mock bulk dismiss endpoint
+    await page.route("**/api/alerts/bulk-dismiss", async (route) => {
+      bulkDismissCallCount++;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { success: true, dismissedCount: 1 },
+        }),
+      });
+    });
+
+    await page.goto("/alerts");
+
+    // Wait for alerts to load
+    await expect(page.getByText("US Stocks")).toBeVisible({ timeout: 5000 });
+
+    // Click Dismiss All button
+    const dismissAllButton = page.getByTestId("dismiss-all-class-stocks");
+    await dismissAllButton.click();
+
+    // Click confirm button in dialog
+    await page.getByRole("button", { name: "Dismiss All" }).click();
+
+    // Should show success toast
+    await expect(page.getByText(/alert.*dismissed/i)).toBeVisible({ timeout: 5000 });
+
+    // Bulk dismiss should have been called
+    expect(bulkDismissCallCount).toBe(1);
+  });
+
+  test("should cancel bulk dismiss when Cancel is clicked", async ({ page }) => {
+    let bulkDismissCallCount = 0;
+
+    // Mock alerts response
+    await page.route("**/api/alerts*", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: [
+              {
+                id: "alert-1",
+                type: "opportunity",
+                title: "Better Asset Found",
+                message: "Test message",
+                severity: "info",
+                metadata: {
+                  currentAssetId: "asset-1",
+                  betterAssetId: "asset-2",
+                  assetClassId: "class-stocks",
+                  assetClassName: "US Stocks",
+                  scoreDifference: "15",
+                },
+                isRead: false,
+                isDismissed: false,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            meta: { page: 1, limit: 100, totalCount: 1, totalPages: 1 },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    // Mock bulk dismiss endpoint
+    await page.route("**/api/alerts/bulk-dismiss", async (route) => {
+      bulkDismissCallCount++;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { success: true, dismissedCount: 1 },
+        }),
+      });
+    });
+
+    await page.goto("/alerts");
+
+    // Wait for alerts to load
+    await expect(page.getByText("US Stocks")).toBeVisible({ timeout: 5000 });
+
+    // Click Dismiss All button
+    const dismissAllButton = page.getByTestId("dismiss-all-class-stocks");
+    await dismissAllButton.click();
+
+    // Click cancel button in dialog
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    // Dialog should close
+    await expect(page.getByRole("alertdialog")).not.toBeVisible();
+
+    // Alert should still be visible
+    await expect(page.getByText("US Stocks")).toBeVisible();
+
+    // Bulk dismiss should NOT have been called
+    expect(bulkDismissCallCount).toBe(0);
+  });
+});
+
+test.describe("Sidebar Navigation (AC-7.8.2)", () => {
+  test("should show Alerts link in sidebar", async ({ page }) => {
+    await page.goto("/");
+
+    // Look for alerts link in sidebar
+    const alertsLink = page.getByRole("link", { name: /Alerts/i });
+    await expect(alertsLink).toBeVisible();
+  });
+
+  test("should navigate to alerts page when clicking sidebar link", async ({ page }) => {
+    await page.goto("/");
+
+    // Click alerts link in sidebar
+    const alertsLink = page.getByRole("link", { name: /Alerts/i });
+    await alertsLink.click();
+
+    // Should navigate to alerts page
+    await expect(page).toHaveURL("/alerts");
+    await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
+  });
+});
