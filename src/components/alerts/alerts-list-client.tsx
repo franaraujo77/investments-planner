@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import {
   Bell,
   Loader2,
@@ -173,6 +174,7 @@ function isAlertSnoozed(alert: Alert): boolean {
 
 export function AlertsListClient() {
   const router = useRouter();
+  const { formatDateTime } = useNumberFormat();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -405,7 +407,7 @@ export function AlertsListClient() {
                           </p>
                           <p className="text-sm text-muted-foreground mt-1">{alert.message}</p>
                           <p className="text-xs text-muted-foreground mt-2">
-                            {new Date(alert.createdAt).toLocaleString()}
+                            {formatDateTime(new Date(alert.createdAt))}
                           </p>
                         </button>
 

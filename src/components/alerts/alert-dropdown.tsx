@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { Bell, Loader2, AlertTriangle, TrendingUp, Info, AlertOctagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,6 +87,7 @@ interface Alert {
  */
 export function AlertDropdown() {
   const router = useRouter();
+  const { formatDate } = useNumberFormat();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -229,7 +231,7 @@ export function AlertDropdown() {
                       {alert.message}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(alert.createdAt).toLocaleDateString()}
+                      {formatDate(new Date(alert.createdAt))}
                     </p>
                   </div>
                 </button>

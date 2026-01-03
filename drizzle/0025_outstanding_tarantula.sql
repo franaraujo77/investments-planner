@@ -23,6 +23,7 @@ CREATE INDEX "alerts_snoozed_until_idx" ON "alerts" USING btree ("snoozed_until"
 -- RLS blocks direct PostgREST access via anon/authenticated keys.
 
 ALTER TABLE "dismissed_opportunity_pairs" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON "dismissed_opportunity_pairs" FROM anon, authenticated;
 
 -- Note: current_asset_id and better_asset_id are NOT foreign keys to portfolio_assets
 -- because the "better" asset may not exist in the user's portfolio - it's an external

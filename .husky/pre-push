@@ -2,6 +2,16 @@
 
 # Pre-push hook - Catch issues before they hit GitHub CI
 # Runs validations that lint-staged doesn't cover
+#
+# Environment variables:
+#   SKIP_PRE_PUSH=1       - Skip all pre-push checks (for fast iteration)
+#   SKIP_PRE_PUSH_TESTS=1 - Skip unit tests only (TypeScript/lint still run)
+
+# Allow bypassing all checks for fast iteration
+if [ -n "$SKIP_PRE_PUSH" ]; then
+  echo "⚡ SKIP_PRE_PUSH is set - skipping all pre-push checks"
+  exit 0
+fi
 
 echo "🔍 Running pre-push validations..."
 
@@ -19,12 +29,16 @@ pnpm lint || {
   exit 1
 }
 
-# Unit tests (critical for catching regressions)
-echo "🧪 Running unit tests..."
-pnpm test:unit || {
-  echo "❌ Unit tests failed. Fix failing tests before pushing."
-  exit 1
-}
+# Unit tests (can be skipped for fast iteration on feature branches)
+if [ -z "$SKIP_PRE_PUSH_TESTS" ]; then
+  echo "🧪 Running unit tests..."
+  pnpm test:unit || {
+    echo "❌ Unit tests failed. Fix failing tests before pushing."
+    exit 1
+  }
+else
+  echo "⚡ SKIP_PRE_PUSH_TESTS is set - skipping unit tests"
+fi
 
 # RLS security check (catches missing RLS policies)
 echo "🔒 RLS security check..."
