@@ -70,6 +70,15 @@ type GetResponseBody = BreakdownResponse | AuthError;
 
 /**
  * Build calculation steps from recommendation breakdown
+ *
+ * **API Contract - Precision & Formatting:**
+ * Values are pre-formatted for display using en-US locale:
+ * - Percentages: 1-2 decimal places (e.g., "15.5%")
+ * - Currency: 2 decimal places with $ prefix (e.g., "$800.00")
+ * - Weights: 4 decimal places (e.g., "0.1234")
+ *
+ * TODO(i18n): For full i18n support, consider returning raw numeric
+ * values and formatting client-side using useNumberFormat hook.
  */
 function buildCalculationSteps(
   allocationGap: string,

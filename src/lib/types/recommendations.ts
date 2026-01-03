@@ -350,11 +350,25 @@ export interface RecommendationValidationError {
  *
  * Story 7.7: View Recommendation Breakdown
  * AC-7.7.3: Formula Display - shows step-by-step calculation
+ *
+ * **API Contract - Precision Expectations:**
+ * - `value` is pre-formatted for display with fixed precision:
+ *   - Percentages: 2 decimal places (e.g., "15.50%")
+ *   - Currency: 2 decimal places with $ prefix (e.g., "$800.00")
+ *   - Weights: 4 decimal places (e.g., "0.1234")
+ * - Uses en-US locale formatting (period as decimal separator)
+ *
+ * TODO(i18n): Consider returning raw numeric values with a `type` field
+ * to enable client-side locale-aware formatting in future iterations.
  */
 export interface CalculationStep {
   /** Step description (e.g., "Calculate allocation gap") */
   step: string;
-  /** Calculated value for this step (e.g., "2.0%") */
+  /**
+   * Calculated value for this step, pre-formatted for display.
+   * Uses en-US locale with fixed decimal precision.
+   * @example "2.0%" | "$800.00" | "0.1234"
+   */
   value: string;
   /** Formula used (e.g., "target_mid - current") */
   formula: string;
