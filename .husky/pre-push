@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Pre-push hook - Catch issues before they hit GitHub CI
+# Runs validations that lint-staged doesn't cover
+
+echo "🔍 Running pre-push validations..."
+
+# TypeScript type check (not run by lint-staged)
+echo "📝 TypeScript check..."
+pnpm exec tsc --noEmit || {
+  echo "❌ TypeScript check failed. Fix type errors before pushing."
+  exit 1
+}
+
+# Full lint check (lint-staged only checks staged files)
+echo "🧹 ESLint check..."
+pnpm lint || {
+  echo "❌ Lint check failed. Fix lint errors before pushing."
+  exit 1
+}
+
+# Unit tests (critical for catching regressions)
+echo "🧪 Running unit tests..."
+pnpm test:unit || {
+  echo "❌ Unit tests failed. Fix failing tests before pushing."
+  exit 1
+}
+
+# RLS security check (catches missing RLS policies)
+echo "🔒 RLS security check..."
+pnpm security:check-rls || {
+  echo "❌ RLS security check failed. Enable RLS on new tables before pushing."
+  exit 1
+}
+
+echo "✅ All pre-push checks passed!"
