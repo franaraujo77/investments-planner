@@ -120,4 +120,5 @@ development_status:
   7-5-allocation-drift-alerts: done
   7-6-opportunity-alerts-and-preferences: done
   7-7-api-precision-i18n-refactoring: done  # Refactoring: locale-aware formatting for calculation breakdowns
+  7-8-opportunity-alerts-enhancements: ready-for-dev  # Deferred: bulk dismiss, sidebar nav, cleanup job
   epic-7-retrospective: optional

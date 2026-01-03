@@ -54,8 +54,9 @@ const eslintConfig = defineConfig([
   // See: docs/sprint-artifacts/epic-3-retrospective.md (Section: "PR Review Findings")
   // Use useNumberFormat() hook instead of hardcoded formatting in React components.
   // Added: 2025-12-31
+  // Updated: 2026-01-03 - Extended to cover .ts files in components folder
   {
-    files: ["src/components/**/*.tsx"],
+    files: ["src/components/**/*.tsx", "src/components/**/*.ts"],
     ignores: [
       // Allow in formatting infrastructure components (they implement the formatting)
       "src/components/fintech/currency-display.tsx",

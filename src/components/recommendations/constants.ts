@@ -30,7 +30,11 @@ export function calculateTargetRange(targetMidpoint: string): {
   max: string;
 } {
   const midpoint = parseFloat(targetMidpoint) || 0;
+  // Note: toFixed is used here for internal data representation (stored as string),
+  // not for direct user display. UI components use useNumberFormat() for display.
+  // eslint-disable-next-line no-restricted-syntax -- internal calculation, not UI display
   const min = Math.max(midpoint - TARGET_ALLOCATION_RANGE, 0).toFixed(1);
+  // eslint-disable-next-line no-restricted-syntax -- internal calculation, not UI display
   const max = Math.min(midpoint + TARGET_ALLOCATION_RANGE, 100).toFixed(1);
   return { min, max };
 }
