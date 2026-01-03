@@ -6,12 +6,14 @@
  * Story 7.5: Display Recommendations (Focus Mode)
  * Story 7.6: Zero Buy Signal for Over-Allocated
  * Story 6.3: Recommendation Display
+ * Story 6.4: Recommendation Details
  *
  * AC-7.5.2: RecommendationCard Display
  * AC-7.6.1: Over-Allocated Asset Shows $0 with Label
  * AC-7.6.2: Over-Allocated Card Visual Treatment
  * AC-7.6.3: Click Shows Explanation
  * AC-6.3.4: Card Hover Tooltip (current %, target range, expected after %)
+ * AC-6.4.1: "Why this recommendation?" button opens details panel
  *
  * Displays individual recommendation with:
  * - Ticker symbol prominently displayed
@@ -19,25 +21,31 @@
  * - Recommended amount in base currency
  * - AllocationGauge showing current vs target allocation
  * - Hover tooltip showing allocation details (AC-6.3.4)
+ * - "Why?" button for detailed breakdown (AC-6.4.1)
  *
  * Features:
  * - Hover state styling
  * - Click handler for breakdown panel (Story 7.7 placeholder)
  * - Over-allocated indicator with explanation panel (Story 7.6)
  * - Hover tooltip with allocation details (Story 6.3)
+ * - "Why this recommendation?" details panel (Story 6.4)
  */
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScoreBadge } from "@/components/fintech/score-badge";
 import { AllocationGauge } from "./allocation-gauge";
 import { OverAllocatedExplanation } from "./over-allocated-explanation";
+import { RecommendationDetailsPanel } from "./recommendation-details-panel";
 import { calculateTargetRange } from "./constants";
 import { formatCurrency } from "@/lib/utils/currency-format";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
+import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RecommendationDisplayItem } from "@/hooks/use-recommendations";
+import type { ExtendedBreakdown } from "@/lib/types/recommendations";
 
 // =============================================================================
 // TYPES
@@ -52,6 +60,12 @@ export interface RecommendationCardProps {
   onClick?: (() => void) | undefined;
   /** Expected allocation after investment (AC-6.3.4) */
   expectedAllocation?: string | undefined;
+  /** Extended breakdown data for details panel (Story 6.4) */
+  breakdown?: ExtendedBreakdown | null | undefined;
+  /** Whether breakdown is loading */
+  isBreakdownLoading?: boolean;
+  /** Callback to fetch breakdown when details panel opens */
+  onRequestBreakdown?: (() => void) | undefined;
   /** Additional CSS classes */
   className?: string | undefined;
 }
@@ -88,6 +102,9 @@ export function RecommendationCard({
   baseCurrency,
   onClick,
   expectedAllocation,
+  breakdown,
+  isBreakdownLoading = false,
+  onRequestBreakdown,
   className,
 }: RecommendationCardProps) {
   const {
@@ -105,6 +122,9 @@ export function RecommendationCard({
 
   // State for over-allocated explanation sheet (Story 7.6)
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
+
+  // State for recommendation details panel (Story 6.4)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Calculate target min/max from targetAllocation
   // Uses centralized constant for target range (±TARGET_ALLOCATION_RANGE percentage points)
@@ -137,6 +157,19 @@ export function RecommendationCard({
 
   // Determine if card should be clickable
   const isClickable = isOverAllocated || !!onClick;
+
+  /**
+   * Handle "Why?" button click (Story 6.4 AC-6.4.1)
+   * Opens the recommendation details panel
+   */
+  const handleWhyClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    setIsDetailsOpen(true);
+    // Request breakdown data if callback provided
+    if (onRequestBreakdown) {
+      onRequestBreakdown();
+    }
+  };
 
   // Tooltip content for AC-6.3.4
   const tooltipContent = (
@@ -203,8 +236,27 @@ export function RecommendationCard({
             )}
           </div>
 
-          {/* Score Badge */}
-          <ScoreBadge score={score} assetId={assetId} size="md" interactive={false} />
+          <div className="flex items-center gap-2">
+            {/* Why button (Story 6.4 AC-6.4.1) */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={handleWhyClick}
+                  aria-label="Why this recommendation?"
+                  data-testid="why-button"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Why this recommendation?</TooltipContent>
+            </Tooltip>
+
+            {/* Score Badge */}
+            <ScoreBadge score={score} assetId={assetId} size="md" interactive={false} />
+          </div>
         </div>
 
         {/* Recommended Amount */}
@@ -263,6 +315,16 @@ export function RecommendationCard({
         currentAllocation={currentAllocation}
         targetAllocation={targetAllocation}
         allocationGap={allocationGap}
+      />
+
+      {/* Recommendation details panel (Story 6.4) */}
+      <RecommendationDetailsPanel
+        item={item}
+        breakdown={breakdown}
+        isLoading={isBreakdownLoading}
+        baseCurrency={baseCurrency}
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
       />
     </>
   );

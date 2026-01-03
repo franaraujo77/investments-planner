@@ -169,8 +169,32 @@ describe("useConfirmInvestments API Logic", () => {
     });
   });
 
-  describe("Success Toast Content", () => {
-    it("should format success message correctly", () => {
+  describe("Success Toast Content (AC-6.5.4)", () => {
+    it("should use {Month} investments recorded format", () => {
+      // AC-6.5.4: Success message should be "{Month} investments recorded"
+      const monthName = new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date());
+      const title = `${monthName} investments recorded`;
+
+      expect(title).toContain("investments recorded");
+      // Month name should be a valid month
+      const validMonths = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      expect(validMonths.some((month) => title.includes(month))).toBe(true);
+    });
+
+    it("should format success description correctly", () => {
       const result: ConfirmInvestmentResult = {
         success: true,
         investmentIds: ["inv-1", "inv-2", "inv-3"],
@@ -181,13 +205,12 @@ describe("useConfirmInvestments API Logic", () => {
         allocations: { before: {}, after: {} },
       };
 
-      const description = `${result.summary.assetsUpdated} assets updated with ${formatAmount(result.summary.totalInvested)} invested.`;
+      const description = `${result.summary.assetsUpdated} assets updated.`;
 
-      expect(description).toContain("3 assets updated");
-      expect(description).toContain("invested");
+      expect(description).toBe("3 assets updated.");
     });
 
-    it("should handle singular asset count", () => {
+    it("should handle singular asset count with correct grammar", () => {
       const result: ConfirmInvestmentResult = {
         success: true,
         investmentIds: ["inv-1"],
@@ -198,9 +221,27 @@ describe("useConfirmInvestments API Logic", () => {
         allocations: { before: {}, after: {} },
       };
 
-      const description = `${result.summary.assetsUpdated} assets updated with ${formatAmount(result.summary.totalInvested)} invested.`;
+      const assetCount = result.summary.assetsUpdated;
+      const description = `${assetCount} asset${assetCount !== 1 ? "s" : ""} updated.`;
 
-      expect(description).toContain("1 assets updated");
+      expect(description).toBe("1 asset updated.");
+    });
+
+    it("should handle plural asset count with correct grammar", () => {
+      const result: ConfirmInvestmentResult = {
+        success: true,
+        investmentIds: ["inv-1", "inv-2"],
+        summary: {
+          totalInvested: "1500.0000",
+          assetsUpdated: 2,
+        },
+        allocations: { before: {}, after: {} },
+      };
+
+      const assetCount = result.summary.assetsUpdated;
+      const description = `${assetCount} asset${assetCount !== 1 ? "s" : ""} updated.`;
+
+      expect(description).toBe("2 assets updated.");
     });
   });
 
@@ -222,18 +263,4 @@ describe("useConfirmInvestments API Logic", () => {
   });
 });
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-/**
- * Format amount for display (copy of hook helper for testing)
- */
-function formatAmount(amount: string): string {
-  const num = parseFloat(amount);
-  if (isNaN(num)) return amount;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(num);
-}
+// Note: formatAmount helper removed as it's no longer used after AC-6.5.4 changes

@@ -14,6 +14,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { withAuth } from "@/lib/auth/middleware";
 import {
   successResponse,
@@ -25,7 +26,6 @@ import {
 import { NOT_FOUND_ERRORS, VALIDATION_ERRORS, CONFLICT_ERRORS } from "@/lib/api/error-codes";
 import {
   confirmInvestmentSchema,
-  validateTotalDoesNotExceedAvailable,
   validateNoNegativeAmounts,
 } from "@/lib/validations/investment-schemas";
 import { confirmInvestments } from "@/lib/services/investment-service";
@@ -105,16 +105,11 @@ export const POST = withAuth<ConfirmResponseBody | ErrorResponseBody | AuthError
         return errorResponse(negativeError, VALIDATION_ERRORS.OUT_OF_RANGE);
       }
 
-      // 7. AC-7.8.5: Validate total <= available capital
-      const totalError = validateTotalDoesNotExceedAvailable(
-        investments,
-        recommendation.totalInvestable
-      );
-      if (totalError) {
-        return errorResponse(totalError, VALIDATION_ERRORS.OUT_OF_RANGE);
-      }
+      // AC-6.5.5: Over-budget is allowed - users may invest more than recommended if they have additional funds
+      // Previous validation: validateTotalDoesNotExceedAvailable(total, availableCapital) returned 400 if exceeded
+      // Removed to support flexible investment amounts (users may have funds from other sources beyond recommendations)
 
-      // 8. Confirm investments
+      // 7. Confirm investments
       const confirmResult = await confirmInvestments(userId, {
         recommendationId,
         investments,
@@ -126,6 +121,11 @@ export const POST = withAuth<ConfirmResponseBody | ErrorResponseBody | AuthError
         investmentCount: confirmResult.investmentIds.length,
         totalInvested: confirmResult.summary.totalInvested,
       });
+
+      // 8. Revalidate portfolio page for SSR (AC-6.6.4)
+      // This ensures allocations immediately reflect confirmed investments without page refresh
+      revalidatePath("/portfolio");
+      revalidatePath("/recommendations");
 
       // 9. Return success response
       // AC-7.8.4: Return data that can be used for toast notification

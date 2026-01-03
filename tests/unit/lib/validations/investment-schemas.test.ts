@@ -241,7 +241,12 @@ describe("validateConfirmInvestment", () => {
 // VALIDATE TOTAL DOES NOT EXCEED AVAILABLE TESTS
 // =============================================================================
 
-describe("validateTotalDoesNotExceedAvailable", () => {
+/**
+ * @deprecated These tests verify the deprecated validateTotalDoesNotExceedAvailable function.
+ * AC-6.5.5 allows over-budget investments, so this validation is no longer used in the
+ * confirmation flow. Tests kept to verify backward compatibility.
+ */
+describe("validateTotalDoesNotExceedAvailable (deprecated)", () => {
   it("should return null when total is less than available", () => {
     const investments = [{ actualAmount: "500.00" }, { actualAmount: "300.00" }];
 
@@ -256,7 +261,9 @@ describe("validateTotalDoesNotExceedAvailable", () => {
     expect(result).toBeNull();
   });
 
-  it("should return error when total exceeds available", () => {
+  it("should return error when total exceeds available (but AC-6.5.5 allows this)", () => {
+    // Note: This test verifies the function still works, but AC-6.5.5 allows over-budget
+    // The function returns an error, but the confirmation flow no longer uses this validation
     const investments = [{ actualAmount: "600.00" }, { actualAmount: "500.00" }];
 
     const result = validateTotalDoesNotExceedAvailable(investments, "1000.00");

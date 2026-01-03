@@ -460,14 +460,71 @@ export interface DetailedBreakdown {
   auditTrail: AuditTrailInfo;
 }
 
+// =============================================================================
+// EXTENDED BREAKDOWN TYPES (Story 6.4)
+// =============================================================================
+
+/**
+ * Top contributing criterion for score breakdown
+ *
+ * Story 6.4: Recommendation Details
+ * AC-6.4.3: Score Contribution Display - top 3 criteria
+ */
+export interface TopCriterion {
+  /** Criterion ID */
+  criterionId: string;
+  /** Criterion display name */
+  criterionName: string;
+  /** Points awarded (positive or negative) */
+  pointsAwarded: number;
+  /** Actual value from market data (if available) */
+  actualValue: string | null;
+}
+
+/**
+ * Score ranking among portfolio assets
+ *
+ * Story 6.4: Recommendation Details
+ * AC-6.4.1: Score ranking in why-this-recommendation panel
+ */
+export interface ScoreRanking {
+  /** Percentile rank (0-100, where 100 is best) */
+  percentile: number;
+  /** Absolute rank (1-based, 1 is best) */
+  rank: number;
+  /** Total number of assets */
+  total: number;
+}
+
+/**
+ * Extended breakdown with Story 6.4 fields
+ *
+ * Story 6.4: Recommendation Details
+ * AC-6.4.1-6.4.4: Full recommendation explanation panel
+ *
+ * Extends DetailedBreakdown with:
+ * - topCriteria: Top 3 scoring criteria
+ * - expectedAllocationAfter: Expected % after investment
+ * - scoreRanking: Percentile ranking among portfolio assets
+ */
+export interface ExtendedBreakdown extends DetailedBreakdown {
+  /** Top 3 scoring criteria that contributed most (AC-6.4.3) */
+  topCriteria: TopCriterion[];
+  /** Expected allocation percentage after investment (AC-6.4.2) */
+  expectedAllocationAfter: string;
+  /** Score ranking among portfolio assets (AC-6.4.1) */
+  scoreRanking: ScoreRanking;
+}
+
 /**
  * API response for breakdown endpoint
  *
  * Story 7.7: View Recommendation Breakdown
+ * Story 6.4: Extended with topCriteria, expectedAllocationAfter, scoreRanking
  * GET /api/recommendations/:id/breakdown?itemId=uuid
  */
 export interface BreakdownResponse {
-  data: DetailedBreakdown;
+  data: ExtendedBreakdown;
 }
 
 // =============================================================================
@@ -502,6 +559,9 @@ export interface ConfirmInvestmentInput {
  *
  * Story 7.8: Confirm Recommendations
  * AC-7.8.3: Investments Recorded Successfully
+ *
+ * Story 6.6: Before/After Comparison
+ * AC-6.6.3: Portfolio Summary Display
  */
 export interface ConfirmInvestmentResult {
   /** Whether confirmation succeeded */
@@ -521,6 +581,19 @@ export interface ConfirmInvestmentResult {
     before: Record<string, string>;
     /** Allocation percentages after investment */
     after: Record<string, string>;
+  };
+  /** Portfolio summary for before/after comparison (AC-6.6.3) */
+  portfolioSummary?: {
+    /** Total portfolio value before investment (decimal string) */
+    valueBefore: string;
+    /** Total portfolio value after investment (decimal string) */
+    valueAfter: string;
+    /** Total amount invested this cycle (decimal string) */
+    amountInvested: string;
+    /** Portfolio health score before (optional - calculated from allocation gaps) */
+    healthScoreBefore?: string;
+    /** Portfolio health score after */
+    healthScoreAfter?: string;
   };
 }
 

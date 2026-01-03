@@ -2,11 +2,20 @@
  * Recommendation Breakdown API Route Tests
  *
  * Story 7.7: View Recommendation Breakdown
+ * Story 6.4: Recommendation Details (Extended Breakdown)
+ *
  * GET /api/recommendations/:id/breakdown?itemId=uuid
  *
- * AC-7.7.1: Click Opens Detail Panel with Allocation Gap
- * AC-7.7.3: Formula Display
- * AC-7.7.4: Audit Trail Information
+ * Story 7.7 Acceptance Criteria:
+ * - AC-7.7.1: Click Opens Detail Panel with Allocation Gap
+ * - AC-7.7.3: Formula Display
+ * - AC-7.7.4: Audit Trail Information
+ *
+ * Story 6.4 Acceptance Criteria:
+ * - AC-6.4.1: Why This Recommendation Panel (scoreRanking)
+ * - AC-6.4.2: Allocation Math Display (expectedAllocationAfter)
+ * - AC-6.4.3: Score Contribution Display (topCriteria)
+ * - AC-6.4.4: Full Calculation Details (extends auditTrail)
  *
  * Tests the API response format and data transformations.
  * Note: Integration tests with actual database would be in tests/integration.
@@ -344,6 +353,363 @@ describe("Recommendations Breakdown API", () => {
       };
 
       expect(errorResponse.code).toBe("AUTH_UNAUTHORIZED");
+    });
+  });
+});
+
+// =============================================================================
+// Story 6.4: Extended Breakdown Fields
+// =============================================================================
+
+describe("Extended Breakdown Fields (Story 6.4)", () => {
+  describe("Top Criteria Extraction", () => {
+    it("extracts top 3 criteria by points awarded", () => {
+      const breakdown = [
+        {
+          criterionId: "1",
+          criterionName: "P/E Ratio",
+          pointsAwarded: 10,
+          matched: true,
+          actualValue: "15",
+          skippedReason: null,
+        },
+        {
+          criterionId: "2",
+          criterionName: "Dividend Yield",
+          pointsAwarded: 5,
+          matched: true,
+          actualValue: "3.5",
+          skippedReason: null,
+        },
+        {
+          criterionId: "3",
+          criterionName: "Market Cap",
+          pointsAwarded: 15,
+          matched: true,
+          actualValue: "500B",
+          skippedReason: null,
+        },
+        {
+          criterionId: "4",
+          criterionName: "Debt Ratio",
+          pointsAwarded: 8,
+          matched: true,
+          actualValue: "0.3",
+          skippedReason: null,
+        },
+      ];
+
+      // Sort by points and take top 3
+      const topCriteria = breakdown
+        .filter((c) => !c.skippedReason && c.pointsAwarded !== 0)
+        .sort((a, b) => Math.abs(b.pointsAwarded) - Math.abs(a.pointsAwarded))
+        .slice(0, 3);
+
+      expect(topCriteria).toHaveLength(3);
+      expect(topCriteria[0]?.criterionName).toBe("Market Cap"); // 15 points
+      expect(topCriteria[1]?.criterionName).toBe("P/E Ratio"); // 10 points
+      expect(topCriteria[2]?.criterionName).toBe("Debt Ratio"); // 8 points
+    });
+
+    it("handles negative points (penalties)", () => {
+      const breakdown = [
+        {
+          criterionId: "1",
+          criterionName: "Criterion A",
+          pointsAwarded: 10,
+          matched: true,
+          actualValue: "10",
+          skippedReason: null,
+        },
+        {
+          criterionId: "2",
+          criterionName: "Criterion B",
+          pointsAwarded: -8,
+          matched: true,
+          actualValue: "50",
+          skippedReason: null,
+        },
+        {
+          criterionId: "3",
+          criterionName: "Criterion C",
+          pointsAwarded: 5,
+          matched: true,
+          actualValue: "5",
+          skippedReason: null,
+        },
+      ];
+
+      // Sort by absolute points
+      const topCriteria = breakdown
+        .filter((c) => !c.skippedReason && c.pointsAwarded !== 0)
+        .sort((a, b) => Math.abs(b.pointsAwarded) - Math.abs(a.pointsAwarded))
+        .slice(0, 3);
+
+      expect(topCriteria).toHaveLength(3);
+      expect(topCriteria[0]?.criterionName).toBe("Criterion A"); // |10| points
+      expect(topCriteria[1]?.criterionName).toBe("Criterion B"); // |-8| = 8 points
+    });
+
+    it("filters out skipped criteria", () => {
+      const breakdown = [
+        {
+          criterionId: "1",
+          criterionName: "Active",
+          pointsAwarded: 10,
+          matched: true,
+          actualValue: "10",
+          skippedReason: null,
+        },
+        {
+          criterionId: "2",
+          criterionName: "Skipped",
+          pointsAwarded: 15,
+          matched: false,
+          actualValue: null,
+          skippedReason: "DATA_UNAVAILABLE",
+        },
+        {
+          criterionId: "3",
+          criterionName: "Active2",
+          pointsAwarded: 5,
+          matched: true,
+          actualValue: "5",
+          skippedReason: null,
+        },
+      ];
+
+      const topCriteria = breakdown
+        .filter((c) => !c.skippedReason && c.pointsAwarded !== 0)
+        .sort((a, b) => Math.abs(b.pointsAwarded) - Math.abs(a.pointsAwarded))
+        .slice(0, 3);
+
+      expect(topCriteria).toHaveLength(2);
+      expect(topCriteria.some((c) => c.criterionName === "Skipped")).toBe(false);
+    });
+
+    it("filters out zero-point criteria", () => {
+      const breakdown = [
+        {
+          criterionId: "1",
+          criterionName: "Positive",
+          pointsAwarded: 10,
+          matched: true,
+          actualValue: "10",
+          skippedReason: null,
+        },
+        {
+          criterionId: "2",
+          criterionName: "Zero",
+          pointsAwarded: 0,
+          matched: false,
+          actualValue: "50",
+          skippedReason: null,
+        },
+        {
+          criterionId: "3",
+          criterionName: "Another",
+          pointsAwarded: 5,
+          matched: true,
+          actualValue: "5",
+          skippedReason: null,
+        },
+      ];
+
+      const topCriteria = breakdown
+        .filter((c) => !c.skippedReason && c.pointsAwarded !== 0)
+        .sort((a, b) => Math.abs(b.pointsAwarded) - Math.abs(a.pointsAwarded))
+        .slice(0, 3);
+
+      expect(topCriteria).toHaveLength(2);
+      expect(topCriteria.some((c) => c.criterionName === "Zero")).toBe(false);
+    });
+
+    it("returns less than 3 if fewer qualifying criteria", () => {
+      const breakdown = [
+        {
+          criterionId: "1",
+          criterionName: "Only One",
+          pointsAwarded: 10,
+          matched: true,
+          actualValue: "10",
+          skippedReason: null,
+        },
+      ];
+
+      const topCriteria = breakdown
+        .filter((c) => !c.skippedReason && c.pointsAwarded !== 0)
+        .slice(0, 3);
+
+      expect(topCriteria).toHaveLength(1);
+    });
+  });
+
+  describe("Expected Allocation Calculation", () => {
+    it("calculates expected allocation after investment", () => {
+      // Current: 10% of $10,000 = $1,000 current value
+      // Investing $500, total investable $1,000
+      // New portfolio value: $11,000
+      // New asset value: $1,500
+      // Expected allocation: $1,500 / $11,000 = 13.64%
+      const currentValue = "1000.00";
+      const recommendedAmount = "500.00";
+      const portfolioTotal = "10000.00";
+      const totalInvestable = "1000.00";
+
+      const current = parseFloat(currentValue);
+      const recommended = parseFloat(recommendedAmount);
+      const portfolio = parseFloat(portfolioTotal);
+      const investable = parseFloat(totalInvestable);
+
+      const newValue = current + recommended;
+      const newPortfolio = portfolio + investable;
+      const expectedAllocation = (newValue / newPortfolio) * 100;
+
+      expect(expectedAllocation).toBeCloseTo(13.64, 2);
+    });
+
+    it("handles zero recommended amount", () => {
+      const currentValue = "1000.00";
+      const recommendedAmount = "0.00";
+      const portfolioTotal = "10000.00";
+      const totalInvestable = "1000.00";
+
+      const current = parseFloat(currentValue);
+      const recommended = parseFloat(recommendedAmount);
+      const portfolio = parseFloat(portfolioTotal);
+      const investable = parseFloat(totalInvestable);
+
+      const newValue = current + recommended;
+      const newPortfolio = portfolio + investable;
+      const expectedAllocation = (newValue / newPortfolio) * 100;
+
+      expect(expectedAllocation).toBeCloseTo(9.09, 2); // $1,000 / $11,000
+    });
+  });
+
+  describe("Score Ranking Calculation", () => {
+    it("calculates percentile ranking among portfolio assets", () => {
+      const assetScore = "85.5";
+      const allScores = ["90.0", "85.5", "80.0", "75.0", "60.0"];
+
+      const score = parseFloat(assetScore);
+      const sorted = allScores.map((s) => parseFloat(s)).sort((a, b) => b - a);
+      const rank = sorted.findIndex((s) => s === score) + 1;
+      const percentile = Math.round(((sorted.length - rank) / sorted.length) * 100);
+
+      expect(rank).toBe(2); // Second highest
+      expect(percentile).toBe(60); // Top 60%
+    });
+
+    it("handles tied scores", () => {
+      const assetScore = "80.0";
+      const allScores = ["90.0", "80.0", "80.0", "70.0"];
+
+      const score = parseFloat(assetScore);
+      const sorted = allScores.map((s) => parseFloat(s)).sort((a, b) => b - a);
+      const rank = sorted.findIndex((s) => s === score) + 1;
+
+      expect(rank).toBe(2); // First occurrence of 80.0
+    });
+
+    it("handles single asset (rank 1 of 1)", () => {
+      const assetScore = "85.5";
+      const allScores = ["85.5"];
+
+      const score = parseFloat(assetScore);
+      const sorted = allScores.map((s) => parseFloat(s)).sort((a, b) => b - a);
+      const rank = sorted.findIndex((s) => s === score) + 1;
+      const total = sorted.length;
+      const percentile = Math.round(((total - rank) / total) * 100);
+
+      expect(rank).toBe(1);
+      expect(total).toBe(1);
+      expect(percentile).toBe(0); // Top position = 0 percentile
+    });
+
+    it("handles lowest score (100th percentile)", () => {
+      const assetScore = "50.0";
+      const allScores = ["90.0", "80.0", "70.0", "60.0", "50.0"];
+
+      const score = parseFloat(assetScore);
+      const sorted = allScores.map((s) => parseFloat(s)).sort((a, b) => b - a);
+      const rank = sorted.findIndex((s) => s === score) + 1;
+      const percentile = Math.round(((sorted.length - rank) / sorted.length) * 100);
+
+      expect(rank).toBe(5); // Last place
+      expect(percentile).toBe(0); // Bottom = 0 percentile
+    });
+  });
+
+  describe("Extended API Response Format", () => {
+    it("returns extended breakdown with new fields", () => {
+      const extendedResponse = {
+        data: {
+          item: {
+            assetId: "uuid",
+            symbol: "AAPL",
+            score: "85.5",
+            currentAllocation: "10.0",
+            targetAllocation: "15.0",
+            allocationGap: "5.0",
+            recommendedAmount: "500.00",
+            isOverAllocated: false,
+          },
+          calculation: {
+            inputs: {
+              currentValue: "1000.00",
+              portfolioTotal: "10000.00",
+              currentPercentage: "10.0",
+              targetRange: { min: "10.0", max: "20.0" },
+              score: "85.5",
+              criteriaVersion: "uuid",
+            },
+            steps: [],
+            result: {
+              recommendedAmount: "500.00",
+              reasoning: "Under-allocated with high score",
+            },
+          },
+          auditTrail: {
+            correlationId: "uuid",
+            generatedAt: "2026-01-02T00:00:00Z",
+            criteriaVersionId: "uuid",
+          },
+          // New fields for Story 6.4
+          topCriteria: [
+            {
+              criterionId: "1",
+              criterionName: "P/E Ratio",
+              pointsAwarded: 15,
+              actualValue: "12.5",
+            },
+            {
+              criterionId: "2",
+              criterionName: "Dividend Yield",
+              pointsAwarded: 10,
+              actualValue: "3.2%",
+            },
+            {
+              criterionId: "3",
+              criterionName: "Market Cap",
+              pointsAwarded: 8,
+              actualValue: "2.5T",
+            },
+          ],
+          expectedAllocationAfter: "13.64",
+          scoreRanking: {
+            percentile: 80,
+            rank: 1,
+            total: 5,
+          },
+        },
+      };
+
+      expect(extendedResponse.data).toHaveProperty("topCriteria");
+      expect(extendedResponse.data).toHaveProperty("expectedAllocationAfter");
+      expect(extendedResponse.data).toHaveProperty("scoreRanking");
+      expect(extendedResponse.data.topCriteria).toHaveLength(3);
+      expect(extendedResponse.data.scoreRanking.rank).toBe(1);
     });
   });
 });

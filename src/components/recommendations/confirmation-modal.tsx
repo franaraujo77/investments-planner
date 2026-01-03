@@ -40,6 +40,7 @@ import { Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 import { InvestmentAmountRow } from "./investment-amount-row";
 import { AllocationComparisonView } from "./allocation-comparison-view";
 import { formatCurrency } from "@/lib/utils/currency-format";
+import Decimal from "decimal.js";
 import type { RecommendationDisplayItem } from "@/hooks/use-recommendations";
 import type { ConfirmInvestmentResult } from "@/lib/types/recommendations";
 
@@ -84,13 +85,18 @@ export interface ConfirmationModalProps {
 // =============================================================================
 
 /**
- * Calculate total from all amounts
+ * Calculate total from all amounts using Decimal.js for precision
  */
-function calculateTotal(amounts: Record<string, string>): number {
+function calculateTotal(amounts: Record<string, string>): Decimal {
   return Object.values(amounts).reduce((sum, amt) => {
-    const num = parseFloat(amt);
-    return sum + (isNaN(num) ? 0 : num);
-  }, 0);
+    try {
+      const num = new Decimal(amt || "0");
+      return sum.plus(num);
+    } catch {
+      // Invalid decimal string, treat as 0
+      return sum;
+    }
+  }, new Decimal(0));
 }
 
 /**
@@ -150,11 +156,11 @@ export function ConfirmationModal({
     }
   }, [open, initialAmounts]);
 
-  // Calculate totals for real-time display (AC-7.8.2)
+  // Calculate totals for real-time display (AC-7.8.2) using Decimal.js for precision
   const currentTotal = useMemo(() => calculateTotal(amounts), [amounts]);
-  const availableCapital = parseFloat(totalInvestable);
-  const remaining = availableCapital - currentTotal;
-  const isOverBudget = remaining < -0.01; // Allow small floating point tolerance
+  const availableCapital = new Decimal(totalInvestable || "0");
+  const remaining = availableCapital.minus(currentTotal);
+  const isOverBudget = remaining.lessThan(new Decimal("-0.01")); // Allow small tolerance
 
   // Handle amount change
   const handleAmountChange = useCallback((assetId: string, amount: string) => {
@@ -179,10 +185,8 @@ export function ConfirmationModal({
       return;
     }
 
-    // Validate total <= available (AC-7.8.5)
-    if (isOverBudget) {
-      return; // Button should already be disabled
-    }
+    // AC-6.5.5: Over-budget is allowed - users may have additional funds beyond the recommendation
+    // No longer block confirmation based on isOverBudget
 
     // Build investment data
     const investmentData = items
@@ -194,11 +198,15 @@ export function ConfirmationModal({
         assetId: item.assetId,
         ticker: item.symbol,
         actualAmount: amounts[item.assetId] ?? "0",
-        pricePerUnit: "1.00", // TODO: Get actual price from market data
+        // TODO(epic-7): Integrate real-time market price data
+        // Currently hardcoded to 1.00 as placeholder. When market data integration
+        // is complete (Story 5.1), fetch actual pricePerUnit from asset_prices table.
+        // Tracking: This affects investment unit calculations for portfolio history.
+        pricePerUnit: "1.00",
       }));
 
     await onConfirm(investmentData);
-  }, [amounts, items, isOverBudget, onConfirm]);
+  }, [amounts, items, onConfirm]);
 
   // Sort items: investable assets first, then over-allocated
   const sortedItems = useMemo(() => {
@@ -215,7 +223,7 @@ export function ConfirmationModal({
   // Format values for display
   const formattedTotal = formatCurrency(currentTotal.toString(), baseCurrency);
   const formattedAvailable = formatCurrency(totalInvestable, baseCurrency);
-  const formattedRemaining = formatCurrency(Math.abs(remaining).toString(), baseCurrency);
+  const formattedRemaining = formatCurrency(remaining.abs().toString(), baseCurrency);
 
   // Count investable vs over-allocated
   const investableCount = items.filter((i) => !i.isOverAllocated).length;
@@ -235,11 +243,14 @@ export function ConfirmationModal({
           after confirmation completes successfully
         */}
         {showSuccess && confirmationResult ? (
-          /* SUCCESS STATE - AC-7.10.1, AC-7.10.2, AC-7.10.3 */
+          /* SUCCESS STATE - AC-7.10.1, AC-7.10.2, AC-7.10.3, AC-6.6.3, AC-6.6.5 */
           <AllocationComparisonView
             before={confirmationResult.allocations.before}
             after={confirmationResult.allocations.after}
             onNavigateToPortfolio={handleNavigateToPortfolio}
+            showPieCharts={true}
+            portfolioSummary={confirmationResult.portfolioSummary}
+            currency={baseCurrency}
           />
         ) : (
           /* CONFIRMATION FORM STATE */
@@ -261,26 +272,26 @@ export function ConfirmationModal({
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Your Total</p>
                 <p
-                  className={`text-lg font-semibold ${isOverBudget ? "text-destructive" : "text-green-600"}`}
+                  className={`text-lg font-semibold ${isOverBudget ? "text-blue-600" : "text-green-600"}`}
                 >
                   {formattedTotal}
                 </p>
               </div>
             </div>
 
-            {/* Over-budget warning */}
+            {/* Over-budget info - AC-6.5.5: System accepts higher amounts */}
             {isOverBudget && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+              <Alert>
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
                 <AlertDescription>
-                  Your total exceeds available capital by {formattedRemaining}. Please reduce
-                  amounts.
+                  You&apos;re investing {formattedRemaining} more than your available capital. This
+                  is allowed if you have additional funds.
                 </AlertDescription>
               </Alert>
             )}
 
             {/* Remaining indicator */}
-            {!isOverBudget && remaining > 0.01 && (
+            {!isOverBudget && remaining.greaterThan(new Decimal("0.01")) && (
               <Alert>
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription>{formattedRemaining} remaining to allocate.</AlertDescription>
@@ -338,7 +349,7 @@ export function ConfirmationModal({
               </Button>
               <Button
                 onClick={handleConfirm}
-                disabled={isSubmitting || isOverBudget || Object.keys(errors).length > 0}
+                disabled={isSubmitting || Object.keys(errors).length > 0}
               >
                 {isSubmitting ? (
                   <>

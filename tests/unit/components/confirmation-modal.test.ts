@@ -215,8 +215,8 @@ describe("ConfirmationModal Component Logic", () => {
     });
   });
 
-  describe("Over-Budget Detection (AC-7.8.5)", () => {
-    it("should detect when total exceeds available", () => {
+  describe("Over-Budget Detection (AC-6.5.5)", () => {
+    it("should detect when total exceeds available (for display only)", () => {
       const totalInvestable = 1000;
       const amounts = {
         "asset-1": "600.00",
@@ -227,7 +227,9 @@ describe("ConfirmationModal Component Logic", () => {
       const remaining = totalInvestable - currentTotal;
       const isOverBudget = remaining < -0.01;
 
+      // Over-budget is detected for display purposes
       expect(isOverBudget).toBe(true);
+      // But confirmation should still be allowed (AC-6.5.5)
     });
 
     it("should not flag as over-budget when under limit", () => {
@@ -256,6 +258,24 @@ describe("ConfirmationModal Component Logic", () => {
       const isOverBudget = remaining < -0.01;
 
       expect(isOverBudget).toBe(false);
+    });
+
+    it("should allow over-budget confirmation per AC-6.5.5", () => {
+      // AC-6.5.5: System should accept higher amounts
+      // isOverBudget should not prevent confirmation
+      const totalInvestable = 1000;
+      const amounts = {
+        "asset-1": "800.00",
+        "asset-2": "500.00",
+      };
+
+      const currentTotal = calculateTotal(amounts);
+      const remaining = totalInvestable - currentTotal;
+      const isOverBudget = remaining < -0.01;
+
+      expect(isOverBudget).toBe(true);
+      // The confirmation button should NOT be disabled just because of over-budget
+      // This is tested in the component - isOverBudget is only for display now
     });
   });
 

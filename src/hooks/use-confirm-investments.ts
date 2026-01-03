@@ -148,9 +148,12 @@ export function useConfirmInvestments(
 
         setResult(confirmResult);
 
-        // AC-7.8.4: Success toast notification
-        toast.success("Investments confirmed!", {
-          description: `${confirmResult.summary.assetsUpdated} assets updated with ${formatAmount(confirmResult.summary.totalInvested)} invested.`,
+        // AC-6.5.4: Success toast with "{Month} investments recorded" format
+        // Use undefined locale to respect user's browser/system locale preference
+        const monthName = new Intl.DateTimeFormat(undefined, { month: "long" }).format(new Date());
+        const assetCount = confirmResult.summary.assetsUpdated;
+        toast.success(`${monthName} investments recorded`, {
+          description: `${assetCount} asset${assetCount !== 1 ? "s" : ""} updated.`,
         });
 
         // Call success callback (for refetch)
@@ -188,18 +191,4 @@ export function useConfirmInvestments(
   };
 }
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-/**
- * Format amount for display in toast
- */
-function formatAmount(amount: string): string {
-  const num = parseFloat(amount);
-  if (isNaN(num)) return amount;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(num);
-}
+// Note: formatAmount helper removed - AC-6.5.4 changed toast format to not use currency

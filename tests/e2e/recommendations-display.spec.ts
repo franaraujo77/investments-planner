@@ -2,6 +2,7 @@
  * E2E Tests: Recommendation Display
  *
  * Story 6.3: Recommendation Display
+ * Story 6.4: Recommendation Details
  *
  * Tests:
  * AC-6.3.1: List of actionable recommendations with amount per asset
@@ -9,6 +10,10 @@
  * AC-6.3.3: Multi-asset summary with before/expected after allocation
  * AC-6.3.4: Card hover tooltip showing allocation details
  * AC-6.3.5: Mobile responsive layout
+ * AC-6.4.1: Why This Recommendation Panel
+ * AC-6.4.2: Allocation Math Display
+ * AC-6.4.3: Score Contribution Display
+ * AC-6.4.4: Full Calculation Details
  *
  * Prerequisites:
  * - User logged in
@@ -355,6 +360,348 @@ test.describe("Recommendation Display", () => {
         (await page.getByTestId("balanced-portfolio-state").isVisible());
 
       expect(hasContent).toBe(true);
+    });
+  });
+
+  // ===========================================================================
+  // Story 6.4: Recommendation Details
+  // ===========================================================================
+
+  test.describe("AC-6.4.1: Why This Recommendation Panel", () => {
+    test("should display 'Why?' button on recommendation card", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await expect(whyButton).toBeVisible();
+      }
+    });
+
+    test("should open details panel when 'Why?' button is clicked", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        // Click the Why button
+        await whyButton.click();
+
+        // Panel should appear
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+      }
+    });
+
+    test("should display panel title with symbol", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        // Click the Why button
+        await whyButton.click();
+
+        // Wait for panel
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Check title contains "Why This Recommendation?"
+        const title = page.getByTestId("details-title");
+        await expect(title).toContainText("Why This Recommendation?");
+      }
+    });
+
+    test("should display score ranking section", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Score & Ranking section should be visible
+        const scoreSection = page.getByTestId("score-ranking-section");
+        await expect(scoreSection).toBeVisible();
+
+        // Ranking badge should be present
+        const rankingBadge = page.getByTestId("ranking-badge");
+        await expect(rankingBadge).toBeVisible();
+      }
+    });
+
+    test("should have link to full score breakdown", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Score breakdown link should be visible
+        const breakdownLink = page.getByTestId("score-breakdown-link");
+        await expect(breakdownLink).toBeVisible();
+        await expect(breakdownLink).toHaveAttribute("href", /\/scores\//);
+      }
+    });
+  });
+
+  test.describe("AC-6.4.2: Allocation Math Display", () => {
+    test("should display allocation section with all fields", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Allocation section should be visible
+        const allocationSection = page.getByTestId("allocation-section");
+        await expect(allocationSection).toBeVisible();
+
+        // Key allocation fields should be present
+        await expect(allocationSection.getByText("Current")).toBeVisible();
+        await expect(allocationSection.getByText("Target Range")).toBeVisible();
+        await expect(allocationSection.getByText("Gap")).toBeVisible();
+        await expect(allocationSection.getByText("Recommended")).toBeVisible();
+        await expect(allocationSection.getByText("Expected After")).toBeVisible();
+      }
+    });
+
+    test("should display allocation movement visualization", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Allocation movement should be visible
+        const allocationMovement = page.getByTestId("allocation-movement");
+        await expect(allocationMovement).toBeVisible();
+      }
+    });
+
+    test("should show over-allocated indicator for over-allocated assets", async ({ page }) => {
+      const overAllocatedCards = page.locator(
+        '[data-testid="recommendation-card"][data-over-allocated="true"]'
+      );
+      const cardCount = await overAllocatedCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = overAllocatedCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Over-allocated indicator should be visible
+        const overAllocatedIndicator = page.getByTestId("over-allocated-indicator");
+        await expect(overAllocatedIndicator).toBeVisible();
+      }
+    });
+  });
+
+  test.describe("AC-6.4.3: Score Contribution Display", () => {
+    test("should display top criteria section", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Criteria section should be visible
+        const criteriaSection = page.getByTestId("criteria-section");
+        await expect(criteriaSection).toBeVisible();
+      }
+    });
+
+    test("should display up to 3 top criteria initially", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Count visible criteria items (initially max 3)
+        const criteriaItems = page.locator('[data-testid^="criterion-"]');
+        const criteriaCount = await criteriaItems.count();
+
+        // Should show at most 3 criteria initially
+        expect(criteriaCount).toBeLessThanOrEqual(3);
+      }
+    });
+
+    test("should expand to show all criteria when toggle is clicked", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // If toggle button exists (more than 3 criteria)
+        const toggleBtn = page.getByTestId("toggle-criteria-btn");
+        const hasToggle = await toggleBtn.isVisible();
+
+        if (hasToggle) {
+          // Get initial count
+          const initialCount = await page.locator('[data-testid^="criterion-"]').count();
+
+          // Click toggle
+          await toggleBtn.click();
+
+          // Wait for animation
+          await page.waitForTimeout(300);
+
+          // Get new count - should be more
+          const expandedCount = await page.locator('[data-testid^="criterion-"]').count();
+          expect(expandedCount).toBeGreaterThan(initialCount);
+        }
+      }
+    });
+  });
+
+  test.describe("AC-6.4.4: Full Calculation Details", () => {
+    test("should display full calculation section collapsed by default", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Full calculation section should be visible (collapsed)
+        const fullCalcSection = page.getByTestId("full-calculation-section");
+        await expect(fullCalcSection).toBeVisible();
+
+        // Content should be hidden by default
+        const fullCalcContent = page.getByTestId("full-calculation-content");
+        await expect(fullCalcContent).not.toBeVisible();
+      }
+    });
+
+    test("should expand full calculation when clicked", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Click the trigger to expand
+        const fullCalcTrigger = page.getByTestId("full-calculation-trigger");
+        await fullCalcTrigger.click();
+
+        // Content should now be visible
+        const fullCalcContent = page.getByTestId("full-calculation-content");
+        await expect(fullCalcContent).toBeVisible({ timeout: 2000 });
+      }
+    });
+
+    test("should display audit trail information when expanded", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        const firstCard = recommendationCards.first();
+        const whyButton = firstCard.getByTestId("why-button");
+
+        await whyButton.click();
+
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Expand the full calculation section
+        const fullCalcTrigger = page.getByTestId("full-calculation-trigger");
+        await fullCalcTrigger.click();
+
+        const fullCalcContent = page.getByTestId("full-calculation-content");
+        await expect(fullCalcContent).toBeVisible({ timeout: 2000 });
+
+        // Should contain audit trail information
+        await expect(fullCalcContent.getByText("Audit Trail")).toBeVisible();
+        await expect(fullCalcContent.getByText("Generated")).toBeVisible();
+      }
+    });
+  });
+
+  test.describe("Panel Accessibility", () => {
+    test("should be keyboard accessible", async ({ page }) => {
+      const recommendationCards = page.getByTestId("recommendation-card");
+      const cardCount = await recommendationCards.count();
+
+      if (cardCount > 0) {
+        // Focus and press Enter on Why button
+        const whyButton = page.getByTestId("why-button").first();
+        await whyButton.focus();
+        await whyButton.press("Enter");
+
+        // Panel should open
+        const detailsPanel = page.getByTestId("recommendation-details-panel");
+        await expect(detailsPanel).toBeVisible({ timeout: 5000 });
+
+        // Press Escape to close
+        await page.keyboard.press("Escape");
+
+        // Panel should close
+        await expect(detailsPanel).not.toBeVisible();
+      }
     });
   });
 });
