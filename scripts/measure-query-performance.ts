@@ -27,7 +27,7 @@ async function measurePerformance() {
       await sql.end();
       return;
     }
-    const userId = users[0].id;
+    const userId = users[0]!.id;
     console.log(`Using user ID: ${userId}\n`);
 
     // Query 1: User + Type filtering (most common pattern)
@@ -105,9 +105,9 @@ async function measurePerformance() {
     console.log("\n" + "=".repeat(80));
     console.log("Dataset Statistics:");
     console.log("-".repeat(80));
-    console.log(`Total alerts: ${counts[0].total}`);
-    console.log(`Active alerts (is_dismissed = false): ${counts[0].active}`);
-    console.log(`Snoozed alerts: ${counts[0].snoozed}`);
+    console.log(`Total alerts: ${counts[0]!.total}`);
+    console.log(`Active alerts (is_dismissed = false): ${counts[0]!.active}`);
+    console.log(`Snoozed alerts: ${counts[0]!.snoozed}`);
 
     console.log("\n✅ Query plan analysis complete!");
   } catch (error) {
