@@ -96,6 +96,7 @@ describe("Alerts API Routes", () => {
         alerts: [mockAlert],
         totalCount: 1,
         metadata: { limit: 50, offset: 0 },
+        executionTimeMs: 10,
       });
 
       const { GET } = await import("@/app/api/alerts/route");
@@ -119,6 +120,7 @@ describe("Alerts API Routes", () => {
         alerts: [mockAlert],
         totalCount: 100,
         metadata: { limit: 10, offset: 20 },
+        executionTimeMs: 10,
       });
 
       const { GET } = await import("@/app/api/alerts/route");
@@ -138,6 +140,7 @@ describe("Alerts API Routes", () => {
         alerts: [mockAlert],
         totalCount: 1,
         metadata: { limit: 50, offset: 0 },
+        executionTimeMs: 10,
       });
 
       const { GET } = await import("@/app/api/alerts/route");
@@ -153,6 +156,7 @@ describe("Alerts API Routes", () => {
         alerts: [],
         totalCount: 0,
         metadata: { limit: 50, offset: 0 },
+        executionTimeMs: 10,
       });
 
       const { GET } = await import("@/app/api/alerts/route");
@@ -168,6 +172,7 @@ describe("Alerts API Routes", () => {
         alerts: [],
         totalCount: 0,
         metadata: { limit: 50, offset: 0 },
+        executionTimeMs: 10,
       });
 
       const { GET } = await import("@/app/api/alerts/route");
@@ -367,6 +372,7 @@ describe("Alerts API Routes", () => {
         alerts: [mockAlert],
         totalCount: 1,
         metadata: { limit: 50, offset: 0 },
+        executionTimeMs: 10,
       });
 
       const { GET } = await import("@/app/api/alerts/route");
@@ -390,6 +396,43 @@ describe("Alerts API Routes", () => {
       expect(alert.metadata.currentScore).toBe("70");
       expect(alert.metadata.betterScore).toBe("85");
       expect(alert.metadata.scoreDifference).toBe("15");
+    });
+  });
+
+  /**
+   * Story 7.14: AC-7.14.1 - X-Query-Time Response Header Tests
+   */
+  describe("Performance Monitoring Headers", () => {
+    it("should include X-Query-Time header in response (ungrouped)", async () => {
+      mockGetAlerts.mockResolvedValue({
+        alerts: [],
+        totalCount: 0,
+        metadata: { limit: 50, offset: 0 },
+        executionTimeMs: 25, // AC-7.14.1
+      });
+
+      const { GET } = await import("@/app/api/alerts/route");
+      const request = new NextRequest("http://localhost:3000/api/alerts");
+      const response = await GET(request);
+
+      // AC-7.14.1: Verify X-Query-Time header is present
+      expect(response.headers.get("X-Query-Time")).toBe("25");
+    });
+
+    it("should include X-Query-Time header for slow queries", async () => {
+      mockGetAlerts.mockResolvedValue({
+        alerts: [],
+        totalCount: 0,
+        metadata: { limit: 50, offset: 0 },
+        executionTimeMs: 150, // >100ms threshold
+      });
+
+      const { GET } = await import("@/app/api/alerts/route");
+      const request = new NextRequest("http://localhost:3000/api/alerts");
+      const response = await GET(request);
+
+      // AC-7.14.1: Verify X-Query-Time header shows slow execution
+      expect(response.headers.get("X-Query-Time")).toBe("150");
     });
   });
 });

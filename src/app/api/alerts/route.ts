@@ -142,16 +142,24 @@ export const GET = withAuth<AlertListResponse | GroupedAlertListResponse | AuthE
           offset,
         });
 
-        return NextResponse.json<GroupedAlertListResponse>({
-          data: {
-            groups: result.groups,
-            ungrouped: result.ungrouped,
+        // Story 7.14: AC-7.14.1 - Add X-Query-Time header
+        return NextResponse.json<GroupedAlertListResponse>(
+          {
+            data: {
+              groups: result.groups,
+              ungrouped: result.ungrouped,
+            },
+            meta: {
+              totalCount: result.totalCount,
+              totalGroups: result.totalGroups,
+            },
           },
-          meta: {
-            totalCount: result.totalCount,
-            totalGroups: result.totalGroups,
-          },
-        });
+          {
+            headers: {
+              "X-Query-Time": result.executionTimeMs.toString(),
+            },
+          }
+        );
       }
 
       // AC-7.12.4: Default ungrouped format (backward compatible)
@@ -167,15 +175,23 @@ export const GET = withAuth<AlertListResponse | GroupedAlertListResponse | AuthE
 
       const totalPages = Math.ceil(result.totalCount / limit);
 
-      return NextResponse.json<AlertListResponse>({
-        data: result.alerts,
-        meta: {
-          page,
-          limit,
-          totalCount: result.totalCount,
-          totalPages,
+      // Story 7.14: AC-7.14.1 - Add X-Query-Time header
+      return NextResponse.json<AlertListResponse>(
+        {
+          data: result.alerts,
+          meta: {
+            page,
+            limit,
+            totalCount: result.totalCount,
+            totalPages,
+          },
         },
-      });
+        {
+          headers: {
+            "X-Query-Time": result.executionTimeMs.toString(),
+          },
+        }
+      );
     } catch (error) {
       const dbError = handleDbError(error, "list alerts", { userId: session.userId });
       return databaseError(dbError, "alerts");

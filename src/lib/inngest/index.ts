@@ -6,6 +6,7 @@
  * Story 2.5: Password Reset Flow
  * Story 1.6: GDPR Compliance - Data Export and Deletion Emails
  * Story 8.1: Inngest Job Infrastructure
+ * Story 7.14: Dismissed Pairs Cleanup Job
  * Architecture: ADR-003 - Background Jobs Framework
  *
  * Exports the Inngest client and all functions.
@@ -19,6 +20,7 @@ export { sendPasswordResetEmailJob } from "./functions/send-password-reset-email
 export { overnightScoringJob } from "./functions/overnight-scoring";
 export { generateDataExport } from "./functions/generate-data-export";
 export { sendAccountDeletionEmailJob } from "./functions/send-account-deletion-email";
+export { cleanupDismissedPairsFunction } from "./functions/cleanup-dismissed-pairs";
 
 // Export all functions array for Inngest serve
 import { purgeDeletedUser } from "./functions/purge-deleted-user";
@@ -27,6 +29,7 @@ import { sendPasswordResetEmailJob } from "./functions/send-password-reset-email
 import { overnightScoringJob } from "./functions/overnight-scoring";
 import { generateDataExport } from "./functions/generate-data-export";
 import { sendAccountDeletionEmailJob } from "./functions/send-account-deletion-email";
+import { cleanupDismissedPairsFunction } from "./functions/cleanup-dismissed-pairs";
 
 export const functions = [
   purgeDeletedUser,
@@ -35,4 +38,5 @@ export const functions = [
   overnightScoringJob,
   generateDataExport,
   sendAccountDeletionEmailJob,
+  cleanupDismissedPairsFunction,
 ];

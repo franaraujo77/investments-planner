@@ -97,6 +97,7 @@ export interface AlertQueryOptions {
 
 /**
  * Alert query result with pagination
+ * Story 7.14: AC-7.14.1 - Includes execution time for performance monitoring
  */
 export interface AlertQueryResult {
   /** List of alerts */
@@ -108,6 +109,8 @@ export interface AlertQueryResult {
     limit: number;
     offset: number;
   };
+  /** Query execution time in milliseconds (Story 7.14: AC-7.14.1) */
+  executionTimeMs: number;
 }
 
 /**
@@ -127,6 +130,7 @@ export interface AlertGroup {
 
 /**
  * Story 7.12: AC-7.12.3 - Grouped alerts query result
+ * Story 7.14: AC-7.14.1 - Includes execution time for performance monitoring
  * Response structure for server-side grouped alerts
  */
 export interface GroupedAlertsResult {
@@ -138,6 +142,8 @@ export interface GroupedAlertsResult {
   totalCount: number;
   /** Total number of groups */
   totalGroups: number;
+  /** Query execution time in milliseconds (Story 7.14: AC-7.14.1) */
+  executionTimeMs: number;
 }
 
 /**
@@ -299,11 +305,16 @@ export class AlertService {
   /**
    * Get alerts with filtering and pagination
    *
+   * Story 7.14: AC-7.14.1 - Performance monitoring for alert queries
+   *
    * @param userId - User ID (tenant isolation)
    * @param options - Query options for filtering and pagination
-   * @returns Alert query result with pagination info
+   * @returns Alert query result with pagination info and execution time
    */
   async getAlerts(userId: string, options?: AlertQueryOptions): Promise<AlertQueryResult> {
+    // Story 7.14: AC-7.14.1 - Start performance measurement
+    const startTime = performance.now();
+
     const limit = Math.min(options?.limit ?? 50, 100);
     const offset = options?.offset ?? 0;
 
@@ -339,18 +350,40 @@ export class AlertService {
 
     const totalCount = countResult[0]?.count ?? 0;
 
-    logger.debug("Retrieved alerts with pagination", {
+    // Story 7.14: AC-7.14.1 - Calculate execution time
+    const executionTimeMs = Math.round(performance.now() - startTime);
+
+    // Story 7.14: AC-7.14.1 - Log performance metrics with structured telemetry
+    logger.info("Alert grouping query executed", {
       userId,
+      queryType: "alert_grouping",
+      executionTimeMs,
+      alertCount: result.length,
+      slowQueryWarning: executionTimeMs > 100,
       limit,
       offset,
-      resultCount: result.length,
       totalCount,
     });
+
+    // Story 7.14: AC-7.14.1 - Log warning for slow queries
+    if (executionTimeMs > 100) {
+      logger.warn("Alert query exceeded performance threshold", {
+        userId,
+        queryType: "alert_grouping",
+        executionTimeMs,
+        threshold: 100,
+        alertCount: result.length,
+        ...(options?.type && { filterType: options.type }),
+        ...(options?.isRead !== undefined && { filterIsRead: options.isRead }),
+        ...(options?.isDismissed !== undefined && { filterIsDismissed: options.isDismissed }),
+      });
+    }
 
     return {
       alerts: result,
       totalCount,
       metadata: { limit, offset },
+      executionTimeMs, // Story 7.14: AC-7.14.1
     };
   }
 
@@ -372,7 +405,8 @@ export class AlertService {
     userId: string,
     options?: AlertQueryOptions
   ): Promise<GroupedAlertsResult> {
-    const startTime = Date.now();
+    // Story 7.14: AC-7.14.1 - Use performance.now() for precise timing
+    const startTime = performance.now();
     const limit = Math.min(options?.limit ?? 100, 1000); // Max 1000 alerts to prevent OOM
     const offset = options?.offset ?? 0;
 
@@ -499,14 +533,18 @@ export class AlertService {
       .where(and(...conditions));
 
     const totalCount = countResult[0]?.count ?? 0;
-    const queryDuration = Date.now() - startTime;
 
-    // AC-7.12.5: Performance metric tracking
-    logger.info("Retrieved grouped alerts with SQL aggregation", {
+    // Story 7.14: AC-7.14.1 - Calculate execution time using performance.now()
+    const executionTimeMs = Math.round(performance.now() - startTime);
+
+    // Story 7.14: AC-7.14.1 - Log performance metrics with structured telemetry
+    logger.info("Alert grouping query executed", {
       userId,
-      queryDuration,
+      queryType: "alert_grouping",
+      executionTimeMs,
+      alertCount: allAlerts.length,
+      slowQueryWarning: executionTimeMs > 100,
       totalGroups: groups.length,
-      totalAlerts: allAlerts.length,
       ungroupedCount: ungroupedAlerts.length,
       limit,
       offset,
@@ -514,13 +552,15 @@ export class AlertService {
       avgAlertsPerGroup: groups.length > 0 ? allAlerts.length / groups.length : 0,
     });
 
-    // Performance warning if query is slow
-    if (queryDuration > 50) {
-      logger.warn("Grouped alerts query exceeded performance target", {
+    // Story 7.14: AC-7.14.1 - Log warning for slow queries (>100ms threshold)
+    if (executionTimeMs > 100) {
+      logger.warn("Alert query exceeded performance threshold", {
         userId,
-        queryDuration,
-        target: 50,
+        queryType: "alert_grouping",
+        executionTimeMs,
+        threshold: 100,
         alertCount: totalCount,
+        totalGroups: groups.length,
       });
     }
 
@@ -529,6 +569,7 @@ export class AlertService {
       ungrouped: ungroupedAlerts,
       totalCount,
       totalGroups: groups.length,
+      executionTimeMs, // Story 7.14: AC-7.14.1
     };
   }
 

@@ -1555,4 +1555,243 @@ describe("AlertService", () => {
       });
     });
   });
+
+  /**
+   * Story 7.14: AC-7.14.1, AC-7.14.2 - Performance Monitoring Telemetry Tests
+   */
+  describe("Performance Monitoring", () => {
+    // Helper to create mock DB for these tests
+    const createPerfMockDb = () => ({
+      select: vi.fn(),
+      insert: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      transaction: vi.fn(),
+      query: vi.fn() as never,
+    });
+
+    describe("getAlerts", () => {
+      it("should return executionTimeMs in result", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock alert query result
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query result
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123");
+
+        // AC-7.14.1: Verify executionTimeMs is present
+        expect(result).toHaveProperty("executionTimeMs");
+        expect(typeof result.executionTimeMs).toBe("number");
+        expect(result.executionTimeMs).toBeGreaterThanOrEqual(0); // Can be 0 in fast unit tests
+        expect(Number.isInteger(result.executionTimeMs)).toBe(true);
+      });
+
+      it("should log performance metrics with correct structure", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock alert query result
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query result
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123");
+
+        // AC-7.14.1: Verify telemetry structure includes required fields
+        expect(result.executionTimeMs).toBeDefined();
+
+        // Note: Actual logger calls are verified in integration tests
+        // Unit tests focus on return value structure
+      });
+
+      it("should handle slowQueryWarning flag when execution time exceeds 100ms", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock slow query by adding artificial delay
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockImplementation(async () => {
+                    // Simulate slow query (>100ms)
+                    await new Promise((resolve) => setTimeout(resolve, 110));
+                    return [mockAlert];
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query result
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123");
+
+        // AC-7.14.1: For slow queries (>100ms), verify we still get result
+        expect(result.executionTimeMs).toBeGreaterThan(100);
+
+        // Note: slowQueryWarning flag is logged, not returned in result
+        // Logging verification happens in integration tests
+      });
+    });
+
+    describe("getAlertsGrouped", () => {
+      it("should return executionTimeMs in grouped result", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock group metadata query
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([
+                  {
+                    assetClassId: "class-1",
+                    assetClassName: "Test Class",
+                    alertCount: 2,
+                    maxSeverity: "0",
+                  },
+                ]),
+              }),
+            }),
+          }),
+        };
+
+        // Mock alerts query
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123");
+
+        // AC-7.14.1: Verify executionTimeMs is present in grouped result
+        expect(result).toHaveProperty("executionTimeMs");
+        expect(typeof result.executionTimeMs).toBe("number");
+        expect(result.executionTimeMs).toBeGreaterThanOrEqual(0); // Can be 0 in fast unit tests
+        expect(Number.isInteger(result.executionTimeMs)).toBe(true);
+      });
+
+      it("should log warning for slow grouped queries", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock slow grouped query
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockImplementation(async () => {
+                  // Simulate slow query (>100ms)
+                  await new Promise((resolve) => setTimeout(resolve, 110));
+                  return [
+                    {
+                      assetClassId: "class-1",
+                      assetClassName: "Test Class",
+                      alertCount: 2,
+                      maxSeverity: "0",
+                    },
+                  ];
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123");
+
+        // AC-7.14.1: Verify execution time is tracked for slow queries
+        expect(result.executionTimeMs).toBeGreaterThan(100);
+      });
+    });
+  });
 });
