@@ -2039,6 +2039,81 @@ So that **numbers are displayed with my preferred decimal and thousand separator
 **Then** `percentage` and `maxPossible` fields include raw numeric values
 **And** client-side formatting respects user locale
 
+### Story 7.12: Alerts List Server-Side Grouping Optimization
+
+As a **developer**,
+I want **to implement server-side grouping for alerts instead of client-side grouping**,
+So that **query performance remains optimal as alert volume grows beyond 100 alerts**.
+
+**Acceptance Criteria:**
+
+**Given** the alerts list currently fetches all alerts and groups them client-side
+**When** alert volume grows significantly (>100 alerts)
+**Then** this creates a potential N+1 query pattern inefficiency
+
+**Given** alerts are currently grouped by asset class in the client
+**When** implementing the optimization
+**Then** SQL GROUP BY should be used to group alerts server-side
+**And** reduce the data transfer and client-side processing
+
+**Given** the current implementation handles ≤100 alerts acceptably
+**When** planning the optimization
+**Then** this is a future optimization, not an immediate requirement
+**And** should be triggered when alert volume metrics indicate need
+
+**Given** server-side grouping is implemented
+**When** the API returns grouped alerts
+**Then** the response structure should include:
+
+- Asset class name
+- Alert count per class
+- Alerts array for that class
+- Sorting by alert priority within each group
+
+**Given** existing client code expects ungrouped alerts
+**When** the optimization is deployed
+**Then** ensure backward compatibility or coordinate frontend changes
+
+### Story 7.13: Alert Query Performance Indexes
+
+As a **developer**,
+I want **to add strategic database indexes for alert queries**,
+So that **alert filtering and retrieval remains performant at scale**.
+
+**Acceptance Criteria:**
+
+**Given** alerts are frequently queried by user_id and type
+**When** the database performs these queries
+**Then** a composite index should optimize this access pattern
+
+**Given** dismissed alerts should be excluded from most queries
+**When** creating the index
+**Then** use a partial index with `WHERE is_dismissed = false`
+**And** this reduces index size and improves query performance
+
+**Given** the recommended index structure
+**When** implementing
+**Then** create: `CREATE INDEX alerts_user_type_idx ON alerts(user_id, type) WHERE is_dismissed = false;`
+
+**Given** existing indexes are already in place
+**When** adding new indexes
+**Then** verify no duplicate or redundant indexes exist
+**And** ensure indexes on:
+
+- `snoozed_until` (for filtering active alerts)
+- `user_id` in `dismissed_opportunity_pairs`
+- Composite unique index on `(user_id, current_asset_id, better_asset_id)`
+
+**Given** indexes are added
+**When** measuring performance
+**Then** query execution plans should show index usage
+**And** alert list queries should complete in <50ms for typical datasets
+
+**Given** this is a future optimization
+**When** deciding implementation timing
+**Then** implement when alert query metrics show degradation
+**Or** when alert volume exceeds 500 alerts per user
+
 ---
 
 ## Summary
@@ -2051,5 +2126,7 @@ So that **numbers are displayed with my preferred decimal and thousand separator
 | 4         | Investment Strategy Configuration        | 6              | 15         |
 | 5         | Market Data & Scoring Engine             | 6              | 15         |
 | 6         | Investment Recommendations               | 6              | 13         |
-| 7         | Data Transparency & Alerts               | 7              | 9          |
-| **Total** |                                          | **44 stories** | **95 FRs** |
+| 7         | Data Transparency & Alerts               | 9 (+4 ad-hoc)  | 9          |
+| **Total** |                                          | **46 stories** | **95 FRs** |
+
+**Note:** Epic 7 stories 7.8-7.11 were added during implementation for enhancements and tech debt. Stories 7.12-7.13 are future performance optimizations.
