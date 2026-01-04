@@ -4,7 +4,7 @@
  * Story 9.1: Opportunity Alert (Better Asset Exists)
  * AC-9.1.3: Alert dismissible by user
  *
- * PATCH /api/alerts/[id]/dismiss - Dismiss alert
+ * PATCH /api/alerts/[alertId]/dismiss - Dismiss alert
  *
  * Returns:
  * - 200: Updated alert
@@ -36,13 +36,13 @@ interface AlertResponse {
 }
 
 /**
- * PATCH /api/alerts/[id]/dismiss
+ * PATCH /api/alerts/[alertId]/dismiss
  *
  * Dismisses a specific alert.
  * Requires authentication via withAuth middleware.
  *
  * Path params:
- * - id: Alert UUID
+ * - alertId: Alert UUID
  *
  * Response:
  * - data: Updated alert object
@@ -51,7 +51,7 @@ export const PATCH = withAuth<AlertResponse | AuthError>(async (request, session
   try {
     // Validate alert ID
     const resolvedParams = await params;
-    const alertIdResult = uuidSchema.safeParse(resolvedParams?.id);
+    const alertIdResult = uuidSchema.safeParse(resolvedParams?.alertId);
 
     if (!alertIdResult.success) {
       return errorResponse("Invalid alert ID format", VALIDATION_ERRORS.INVALID_UUID, 400);

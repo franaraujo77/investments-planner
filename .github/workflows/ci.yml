@@ -46,6 +46,9 @@ jobs:
       - name: Run linter
         run: pnpm lint
 
+      - name: Check route conflicts (Story 7.15)
+        run: pnpm check:routes
+
       - name: Run TypeScript type check
         run: pnpm exec tsc --noEmit
 

@@ -510,6 +510,9 @@ describe("withErrorHandling", () => {
 Run these commands before committing:
 
 ```bash
+# Route conflict validation (Story 7.15 - prevents production outages)
+pnpm check:routes
+
 # Type checking
 pnpm exec tsc --noEmit
 

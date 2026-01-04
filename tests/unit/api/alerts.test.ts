@@ -8,8 +8,8 @@
  *
  * Tests for:
  * - GET /api/alerts - List alerts with pagination
- * - PATCH /api/alerts/[id]/read - Mark alert as read
- * - PATCH /api/alerts/[id]/dismiss - Dismiss alert
+ * - PATCH /api/alerts/[alertId]/read - Mark alert as read
+ * - PATCH /api/alerts/[alertId]/dismiss - Dismiss alert
  * - DELETE /api/alerts/dismiss-all - Dismiss all alerts
  * - GET /api/alerts/unread/count - Get unread count
  */
@@ -196,17 +196,17 @@ describe("Alerts API Routes", () => {
     });
   });
 
-  describe("PATCH /api/alerts/[id]/read", () => {
+  describe("PATCH /api/alerts/[alertId]/read", () => {
     describe("AC-9.1.3: Alert dismissible by user (read is soft action)", () => {
       it("should return 200 with updated alert when marked as read", async () => {
         const readAlert = { ...mockAlert, isRead: true, readAt: new Date().toISOString() };
         mockMarkAsRead.mockResolvedValue(readAlert);
 
-        const { PATCH } = await import("@/app/api/alerts/[id]/read/route");
+        const { PATCH } = await import("@/app/api/alerts/[alertId]/read/route");
         const req = new NextRequest("http://localhost:3000/api/alerts/alert-123/read");
 
         const response = await PATCH(req, {
-          params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+          params: Promise.resolve({ alertId: "550e8400-e29b-41d4-a716-446655440000" }),
         });
         const json = await response.json();
 
@@ -217,22 +217,22 @@ describe("Alerts API Routes", () => {
       it("should return 404 when alert not found", async () => {
         mockMarkAsRead.mockResolvedValue(null);
 
-        const { PATCH } = await import("@/app/api/alerts/[id]/read/route");
+        const { PATCH } = await import("@/app/api/alerts/[alertId]/read/route");
         const req = new NextRequest("http://localhost:3000/api/alerts/nonexistent/read");
 
         const response = await PATCH(req, {
-          params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+          params: Promise.resolve({ alertId: "550e8400-e29b-41d4-a716-446655440000" }),
         });
 
         expect(response.status).toBe(404);
       });
 
       it("should return 400 for invalid alert ID format", async () => {
-        const { PATCH } = await import("@/app/api/alerts/[id]/read/route");
+        const { PATCH } = await import("@/app/api/alerts/[alertId]/read/route");
         const req = new NextRequest("http://localhost:3000/api/alerts/invalid-id/read");
 
         const response = await PATCH(req, {
-          params: Promise.resolve({ id: "invalid-id" }),
+          params: Promise.resolve({ alertId: "invalid-id" }),
         });
 
         expect(response.status).toBe(400);
@@ -240,7 +240,7 @@ describe("Alerts API Routes", () => {
     });
   });
 
-  describe("PATCH /api/alerts/[id]/dismiss", () => {
+  describe("PATCH /api/alerts/[alertId]/dismiss", () => {
     describe("AC-9.1.3: Alert dismissible by user", () => {
       it("should return 200 with dismissed alert", async () => {
         const dismissedAlert = {
@@ -250,11 +250,11 @@ describe("Alerts API Routes", () => {
         };
         mockDismissAlert.mockResolvedValue(dismissedAlert);
 
-        const { PATCH } = await import("@/app/api/alerts/[id]/dismiss/route");
+        const { PATCH } = await import("@/app/api/alerts/[alertId]/dismiss/route");
         const req = new NextRequest("http://localhost:3000/api/alerts/alert-123/dismiss");
 
         const response = await PATCH(req, {
-          params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+          params: Promise.resolve({ alertId: "550e8400-e29b-41d4-a716-446655440000" }),
         });
         const json = await response.json();
 
@@ -265,22 +265,22 @@ describe("Alerts API Routes", () => {
       it("should return 404 when alert not found", async () => {
         mockDismissAlert.mockResolvedValue(null);
 
-        const { PATCH } = await import("@/app/api/alerts/[id]/dismiss/route");
+        const { PATCH } = await import("@/app/api/alerts/[alertId]/dismiss/route");
         const req = new NextRequest("http://localhost:3000/api/alerts/nonexistent/dismiss");
 
         const response = await PATCH(req, {
-          params: Promise.resolve({ id: "550e8400-e29b-41d4-a716-446655440000" }),
+          params: Promise.resolve({ alertId: "550e8400-e29b-41d4-a716-446655440000" }),
         });
 
         expect(response.status).toBe(404);
       });
 
       it("should return 400 for invalid alert ID format", async () => {
-        const { PATCH } = await import("@/app/api/alerts/[id]/dismiss/route");
+        const { PATCH } = await import("@/app/api/alerts/[alertId]/dismiss/route");
         const req = new NextRequest("http://localhost:3000/api/alerts/bad-id/dismiss");
 
         const response = await PATCH(req, {
-          params: Promise.resolve({ id: "bad-id" }),
+          params: Promise.resolve({ alertId: "bad-id" }),
         });
 
         expect(response.status).toBe(400);

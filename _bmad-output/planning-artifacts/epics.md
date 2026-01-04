@@ -2114,6 +2114,57 @@ So that **alert filtering and retrieval remains performant at scale**.
 **Then** implement when alert query metrics show degradation
 **Or** when alert volume exceeds 500 alerts per user
 
+### Story 7.14: Alerts Performance Monitoring and Cleanup Job Tests
+
+As a **developer**,
+I want **performance monitoring for grouped alerts SQL aggregation and integration tests for dismissed pairs cleanup**,
+So that **we can track query performance in production and ensure cleanup jobs work correctly**.
+
+**Acceptance Criteria:**
+
+**Given** the server-side alert grouping query executes
+**When** the query fetches grouped alerts for a user
+**Then** query execution time is logged with structured telemetry
+**And** includes: userId, queryType, executionTimeMs, alertCount
+
+**Given** dismissed opportunity pairs exist in the database
+**When** the cleanup job runs
+**Then** pairs older than 90 days are deleted
+**And** pairs within 90 days are retained
+
+**Given** the cleanup job encounters a database error
+**When** the job fails mid-execution
+**Then** a transaction rollback occurs
+**And** no partial deletes are committed
+
+### Story 7.15: Fix Next.js Routing Conflict - Critical Production Blocker
+
+As a **developer**,
+I want **to fix the Next.js routing conflict between `[alertId]` and `[id]` dynamic route parameters**,
+So that **the application can initialize properly and users can access all API routes including login**.
+
+**Acceptance Criteria:**
+
+**Given** the alerts API has routes with conflicting dynamic parameter names
+**When** the server initializes and builds the route tree
+**Then** all dynamic route parameters at the same path level use consistent naming (`[alertId]`)
+**And** Next.js successfully builds the route tree without errors
+
+**Given** the read and dismiss alert route handlers reference `params.id`
+**When** the routes are updated
+**Then** handlers correctly read `params.alertId`
+**And** UUID validation succeeds
+
+**Given** all route parameter references are updated
+**When** running production build or deploying to Vercel
+**Then** the build completes successfully without routing errors
+**And** no "different slug names" error appears in logs
+
+**Given** the routing conflict is fixed
+**When** a user submits the login form
+**Then** the `/api/auth/login` route responds successfully
+**And** authentication completes without hanging
+
 ---
 
 ## Summary
@@ -2126,7 +2177,7 @@ So that **alert filtering and retrieval remains performant at scale**.
 | 4         | Investment Strategy Configuration        | 6              | 15         |
 | 5         | Market Data & Scoring Engine             | 6              | 15         |
 | 6         | Investment Recommendations               | 6              | 13         |
-| 7         | Data Transparency & Alerts               | 9 (+4 ad-hoc)  | 9          |
-| **Total** |                                          | **46 stories** | **95 FRs** |
+| 7         | Data Transparency & Alerts               | 13 (+2 ad-hoc) | 9          |
+| **Total** |                                          | **50 stories** | **95 FRs** |
 
-**Note:** Epic 7 stories 7.8-7.11 were added during implementation for enhancements and tech debt. Stories 7.12-7.13 are future performance optimizations.
+**Note:** Epic 7 stories 7.8-7.11 were added during implementation for enhancements and tech debt. Stories 7.12-7.13 are performance optimizations. Stories 7.14-7.15 are technical enhancements and critical fixes.

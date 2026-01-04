@@ -4,7 +4,7 @@
  * Story 9.1: Opportunity Alert (Better Asset Exists)
  * AC-9.1.3: Alert dismissible by user (read is a soft action)
  *
- * PATCH /api/alerts/[id]/read - Mark alert as read
+ * PATCH /api/alerts/[alertId]/read - Mark alert as read
  *
  * Returns:
  * - 200: Updated alert
@@ -36,13 +36,13 @@ interface AlertResponse {
 }
 
 /**
- * PATCH /api/alerts/[id]/read
+ * PATCH /api/alerts/[alertId]/read
  *
  * Marks a specific alert as read.
  * Requires authentication via withAuth middleware.
  *
  * Path params:
- * - id: Alert UUID
+ * - alertId: Alert UUID
  *
  * Response:
  * - data: Updated alert object
@@ -51,7 +51,7 @@ export const PATCH = withAuth<AlertResponse | AuthError>(async (request, session
   try {
     // Validate alert ID
     const resolvedParams = await params;
-    const alertIdResult = uuidSchema.safeParse(resolvedParams?.id);
+    const alertIdResult = uuidSchema.safeParse(resolvedParams?.alertId);
 
     if (!alertIdResult.success) {
       return errorResponse("Invalid alert ID format", VALIDATION_ERRORS.INVALID_UUID, 400);
