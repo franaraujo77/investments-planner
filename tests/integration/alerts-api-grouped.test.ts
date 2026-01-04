@@ -15,12 +15,20 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { createTestUser, deleteTestUser } from "../helpers/test-user";
+import {
+  createTestUser,
+  deleteTestUser,
+  isDatabaseAvailable,
+  getDatabaseSkipMessage,
+} from "../helpers";
 import { getAuthHeaders } from "../helpers/auth-headers";
 import { alertService, ALERT_TYPES, ALERT_SEVERITIES } from "@/lib/services/alert-service";
 import Decimal from "decimal.js";
 
-describe("Story 7.12: Alerts API - Server-Side Grouping", () => {
+// Check database availability before running tests
+const dbAvailable = await isDatabaseAvailable();
+
+describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", () => {
   let testUserId: string;
   let authHeaders: Record<string, string>;
   let alertIds: string[] = [];
@@ -29,7 +37,7 @@ describe("Story 7.12: Alerts API - Server-Side Grouping", () => {
     // Create test user and get auth headers
     const user = await createTestUser();
     testUserId = user.userId;
-    authHeaders = await getAuthHeaders(user.email, "password123");
+    authHeaders = await getAuthHeaders(testUserId);
   });
 
   afterAll(async () => {
@@ -449,3 +457,9 @@ describe("Story 7.12: Alerts API - Server-Side Grouping", () => {
     });
   });
 });
+
+// Log skip message if database unavailable
+if (!dbAvailable) {
+  console.log("\n⚠️  Integration tests skipped:");
+  console.log(getDatabaseSkipMessage());
+}

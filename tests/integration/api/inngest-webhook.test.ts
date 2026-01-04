@@ -107,8 +107,11 @@ describe("Inngest Webhook Handler", () => {
       expect(functionIds).toContain("investments-planner-generate-data-export");
       expect(functionIds).toContain("investments-planner-send-account-deletion-email");
 
-      // Total should be 6 functions
-      expect(functions.length).toBe(6);
+      // Story 7.14: Dismissed pairs cleanup function
+      expect(functionIds).toContain("investments-planner-cleanup-dismissed-pairs");
+
+      // Total should be 7 functions (Story 7.14 added 7th function, Story 7.16 updated this test)
+      expect(functions.length).toBe(7);
     });
   });
 
