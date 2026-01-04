@@ -2,8 +2,13 @@
  * Integration Tests: Alert Grouping Query Performance Monitoring
  *
  * Story 7.14: AC-7.14.5
+ * Story 7.17: Graceful database handling pattern applied
  *
  * Tests the performance monitoring instrumentation added to alert grouping queries.
+ *
+ * **Database Requirement:** These tests skip gracefully when no database is available.
+ * See tests/helpers/db-check.ts for availability check implementation.
+ *
  * Verifies:
  * - Query completes within acceptable time (<50ms in test environment)
  * - Telemetry is emitted with correct structure
@@ -23,8 +28,12 @@ import { db } from "@/lib/db";
 import { alerts, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/telemetry/logger";
+import { isDatabaseAvailable, getDatabaseSkipMessage } from "@tests/helpers";
 
-describe("Alert Grouping Performance Monitoring", () => {
+// Check database availability before test suite
+const dbAvailable = await isDatabaseAvailable();
+
+describe.skipIf(!dbAvailable)("Alert Grouping Performance Monitoring", () => {
   const testUserId = "perf-test-user-id";
   let alertService: AlertService;
 
@@ -480,3 +489,9 @@ describe("Alert Grouping Performance Monitoring", () => {
     expect(result.metadata.offset).toBe(50);
   });
 });
+
+// Log skip message if database unavailable
+if (!dbAvailable) {
+  console.log("\n⚠️  Integration tests skipped:");
+  console.log(getDatabaseSkipMessage());
+}

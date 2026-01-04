@@ -2,8 +2,13 @@
  * Integration Tests: Dismissed Opportunity Pairs Cleanup Job
  *
  * Story 7.14: AC-7.14.3, AC-7.14.4
+ * Story 7.17: Graceful database handling pattern applied
  *
  * Tests the cleanup job that removes dismissed opportunity pairs older than 90 days.
+ *
+ * **Database Requirement:** These tests skip gracefully when no database is available.
+ * See tests/helpers/db-check.ts for availability check implementation.
+ *
  * Verifies:
  * - Old pairs (>90 days) are deleted
  * - Recent pairs (<90 days) are retained
@@ -19,8 +24,12 @@ import { db } from "@/lib/db";
 import { dismissedOpportunityPairs } from "@/lib/db/schema";
 import { runCleanupJob, RETENTION_DAYS } from "@/lib/inngest/functions/cleanup-dismissed-pairs";
 import { eq } from "drizzle-orm";
+import { isDatabaseAvailable, getDatabaseSkipMessage } from "@tests/helpers";
 
-describe("Dismissed Pairs Cleanup Job", () => {
+// Check database availability before test suite
+const dbAvailable = await isDatabaseAvailable();
+
+describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
   const testUserId = "test-user-cleanup-job";
 
   beforeEach(async () => {
@@ -362,3 +371,9 @@ describe("Dismissed Pairs Cleanup Job", () => {
    * - Unit tests mock database to simulate errors and verify error handling
    */
 });
+
+// Log skip message if database unavailable
+if (!dbAvailable) {
+  console.log("\n⚠️  Integration tests skipped:");
+  console.log(getDatabaseSkipMessage());
+}
