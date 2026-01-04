@@ -127,4 +127,5 @@ development_status:
   7-12-alerts-server-side-grouping: done  # Performance: Server-side grouping for alerts (code review complete)
   7-13-alert-query-indexes: done  # Performance: Database indexes for alert queries (code review complete, verified in production)
   7-14-alerts-monitoring-and-cleanup-tests: review  # Technical Enhancement: Performance monitoring and cleanup job integration tests (all ACs complete, ready for code review)
+  7-15-fix-nextjs-routing-conflict: done  # Critical Production Fix: Next.js routing conflict causing login failure (code review complete, all issues fixed)
   epic-7-retrospective: optional
