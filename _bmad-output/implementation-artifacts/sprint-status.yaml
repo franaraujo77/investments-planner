@@ -124,4 +124,5 @@ development_status:
   7-9-server-side-number-formatting: done  # Enhancement: i18n-aware formatting for backend services
   7-10-fix-recommendation-test-timeout: done  # Tech debt: fix flaky test timeout
   7-11-overnight-cleanup-test-coverage: done  # Tech debt: add cleanup step test coverage (code review complete)
+  7-12-alerts-server-side-grouping: review  # Performance: Server-side grouping for alerts (future optimization)
   epic-7-retrospective: optional

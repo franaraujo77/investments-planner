@@ -1337,4 +1337,222 @@ describe("AlertService", () => {
       expect(mockDb.insert).not.toHaveBeenCalled();
     });
   });
+
+  /**
+   * Story 7.12: Server-Side Grouping Tests
+   * AC-7.12.2: SQL GROUP BY for server-side grouping
+   * AC-7.12.3: Response structure with grouped data
+   * AC-7.12.5: Performance optimization
+   */
+  describe("Story 7.12: Server-Side Alert Grouping", () => {
+    describe("getAlertsGrouped", () => {
+      it("should group alerts by asset class using SQL aggregation", async () => {
+        const alert1 = {
+          ...mockAlert,
+          id: "alert-1",
+        };
+        const alert2 = {
+          ...mockAlert,
+          id: "alert-2",
+        };
+
+        // Mock the SQL GROUP BY query for group metadata
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([
+                  {
+                    assetClassId: "class-1",
+                    assetClassName: "US Stocks",
+                    alertCount: 2,
+                    maxSeverity: "0",
+                  },
+                ]),
+              }),
+            }),
+          }),
+        };
+
+        // Mock the alerts query
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([alert1, alert2]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock the count query
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 2 }]),
+          }),
+        };
+
+        // Set up sequential mocks: group metadata, then alerts, then count
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123", {});
+
+        expect(result.groups).toBeDefined();
+        expect(result.groups).toHaveLength(1);
+        expect(result.groups[0]?.assetClassName).toBe("US Stocks");
+        expect(result.groups[0]?.alertCount).toBe(2);
+      });
+
+      it("should sort alerts within groups by severity and date", async () => {
+        const criticalAlert = {
+          ...mockAlert,
+          id: "critical-1",
+          severity: ALERT_SEVERITIES.CRITICAL,
+          createdAt: new Date("2024-01-02"),
+        };
+        const infoAlert = {
+          ...mockAlert,
+          id: "info-1",
+          severity: ALERT_SEVERITIES.INFO,
+          createdAt: new Date("2024-01-01"),
+        };
+
+        // Mock the SQL GROUP BY query
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([
+                  {
+                    assetClassId: "class-1",
+                    assetClassName: "US Stocks",
+                    alertCount: 2,
+                    maxSeverity: "0",
+                  },
+                ]),
+              }),
+            }),
+          }),
+        };
+
+        // Mock returns alerts in wrong order (info first)
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([infoAlert, criticalAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 2 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123", {});
+
+        // Service should sort: critical first
+        expect(result.groups[0]?.alerts[0]?.severity).toBe(ALERT_SEVERITIES.CRITICAL);
+      });
+
+      it("should handle alerts without asset class metadata in ungrouped category", async () => {
+        const systemAlert = {
+          ...mockAlert,
+          type: ALERT_TYPES.SYSTEM,
+          metadata: {}, // No asset class info
+        };
+
+        // Mock the SQL GROUP BY query - returns empty for system alerts
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        };
+
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([systemAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123", {});
+
+        expect(result.ungrouped).toBeDefined();
+        expect(result.ungrouped).toBeInstanceOf(Array);
+        expect(result.ungrouped.length).toBe(1);
+      });
+
+      it("should maintain backward compatibility with ungrouped format", async () => {
+        // Test that getAlerts() still works without grouping
+        // The getAlerts() method makes 2 SELECT queries:
+        // 1. SELECT alerts (with orderBy, limit, offset)
+        // 2. SELECT count
+
+        // First mock for the alerts query
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Second mock for the count query
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        // Set up sequential mocks: first for alerts, then for count
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123", {});
+
+        expect(result.alerts).toBeDefined();
+        expect(result.totalCount).toBe(1);
+        expect(result.metadata).toBeDefined();
+      });
+    });
+  });
 });

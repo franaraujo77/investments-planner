@@ -88,6 +88,11 @@ export interface AlertQueryOptions {
   limit?: number | undefined;
   /** Offset for pagination (default: 0) */
   offset?: number | undefined;
+  /**
+   * Story 7.12: AC-7.12.2 - Server-side grouping flag
+   * When true, groups alerts by asset class using SQL aggregation
+   */
+  groupBy?: boolean | undefined;
 }
 
 /**
@@ -103,6 +108,36 @@ export interface AlertQueryResult {
     limit: number;
     offset: number;
   };
+}
+
+/**
+ * Story 7.12: AC-7.12.3 - Grouped alert response structure
+ * Single asset class group with pre-aggregated data
+ */
+export interface AlertGroup {
+  /** Asset class ID (null for ungrouped alerts) */
+  assetClassId: string | null;
+  /** Asset class name (null for ungrouped alerts) */
+  assetClassName: string | null;
+  /** Count of alerts in this group */
+  alertCount: number;
+  /** Alerts for this asset class, sorted by priority */
+  alerts: Alert[];
+}
+
+/**
+ * Story 7.12: AC-7.12.3 - Grouped alerts query result
+ * Response structure for server-side grouped alerts
+ */
+export interface GroupedAlertsResult {
+  /** Alert groups by asset class */
+  groups: AlertGroup[];
+  /** Alerts without asset class metadata */
+  ungrouped: Alert[];
+  /** Total count across all groups */
+  totalCount: number;
+  /** Total number of groups */
+  totalGroups: number;
 }
 
 /**
@@ -317,6 +352,214 @@ export class AlertService {
       totalCount,
       metadata: { limit, offset },
     };
+  }
+
+  /**
+   * Get alerts grouped by asset class (Story 7.12: AC-7.12.2)
+   *
+   * Uses SQL aggregation to efficiently group alerts by asset class at the database level.
+   * Implements pagination to prevent memory issues with large datasets.
+   *
+   * AC-7.12.2: SQL aggregation for grouping by asset class
+   * AC-7.12.3: Response includes asset class name, alert count, and sorted alerts
+   * AC-7.12.5: Performance target <50ms for typical datasets
+   *
+   * @param userId - User ID (tenant isolation)
+   * @param options - Query options for filtering and pagination
+   * @returns Grouped alert result with asset class groups
+   */
+  async getAlertsGrouped(
+    userId: string,
+    options?: AlertQueryOptions
+  ): Promise<GroupedAlertsResult> {
+    const startTime = Date.now();
+    const limit = Math.min(options?.limit ?? 100, 1000); // Max 1000 alerts to prevent OOM
+    const offset = options?.offset ?? 0;
+
+    // Build filter conditions (same as getAlerts)
+    const conditions: ReturnType<typeof eq>[] = [eq(alerts.userId, userId)];
+
+    if (options?.type) {
+      conditions.push(eq(alerts.type, options.type));
+    }
+
+    if (options?.isRead !== undefined) {
+      conditions.push(eq(alerts.isRead, options.isRead));
+    }
+
+    if (options?.isDismissed !== undefined) {
+      conditions.push(eq(alerts.isDismissed, options.isDismissed));
+    }
+
+    // AC-7.12.2: Use SQL aggregation to get group metadata efficiently
+    // Get distinct asset class IDs with counts using SQL GROUP BY
+    const groupMetadata = await this.database
+      .select({
+        assetClassId: sql<string | null>`${alerts.metadata}->>'assetClassId'`,
+        assetClassName: sql<string | null>`${alerts.metadata}->>'assetClassName'`,
+        alertCount: sql<number>`COUNT(*)::int`,
+        maxSeverity: sql<string>`
+          MIN(CASE ${alerts.severity}
+            WHEN ${ALERT_SEVERITIES.CRITICAL} THEN 0
+            WHEN ${ALERT_SEVERITIES.WARNING} THEN 1
+            ELSE 2
+          END)
+        `,
+      })
+      .from(alerts)
+      .where(and(...conditions))
+      .groupBy(sql`${alerts.metadata}->>'assetClassId'`, sql`${alerts.metadata}->>'assetClassName'`)
+      .orderBy(
+        sql`MIN(CASE ${alerts.severity} WHEN ${ALERT_SEVERITIES.CRITICAL} THEN 0 WHEN ${ALERT_SEVERITIES.WARNING} THEN 1 ELSE 2 END)`
+      );
+
+    // Fetch alerts with pagination and proper sorting
+    const allAlerts = await this.database
+      .select()
+      .from(alerts)
+      .where(and(...conditions))
+      .orderBy(
+        // Sort by severity first (critical > warning > info)
+        sql`CASE ${alerts.severity}
+          WHEN ${ALERT_SEVERITIES.CRITICAL} THEN 0
+          WHEN ${ALERT_SEVERITIES.WARNING} THEN 1
+          ELSE 2
+        END`,
+        desc(alerts.createdAt)
+      )
+      .limit(limit)
+      .offset(offset);
+
+    // Group alerts by asset class ID using efficient Map lookup
+    const groupMap = new Map<string, Alert[]>();
+    const ungroupedAlerts: Alert[] = [];
+
+    for (const alert of allAlerts) {
+      try {
+        // AC-7.12.2: Extract asset class info from metadata with error handling
+        const metadata = alert.metadata as
+          | OpportunityAlertMetadata
+          | DriftAlertMetadata
+          | Record<string, unknown>
+          | null;
+
+        if (!metadata || typeof metadata !== "object") {
+          ungroupedAlerts.push(alert);
+          continue;
+        }
+
+        const assetClassId =
+          "assetClassId" in metadata && typeof metadata.assetClassId === "string"
+            ? metadata.assetClassId
+            : null;
+
+        if (assetClassId) {
+          const existing = groupMap.get(assetClassId) ?? [];
+          existing.push(alert);
+          groupMap.set(assetClassId, existing);
+        } else {
+          ungroupedAlerts.push(alert);
+        }
+      } catch (error) {
+        // Handle malformed metadata gracefully
+        logger.warn("Failed to parse alert metadata for grouping", {
+          alertId: alert.id,
+          userId,
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+        });
+        ungroupedAlerts.push(alert);
+      }
+    }
+
+    // Build groups array with metadata from SQL aggregation
+    const groups: AlertGroup[] = [];
+
+    for (const meta of groupMetadata) {
+      if (!meta.assetClassId) {
+        continue; // Skip null asset class (handled in ungrouped)
+      }
+
+      const groupAlerts = groupMap.get(meta.assetClassId) ?? [];
+
+      // Sort alerts within group using utility function
+      const sortedAlerts = this.sortAlertsBySeverityAndDate(groupAlerts);
+
+      groups.push({
+        assetClassId: meta.assetClassId,
+        assetClassName: meta.assetClassName ?? "Unknown",
+        alertCount: meta.alertCount,
+        alerts: sortedAlerts,
+      });
+    }
+
+    // Get total count for pagination
+    const countResult = await this.database
+      .select({ count: sql<number>`count(*)::int` })
+      .from(alerts)
+      .where(and(...conditions));
+
+    const totalCount = countResult[0]?.count ?? 0;
+    const queryDuration = Date.now() - startTime;
+
+    // AC-7.12.5: Performance metric tracking
+    logger.info("Retrieved grouped alerts with SQL aggregation", {
+      userId,
+      queryDuration,
+      totalGroups: groups.length,
+      totalAlerts: allAlerts.length,
+      ungroupedCount: ungroupedAlerts.length,
+      limit,
+      offset,
+      totalCount,
+      avgAlertsPerGroup: groups.length > 0 ? allAlerts.length / groups.length : 0,
+    });
+
+    // Performance warning if query is slow
+    if (queryDuration > 50) {
+      logger.warn("Grouped alerts query exceeded performance target", {
+        userId,
+        queryDuration,
+        target: 50,
+        alertCount: totalCount,
+      });
+    }
+
+    return {
+      groups,
+      ungrouped: ungroupedAlerts,
+      totalCount,
+      totalGroups: groups.length,
+    };
+  }
+
+  /**
+   * Sort alerts by severity (critical > warning > info) then by creation date (newest first)
+   *
+   * Extracted utility function for consistent sorting across features.
+   *
+   * @param alerts - Alerts to sort
+   * @returns Sorted alerts array
+   */
+  private sortAlertsBySeverityAndDate(alerts: Alert[]): Alert[] {
+    const severityOrder = {
+      [ALERT_SEVERITIES.CRITICAL]: 0,
+      [ALERT_SEVERITIES.WARNING]: 1,
+      [ALERT_SEVERITIES.INFO]: 2,
+    };
+
+    return [...alerts].sort((a, b) => {
+      const aSeverity = severityOrder[a.severity as AlertSeverity] ?? 999;
+      const bSeverity = severityOrder[b.severity as AlertSeverity] ?? 999;
+
+      if (aSeverity !== bSeverity) {
+        return aSeverity - bSeverity;
+      }
+
+      // Sort by created date descending (newest first)
+      const aTime = a.createdAt?.getTime() ?? 0;
+      const bTime = b.createdAt?.getTime() ?? 0;
+      return bTime - aTime;
+    });
   }
 
   /**
