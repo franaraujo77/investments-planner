@@ -1,6 +1,6 @@
 # Story 7.12: Alerts List Server-Side Grouping Optimization
 
-Status: review
+Status: done
 
 ## Story
 
