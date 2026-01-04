@@ -15,7 +15,7 @@
 - BMM artifacts: PRD, epics, architecture, UX, brief, research, brainstorm
 - Implementation: stories, sprint-status, workflow-status
 - Codebase: source directories, package files, git repo
-- Check both {output_folder} and {implementation_artifacts} locations
+- Check both {planning_artifacts} and {implementation_artifacts} locations
   </action>
 
 <action>Categorize into one of these states:
@@ -68,7 +68,7 @@ Choice [1-4]</ask>
 
   <check if="choice == 2">
     <ask>Archive existing work? (y/n)</ask>
-    <action if="y">Move artifacts to {output_folder}/archive/</action>
+    <action if="y">Move artifacts to {planning_artifacts}/archive/</action>
     <output>Ready for fresh start!</output>
     <action>Continue to step 3</action>
   </check>
@@ -323,10 +323,10 @@ Choice:</ask>
 
 <check if="y">
   <action>Generate YAML from template with all variables</action>
-  <action>Save to {output_folder}/bmm-workflow-status.yaml</action>
+  <action>Save to {planning_artifacts}/bmm-workflow-status.yaml</action>
   <action>Identify next workflow and agent</action>
 
-<output>✅ **Created:** {output_folder}/bmm-workflow-status.yaml
+<output>✅ **Created:** {planning_artifacts}/bmm-workflow-status.yaml
 
 **Next:** {{next_workflow_name}}
 **Agent:** {{next_agent}}
