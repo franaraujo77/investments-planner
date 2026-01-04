@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
 import { toast } from "sonner";
+import { logger } from "@/lib/telemetry/logger";
 import {
   Bell,
   Loader2,
@@ -55,7 +56,12 @@ import Link from "next/link";
 /** Maximum number of alerts to fetch from API */
 const MAX_ALERTS_FETCH = 100;
 
-/** Number of hours to snooze an alert */
+/**
+ * Number of hours to snooze an alert
+ * AC-7.6.5: Default is 24 hours
+ *
+ * TODO(epic-8): Make this configurable via user preferences
+ */
 const SNOOZE_DURATION_HOURS = 24;
 
 // =============================================================================
@@ -140,6 +146,13 @@ function getAssetClassInfo(alert: Alert): { id: string; name: string } {
   }
 
   // Fallback for alerts without asset class info
+  // This can occur for system alerts or if metadata is malformed
+  logger.warn("Alert missing asset class metadata, using fallback", {
+    alertId: alert.id,
+    alertType: alert.type,
+    metadataKeys: Object.keys(metadata).join(", "),
+  });
+
   return { id: "other", name: "Other Alerts" };
 }
 

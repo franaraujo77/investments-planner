@@ -21,6 +21,23 @@ import { logger } from "@/lib/telemetry/logger";
 import Decimal from "decimal.js";
 
 // =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Type-safe conversion to Decimal
+ *
+ * Handles both string and Decimal inputs, ensuring precision is maintained.
+ * This helper prevents precision loss from implicit conversions.
+ *
+ * @param value - Value to convert (string or Decimal)
+ * @returns Decimal instance
+ */
+function toDecimal(value: string | Decimal): Decimal {
+  return value instanceof Decimal ? value : new Decimal(value);
+}
+
+// =============================================================================
 // CONSTANTS
 // =============================================================================
 
@@ -149,8 +166,8 @@ export class DismissedPairsService {
     }
 
     // Check if score difference increased significantly
-    const currentDiff = new Decimal(currentScoreDifference.toString());
-    const previousDiff = new Decimal(existing.lastScoreDifference);
+    const currentDiff = toDecimal(currentScoreDifference);
+    const previousDiff = toDecimal(existing.lastScoreDifference);
     const increase = currentDiff.minus(previousDiff);
 
     if (increase.gt(RE_ALERT_THRESHOLD)) {

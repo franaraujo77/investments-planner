@@ -105,6 +105,10 @@ export const POST = withAuth<BulkDismissResponse | AuthError>(async (request, se
     };
 
     // Only include errors if there are any
+    // Note: We use 200 OK even for partial failures (some alerts dismissed, some failed)
+    // because the request was valid and processed. The errors array provides details
+    // on individual failures. This is a common REST pattern and simpler for clients
+    // than 207 Multi-Status.
     if (result.errors.length > 0) {
       response.data.errors = result.errors;
     }
