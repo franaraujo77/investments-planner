@@ -1,6 +1,6 @@
 # Story 7.13: Alert Query Performance Indexes
 
-Status: review
+Status: done
 
 ## Story
 

@@ -125,4 +125,5 @@ development_status:
   7-10-fix-recommendation-test-timeout: done  # Tech debt: fix flaky test timeout
   7-11-overnight-cleanup-test-coverage: done  # Tech debt: add cleanup step test coverage (code review complete)
   7-12-alerts-server-side-grouping: review  # Performance: Server-side grouping for alerts (future optimization)
+  7-13-alert-query-indexes: done  # Performance: Database indexes for alert queries (code review complete, verified in production)
   epic-7-retrospective: optional
