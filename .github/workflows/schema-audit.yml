@@ -3,8 +3,9 @@ name: Schema Audit
 on:
   pull_request:
     branches: [main]
-    # NOTE: Path filter removed - doesn't work reliably with merge commits (see PR #29)
-    # Step-level check (line 47) detects if schema files actually changed
+    # NOTE: Uses step-level path detection instead of workflow-level filters
+    # Step-level check (line 51) is more reliable with merge commits (see PR #29)
+    # This design allows the workflow to always run but skip heavy operations when not needed
 
 # CRITICAL: Prevent concurrent audits on same PR branch
 # Different PR branches can run concurrently (they don't conflict)
@@ -27,6 +28,11 @@ jobs:
     env:
       # Use existing integration test database (not a separate DATABASE_URL_TEST)
       # This saves cost and simplifies infrastructure
+      # Safe because:
+      # 1. Concurrency groups prevent simultaneous runs on same PR branch
+      # 2. Migrations are idempotent (use IF NOT EXISTS patterns)
+      # 3. Integration tests workflow has separate concurrency group
+      # 4. Different PR branches can run concurrently without conflicts
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:

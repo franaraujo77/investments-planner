@@ -16,7 +16,16 @@ import type { PgTable } from "drizzle-orm/pg-core";
  * IMPORTANT: These are tied to Drizzle ORM's internal API.
  *
  * @see https://github.com/drizzle-team/drizzle-orm
- * Compatible with: drizzle-orm@^0.36.4
+ *
+ * Compatibility tracking for future reference:
+ * - Last verified: drizzle-orm@0.36.4 (January 2026)
+ * - Integration test: tests/integration/drizzle-compatibility.test.ts
+ *
+ * If tests fail after Drizzle upgrade:
+ * 1. Check Drizzle's release notes for breaking changes
+ * 2. Update these symbol names if they changed
+ * 3. Update the compatibility version comment above
+ * 4. Update the integration test to match new API
  *
  * NOTE: Drizzle tables are identified by the presence of Name and Columns symbols.
  * There is no isPgTable symbol in the current version.
