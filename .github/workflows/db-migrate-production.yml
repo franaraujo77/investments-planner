@@ -3,8 +3,8 @@ name: Production Database Migration
 on:
   push:
     branches: [main]
-    paths:
-      - 'drizzle/**'
+    # NOTE: Path filter removed - doesn't work reliably with merge commits
+    # Step-level check (line 79) detects if migrations actually changed
   workflow_dispatch:
     inputs:
       confirm:
