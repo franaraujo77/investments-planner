@@ -19,9 +19,20 @@ async function verifyMigrations() {
 
   try {
     // Get applied migrations from database
-    const appliedMigrations = await db.execute(
-      sql`SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
-    );
+    // Try both schema locations to be compatible with different Drizzle versions
+    let appliedMigrations;
+    try {
+      // First try with explicit drizzle schema (new Drizzle versions)
+      appliedMigrations = await db.execute(
+        sql`SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC`
+      );
+    } catch (_schemaError) {
+      // Fallback to no schema prefix (older Drizzle versions or different config)
+      logger.info("Trying alternate schema location for migrations table");
+      appliedMigrations = await db.execute(
+        sql`SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
+      );
+    }
 
     // Cast to unknown[] first since db.execute returns unknown type
     // Then filter using type guard to validate runtime structure
