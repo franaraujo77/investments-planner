@@ -55,7 +55,7 @@ async function fixIntegrationMigrations() {
       `;
 
       if (existing.length > 0) {
-        if (existing[0].hash !== hash) {
+        if (existing[0]?.hash !== hash) {
           // Update with correct hash
           await sql`
             UPDATE drizzle.__drizzle_migrations

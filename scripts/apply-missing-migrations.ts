@@ -65,7 +65,7 @@ async function applyMissingMigrations() {
       const migrationSQL = fs.readFileSync(sqlFile, "utf-8");
       const expectedHash = crypto.createHash("sha256").update(migrationSQL).digest("hex");
 
-      if (existing.length > 0 && existing[0].hash === expectedHash) {
+      if (existing.length > 0 && existing[0]?.hash === expectedHash) {
         logger.info(
           `Migration ${missing.tag} (ID ${migrationId}) already tracked correctly, skipping`
         );
@@ -148,7 +148,9 @@ async function applyMissingMigrations() {
             schemaExists = true;
         }
       } catch (error) {
-        logger.warn(`Could not check schema for ${missing.tag}`, { error });
+        logger.warn(`Could not check schema for ${missing.tag}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
 
       if (schemaExists) {
