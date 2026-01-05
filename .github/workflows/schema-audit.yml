@@ -133,8 +133,15 @@ jobs:
         id: audit
         run: |
           echo "Auditing schema consistency..."
+
+          # Track execution time
+          START_TIME=$(date +%s)
           pnpm db:audit-schema 2>&1 | tee audit-output.txt
           AUDIT_EXIT_CODE=$?
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+
+          echo "audit_duration_seconds=$DURATION" >> $GITHUB_OUTPUT
 
           if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             echo "audit_status=passed" >> $GITHUB_OUTPUT
@@ -239,6 +246,25 @@ jobs:
                 body: body,
               });
             }
+
+      - name: Generate metrics summary
+        if: always()
+        run: |
+          echo "## 📊 Schema Audit Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Audit Run | ✅ Yes |" >> $GITHUB_STEP_SUMMARY
+          echo "| Schema Changes Detected | ${{ steps.check-schema.outputs.has_schema_changes || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Migration Status | ${{ steps.migrate.outputs.migrate_status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Audit Status | ${{ steps.audit.outputs.audit_status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Verify Status | ${{ steps.verify.outputs.verify_status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Execution Time | ${{ steps.audit.outputs.audit_duration_seconds || 'N/A' }}s |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Conclusion | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.event.pull_request.head.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.event.pull_request.head.sha }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload audit results
         if: always()
