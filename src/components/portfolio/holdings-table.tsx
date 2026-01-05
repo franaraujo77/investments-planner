@@ -30,13 +30,17 @@ import {
   formatRelativeTime,
   getFreshnessStatus,
   getFreshnessColorClasses,
+  createFreshnessInfo,
 } from "@/lib/types/freshness";
+import { DataFreshnessBadge } from "@/components/data";
 import type { AssetWithValue } from "@/lib/services/portfolio-service";
 
 interface HoldingsTableProps {
   assets: AssetWithValue[];
   baseCurrency: string;
   onHoldingClick: (holding: AssetWithValue) => void;
+  /** Optional data freshness timestamp for header badge (Story 7.3) */
+  dataFreshness?: Date;
 }
 
 type SortKey = "symbol" | "name" | "quantity" | "price" | "valueBase" | "allocation";
@@ -47,7 +51,12 @@ interface SortState {
   direction: SortDirection;
 }
 
-export function HoldingsTable({ assets, baseCurrency, onHoldingClick }: HoldingsTableProps) {
+export function HoldingsTable({
+  assets,
+  baseCurrency,
+  onHoldingClick,
+  dataFreshness,
+}: HoldingsTableProps) {
   const { formatNumber, formatCurrency, formatPercent } = useNumberFormat();
 
   // Task 2.4: Sort by allocation % descending by default
@@ -97,7 +106,16 @@ export function HoldingsTable({ assets, baseCurrency, onHoldingClick }: Holdings
   return (
     <div className="space-y-4" data-testid="holdings-table">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Holdings</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">Holdings</h2>
+          {/* AC-7.3.1: Data freshness badge in holdings table header */}
+          {dataFreshness && (
+            <DataFreshnessBadge
+              freshnessInfo={createFreshnessInfo(dataFreshness, "Price Data")}
+              size="sm"
+            />
+          )}
+        </div>
         <span className="text-sm text-muted-foreground">
           {assets.length} {assets.length === 1 ? "asset" : "assets"}
         </span>

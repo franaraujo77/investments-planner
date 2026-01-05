@@ -49,6 +49,10 @@ describe("getProviderDisplayName", () => {
       expect(getProviderDisplayName("Gemini API")).toBe("Gemini API");
       expect(getProviderDisplayName("Yahoo Finance")).toBe("Yahoo Finance");
     });
+
+    it("should map 'manual' to 'Manual Entry' (Story 7.1)", () => {
+      expect(getProviderDisplayName("manual")).toBe("Manual Entry");
+    });
   });
 
   describe("unknown providers", () => {
@@ -233,5 +237,201 @@ describe("DATA_TYPE_LABELS", () => {
     expect(DATA_TYPE_LABELS.rate).toBe("Rate");
     expect(DATA_TYPE_LABELS.fundamentals).toBe("Fundamentals");
     expect(DATA_TYPE_LABELS.score).toBe("Score");
+  });
+});
+
+// =============================================================================
+// NEW TESTS - Document Reference Types (Story 7.1)
+// =============================================================================
+
+import {
+  getDocumentTypeLabel,
+  formatDocumentAttribution,
+  DOCUMENT_TYPE_LABELS,
+  type DocumentReference,
+  type DocumentType,
+} from "@/lib/types/source-attribution";
+
+describe("getDocumentTypeLabel", () => {
+  /**
+   * Story 7.1, AC-7.1.3: Investor Relations Document Attribution
+   */
+  it("should return label for earnings report", () => {
+    expect(getDocumentTypeLabel("earnings")).toBe("Earnings Report");
+  });
+
+  it("should return label for annual report", () => {
+    expect(getDocumentTypeLabel("annual-report")).toBe("Annual Report");
+  });
+
+  it("should return label for filing", () => {
+    expect(getDocumentTypeLabel("filing")).toBe("Filing");
+  });
+
+  it("should return label for press release", () => {
+    expect(getDocumentTypeLabel("press-release")).toBe("Press Release");
+  });
+
+  it("should return label for IR presentation", () => {
+    expect(getDocumentTypeLabel("ir-presentation")).toBe("IR Presentation");
+  });
+
+  it("should return 'Document' for unknown type", () => {
+    expect(getDocumentTypeLabel("unknown" as DocumentType)).toBe("Document");
+  });
+});
+
+describe("formatDocumentAttribution", () => {
+  /**
+   * Story 7.1, AC-7.1.3: Investor Relations Document Attribution
+   * AC-7.1.5: Independent Verification Support
+   */
+  it("should format document attribution with title and publication date", () => {
+    const doc: DocumentReference = {
+      title: "Q3 2024 Earnings Report",
+      type: "earnings",
+      publicationDate: new Date("2024-10-15"),
+    };
+
+    const result = formatDocumentAttribution(doc);
+    expect(result).toContain("Q3 2024 Earnings Report");
+    expect(result).toContain("Earnings Report");
+    expect(result).toContain("Oct");
+    expect(result).toContain("2024");
+  });
+
+  it("should format annual report document", () => {
+    const doc: DocumentReference = {
+      title: "2023 Annual Report",
+      type: "annual-report",
+      publicationDate: new Date("2024-03-01"),
+    };
+
+    const result = formatDocumentAttribution(doc);
+    expect(result).toContain("2023 Annual Report");
+    expect(result).toContain("Annual Report");
+  });
+
+  it("should include filing ID when present", () => {
+    const doc: DocumentReference = {
+      title: "Form 10-K",
+      type: "filing",
+      publicationDate: new Date("2024-02-28"),
+      filingId: "0001234567-24-000001",
+    };
+
+    const result = formatDocumentAttribution(doc);
+    expect(result).toContain("Form 10-K");
+    expect(result).toContain("0001234567-24-000001");
+  });
+
+  it("should handle document without optional fields", () => {
+    const doc: DocumentReference = {
+      title: "Investor Update",
+      type: "press-release",
+      publicationDate: new Date("2024-11-01"),
+    };
+
+    const result = formatDocumentAttribution(doc);
+    expect(result).toContain("Investor Update");
+    expect(result).toContain("Press Release");
+  });
+});
+
+describe("DocumentReference type", () => {
+  /**
+   * Story 7.1, AC-7.1.3, AC-7.1.5: Type structure validation
+   */
+  it("should accept valid document reference object", () => {
+    const doc: DocumentReference = {
+      title: "Q3 2024 Earnings Report",
+      type: "earnings",
+      publicationDate: new Date("2024-10-15"),
+      url: "https://ir.company.com/earnings/q3-2024",
+      filingId: "SEC-12345",
+    };
+
+    expect(doc.title).toBe("Q3 2024 Earnings Report");
+    expect(doc.type).toBe("earnings");
+    expect(doc.publicationDate).toBeInstanceOf(Date);
+    expect(doc.url).toBe("https://ir.company.com/earnings/q3-2024");
+    expect(doc.filingId).toBe("SEC-12345");
+  });
+
+  it("should allow document without optional url and filingId", () => {
+    const doc: DocumentReference = {
+      title: "Investor Presentation",
+      type: "ir-presentation",
+      publicationDate: new Date("2024-09-01"),
+    };
+
+    expect(doc.title).toBe("Investor Presentation");
+    expect(doc.url).toBeUndefined();
+    expect(doc.filingId).toBeUndefined();
+  });
+});
+
+describe("SourceAttribution with documentRef", () => {
+  /**
+   * Story 7.1: Extended SourceAttribution with document reference support
+   */
+  it("should accept source attribution with document reference", () => {
+    const attribution = createSourceAttribution(
+      "fundamentals",
+      "company-ir",
+      new Date("2024-10-20")
+    );
+    // Type assertion to check extended interface compatibility
+    const extendedAttribution =
+      attribution as import("@/lib/types/source-attribution").SourceAttribution & {
+        documentRef?: DocumentReference;
+      };
+    extendedAttribution.documentRef = {
+      title: "Q3 2024 Earnings Report",
+      type: "earnings",
+      publicationDate: new Date("2024-10-15"),
+      url: "https://ir.company.com/earnings/q3-2024",
+    };
+
+    expect(extendedAttribution.dataType).toBe("fundamentals");
+    expect(extendedAttribution.documentRef?.title).toBe("Q3 2024 Earnings Report");
+  });
+
+  it("should work without document reference (backwards compatible)", () => {
+    const attribution = createSourceAttribution("price", "gemini", new Date());
+
+    expect(attribution.documentRef).toBeUndefined();
+  });
+});
+
+describe("PROVIDER_DISPLAY_NAMES - IR Providers", () => {
+  /**
+   * Story 7.1: Additional IR document providers
+   */
+  it("should include IR document providers", () => {
+    expect(PROVIDER_DISPLAY_NAMES["company-ir"]).toBe("Company Investor Relations");
+    expect(PROVIDER_DISPLAY_NAMES["sec-filing"]).toBe("SEC Filing");
+    expect(PROVIDER_DISPLAY_NAMES["cvm-filing"]).toBe("CVM Filing (Brazil)");
+    expect(PROVIDER_DISPLAY_NAMES["b3-filing"]).toBe("B3 Filing");
+  });
+
+  it("should map IR providers via getProviderDisplayName", () => {
+    expect(getProviderDisplayName("company-ir")).toBe("Company Investor Relations");
+    expect(getProviderDisplayName("sec-filing")).toBe("SEC Filing");
+    expect(getProviderDisplayName("cvm-filing")).toBe("CVM Filing (Brazil)");
+    expect(getProviderDisplayName("b3-filing")).toBe("B3 Filing");
+  });
+});
+
+describe("DOCUMENT_TYPE_LABELS constant", () => {
+  /**
+   * Story 7.1, AC-7.1.3: Document type label mapping
+   */
+  it("should have labels for all document types", () => {
+    expect(DOCUMENT_TYPE_LABELS["earnings"]).toBe("Earnings Report");
+    expect(DOCUMENT_TYPE_LABELS["annual-report"]).toBe("Annual Report");
+    expect(DOCUMENT_TYPE_LABELS["filing"]).toBe("Filing");
+    expect(DOCUMENT_TYPE_LABELS["press-release"]).toBe("Press Release");
+    expect(DOCUMENT_TYPE_LABELS["ir-presentation"]).toBe("IR Presentation");
   });
 });

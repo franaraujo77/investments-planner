@@ -39,6 +39,7 @@ import { ScoreBadge } from "@/components/fintech/score-badge";
 import { AllocationGauge } from "./allocation-gauge";
 import { OverAllocatedExplanation } from "./over-allocated-explanation";
 import { RecommendationDetailsPanel } from "./recommendation-details-panel";
+import { DisclaimerFooter } from "@/components/disclaimer";
 import { calculateTargetRange } from "./constants";
 import { formatCurrency } from "@/lib/utils/currency-format";
 import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
@@ -293,6 +294,9 @@ export function RecommendationCard({
             Tap for details
           </div>
         )}
+
+        {/* Story 7.4: AC-7.4.4 - Subtle disclaimer footer */}
+        <DisclaimerFooter variant="compact" className="mt-3 border-t pt-2" />
       </CardContent>
     </Card>
   );

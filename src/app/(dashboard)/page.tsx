@@ -4,6 +4,7 @@
  * Dashboard Page
  *
  * Story 7.5: Display Recommendations (Focus Mode)
+ * Story 7.5: Allocation Drift Alerts (login-time drift check)
  * Story 7.7: View Recommendation Breakdown
  * Story 7.8: Confirm Recommendations
  * Story 8.5: Instant Dashboard Load
@@ -51,10 +52,11 @@ import {
   RecommendationPieChart,
   BeforeAfterPreview,
 } from "@/components/recommendations";
-import { DataFreshnessBadge } from "@/components/fintech/data-freshness-badge";
+import { DataFreshnessBadge, createFreshnessInfo, AllocationStatusBadge } from "@/components/data";
 import { useRecommendations, type RecommendationDisplayItem } from "@/hooks/use-recommendations";
 import { useConfirmInvestments } from "@/hooks/use-confirm-investments";
-import { AlertCircle, RefreshCw, CheckCircle } from "lucide-react";
+import { useDriftCheck } from "@/hooks/use-drift-check";
+import { AlertCircle, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // =============================================================================
@@ -230,13 +232,14 @@ function FocusModeSection() {
       {/* AC-7.5.1: Focus Mode Header with AC-8.5.5: Data Freshness Badge */}
       <div className="flex items-center justify-between">
         <FocusModeHeader totalInvestable={data.totalInvestable} baseCurrency={data.baseCurrency} />
-        {/* AC-8.5.5: DataFreshnessBadge shows when recommendations were generated */}
+        {/* AC-7.3.1: DataFreshnessBadge shows when recommendations were generated */}
+        {/* AC-7.3.2: Click-to-refresh enabled on freshness badge */}
         <DataFreshnessBadge
-          updatedAt={new Date(data.generatedAt)}
-          source="Recommendations"
-          showRefreshButton
-          onClick={refetch}
+          freshnessInfo={createFreshnessInfo(new Date(data.generatedAt), "Recommendations")}
+          refreshable
+          onRefresh={refetch}
           isRefreshing={isStale}
+          size="default"
         />
       </div>
 
@@ -337,6 +340,10 @@ function FocusModeSection() {
 // =============================================================================
 
 export default function DashboardPage() {
+  // Story 7.5: AC-7.5.1 - Trigger drift detection on dashboard load (once per session)
+  // This runs asynchronously and doesn't block the dashboard render
+  useDriftCheck();
+
   return (
     <div className="space-y-6">
       {/* Welcome message with Refresh Button */}
@@ -349,6 +356,29 @@ export default function DashboardPage() {
         </div>
         {/* Story 6.6: AC-6.6.1 - Refresh Button Available on Dashboard */}
         <RefreshButton type="all" variant="outline" />
+      </div>
+
+      {/* Story 7.5: AC-7.5.5 - Allocation Status and Story 7.4: AC-7.4.1 - Prominent Financial Disclaimer */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        {/* AC-7.5.5: Allocation status badge */}
+        <AllocationStatusBadge data-testid="allocation-status-badge" />
+
+        {/* AC-7.4.1: Financial disclaimer */}
+        {/* role="status" is appropriate for static informational content that doesn't require urgent attention */}
+        <div
+          className="flex flex-1 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/50"
+          role="status"
+          aria-label="Financial disclaimer"
+          data-testid="dashboard-disclaimer"
+        >
+          <AlertTriangle
+            className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            This tool calculates based on YOUR criteria. This is not financial advice.
+          </p>
+        </div>
       </div>
 
       {/* Story 7.1: Monthly Investment Setup - AC-7.1.1, AC-7.1.6 */}

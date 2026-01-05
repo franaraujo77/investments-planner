@@ -1,0 +1,58 @@
+#!/bin/sh
+
+# Pre-push hook - Catch issues before they hit GitHub CI
+# Runs validations that lint-staged doesn't cover
+#
+# Environment variables:
+#   SKIP_PRE_PUSH=1       - Skip all pre-push checks (for fast iteration)
+#   SKIP_PRE_PUSH_TESTS=1 - Skip unit tests only (TypeScript/lint still run)
+
+# Allow bypassing all checks for fast iteration
+if [ -n "$SKIP_PRE_PUSH" ]; then
+  echo "⚡ SKIP_PRE_PUSH is set - skipping all pre-push checks"
+  exit 0
+fi
+
+echo "🔍 Running pre-push validations..."
+
+# Route conflict check (Story 7.15 - prevents production outages)
+echo "🛣️  Route conflict check..."
+pnpm check:routes || {
+  echo "❌ Route conflict check failed. Fix route conflicts before pushing."
+  echo "💡 See scripts/check-route-conflicts.ts for details."
+  exit 1
+}
+
+# TypeScript type check (not run by lint-staged)
+echo "📝 TypeScript check..."
+pnpm exec tsc --noEmit || {
+  echo "❌ TypeScript check failed. Fix type errors before pushing."
+  exit 1
+}
+
+# Full lint check (lint-staged only checks staged files)
+echo "🧹 ESLint check..."
+pnpm lint || {
+  echo "❌ Lint check failed. Fix lint errors before pushing."
+  exit 1
+}
+
+# Unit tests (can be skipped for fast iteration on feature branches)
+if [ -z "$SKIP_PRE_PUSH_TESTS" ]; then
+  echo "🧪 Running unit tests..."
+  pnpm test:unit || {
+    echo "❌ Unit tests failed. Fix failing tests before pushing."
+    exit 1
+  }
+else
+  echo "⚡ SKIP_PRE_PUSH_TESTS is set - skipping unit tests"
+fi
+
+# RLS security check (catches missing RLS policies)
+echo "🔒 RLS security check..."
+pnpm security:check-rls || {
+  echo "❌ RLS security check failed. Enable RLS on new tables before pushing."
+  exit 1
+}
+
+echo "✅ All pre-push checks passed!"

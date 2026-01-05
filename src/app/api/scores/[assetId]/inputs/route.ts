@@ -98,11 +98,32 @@ interface CriterionEvaluationResponse {
 }
 
 /**
+ * Score result with both string and raw numeric values
+ *
+ * Story 7.7 (i18n): AC-7.7.3 - Raw Numeric Values in Score Inputs API
+ */
+interface ScoreResult {
+  /** Pre-formatted final score string (backward compat) */
+  final: string;
+  /** Pre-formatted max possible string (backward compat) */
+  maxPossible: string;
+  /** Pre-formatted percentage string (backward compat) */
+  percentage: string;
+  /** Raw numeric values for i18n formatting */
+  raw: {
+    final: number;
+    maxPossible: number;
+    percentage: number;
+  };
+}
+
+/**
  * Extended response type for Story 6.9
  *
  * AC-6.9.1: View all input values used
  * AC-6.9.2: View each criterion evaluation result
  * AC-6.9.3: View criteria version used for calculation
+ * Story 7.7 (i18n): AC-7.7.3 - Raw Numeric Values
  */
 interface GetInputsResponse {
   data: {
@@ -122,12 +143,8 @@ interface GetInputsResponse {
     criteriaVersionInfo: CriteriaVersionResponse | null;
     /** AC-6.9.2: Criterion-by-criterion evaluation results */
     evaluations: CriterionEvaluationResponse[];
-    /** Score result */
-    score: {
-      final: string;
-      maxPossible: string;
-      percentage: string;
-    };
+    /** Score result with raw numeric values (Story 7.7 i18n) */
+    score: ScoreResult;
   };
 }
 
@@ -327,9 +344,10 @@ export const GET = withAuth<GetInputsResponse | ErrorResponse | AuthError>(
       });
 
       // Calculate max possible score and percentage
+      // Story 7.7 (i18n): AC-7.7.3 - Calculate both string and raw values
       const maxPossible = criteriaRules.reduce((sum, c) => sum + Math.max(0, c.points), 0);
       const scoreValue = parseFloat(score.score);
-      const percentage = maxPossible > 0 ? ((scoreValue / maxPossible) * 100).toFixed(2) : "0.00";
+      const percentageValue = maxPossible > 0 ? (scoreValue / maxPossible) * 100 : 0;
 
       // Build response with source attribution
       // AC-6.8.1: Use getProviderDisplayName for human-readable names
@@ -376,10 +394,16 @@ export const GET = withAuth<GetInputsResponse | ErrorResponse | AuthError>(
           },
           criteriaVersionInfo,
           evaluations,
+          // Story 7.7 (i18n): AC-7.7.3 - Include both string and raw numeric values
           score: {
             final: score.score,
             maxPossible: maxPossible.toFixed(4),
-            percentage,
+            percentage: percentageValue.toFixed(2),
+            raw: {
+              final: scoreValue,
+              maxPossible,
+              percentage: percentageValue,
+            },
           },
         },
       };

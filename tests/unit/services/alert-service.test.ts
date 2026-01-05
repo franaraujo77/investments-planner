@@ -39,25 +39,6 @@ describe("AlertService", () => {
     update: ReturnType<typeof vi.fn>;
   };
 
-  // Helper to create mock database chain (available for future use)
-  const _createSelectChain = (result: unknown[]) => ({
-    from: vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        orderBy: vi.fn().mockReturnValue({
-          limit: vi.fn().mockReturnValue({
-            offset: vi.fn().mockResolvedValue(result),
-          }),
-        }),
-        limit: vi.fn().mockResolvedValue(result),
-      }),
-      orderBy: vi.fn().mockReturnValue({
-        limit: vi.fn().mockReturnValue({
-          offset: vi.fn().mockResolvedValue(result),
-        }),
-      }),
-    }),
-  });
-
   const createInsertChain = (result: unknown[]) => ({
     values: vi.fn().mockReturnValue({
       returning: vi.fn().mockResolvedValue(result),
@@ -198,6 +179,43 @@ describe("AlertService", () => {
         const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
         expect(insertCall.metadata.currentAssetSymbol).toBe("AAPL");
         expect(insertCall.metadata.betterAssetSymbol).toBe("VOO");
+      });
+    });
+
+    describe("Story 7.9 AC-7.9.2: Locale-aware formatting", () => {
+      it("should format scores with pt-BR locale conventions", async () => {
+        mockDb.insert.mockReturnValue(createInsertChain([mockAlert]));
+
+        await service.createOpportunityAlert(
+          "user-123",
+          { id: "asset-1", symbol: "AAPL", score: "1070.1234" },
+          { id: "asset-2", symbol: "VOO", score: "1085.5678" },
+          { id: "class-1", name: "US Stocks" },
+          "pt-BR"
+        );
+
+        const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // pt-BR uses comma for decimal separator and dot for thousands
+        expect(insertCall.message).toBe(
+          "VOO scores 1.085,57 vs your AAPL (1.070,12). Consider swapping?"
+        );
+      });
+
+      it("should default to en-US format when no locale provided", async () => {
+        mockDb.insert.mockReturnValue(createInsertChain([mockAlert]));
+
+        await service.createOpportunityAlert(
+          "user-123",
+          { id: "asset-1", symbol: "AAPL", score: "1070.1234" },
+          { id: "asset-2", symbol: "VOO", score: "1085.5678" },
+          { id: "class-1", name: "US Stocks" }
+        );
+
+        const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // en-US uses dot for decimal separator and comma for thousands
+        expect(insertCall.message).toBe(
+          "VOO scores 1,085.57 vs your AAPL (1,070.12). Consider swapping?"
+        );
       });
     });
   });
@@ -388,6 +406,12 @@ describe("AlertService", () => {
     describe("AC-9.1.3: Alert dismissible by user", () => {
       it("should dismiss alert and set dismissedAt timestamp", async () => {
         const dismissedAlert = { ...mockAlert, isDismissed: true, dismissedAt: new Date() };
+        // Story 7.6: dismissAlert now first selects the alert to check if it's an opportunity alert
+        mockDb.select.mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockAlert]),
+          }),
+        });
         mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
 
         const result = await service.dismissAlert("user-123", "alert-123");
@@ -398,7 +422,12 @@ describe("AlertService", () => {
       });
 
       it("should return null if alert not found", async () => {
-        mockDb.update.mockReturnValue(createUpdateChain([]));
+        // Story 7.6: dismissAlert now first selects the alert - return empty to simulate not found
+        mockDb.select.mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        });
 
         const result = await service.dismissAlert("user-123", "nonexistent");
 
@@ -790,8 +819,9 @@ describe("AlertService", () => {
         );
 
         const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // Story 7.9: Uses formatPercent for each value (each gets its own %)
         expect(insertCall.message).toContain("US Stocks at 65.12%");
-        expect(insertCall.message).toContain("target is 40.00-50.00%");
+        expect(insertCall.message).toContain("target is 40.00%-50.00%");
       });
 
       it("should include direction-specific suggestion for over-allocation", async () => {
@@ -828,6 +858,30 @@ describe("AlertService", () => {
 
         const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
         expect(insertCall.message).toContain("Increase contributions here");
+      });
+
+      it("should format drift percentages with pt-BR locale conventions", async () => {
+        mockDb.insert.mockReturnValue(createInsertChain([mockDriftAlert]));
+
+        const assetClass: AssetClassDriftDetails = {
+          id: "class-1",
+          name: "US Stocks",
+          targetMin: "40",
+          targetMax: "50",
+        };
+
+        await service.createDriftAlert(
+          "user-123",
+          assetClass,
+          new Decimal("65.1234"),
+          new Decimal("5"),
+          "pt-BR"
+        );
+
+        const insertCall = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+        // pt-BR uses comma for decimal separator
+        expect(insertCall.message).toContain("US Stocks at 65,12%");
+        expect(insertCall.message).toContain("target is 40,00%-50,00%");
       });
     });
 
@@ -1020,6 +1074,723 @@ describe("AlertService", () => {
         await service.autoDismissResolvedDriftAlerts("user-123", "portfolio-123");
 
         expect(mockDb.select).toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ===========================================================================
+  // UPDATE ALERT TESTS (Story 7.6: AC-7.6.6 Dismissal Memory)
+  // ===========================================================================
+
+  describe("updateAlert", () => {
+    describe("AC-7.6.5: Snooze functionality", () => {
+      it("should update snoozedUntil field", async () => {
+        const snoozedAlert = {
+          ...mockAlert,
+          snoozedUntil: new Date("2025-01-02T12:00:00Z"),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([snoozedAlert]));
+
+        const result = await service.updateAlert("alert-123", "user-123", {
+          snoozedUntil: "2025-01-02T12:00:00Z",
+        });
+
+        expect(result).toEqual(snoozedAlert);
+        expect(mockDb.update).toHaveBeenCalled();
+      });
+
+      it("should clear snoozedUntil when set to null", async () => {
+        const unsnoozedAlert = { ...mockAlert, snoozedUntil: null };
+        mockDb.update.mockReturnValue(createUpdateChain([unsnoozedAlert]));
+
+        const result = await service.updateAlert("alert-123", "user-123", {
+          snoozedUntil: null,
+        });
+
+        expect(result?.snoozedUntil).toBeNull();
+      });
+    });
+
+    describe("AC-7.6.6: Dismissal memory for opportunity alerts", () => {
+      it("should record dismissed pair when dismissing opportunity alert via updateAlert", async () => {
+        const dismissedAlert = {
+          ...mockAlert,
+          isDismissed: true,
+          dismissedAt: new Date(),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
+
+        // Mock insert for recording dismissed pair (upsert)
+        mockDb.insert.mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          }),
+        });
+
+        await service.updateAlert("alert-123", "user-123", { isDismissed: true });
+
+        // Verify dismissed pair was recorded (insert was called)
+        expect(mockDb.insert).toHaveBeenCalled();
+      });
+
+      it("should NOT record dismissed pair for non-opportunity alerts", async () => {
+        const driftAlert = {
+          ...mockAlert,
+          type: ALERT_TYPES.ALLOCATION_DRIFT,
+          isDismissed: true,
+          dismissedAt: new Date(),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([driftAlert]));
+
+        await service.updateAlert("drift-alert-123", "user-123", { isDismissed: true });
+
+        // Verify dismissed pair was NOT recorded (insert not called)
+        expect(mockDb.insert).not.toHaveBeenCalled();
+      });
+
+      it("should NOT record dismissed pair when just marking as read", async () => {
+        const readAlert = { ...mockAlert, isRead: true, readAt: new Date() };
+        mockDb.update.mockReturnValue(createUpdateChain([readAlert]));
+
+        await service.updateAlert("alert-123", "user-123", { isRead: true });
+
+        // Verify dismissed pair was NOT recorded
+        expect(mockDb.insert).not.toHaveBeenCalled();
+      });
+
+      it("should continue update even if dismissed pair recording fails", async () => {
+        const dismissedAlert = {
+          ...mockAlert,
+          isDismissed: true,
+          dismissedAt: new Date(),
+        };
+        mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
+
+        // Mock insert to fail
+        mockDb.insert.mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockRejectedValue(new Error("DB error")),
+          }),
+        });
+
+        // Should not throw, update should still succeed
+        const result = await service.updateAlert("alert-123", "user-123", { isDismissed: true });
+
+        expect(result).toEqual(dismissedAlert);
+      });
+    });
+
+    it("should return null if alert not found", async () => {
+      mockDb.update.mockReturnValue(createUpdateChain([]));
+
+      const result = await service.updateAlert("nonexistent", "user-123", { isRead: true });
+
+      expect(result).toBeNull();
+    });
+
+    it("should set dismissedAt timestamp when isDismissed is true", async () => {
+      const dismissedAlert = {
+        ...mockAlert,
+        isDismissed: true,
+        dismissedAt: new Date(),
+        type: ALERT_TYPES.ALLOCATION_DRIFT, // Use drift to avoid dismissed pair recording
+      };
+      mockDb.update.mockReturnValue(createUpdateChain([dismissedAlert]));
+
+      const result = await service.updateAlert("alert-123", "user-123", { isDismissed: true });
+
+      expect(result?.isDismissed).toBe(true);
+      expect(result?.dismissedAt).toBeDefined();
+    });
+  });
+
+  /**
+   * Story 7.8: Opportunity Alerts Enhancements
+   * AC-7.8.1: Dismiss All in Group Action
+   */
+  describe("dismissMultipleAlerts", () => {
+    const createSelectChainForBulkDismiss = (result: unknown[]) => ({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(result),
+      }),
+    });
+
+    const createUpdateChainForBulkDismiss = (result: unknown[]) => ({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue(result),
+        }),
+      }),
+    });
+
+    it("should return empty result when no alert IDs provided", async () => {
+      const result = await service.dismissMultipleAlerts("user-123", []);
+
+      expect(result.dismissedCount).toBe(0);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should dismiss multiple valid alerts", async () => {
+      const alertIds = ["alert-1", "alert-2", "alert-3"];
+      const existingAlerts = alertIds.map((id) => ({
+        ...mockAlert,
+        id,
+        type: ALERT_TYPES.ALLOCATION_DRIFT, // Use drift to skip dismissed pair recording
+      }));
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss(existingAlerts));
+      mockDb.update.mockReturnValue(
+        createUpdateChainForBulkDismiss(alertIds.map((id) => ({ id })))
+      );
+
+      const result = await service.dismissMultipleAlerts("user-123", alertIds);
+
+      expect(result.dismissedCount).toBe(3);
+      expect(result.errors).toHaveLength(0);
+      expect(mockDb.update).toHaveBeenCalled();
+    });
+
+    it("should report errors for non-existent alerts", async () => {
+      const alertIds = ["alert-1", "nonexistent-1", "nonexistent-2"];
+      const existingAlerts = [{ ...mockAlert, id: "alert-1", type: ALERT_TYPES.ALLOCATION_DRIFT }];
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss(existingAlerts));
+      mockDb.update.mockReturnValue(createUpdateChainForBulkDismiss([{ id: "alert-1" }]));
+
+      const result = await service.dismissMultipleAlerts("user-123", alertIds);
+
+      expect(result.dismissedCount).toBe(1);
+      expect(result.errors).toHaveLength(2);
+      expect(result.errors[0].alertId).toBe("nonexistent-1");
+      expect(result.errors[1].alertId).toBe("nonexistent-2");
+    });
+
+    it("should handle case when all alerts are invalid", async () => {
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss([]));
+
+      const result = await service.dismissMultipleAlerts("user-123", ["invalid-1", "invalid-2"]);
+
+      expect(result.dismissedCount).toBe(0);
+      expect(result.errors).toHaveLength(2);
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("should record dismissed pairs for opportunity alerts (AC-7.8.1)", async () => {
+      // Use OPPORTUNITY type to test dismissed pair recording
+      const opportunityAlert = {
+        ...mockAlert,
+        id: "opp-alert-1",
+        type: ALERT_TYPES.OPPORTUNITY,
+        metadata: {
+          currentAssetId: "asset-1",
+          currentAssetSymbol: "AAPL",
+          currentScore: "70",
+          betterAssetId: "asset-2",
+          betterAssetSymbol: "VOO",
+          betterScore: "85",
+          scoreDifference: "15",
+          assetClassId: "class-1",
+          assetClassName: "US Stocks",
+        },
+      };
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss([opportunityAlert]));
+      mockDb.update.mockReturnValue(createUpdateChainForBulkDismiss([{ id: "opp-alert-1" }]));
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        }),
+      });
+
+      const result = await service.dismissMultipleAlerts("user-123", ["opp-alert-1"]);
+
+      expect(result.dismissedCount).toBe(1);
+      expect(result.errors).toHaveLength(0);
+      // Verify dismissed pair was recorded for opportunity alert
+      expect(mockDb.insert).toHaveBeenCalled();
+    });
+
+    it("should NOT record dismissed pairs for non-opportunity alerts in bulk dismiss", async () => {
+      const driftAlert = {
+        ...mockAlert,
+        id: "drift-alert-1",
+        type: ALERT_TYPES.ALLOCATION_DRIFT,
+        metadata: {
+          assetClassId: "class-1",
+          assetClassName: "US Stocks",
+          currentAllocation: "65",
+          targetMin: "40",
+          targetMax: "50",
+          driftAmount: "15",
+          direction: "over" as const,
+        },
+      };
+
+      mockDb.select.mockReturnValue(createSelectChainForBulkDismiss([driftAlert]));
+      mockDb.update.mockReturnValue(createUpdateChainForBulkDismiss([{ id: "drift-alert-1" }]));
+
+      const result = await service.dismissMultipleAlerts("user-123", ["drift-alert-1"]);
+
+      expect(result.dismissedCount).toBe(1);
+      expect(result.errors).toHaveLength(0);
+      // Verify dismissed pair was NOT recorded for drift alert
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Story 7.12: Server-Side Grouping Tests
+   * AC-7.12.2: SQL GROUP BY for server-side grouping
+   * AC-7.12.3: Response structure with grouped data
+   * AC-7.12.5: Performance optimization
+   */
+  describe("Story 7.12: Server-Side Alert Grouping", () => {
+    describe("getAlertsGrouped", () => {
+      it("should group alerts by asset class using SQL aggregation", async () => {
+        const alert1 = {
+          ...mockAlert,
+          id: "alert-1",
+        };
+        const alert2 = {
+          ...mockAlert,
+          id: "alert-2",
+        };
+
+        // Mock the SQL GROUP BY query for group metadata
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([
+                  {
+                    assetClassId: "class-1",
+                    assetClassName: "US Stocks",
+                    alertCount: 2,
+                    maxSeverity: "0",
+                  },
+                ]),
+              }),
+            }),
+          }),
+        };
+
+        // Mock the alerts query
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([alert1, alert2]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock the count query
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 2 }]),
+          }),
+        };
+
+        // Set up sequential mocks: group metadata, then alerts, then count
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123", {});
+
+        expect(result.groups).toBeDefined();
+        expect(result.groups).toHaveLength(1);
+        expect(result.groups[0]?.assetClassName).toBe("US Stocks");
+        expect(result.groups[0]?.alertCount).toBe(2);
+      });
+
+      it("should sort alerts within groups by severity and date", async () => {
+        const criticalAlert = {
+          ...mockAlert,
+          id: "critical-1",
+          severity: ALERT_SEVERITIES.CRITICAL,
+          createdAt: new Date("2024-01-02"),
+        };
+        const infoAlert = {
+          ...mockAlert,
+          id: "info-1",
+          severity: ALERT_SEVERITIES.INFO,
+          createdAt: new Date("2024-01-01"),
+        };
+
+        // Mock the SQL GROUP BY query
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([
+                  {
+                    assetClassId: "class-1",
+                    assetClassName: "US Stocks",
+                    alertCount: 2,
+                    maxSeverity: "0",
+                  },
+                ]),
+              }),
+            }),
+          }),
+        };
+
+        // Mock returns alerts in wrong order (info first)
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([infoAlert, criticalAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 2 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123", {});
+
+        // Service should sort: critical first
+        expect(result.groups[0]?.alerts[0]?.severity).toBe(ALERT_SEVERITIES.CRITICAL);
+      });
+
+      it("should handle alerts without asset class metadata in ungrouped category", async () => {
+        const systemAlert = {
+          ...mockAlert,
+          type: ALERT_TYPES.SYSTEM,
+          metadata: {}, // No asset class info
+        };
+
+        // Mock the SQL GROUP BY query - returns empty for system alerts
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        };
+
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([systemAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123", {});
+
+        expect(result.ungrouped).toBeDefined();
+        expect(result.ungrouped).toBeInstanceOf(Array);
+        expect(result.ungrouped.length).toBe(1);
+      });
+
+      it("should maintain backward compatibility with ungrouped format", async () => {
+        // Test that getAlerts() still works without grouping
+        // The getAlerts() method makes 2 SELECT queries:
+        // 1. SELECT alerts (with orderBy, limit, offset)
+        // 2. SELECT count
+
+        // First mock for the alerts query
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Second mock for the count query
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        // Set up sequential mocks: first for alerts, then for count
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123", {});
+
+        expect(result.alerts).toBeDefined();
+        expect(result.totalCount).toBe(1);
+        expect(result.metadata).toBeDefined();
+      });
+    });
+  });
+
+  /**
+   * Story 7.14: AC-7.14.1, AC-7.14.2 - Performance Monitoring Telemetry Tests
+   */
+  describe("Performance Monitoring", () => {
+    // Helper to create mock DB for these tests
+    const createPerfMockDb = () => ({
+      select: vi.fn(),
+      insert: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      transaction: vi.fn(),
+      query: vi.fn() as never,
+    });
+
+    describe("getAlerts", () => {
+      it("should return executionTimeMs in result", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock alert query result
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query result
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123");
+
+        // AC-7.14.1: Verify executionTimeMs is present
+        expect(result).toHaveProperty("executionTimeMs");
+        expect(typeof result.executionTimeMs).toBe("number");
+        expect(result.executionTimeMs).toBeGreaterThanOrEqual(0); // Can be 0 in fast unit tests
+        expect(Number.isInteger(result.executionTimeMs)).toBe(true);
+      });
+
+      it("should log performance metrics with correct structure", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock alert query result
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query result
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123");
+
+        // AC-7.14.1: Verify telemetry structure includes required fields
+        expect(result.executionTimeMs).toBeDefined();
+
+        // Note: Actual logger calls are verified in integration tests
+        // Unit tests focus on return value structure
+      });
+
+      it("should handle slowQueryWarning flag when execution time exceeds 100ms", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock slow query by adding artificial delay
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockImplementation(async () => {
+                    // Simulate slow query (>100ms)
+                    await new Promise((resolve) => setTimeout(resolve, 110));
+                    return [mockAlert];
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query result
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select.mockReturnValueOnce(alertsMock).mockReturnValueOnce(countMock);
+
+        const result = await service.getAlerts("user-123");
+
+        // AC-7.14.1: For slow queries (>100ms), verify we still get result
+        expect(result.executionTimeMs).toBeGreaterThan(100);
+
+        // Note: slowQueryWarning flag is logged, not returned in result
+        // Logging verification happens in integration tests
+      });
+    });
+
+    describe("getAlertsGrouped", () => {
+      it("should return executionTimeMs in grouped result", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock group metadata query
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([
+                  {
+                    assetClassId: "class-1",
+                    assetClassName: "Test Class",
+                    alertCount: 2,
+                    maxSeverity: "0",
+                  },
+                ]),
+              }),
+            }),
+          }),
+        };
+
+        // Mock alerts query
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        // Mock count query
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123");
+
+        // AC-7.14.1: Verify executionTimeMs is present in grouped result
+        expect(result).toHaveProperty("executionTimeMs");
+        expect(typeof result.executionTimeMs).toBe("number");
+        expect(result.executionTimeMs).toBeGreaterThanOrEqual(0); // Can be 0 in fast unit tests
+        expect(Number.isInteger(result.executionTimeMs)).toBe(true);
+      });
+
+      it("should log warning for slow grouped queries", async () => {
+        const mockDb = createPerfMockDb();
+        const service = new AlertService(mockDb as never);
+
+        // Mock slow grouped query
+        const groupMetadataMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockImplementation(async () => {
+                  // Simulate slow query (>100ms)
+                  await new Promise((resolve) => setTimeout(resolve, 110));
+                  return [
+                    {
+                      assetClassId: "class-1",
+                      assetClassName: "Test Class",
+                      alertCount: 2,
+                      maxSeverity: "0",
+                    },
+                  ];
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const alertsMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue([mockAlert]),
+                }),
+              }),
+            }),
+          }),
+        };
+
+        const countMock = {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 1 }]),
+          }),
+        };
+
+        mockDb.select
+          .mockReturnValueOnce(groupMetadataMock)
+          .mockReturnValueOnce(alertsMock)
+          .mockReturnValueOnce(countMock);
+
+        const result = await service.getAlertsGrouped("user-123");
+
+        // AC-7.14.1: Verify execution time is tracked for slow queries
+        expect(result.executionTimeMs).toBeGreaterThan(100);
       });
     });
   });

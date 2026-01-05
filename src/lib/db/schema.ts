@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -1281,6 +1282,8 @@ export const alerts = pgTable(
     metadata: jsonb("metadata").notNull().$type<AlertMetadata>(),
     isRead: boolean("is_read").notNull().default(false),
     isDismissed: boolean("is_dismissed").notNull().default(false),
+    // Story 7.6: AC-7.6.5 - Snooze functionality
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
     expiresAt: timestamp("expires_at"),
     readAt: timestamp("read_at"),
     dismissedAt: timestamp("dismissed_at"),
@@ -1291,6 +1294,8 @@ export const alerts = pgTable(
     index("alerts_user_id_idx").on(table.userId),
     index("alerts_type_idx").on(table.type),
     index("alerts_created_at_idx").on(table.createdAt),
+    // Story 7.6: AC-7.6.5 - Index for snooze queries
+    index("alerts_snoozed_until_idx").on(table.snoozedUntil),
     // GIN index for JSONB metadata queries added via migration 0014
     // (drizzle-orm doesn't directly support GIN indexes, added via raw SQL)
   ]
@@ -1321,6 +1326,10 @@ export const alertPreferences = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     opportunityAlertsEnabled: boolean("opportunity_alerts_enabled").notNull().default(true),
     driftAlertsEnabled: boolean("drift_alerts_enabled").notNull().default(true),
+    // Story 7.6: AC-7.6.3 - Data freshness warnings toggle
+    dataFreshnessWarningsEnabled: boolean("data_freshness_warnings_enabled")
+      .notNull()
+      .default(true),
     driftThreshold: numeric("drift_threshold", { precision: 5, scale: 2 })
       .notNull()
       .default("5.00"),
@@ -1359,6 +1368,57 @@ export type NewAlert = typeof alerts.$inferInsert;
 
 export type AlertPreference = typeof alertPreferences.$inferSelect;
 export type NewAlertPreference = typeof alertPreferences.$inferInsert;
+
+// =============================================================================
+// DISMISSED OPPORTUNITY PAIRS (Story 7.6)
+// =============================================================================
+
+/**
+ * Dismissed Opportunity Pairs Table
+ *
+ * Story 7.6: Opportunity Alerts and Preferences
+ * AC-7.6.6: Dismissal Memory - prevents re-alerting for dismissed opportunities
+ *
+ * Key design:
+ * - Tracks dismissed current/better asset pairs per user
+ * - Stores score difference at dismissal time
+ * - Re-alerts only if score difference increases by >10 points
+ * - Pairs older than 90 days are eligible for cleanup
+ */
+export const dismissedOpportunityPairs = pgTable(
+  "dismissed_opportunity_pairs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    currentAssetId: uuid("current_asset_id").notNull(),
+    betterAssetId: uuid("better_asset_id").notNull(),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }).defaultNow().notNull(),
+    lastScoreDifference: numeric("last_score_difference", { precision: 10, scale: 2 }).notNull(),
+  },
+  (table) => [
+    index("dismissed_pairs_user_idx").on(table.userId),
+    uniqueIndex("dismissed_pairs_unique_idx").on(
+      table.userId,
+      table.currentAssetId,
+      table.betterAssetId
+    ),
+  ]
+);
+
+export const dismissedOpportunityPairsRelations = relations(
+  dismissedOpportunityPairs,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [dismissedOpportunityPairs.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+export type DismissedOpportunityPair = typeof dismissedOpportunityPairs.$inferSelect;
+export type NewDismissedOpportunityPair = typeof dismissedOpportunityPairs.$inferInsert;
 
 // =============================================================================
 // GICS REFERENCE DATA (Story 5.7)

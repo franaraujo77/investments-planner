@@ -29,6 +29,8 @@ import { logger } from "@/lib/telemetry/logger";
 export interface AlertPreferencesUpdate {
   opportunityAlertsEnabled?: boolean;
   driftAlertsEnabled?: boolean;
+  // Story 7.6: AC-7.6.3 - Data freshness warnings toggle
+  dataFreshnessWarningsEnabled?: boolean;
   driftThreshold?: string;
   alertFrequency?: "realtime" | "daily" | "weekly";
   emailNotifications?: boolean;
@@ -40,6 +42,8 @@ export interface AlertPreferencesUpdate {
 export const DEFAULT_ALERT_PREFERENCES: Omit<NewAlertPreference, "userId" | "id"> = {
   opportunityAlertsEnabled: true,
   driftAlertsEnabled: true,
+  // Story 7.6: AC-7.6.3 - Data freshness warnings enabled by default
+  dataFreshnessWarningsEnabled: true,
   driftThreshold: "5.00",
   alertFrequency: "daily",
   emailNotifications: false,
@@ -166,6 +170,10 @@ export class AlertPreferencesService {
     }
     if (updates.driftAlertsEnabled !== undefined) {
       updateData.driftAlertsEnabled = updates.driftAlertsEnabled;
+    }
+    // Story 7.6: AC-7.6.3 - Data freshness warnings toggle
+    if (updates.dataFreshnessWarningsEnabled !== undefined) {
+      updateData.dataFreshnessWarningsEnabled = updates.dataFreshnessWarningsEnabled;
     }
     if (updates.driftThreshold !== undefined) {
       updateData.driftThreshold = updates.driftThreshold;

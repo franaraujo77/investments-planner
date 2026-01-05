@@ -41,6 +41,11 @@ describe("AlertDetectionService", () => {
     isDriftAlertsEnabled: ReturnType<typeof vi.fn>;
     getDriftThreshold: ReturnType<typeof vi.fn>;
   };
+  // Story 7.6: AC-7.6.6 - Dismissed pairs service for dismissal memory
+  let mockDismissedPairsService: {
+    shouldSkipAlert: ReturnType<typeof vi.fn>;
+    recordDismissedPair: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,10 +70,17 @@ describe("AlertDetectionService", () => {
       getDriftThreshold: vi.fn(),
     };
 
+    // Story 7.6: Default mock for dismissed pairs - allow alerts by default
+    mockDismissedPairsService = {
+      shouldSkipAlert: vi.fn().mockResolvedValue({ shouldSkip: false, reason: "not_dismissed" }),
+      recordDismissedPair: vi.fn().mockResolvedValue(undefined),
+    };
+
     service = new AlertDetectionService(
       mockDb as never,
       mockAlertService as never,
-      mockPreferencesService as never
+      mockPreferencesService as never,
+      mockDismissedPairsService as never
     );
   });
 

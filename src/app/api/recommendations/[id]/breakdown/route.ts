@@ -70,6 +70,23 @@ type GetResponseBody = BreakdownResponse | AuthError;
 
 /**
  * Build calculation steps from recommendation breakdown
+ *
+ * Story 7.7 (i18n): AC-7.7.1 - Raw Numeric Values in Breakdown API
+ * Story 7.7 (i18n): AC-7.7.4 - Backward Compatibility
+ *
+ * **API Contract - Precision & Formatting:**
+ * Values are pre-formatted for display using en-US locale (backward compat):
+ * - Percentages: 1-2 decimal places (e.g., "15.5%")
+ * - Currency: 2 decimal places with $ prefix (e.g., "$800.00")
+ * - Weights: 4 decimal places (e.g., "0.1234")
+ *
+ * **i18n Enhancement:**
+ * Each step now includes:
+ * - `rawValue`: Raw numeric value for client-side locale-aware formatting
+ * - `valueType`: Type hint ("percent" | "currency" | "weight" | "number")
+ *
+ * Clients should prefer `rawValue` + `valueType` for i18n support,
+ * falling back to `value` (string) for backward compatibility.
  */
 function buildCalculationSteps(
   allocationGap: string,
@@ -77,6 +94,9 @@ function buildCalculationSteps(
   recommendedAmount: string,
   totalInvestable: string
 ): CalculationStep[] {
+  // Note: parseFloat is acceptable here - these are already-calculated decimal strings
+  // being converted to numbers for presentation formatting, not financial calculations.
+  // Financial math uses Decimal.js in the scoring/recommendation engines.
   const gapValue = parseFloat(allocationGap);
   const scoreValue = parseFloat(score);
   const amountValue = parseFloat(recommendedAmount);
@@ -89,16 +109,22 @@ function buildCalculationSteps(
     {
       step: "Calculate allocation gap",
       value: `${Math.abs(gapValue).toFixed(2)}%`,
+      rawValue: Math.abs(gapValue),
+      valueType: "percent",
       formula: "target_midpoint - current_allocation",
     },
     {
       step: "Apply score weighting",
       value: scoreContribution.toFixed(4),
+      rawValue: scoreContribution,
+      valueType: "weight",
       formula: "allocation_gap × (score / 100)",
     },
     {
       step: "Distribute capital proportionally",
       value: `$${amountValue.toFixed(2)}`,
+      rawValue: amountValue,
+      valueType: "currency",
       formula:
         totalValue > 0
           ? "weighted_priority ÷ total_priority × total_investable"
@@ -108,40 +134,95 @@ function buildCalculationSteps(
 }
 
 /**
+ * Reasoning result with embedded raw values for i18n
+ *
+ * Story 7.7 (i18n): AC-7.7.1 - Raw Numeric Values
+ *
+ * Contains:
+ * - `text`: Human-readable reasoning with en-US formatted values (backward compat)
+ * - `gapPercent`: Raw allocation gap percentage for i18n formatting
+ * - `scoreValue`: Raw score value for i18n formatting
+ */
+interface ReasoningResult {
+  text: string;
+  gapPercent: number;
+  scoreValue: number;
+}
+
+/**
  * Generate reasoning text for the recommendation
+ *
+ * Story 7.7 (i18n): AC-7.7.1 - Returns reasoning with raw values
+ *
+ * Note: The `text` field contains pre-formatted values using en-US locale
+ * for backward compatibility. Clients can use `gapPercent` and `scoreValue`
+ * to rebuild the reasoning with locale-aware formatting.
  */
 function generateReasoning(
   score: string,
   allocationGap: string,
   isOverAllocated: boolean,
   recommendedAmount: string
-): string {
+): ReasoningResult {
   const gapValue = parseFloat(allocationGap);
   const scoreValue = parseFloat(score);
   const amountValue = parseFloat(recommendedAmount);
 
   if (isOverAllocated) {
-    return `Asset is ${Math.abs(gapValue).toFixed(1)}% above target allocation. No investment recommended to allow natural rebalancing.`;
+    return {
+      text: `Asset is ${Math.abs(gapValue).toFixed(1)}% above target allocation. No investment recommended to allow natural rebalancing.`,
+      gapPercent: Math.abs(gapValue),
+      scoreValue,
+    };
   }
 
   if (amountValue === 0) {
-    return "Asset is at or above target allocation. No additional investment needed.";
+    return {
+      text: "Asset is at or above target allocation. No additional investment needed.",
+      gapPercent: Math.abs(gapValue),
+      scoreValue,
+    };
   }
 
   const scoreLevel = scoreValue >= 80 ? "high" : scoreValue >= 50 ? "moderate" : "low";
   const gapDescription = Math.abs(gapValue) >= 5 ? "significantly" : "slightly";
 
-  return `Asset is ${gapDescription} ${gapValue > 0 ? "below" : "above"} target allocation (${Math.abs(gapValue).toFixed(1)}%) with ${scoreLevel} score (${scoreValue.toFixed(1)}).`;
+  return {
+    text: `Asset is ${gapDescription} ${gapValue > 0 ? "below" : "above"} target allocation (${Math.abs(gapValue).toFixed(1)}%) with ${scoreLevel} score (${scoreValue.toFixed(1)}).`,
+    gapPercent: Math.abs(gapValue),
+    scoreValue,
+  };
+}
+
+/**
+ * Target range with both string and numeric values
+ *
+ * Story 7.7 (i18n): AC-7.7.1 - Raw Numeric Values
+ */
+interface TargetRangeResult {
+  /** String representation for backward compatibility */
+  min: string;
+  max: string;
+  /** Raw numeric values for i18n formatting */
+  rawMin: number;
+  rawMax: number;
 }
 
 /**
  * Calculate target range from midpoint (±5% with bounds)
+ *
+ * Story 7.7 (i18n): AC-7.7.1 - Returns both string and numeric values
  */
-function calculateTargetRange(targetMidpoint: string): { min: string; max: string } {
+function calculateTargetRange(targetMidpoint: string): TargetRangeResult {
   const midpoint = parseFloat(targetMidpoint) || 0;
-  const min = Math.max(midpoint - 5, 0).toFixed(1);
-  const max = Math.min(midpoint + 5, 100).toFixed(1);
-  return { min, max };
+  const rawMin = Math.max(midpoint - 5, 0);
+  const rawMax = Math.min(midpoint + 5, 100);
+  return {
+    min: rawMin.toFixed(1),
+    max: rawMax.toFixed(1),
+    rawMin,
+    rawMax,
+  };
 }
 
 // =============================================================================
@@ -400,7 +481,7 @@ export const GET = withAuth<GetResponseBody>(async (request, session, context) =
         steps,
         result: {
           recommendedAmount: item.recommendedAmount,
-          reasoning,
+          reasoning: reasoning.text,
         },
       },
       auditTrail,

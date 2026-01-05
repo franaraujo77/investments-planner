@@ -16,7 +16,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Loader2, Check, TrendingUp, Mail, Clock } from "lucide-react";
+import { Bell, Loader2, Check, TrendingUp, Mail, Clock, Clock3 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Switch } from "@/components/ui/switch";
@@ -40,6 +40,8 @@ interface AlertPreferences {
   userId: string;
   opportunityAlertsEnabled: boolean;
   driftAlertsEnabled: boolean;
+  // Story 7.6: AC-7.6.3 - Data freshness warnings toggle
+  dataFreshnessWarningsEnabled: boolean;
   driftThreshold: string;
   alertFrequency: "realtime" | "daily" | "weekly";
   emailNotifications: boolean;
@@ -52,6 +54,7 @@ type PreferenceUpdate = Partial<
     AlertPreferences,
     | "opportunityAlertsEnabled"
     | "driftAlertsEnabled"
+    | "dataFreshnessWarningsEnabled"
     | "driftThreshold"
     | "alertFrequency"
     | "emailNotifications"
@@ -229,7 +232,7 @@ export function AlertPreferencesSection() {
 
       <div className="space-y-6">
         {/* AC-9.3.1: Opportunity Alerts Toggle */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" data-testid="opportunity-alerts-toggle">
           <div className="space-y-0.5">
             <Label htmlFor="opportunity-alerts" className="flex items-center gap-2 cursor-pointer">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -249,7 +252,7 @@ export function AlertPreferencesSection() {
         </div>
 
         {/* AC-9.3.2: Drift Alerts Toggle */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" data-testid="drift-alerts-toggle">
           <div className="space-y-0.5">
             <Label htmlFor="drift-alerts" className="flex items-center gap-2 cursor-pointer">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -265,6 +268,31 @@ export function AlertPreferencesSection() {
             onCheckedChange={(checked) => updatePreference({ driftAlertsEnabled: checked })}
             disabled={isSaving}
             aria-label="Toggle drift alerts"
+          />
+        </div>
+
+        {/* Story 7.6: AC-7.6.3 - Data Freshness Warnings Toggle */}
+        <div className="flex items-center justify-between" data-testid="data-freshness-toggle">
+          <div className="space-y-0.5">
+            <Label
+              htmlFor="data-freshness-warnings"
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <Clock3 className="h-4 w-4 text-muted-foreground" />
+              Data Freshness Warnings
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Get warned when market data is stale or outdated
+            </p>
+          </div>
+          <Switch
+            id="data-freshness-warnings"
+            checked={preferences.dataFreshnessWarningsEnabled}
+            onCheckedChange={(checked) =>
+              updatePreference({ dataFreshnessWarningsEnabled: checked })
+            }
+            disabled={isSaving}
+            aria-label="Toggle data freshness warnings"
           />
         </div>
 

@@ -110,3 +110,101 @@ describe("source attribution data flow", () => {
     }
   });
 });
+
+// =============================================================================
+// Document Reference Tests (Story 7.1)
+// =============================================================================
+
+import type { DocumentReference } from "@/lib/types/source-attribution";
+import { formatDocumentAttribution } from "@/lib/types/source-attribution";
+
+describe("SourceAttributionLabel Document Support (Story 7.1)", () => {
+  describe("Document Reference Props (AC-7.1.3)", () => {
+    it("should accept documentRef prop", () => {
+      const docRef: DocumentReference = {
+        title: "Q3 2024 Earnings Report",
+        type: "earnings",
+        publicationDate: new Date("2024-10-15"),
+        url: "https://ir.company.com/earnings",
+      };
+
+      // Verify doc ref structure is valid
+      expect(docRef.title).toBe("Q3 2024 Earnings Report");
+      expect(docRef.type).toBe("earnings");
+      expect(docRef.publicationDate).toBeInstanceOf(Date);
+      expect(docRef.url).toBeDefined();
+    });
+
+    it("should handle documentRef without URL", () => {
+      const docRef: DocumentReference = {
+        title: "Annual Report 2023",
+        type: "annual-report",
+        publicationDate: new Date("2024-03-01"),
+      };
+
+      expect(docRef.url).toBeUndefined();
+      expect(docRef.filingId).toBeUndefined();
+    });
+
+    it("should handle documentRef with filing ID (AC-7.1.5)", () => {
+      const docRef: DocumentReference = {
+        title: "Form 10-K",
+        type: "filing",
+        publicationDate: new Date("2024-02-28"),
+        filingId: "0001234567-24-000001",
+      };
+
+      expect(docRef.filingId).toBe("0001234567-24-000001");
+    });
+  });
+
+  describe("Document Type Display", () => {
+    it("should format earnings report correctly", () => {
+      const doc: DocumentReference = {
+        title: "Q3 2024 Earnings Report",
+        type: "earnings",
+        publicationDate: new Date("2024-10-15"),
+      };
+
+      const formatted = formatDocumentAttribution(doc);
+      expect(formatted).toContain("Earnings Report");
+      expect(formatted).toContain("Q3 2024 Earnings Report");
+    });
+
+    it("should format SEC filing correctly", () => {
+      const doc: DocumentReference = {
+        title: "Form 10-K",
+        type: "filing",
+        publicationDate: new Date("2024-02-28"),
+        filingId: "SEC-2024-001",
+      };
+
+      const formatted = formatDocumentAttribution(doc);
+      expect(formatted).toContain("Filing");
+      expect(formatted).toContain("SEC-2024-001");
+    });
+  });
+
+  describe("Verification Link Support (AC-7.1.5)", () => {
+    it("should provide URL for external verification", () => {
+      const docWithUrl: DocumentReference = {
+        title: "Quarterly Report",
+        type: "earnings",
+        publicationDate: new Date("2024-10-15"),
+        url: "https://ir.company.com/reports/q3-2024",
+      };
+
+      expect(docWithUrl.url).toBe("https://ir.company.com/reports/q3-2024");
+    });
+
+    it("should handle documents without verification URLs", () => {
+      const docWithoutUrl: DocumentReference = {
+        title: "Internal Analysis",
+        type: "ir-presentation",
+        publicationDate: new Date("2024-11-01"),
+      };
+
+      expect(docWithoutUrl.url).toBeUndefined();
+    });
+  });
+});

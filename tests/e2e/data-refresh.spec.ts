@@ -426,3 +426,149 @@ test.describe("Story 5.5: Manual Data Refresh", () => {
     });
   });
 });
+
+/**
+ * Story 7.3: Data Freshness Indicators
+ *
+ * AC-7.3.1: DataFreshnessBadge visible on dashboard, portfolio, holdings, scores
+ * AC-7.3.2: Click-to-refresh on dashboard recommendation badge
+ * AC-7.3.3: Score breakdown shows freshness badge
+ * AC-7.3.4: Holdings table header shows freshness badge
+ * AC-7.3.5: Recommendation header shows overall freshness
+ */
+test.describe("Story 7.3: Data Freshness Indicators", () => {
+  test.describe("AC-7.3.1: DataFreshnessBadge Visibility", () => {
+    test.skip(SKIP_DATA_SETUP_TESTS, "Requires seeded data - set RUN_DATA_SETUP_TESTS=true");
+
+    test("portfolio list page shows data freshness badges", async ({ page }) => {
+      await loginUser(page);
+
+      // Portfolio list page should have loaded
+      await expect(page).toHaveURL(/\/portfolio/);
+
+      // Check for data freshness badge on portfolio summary
+      const freshnessSection = page
+        .locator('[data-testid="portfolio-value-summary"]')
+        .getByText(/Data Updated/i);
+      await expect(freshnessSection).toBeVisible();
+
+      // Data freshness badge should be visible
+      const freshnessDisplay = page
+        .locator('[data-testid="portfolio-value-summary"]')
+        .locator('[data-testid="data-freshness-badge"]');
+      await expect(freshnessDisplay).toBeVisible();
+    });
+
+    test("holdings table header shows freshness badge", async ({ page }) => {
+      await loginUser(page);
+
+      // Navigate to portfolio detail
+      const firstPortfolio = page.getByTestId("portfolio-card").first();
+      await firstPortfolio.click();
+      await expect(page).toHaveURL(/\/portfolio\/[a-zA-Z0-9-]+$/);
+
+      // Holdings table should be visible
+      const holdingsTable = page.getByTestId("holdings-table");
+      await expect(holdingsTable).toBeVisible();
+
+      // Holdings table header should have freshness badge (AC-7.3.1)
+      const headerFreshness = holdingsTable.locator('[data-testid="data-freshness-badge"]');
+      await expect(headerFreshness).toBeVisible();
+    });
+  });
+
+  test.describe("AC-7.3.2: Click-to-Refresh on Dashboard", () => {
+    test.skip(SKIP_DATA_SETUP_TESTS, "Requires seeded data - set RUN_DATA_SETUP_TESTS=true");
+
+    test("recommendation freshness badge supports click to refresh", async ({ page }) => {
+      await loginUser(page);
+
+      // Navigate to dashboard
+      await page.goto("/");
+
+      // Wait for recommendations to load (or empty state)
+      await page.waitForSelector(
+        '[data-testid="focus-mode-section"], [data-testid="no-portfolio"]',
+        {
+          timeout: 10000,
+        }
+      );
+
+      // If recommendations are visible, check for freshness badge
+      const focusSection = page.locator('[data-testid="focus-mode-section"]');
+      if (await focusSection.isVisible()) {
+        // Freshness badge should be visible
+        const freshnessBadge = focusSection.locator('[data-testid="data-freshness-badge"]');
+        await expect(freshnessBadge).toBeVisible();
+
+        // Badge should be refreshable (has data-refreshable="true" attribute)
+        // The badge itself is clickable, no nested refresh button
+        await expect(freshnessBadge).toHaveAttribute("data-refreshable", "true");
+      }
+    });
+  });
+
+  test.describe("AC-7.3.3: Score Breakdown Freshness", () => {
+    test.skip(SKIP_DATA_SETUP_TESTS, "Requires seeded data - set RUN_DATA_SETUP_TESTS=true");
+
+    test("score breakdown panel shows freshness timestamp", async ({ page }) => {
+      await loginUser(page);
+
+      // Navigate to portfolio detail with holdings
+      const firstPortfolio = page.getByTestId("portfolio-card").first();
+      await firstPortfolio.click();
+      await expect(page).toHaveURL(/\/portfolio\/[a-zA-Z0-9-]+$/);
+
+      // Wait for holdings to load
+      const holdingsTable = page.getByTestId("holdings-table");
+      await expect(holdingsTable).toBeVisible();
+
+      // Click on a score badge to open breakdown
+      const scoreBadge = page.locator('[data-testid="score-badge"]').first();
+      if (await scoreBadge.isVisible()) {
+        await scoreBadge.click();
+
+        // Score breakdown sheet should open
+        const breakdownSheet = page.locator('[role="dialog"]');
+        await expect(breakdownSheet).toBeVisible({ timeout: 5000 });
+
+        // Freshness timestamp should be visible in the sheet header
+        const freshnessTimestamp = breakdownSheet.locator('[data-testid="freshness-timestamp"]');
+        await expect(freshnessTimestamp).toBeVisible();
+      }
+    });
+  });
+
+  test.describe("AC-7.3.5: Recommendation Header Freshness", () => {
+    test.skip(SKIP_DATA_SETUP_TESTS, "Requires seeded data - set RUN_DATA_SETUP_TESTS=true");
+
+    test("focus mode header shows overall recommendation freshness", async ({ page }) => {
+      await loginUser(page);
+
+      // Navigate to dashboard
+      await page.goto("/");
+
+      // Wait for content to load
+      await page.waitForSelector(
+        '[data-testid="focus-mode-section"], [data-testid="no-portfolio"]',
+        {
+          timeout: 10000,
+        }
+      );
+
+      const focusSection = page.locator('[data-testid="focus-mode-section"]');
+      if (await focusSection.isVisible()) {
+        // Focus mode header should show freshness for all recommendations
+        const freshnessBadge = focusSection.locator('[data-testid="data-freshness-badge"]');
+        await expect(freshnessBadge).toBeVisible();
+
+        // Should show "Recommendations" source or similar
+        // Hover to see tooltip with exact timestamp
+        await freshnessBadge.hover();
+        const tooltip = page.locator('[role="tooltip"]');
+        await expect(tooltip).toBeVisible({ timeout: 3000 });
+        await expect(tooltip).toContainText(/Recommendation/i);
+      }
+    });
+  });
+});

@@ -76,6 +76,9 @@ export interface JobRunMetrics {
   // Story 5.8: Asset type classification metrics
   assetTypesClassified?: number;
   assetTypesUnmapped?: number;
+  // Story 7.8: Dismissed pairs cleanup metrics
+  dismissedPairsDeleted?: number;
+  dismissedPairsCleanupMs?: number;
 }
 
 /**

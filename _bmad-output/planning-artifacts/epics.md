@@ -2011,6 +2011,160 @@ So that **I can discover opportunities and control notification frequency**.
 **Then** I am not alerted again for that specific asset
 **Unless** the score difference increases significantly
 
+### Story 7.7: API Precision i18n Refactoring
+
+As a **user with non-US locale**,
+I want **calculation breakdowns and API responses to respect my locale settings**,
+So that **numbers are displayed with my preferred decimal and thousand separators**.
+
+**Acceptance Criteria:**
+
+**Given** the `/api/recommendations/:id/breakdown` endpoint returns calculation steps
+**When** I call the API
+**Then** values should include raw numeric data alongside display strings
+**And** the response should include a `type` field ("percent", "currency", "number")
+
+**Given** the CalculationSteps component receives raw numeric values
+**When** rendering values for pt-BR locale
+**Then** percentages display with comma separator (e.g., "15,50%")
+**And** currency displays with locale-appropriate formatting
+
+**Given** existing consumers of these API endpoints
+**When** the refactoring is deployed
+**Then** pre-formatted `value` strings remain available for backward compatibility
+**And** new `rawValue` and `type` fields are additive (non-breaking)
+
+**Given** the `/api/scores/:assetId/inputs` endpoint returns score data
+**When** I call the API
+**Then** `percentage` and `maxPossible` fields include raw numeric values
+**And** client-side formatting respects user locale
+
+### Story 7.12: Alerts List Server-Side Grouping Optimization
+
+As a **developer**,
+I want **to implement server-side grouping for alerts instead of client-side grouping**,
+So that **query performance remains optimal as alert volume grows beyond 100 alerts**.
+
+**Acceptance Criteria:**
+
+**Given** the alerts list currently fetches all alerts and groups them client-side
+**When** alert volume grows significantly (>100 alerts)
+**Then** this creates a potential N+1 query pattern inefficiency
+
+**Given** alerts are currently grouped by asset class in the client
+**When** implementing the optimization
+**Then** SQL GROUP BY should be used to group alerts server-side
+**And** reduce the data transfer and client-side processing
+
+**Given** the current implementation handles ≤100 alerts acceptably
+**When** planning the optimization
+**Then** this is a future optimization, not an immediate requirement
+**And** should be triggered when alert volume metrics indicate need
+
+**Given** server-side grouping is implemented
+**When** the API returns grouped alerts
+**Then** the response structure should include:
+
+- Asset class name
+- Alert count per class
+- Alerts array for that class
+- Sorting by alert priority within each group
+
+**Given** existing client code expects ungrouped alerts
+**When** the optimization is deployed
+**Then** ensure backward compatibility or coordinate frontend changes
+
+### Story 7.13: Alert Query Performance Indexes
+
+As a **developer**,
+I want **to add strategic database indexes for alert queries**,
+So that **alert filtering and retrieval remains performant at scale**.
+
+**Acceptance Criteria:**
+
+**Given** alerts are frequently queried by user_id and type
+**When** the database performs these queries
+**Then** a composite index should optimize this access pattern
+
+**Given** dismissed alerts should be excluded from most queries
+**When** creating the index
+**Then** use a partial index with `WHERE is_dismissed = false`
+**And** this reduces index size and improves query performance
+
+**Given** the recommended index structure
+**When** implementing
+**Then** create: `CREATE INDEX alerts_user_type_idx ON alerts(user_id, type) WHERE is_dismissed = false;`
+
+**Given** existing indexes are already in place
+**When** adding new indexes
+**Then** verify no duplicate or redundant indexes exist
+**And** ensure indexes on:
+
+- `snoozed_until` (for filtering active alerts)
+- `user_id` in `dismissed_opportunity_pairs`
+- Composite unique index on `(user_id, current_asset_id, better_asset_id)`
+
+**Given** indexes are added
+**When** measuring performance
+**Then** query execution plans should show index usage
+**And** alert list queries should complete in <50ms for typical datasets
+
+**Given** this is a future optimization
+**When** deciding implementation timing
+**Then** implement when alert query metrics show degradation
+**Or** when alert volume exceeds 500 alerts per user
+
+### Story 7.14: Alerts Performance Monitoring and Cleanup Job Tests
+
+As a **developer**,
+I want **performance monitoring for grouped alerts SQL aggregation and integration tests for dismissed pairs cleanup**,
+So that **we can track query performance in production and ensure cleanup jobs work correctly**.
+
+**Acceptance Criteria:**
+
+**Given** the server-side alert grouping query executes
+**When** the query fetches grouped alerts for a user
+**Then** query execution time is logged with structured telemetry
+**And** includes: userId, queryType, executionTimeMs, alertCount
+
+**Given** dismissed opportunity pairs exist in the database
+**When** the cleanup job runs
+**Then** pairs older than 90 days are deleted
+**And** pairs within 90 days are retained
+
+**Given** the cleanup job encounters a database error
+**When** the job fails mid-execution
+**Then** a transaction rollback occurs
+**And** no partial deletes are committed
+
+### Story 7.15: Fix Next.js Routing Conflict - Critical Production Blocker
+
+As a **developer**,
+I want **to fix the Next.js routing conflict between `[alertId]` and `[id]` dynamic route parameters**,
+So that **the application can initialize properly and users can access all API routes including login**.
+
+**Acceptance Criteria:**
+
+**Given** the alerts API has routes with conflicting dynamic parameter names
+**When** the server initializes and builds the route tree
+**Then** all dynamic route parameters at the same path level use consistent naming (`[alertId]`)
+**And** Next.js successfully builds the route tree without errors
+
+**Given** the read and dismiss alert route handlers reference `params.id`
+**When** the routes are updated
+**Then** handlers correctly read `params.alertId`
+**And** UUID validation succeeds
+
+**Given** all route parameter references are updated
+**When** running production build or deploying to Vercel
+**Then** the build completes successfully without routing errors
+**And** no "different slug names" error appears in logs
+
+**Given** the routing conflict is fixed
+**When** a user submits the login form
+**Then** the `/api/auth/login` route responds successfully
+**And** authentication completes without hanging
+
 ---
 
 ## Summary
@@ -2023,5 +2177,7 @@ So that **I can discover opportunities and control notification frequency**.
 | 4         | Investment Strategy Configuration        | 6              | 15         |
 | 5         | Market Data & Scoring Engine             | 6              | 15         |
 | 6         | Investment Recommendations               | 6              | 13         |
-| 7         | Data Transparency & Alerts               | 6              | 9          |
-| **Total** |                                          | **43 stories** | **95 FRs** |
+| 7         | Data Transparency & Alerts               | 13 (+2 ad-hoc) | 9          |
+| **Total** |                                          | **50 stories** | **95 FRs** |
+
+**Note:** Epic 7 stories 7.8-7.11 were added during implementation for enhancements and tech debt. Stories 7.12-7.13 are performance optimizations. Stories 7.14-7.15 are technical enhancements and critical fixes.

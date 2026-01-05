@@ -308,10 +308,12 @@ export function PortfolioDetailClient({
             // AC-2.2.1, AC-2.2.2: Holdings table with values
             // Story 3.5: Onboarding tip for allocation validation (AC-3.5.5)
             <OnboardingWrapper tipId="allocation-validation" side="top" align="start">
+              {/* AC-7.3.1: Pass data freshness to holdings table for header badge */}
               <HoldingsTable
                 assets={assets}
                 baseCurrency={baseCurrency}
                 onHoldingClick={handleHoldingClick}
+                dataFreshness={dataFreshness}
               />
             </OnboardingWrapper>
           )}

@@ -4,23 +4,28 @@
  * CalculationSteps Component
  *
  * Story 7.7: View Recommendation Breakdown
+ * Story 7.7 (i18n): API Precision i18n Refactoring
  * AC-7.7.3: Formula Display - shows step-by-step calculation
+ * AC-7.7.2: Client-Side Locale-Aware Formatting
  *
  * Displays calculation steps in a clear, understandable format:
  * - Step number and description
- * - Calculated value
+ * - Calculated value (locale-aware when rawValue/valueType available)
  * - Formula used
  *
  * Features:
  * - Visual step numbering
  * - Clear hierarchy
  * - Formula with explanatory text
+ * - Locale-aware number formatting (Story 7.7 i18n)
  */
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Calculator } from "lucide-react";
 import type { CalculationStep } from "@/lib/types/recommendations";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
+import { formatStepValue } from "./format-step-value";
 
 // =============================================================================
 // TYPES
@@ -41,19 +46,25 @@ export interface CalculationStepsProps {
  * CalculationSteps Component
  *
  * Displays step-by-step calculation breakdown for a recommendation.
+ * Uses locale-aware formatting when rawValue and valueType are available.
+ *
+ * Story 7.7 (i18n): AC-7.7.2 - Client-Side Locale-Aware Formatting
  *
  * @example
  * ```tsx
  * <CalculationSteps
  *   steps={[
- *     { step: "Calculate allocation gap", value: "2.0%", formula: "target - current" },
- *     { step: "Apply score weighting", value: "1.75", formula: "gap × (score/100)" },
- *     { step: "Distribute capital", value: "$800.00", formula: "weighted_share × total" },
+ *     { step: "Calculate allocation gap", value: "2.0%", rawValue: 2, valueType: "percent", formula: "target - current" },
+ *     { step: "Apply score weighting", value: "1.75", rawValue: 1.75, valueType: "weight", formula: "gap × (score/100)" },
+ *     { step: "Distribute capital", value: "$800.00", rawValue: 800, valueType: "currency", formula: "weighted_share × total" },
  *   ]}
  * />
  * ```
  */
 export function CalculationSteps({ steps, className }: CalculationStepsProps) {
+  // Story 7.7 (i18n): Use locale-aware number formatting
+  const formatters = useNumberFormat();
+
   // Memoize step rendering for performance
   const renderedSteps = useMemo(() => {
     return steps.map((step, index) => (
@@ -78,7 +89,8 @@ export function CalculationSteps({ steps, className }: CalculationStepsProps) {
               {step.step}
             </span>
             <span className="text-sm font-bold text-primary tabular-nums" data-testid="step-value">
-              {step.value}
+              {/* Story 7.7 (i18n): Use locale-aware formatting when available */}
+              {formatStepValue(step, formatters)}
             </span>
           </div>
 
@@ -89,7 +101,7 @@ export function CalculationSteps({ steps, className }: CalculationStepsProps) {
         </div>
       </div>
     ));
-  }, [steps]);
+  }, [steps, formatters]);
 
   if (steps.length === 0) {
     return null;

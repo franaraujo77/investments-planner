@@ -113,10 +113,21 @@ development_status:
 
   # Epic 7: Data Transparency & Alerts
   epic-7: in-progress
-  7-1-data-source-attribution: ready-for-dev
-  7-2-calculation-transparency: backlog
-  7-3-data-freshness-indicators: backlog
-  7-4-financial-disclaimers: backlog
-  7-5-allocation-drift-alerts: backlog
-  7-6-opportunity-alerts-and-preferences: backlog
+  7-1-data-source-attribution: done
+  7-2-calculation-transparency: done
+  7-3-data-freshness-indicators: done
+  7-4-financial-disclaimers: done
+  7-5-allocation-drift-alerts: done
+  7-6-opportunity-alerts-and-preferences: done
+  7-7-api-precision-i18n-refactoring: done  # Refactoring: locale-aware formatting for calculation breakdowns
+  7-8-opportunity-alerts-enhancements: done  # Completed: bulk dismiss, sidebar nav, cleanup job
+  7-9-server-side-number-formatting: done  # Enhancement: i18n-aware formatting for backend services
+  7-10-fix-recommendation-test-timeout: done  # Tech debt: fix flaky test timeout
+  7-11-overnight-cleanup-test-coverage: done  # Tech debt: add cleanup step test coverage (code review complete)
+  7-12-alerts-server-side-grouping: done  # Performance: Server-side grouping for alerts (code review complete)
+  7-13-alert-query-indexes: done  # Performance: Database indexes for alert queries (code review complete, verified in production)
+  7-14-alerts-monitoring-and-cleanup-tests: review  # Technical Enhancement: Performance monitoring and cleanup job integration tests (all ACs complete, ready for code review)
+  7-15-fix-nextjs-routing-conflict: done  # Critical Production Fix: Next.js routing conflict causing login failure (code review complete, all issues fixed)
+  7-16-fix-integration-test-infrastructure: done  # Technical Enhancement: Fix integration test infrastructure - update function count, create test helpers, improve documentation (code review complete, 11 issues fixed)
+  7-17-apply-graceful-db-handling-remaining-tests: done  # Technical Enhancement: Apply graceful database handling pattern to 2 remaining integration tests (code review complete, all issues fixed)
   epic-7-retrospective: optional

@@ -34,6 +34,7 @@ import {
   TrendingUp,
   Download,
   Loader2,
+  Calculator,
 } from "lucide-react";
 import {
   BarChart,
@@ -57,15 +58,24 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getScoreLevel, type ScoreLevel } from "@/components/fintech/score-badge";
+import { DataFreshnessBadge, createFreshnessInfo } from "@/components/data";
+// Note: formatRelativeTime moved to @/lib/types/freshness - import from there if needed
 import type { CriterionResult } from "@/hooks/use-asset-score";
-import { SourceAttributionLabel } from "@/components/data/source-attribution-label";
-import type { CalculationInputSources } from "@/lib/types/source-attribution";
-import type { CalculationBreakdown, CriterionOperator } from "@/lib/types/calculation-breakdown";
+import { SourceAttributionLabel, DataWithAttribution } from "@/components/data";
+import type { CalculationInputSources, SourceAttribution } from "@/lib/types/source-attribution";
+import type {
+  CalculationBreakdown,
+  CriterionOperator,
+  CriterionThreshold,
+} from "@/lib/types/calculation-breakdown";
+import { formatThreshold } from "@/lib/types/calculation-breakdown";
 import {
   exportCalculationAsJSON,
   generateExportFilename,
   triggerDownload,
 } from "@/lib/utils/export-calculation";
+import { CalculationStepsModal } from "./calculation-steps-modal";
+import { DisclaimerFooter } from "@/components/disclaimer";
 
 // =============================================================================
 // TYPES
@@ -132,29 +142,7 @@ function getScoreColorClasses(level: ScoreLevel): {
   }
 }
 
-/**
- * Format relative time for display
- */
-function formatRelativeTime(date: Date): string {
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-
-  const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) {
-    return days === 1 ? "1 day ago" : `${days} days ago`;
-  }
-  if (hours > 0) {
-    return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
-  }
-  if (minutes > 0) {
-    return minutes === 1 ? "1 minute ago" : `${minutes} minutes ago`;
-  }
-  return "just now";
-}
+// formatRelativeTime imported from @/lib/types/freshness
 
 /**
  * Normalize score to integer for display
@@ -185,16 +173,142 @@ function formatSkipReason(reason: string | null): string {
 // =============================================================================
 
 /**
+ * FormulaExplanationSection - explains how scores are calculated
+ *
+ * Story 7.2: Calculation Transparency
+ * AC-7.2.1: Shows how scores are calculated with formula explanation
+ */
+function FormulaExplanationSection() {
+  return (
+    <div className="space-y-2 p-3 bg-muted/20 rounded-md" data-testid="formula-explanation">
+      <h4 className="text-xs font-medium text-muted-foreground">How Scores Work</h4>
+      <p className="text-xs text-muted-foreground">
+        Score = Sum of points for each criterion that passes
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Each criterion compares actual data to your threshold
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Calculate if a failed criterion is "almost passing"
+ *
+ * Story 7.2: Calculation Transparency
+ * AC-7.2.5: Highlight criteria within 10% of threshold
+ */
+function getSensitivityLabel(
+  actualValue: string | null,
+  threshold: CriterionThreshold,
+  operator: CriterionOperator,
+  passed: boolean
+): { label: string; isClose: boolean } | null {
+  // Only show for failed criteria
+  if (passed || !actualValue) return null;
+
+  const actual = parseFloat(actualValue);
+  if (isNaN(actual)) return null;
+
+  // Handle single threshold
+  if (typeof threshold === "string") {
+    const thresholdNum = parseFloat(threshold);
+    if (isNaN(thresholdNum) || thresholdNum === 0) return null;
+
+    if (operator === "gt" || operator === "gte") {
+      const diff = (thresholdNum - actual) / thresholdNum;
+      if (diff > 0 && diff <= 0.1) {
+        return { label: "Almost passing", isClose: true };
+      }
+    }
+    if (operator === "lt" || operator === "lte") {
+      const diff = (actual - thresholdNum) / thresholdNum;
+      if (diff > 0 && diff <= 0.1) {
+        return { label: "Almost passing", isClose: true };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * ThresholdComparisonBar - visual threshold comparison bar
+ *
+ * Story 7.2: Calculation Transparency
+ * AC-7.2.4: Shows actual vs threshold with color coding
+ */
+interface ThresholdComparisonBarProps {
+  actual: number;
+  threshold: number;
+  operator: CriterionOperator;
+  passed: boolean;
+}
+
+function ThresholdComparisonBar({
+  actual,
+  threshold,
+  operator,
+  passed,
+}: ThresholdComparisonBarProps) {
+  // Calculate positions on 0-100% scale
+  const range = Math.max(threshold * 2, actual * 1.5, 1);
+  const thresholdPct = Math.min((threshold / range) * 100, 100);
+  const actualPct = Math.min((actual / range) * 100, 100);
+
+  // Determine bar direction based on operator (for future enhancement)
+  const _isLessThanOp = operator === "lt" || operator === "lte";
+
+  return (
+    <div
+      className="relative h-2 bg-muted rounded-full overflow-hidden mt-1"
+      data-testid="threshold-bar"
+      role="meter"
+      aria-valuenow={actual}
+      aria-valuemin={0}
+      aria-valuemax={range}
+      aria-label={`Actual ${actual} vs threshold ${threshold}`}
+    >
+      {/* Threshold marker line */}
+      <div
+        className="absolute top-0 bottom-0 w-0.5 bg-border z-10"
+        style={{ left: `${thresholdPct}%` }}
+        aria-hidden="true"
+      />
+      {/* Actual value bar */}
+      <div
+        className={cn(
+          "absolute top-0 bottom-0 left-0 rounded-full transition-all",
+          passed ? "bg-green-500" : "bg-red-500"
+        )}
+        style={{ width: `${actualPct}%` }}
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
+/**
  * CriterionResultRow - displays a single criterion result
  *
  * AC-5.4.2: Shows name, condition, points awarded, pass/fail indicator, actual value
+ * AC-7.2.2: Shows threshold rule and actual value comparison
  */
 interface CriterionResultRowProps {
   criterion: CriterionResult;
   isSkipped: boolean;
+  /** Optional operator for threshold display (AC-7.2.2) */
+  operator?: CriterionOperator;
+  /** Optional threshold for rule display (AC-7.2.2) */
+  threshold?: CriterionThreshold;
 }
 
-function CriterionResultRow({ criterion, isSkipped }: CriterionResultRowProps) {
+function CriterionResultRow({
+  criterion,
+  isSkipped,
+  operator,
+  threshold,
+}: CriterionResultRowProps) {
   const pointsColorClass =
     criterion.pointsAwarded > 0
       ? "text-green-600"
@@ -232,16 +346,69 @@ function CriterionResultRow({ criterion, isSkipped }: CriterionResultRowProps) {
         )}
         <div className="min-w-0 flex-1">
           <span className="text-sm font-medium truncate block">{criterion.criterionName}</span>
-          {criterion.actualValue && (
+          {/* AC-7.2.2: Threshold rule display */}
+          {!isSkipped && operator && threshold && (
+            <div className="text-xs text-muted-foreground mt-0.5" data-testid="criterion-rule">
+              Rule: {formatThreshold(operator, threshold)}
+              {criterion.actualValue && (
+                <span className="ml-2">Actual: {criterion.actualValue}</span>
+              )}
+            </div>
+          )}
+          {/* AC-7.2.4: Threshold comparison bar visualization */}
+          {!isSkipped &&
+            operator &&
+            threshold &&
+            criterion.actualValue &&
+            typeof threshold === "string" &&
+            (() => {
+              const actualNum = parseFloat(criterion.actualValue);
+              const thresholdNum = parseFloat(threshold);
+              if (!isNaN(actualNum) && !isNaN(thresholdNum) && thresholdNum > 0) {
+                return (
+                  <ThresholdComparisonBar
+                    actual={actualNum}
+                    threshold={thresholdNum}
+                    operator={operator}
+                    passed={criterion.matched}
+                  />
+                );
+              }
+              return null;
+            })()}
+          {/* Fallback to show actual value if no threshold info */}
+          {!operator && criterion.actualValue && (
             <span className="text-xs text-muted-foreground">Actual: {criterion.actualValue}</span>
           )}
         </div>
       </div>
-      <div
-        className={cn("text-sm font-semibold tabular-nums flex-shrink-0 ml-2", pointsColorClass)}
-      >
-        {criterion.pointsAwarded > 0 ? "+" : ""}
-        {criterion.pointsAwarded} pts
+      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+        <div className={cn("text-sm font-semibold tabular-nums", pointsColorClass)}>
+          {criterion.pointsAwarded > 0 ? "+" : ""}
+          {criterion.pointsAwarded} pts
+        </div>
+        {/* AC-7.2.5: Sensitivity hint for almost-passing criteria */}
+        {!criterion.matched &&
+          operator &&
+          threshold &&
+          (() => {
+            const sensitivity = getSensitivityLabel(
+              criterion.actualValue,
+              threshold,
+              operator,
+              criterion.matched
+            );
+            return sensitivity?.isClose ? (
+              <Badge
+                variant="outline"
+                className="text-xs border-amber-500 text-amber-600"
+                data-testid="sensitivity-hint"
+                aria-live="polite"
+              >
+                {sensitivity.label}
+              </Badge>
+            ) : null;
+          })()}
       </div>
     </div>
   );
@@ -393,12 +560,37 @@ interface CalculationInputsSectionProps {
 }
 
 function CalculationInputsSection({ inputSources }: CalculationInputsSectionProps) {
+  // Build attribution objects for DataWithAttribution tooltips (Story 7.1)
+  const priceAttribution: SourceAttribution | undefined = inputSources.price
+    ? {
+        dataType: "price",
+        source: inputSources.price.source,
+        timestamp: new Date(inputSources.price.fetchedAt),
+      }
+    : undefined;
+
+  const rateAttribution: SourceAttribution | undefined = inputSources.exchangeRate
+    ? {
+        dataType: "rate",
+        source: inputSources.exchangeRate.source,
+        timestamp: new Date(inputSources.exchangeRate.fetchedAt),
+      }
+    : undefined;
+
+  const fundamentalsAttribution: SourceAttribution | undefined = inputSources.fundamentals
+    ? {
+        dataType: "fundamentals",
+        source: inputSources.fundamentals.source,
+        timestamp: new Date(inputSources.fundamentals.fetchedAt),
+      }
+    : undefined;
+
   return (
     <div className="space-y-2" data-testid="calculation-inputs-section">
       <h3 className="text-sm font-medium">Calculation Inputs</h3>
       <div className="space-y-1.5 text-sm">
-        {/* Price source */}
-        {inputSources.price && (
+        {/* Price source (AC-7.1.1, AC-7.1.2) */}
+        {inputSources.price && priceAttribution && (
           <div
             className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
             data-testid="input-source-price"
@@ -409,14 +601,16 @@ function CalculationInputsSection({ inputSources }: CalculationInputsSectionProp
               showIcon
               size="sm"
             />
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {inputSources.price.value} {inputSources.price.currency}
-            </span>
+            <DataWithAttribution attribution={priceAttribution}>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {inputSources.price.value} {inputSources.price.currency}
+              </span>
+            </DataWithAttribution>
           </div>
         )}
 
-        {/* Exchange rate source */}
-        {inputSources.exchangeRate && (
+        {/* Exchange rate source (AC-7.1.1, AC-7.1.2) */}
+        {inputSources.exchangeRate && rateAttribution && (
           <div
             className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
             data-testid="input-source-rate"
@@ -427,15 +621,17 @@ function CalculationInputsSection({ inputSources }: CalculationInputsSectionProp
               showIcon
               size="sm"
             />
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {inputSources.exchangeRate.from}/{inputSources.exchangeRate.to}:{" "}
-              {inputSources.exchangeRate.rate}
-            </span>
+            <DataWithAttribution attribution={rateAttribution}>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {inputSources.exchangeRate.from}/{inputSources.exchangeRate.to}:{" "}
+                {inputSources.exchangeRate.rate}
+              </span>
+            </DataWithAttribution>
           </div>
         )}
 
-        {/* Fundamentals source */}
-        {inputSources.fundamentals && (
+        {/* Fundamentals source (AC-7.1.1, AC-7.1.2) */}
+        {inputSources.fundamentals && fundamentalsAttribution && (
           <div
             className="flex items-center justify-between py-1.5 px-2 bg-muted/30 rounded"
             data-testid="input-source-fundamentals"
@@ -446,14 +642,16 @@ function CalculationInputsSection({ inputSources }: CalculationInputsSectionProp
               showIcon
               size="sm"
             />
-            <span className="text-xs text-muted-foreground">
-              {
-                Object.keys(inputSources.fundamentals.metrics).filter(
-                  (k) => inputSources.fundamentals!.metrics[k] !== null
-                ).length
-              }{" "}
-              metrics
-            </span>
+            <DataWithAttribution attribution={fundamentalsAttribution}>
+              <span className="text-xs text-muted-foreground">
+                {
+                  Object.keys(inputSources.fundamentals.metrics).filter(
+                    (k) => inputSources.fundamentals!.metrics[k] !== null
+                  ).length
+                }{" "}
+                metrics
+              </span>
+            </DataWithAttribution>
           </div>
         )}
 
@@ -504,11 +702,11 @@ export function ScoreBreakdown({
   correlationId,
 }: ScoreBreakdownProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [showCalculationModal, setShowCalculationModal] = useState(false);
 
   const displayScore = useMemo(() => normalizeScore(score), [score]);
   const scoreLevel = useMemo(() => getScoreLevel(displayScore), [displayScore]);
   const scoreColors = useMemo(() => getScoreColorClasses(scoreLevel), [scoreLevel]);
-  const relativeTime = useMemo(() => formatRelativeTime(calculatedAt), [calculatedAt]);
 
   /**
    * Handle export button click
@@ -663,13 +861,21 @@ export function ScoreBreakdown({
           </div>
 
           {/* AC-5.11.2: Data freshness timestamp */}
+          {/* AC-7.3.1: Enhanced freshness display with DataFreshnessBadge */}
           <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
             <span>
               {matchedCount}/{totalEvaluated} criteria matched
             </span>
-            <span data-testid="freshness-timestamp">Calculated {relativeTime}</span>
+            <DataFreshnessBadge
+              freshnessInfo={createFreshnessInfo(calculatedAt, "Score Calculation")}
+              size="sm"
+              data-testid="freshness-timestamp"
+            />
           </div>
         </SheetHeader>
+
+        {/* AC-7.2.1: Formula Explanation Section */}
+        <FormulaExplanationSection />
 
         <Separator className="my-4" />
 
@@ -713,8 +919,19 @@ export function ScoreBreakdown({
 
         <Separator className="my-4" />
 
-        {/* AC-5.11.6, AC-5.11.7, AC-6.9.4: Navigation Links and Export */}
+        {/* AC-5.11.6, AC-5.11.7, AC-6.9.4, AC-7.2.3: Navigation Links and Export */}
         <div className="space-y-2">
+          {/* AC-7.2.3: Show full calculation button */}
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => setShowCalculationModal(true)}
+            data-testid="show-calculation-button"
+          >
+            <Calculator className="mr-2 h-4 w-4" />
+            Show full calculation
+          </Button>
+
           {/* AC-6.9.4: Export as JSON Button */}
           <Button
             variant="outline"
@@ -759,12 +976,24 @@ export function ScoreBreakdown({
           </Button>
         </div>
 
+        {/* Story 7.4: AC-7.4.4 - Subtle disclaimer footer */}
+        <Separator className="my-4" />
+        <DisclaimerFooter variant="compact" />
+
         {/* Debug info for development */}
         <div className="mt-4 text-xs text-muted-foreground hidden">
           <div>Asset ID: {assetId}</div>
           <div>Criteria Version: {criteriaVersionId}</div>
         </div>
       </SheetContent>
+
+      {/* AC-7.2.3: Calculation Steps Modal */}
+      <CalculationStepsModal
+        open={showCalculationModal}
+        onOpenChange={setShowCalculationModal}
+        assetId={assetId}
+        symbol={symbol}
+      />
     </Sheet>
   );
 }
@@ -778,6 +1007,10 @@ export {
   PointsContributionChart,
   SkippedCriteriaSection,
   CalculationInputsSection,
-  formatRelativeTime,
   getScoreColorClasses,
+  // Story 7.2: Calculation Transparency
+  FormulaExplanationSection,
+  ThresholdComparisonBar,
+  getSensitivityLabel,
 };
+// Note: formatRelativeTime is now imported from @/lib/types/freshness

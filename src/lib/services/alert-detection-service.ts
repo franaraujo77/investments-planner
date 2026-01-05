@@ -26,6 +26,7 @@ import {
   type AssetClassDriftDetails,
 } from "./alert-service";
 import { AlertPreferencesService, alertPreferencesService } from "./alert-preferences-service";
+import { DismissedPairsService, dismissedPairsService } from "./dismissed-pairs-service";
 
 // =============================================================================
 // TYPES
@@ -117,7 +118,8 @@ export class AlertDetectionService {
   constructor(
     private database: Database = db,
     private alerts: AlertService = alertService,
-    private preferences: AlertPreferencesService = alertPreferencesService
+    private preferences: AlertPreferencesService = alertPreferencesService,
+    private dismissedPairs: DismissedPairsService = dismissedPairsService
   ) {}
 
   /**
@@ -415,6 +417,25 @@ export class AlertDetectionService {
         result.skipped++;
       }
     } else {
+      // Story 7.6 AC-7.6.6: Check if this pair was previously dismissed
+      const dismissCheck = await this.dismissedPairs.shouldSkipAlert(
+        userId,
+        userAsset.assetId,
+        bestAlternative.assetId,
+        scoreDifference
+      );
+
+      if (dismissCheck.shouldSkip) {
+        logger.debug("Skipping alert for dismissed pair", {
+          userId,
+          currentAsset: userAsset.symbol,
+          betterAsset: bestAlternative.symbol,
+          reason: dismissCheck.reason,
+        });
+        result.skipped++;
+        return result;
+      }
+
       // Create new alert
       await this.alerts.createOpportunityAlert(
         userId,

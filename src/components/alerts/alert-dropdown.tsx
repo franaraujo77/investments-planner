@@ -4,14 +4,18 @@
  * AlertDropdown Component
  *
  * Story 9.6: Empty States & Helpful Messaging
+ * Story 7.5: Allocation Drift Alerts
  * AC-9.6.4: Empty Alerts State Shows "All Clear" Message
+ * AC-7.5.3: Alert Click Navigation - clicking drift alert navigates to portfolio
  *
  * Dropdown component that displays user alerts in the header.
  * Shows EmptyAlerts state when there are no alerts.
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Loader2, AlertTriangle, TrendingUp, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useNumberFormat } from "@/lib/i18n/useNumberFormat";
+import { Bell, Loader2, AlertTriangle, TrendingUp, Info, AlertOctagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,11 +30,41 @@ import { cn } from "@/lib/utils";
 // TYPES
 // =============================================================================
 
+/**
+ * Metadata for drift alerts
+ * AC-7.5.3: Contains assetClassId for portfolio navigation
+ */
+interface DriftAlertMetadata {
+  assetClassId: string;
+  assetClassName: string;
+  currentAllocation: string;
+  targetMin: string;
+  targetMax: string;
+  driftAmount: string;
+  direction: "over" | "under";
+}
+
+/**
+ * Metadata for opportunity alerts
+ */
+interface OpportunityAlertMetadata {
+  currentAssetId: string;
+  currentAssetSymbol: string;
+  betterAssetId: string;
+  betterAssetSymbol: string;
+  assetClassId: string;
+  assetClassName: string;
+}
+
+type AlertMetadata = DriftAlertMetadata | OpportunityAlertMetadata | Record<string, unknown>;
+
 interface Alert {
   id: string;
   type: "opportunity" | "allocation_drift" | "system";
   title: string;
   message: string;
+  severity: "info" | "warning" | "critical";
+  metadata: AlertMetadata;
   isRead: boolean;
   isDismissed: boolean;
   createdAt: string;
@@ -52,6 +86,8 @@ interface Alert {
  * ```
  */
 export function AlertDropdown() {
+  const router = useRouter();
+  const { formatDate } = useNumberFormat();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -66,13 +102,9 @@ export function AlertDropdown() {
       }
       const result = await response.json();
       setAlerts(result.data || []);
-    } catch (error) {
-      // Log error in development for debugging (intentional dev-only logging)
-      if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console -- Dev-only logging for debugging client fetch errors
-        console.error("[AlertDropdown] Failed to fetch alerts:", error);
-      }
-      // Gracefully degrade - show empty state instead of breaking UI
+    } catch (_error) {
+      // Error handled via UI state - show empty state instead of breaking UI
+      // Server-side logging happens in the API route
       setAlerts([]);
     } finally {
       setIsLoading(false);
@@ -90,16 +122,50 @@ export function AlertDropdown() {
   const unreadCount = alerts.filter((a) => !a.isRead).length;
 
   // Get icon for alert type
-  const getAlertIcon = (type: Alert["type"]) => {
+  // AC-7.5.4: Different icons for warning vs critical severity
+  const getAlertIcon = (type: Alert["type"], severity: Alert["severity"]) => {
     switch (type) {
       case "opportunity":
         return <TrendingUp className="h-4 w-4 text-blue-500" />;
       case "allocation_drift":
+        // AC-7.5.4: Critical shows AlertOctagon, warning shows AlertTriangle
+        if (severity === "critical") {
+          return <AlertOctagon className="h-4 w-4 text-red-500" />;
+        }
         return <AlertTriangle className="h-4 w-4 text-amber-500" />;
       default:
         return <Info className="h-4 w-4 text-muted-foreground" />;
     }
   };
+
+  /**
+   * AC-7.5.3: Handle alert click navigation
+   * Drift alerts navigate to portfolio with highlighted class
+   */
+  const handleAlertClick = useCallback(
+    (alert: Alert) => {
+      // Close the dropdown
+      setIsOpen(false);
+
+      // Navigate based on alert type
+      if (alert.type === "allocation_drift") {
+        const metadata = alert.metadata as DriftAlertMetadata;
+        if (metadata?.assetClassId) {
+          router.push(`/portfolio?highlightClass=${metadata.assetClassId}`);
+        } else {
+          router.push("/portfolio");
+        }
+      } else if (alert.type === "opportunity") {
+        // Opportunity alerts could navigate to asset comparison (future)
+        const metadata = alert.metadata as OpportunityAlertMetadata;
+        if (metadata?.currentAssetId) {
+          router.push(`/portfolio?highlightAsset=${metadata.currentAssetId}`);
+        }
+      }
+      // System alerts don't navigate anywhere
+    },
+    [router]
+  );
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -118,7 +184,7 @@ export function AlertDropdown() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="w-80" data-testid="alert-dropdown-content">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2">
           <span className="text-sm font-semibold">Alerts</span>
@@ -147,12 +213,16 @@ export function AlertDropdown() {
                 <button
                   key={alert.id}
                   type="button"
+                  onClick={() => handleAlertClick(alert)}
                   className={cn(
                     "flex w-full items-start gap-3 p-4 text-left hover:bg-muted/50 transition-colors",
-                    !alert.isRead && "bg-muted/30"
+                    !alert.isRead && "bg-muted/30",
+                    // AC-7.5.4: Highlight critical alerts with subtle red border
+                    alert.severity === "critical" && "border-l-2 border-l-red-500"
                   )}
+                  data-testid={`alert-item-${alert.type}`}
                 >
-                  <div className="mt-0.5">{getAlertIcon(alert.type)}</div>
+                  <div className="mt-0.5">{getAlertIcon(alert.type, alert.severity)}</div>
                   <div className="flex-1 min-w-0">
                     <p className={cn("text-sm truncate", !alert.isRead && "font-medium")}>
                       {alert.title}
@@ -161,7 +231,7 @@ export function AlertDropdown() {
                       {alert.message}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(alert.createdAt).toLocaleDateString()}
+                      {formatDate(new Date(alert.createdAt))}
                     </p>
                   </div>
                 </button>

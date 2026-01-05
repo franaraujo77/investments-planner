@@ -346,16 +346,76 @@ export interface RecommendationValidationError {
 // =============================================================================
 
 /**
+ * Value type hint for locale-aware formatting
+ *
+ * Story 7.7: API Precision i18n Refactoring
+ * AC-7.7.1: Raw Numeric Values in Breakdown API
+ *
+ * Used by client-side formatters to determine appropriate formatting:
+ * - "percent": Format as percentage (e.g., 15.5 → "15,50%" in pt-BR)
+ * - "currency": Format as currency (e.g., 800 → "R$ 800,00" in pt-BR)
+ * - "weight": Format as weight with high precision (4 decimal places)
+ * - "number": Format as plain number
+ */
+export type CalculationValueType = "percent" | "currency" | "weight" | "number";
+
+/**
  * Individual calculation step for breakdown display
  *
  * Story 7.7: View Recommendation Breakdown
+ * Story 7.7 (i18n): API Precision i18n Refactoring
  * AC-7.7.3: Formula Display - shows step-by-step calculation
+ * AC-7.7.1: Raw Numeric Values in Breakdown API
+ * AC-7.7.4: Backward Compatibility
+ *
+ * **API Contract - Precision Expectations:**
+ * - `value` is pre-formatted for display with fixed precision (backward compat):
+ *   - Percentages: 2 decimal places (e.g., "15.50%")
+ *   - Currency: 2 decimal places with $ prefix (e.g., "$800.00")
+ *   - Weights: 4 decimal places (e.g., "0.1234")
+ * - Uses en-US locale formatting (period as decimal separator)
+ *
+ * **i18n Enhancement (Story 7.7):**
+ * - `rawValue`: Raw numeric value for client-side locale-aware formatting
+ * - `valueType`: Type hint for appropriate formatting (percent, currency, etc.)
+ *
+ * **Migration Guide:**
+ * - Existing consumers can continue using `value` (string) unchanged
+ * - New consumers should prefer `rawValue` + `valueType` for i18n support
+ * - Use `formatStepValue()` helper for locale-aware display
  */
 export interface CalculationStep {
   /** Step description (e.g., "Calculate allocation gap") */
   step: string;
-  /** Calculated value for this step (e.g., "2.0%") */
+  /**
+   * Calculated value for this step, pre-formatted for display.
+   * Uses en-US locale with fixed decimal precision.
+   * @deprecated For i18n support, prefer using `rawValue` + `valueType`
+   * @example "2.0%" | "$800.00" | "0.1234"
+   */
   value: string;
+  /**
+   * Raw numeric value for client-side locale-aware formatting.
+   *
+   * Story 7.7 (i18n): AC-7.7.1 - Raw Numeric Values
+   *
+   * Use with `valueType` to format appropriately:
+   * - percent: value is already in percentage points (e.g., 15.5 means 15.5%)
+   * - currency: value is in base currency units
+   * - weight: value is a decimal weight (e.g., 0.1234)
+   * - number: plain numeric value
+   *
+   * @example 15.5 | 800 | 0.1234
+   */
+  rawValue?: number;
+  /**
+   * Type hint for formatting the raw value.
+   *
+   * Story 7.7 (i18n): AC-7.7.1 - Value Type Field
+   *
+   * Determines how `rawValue` should be formatted by client-side formatters.
+   */
+  valueType?: CalculationValueType;
   /** Formula used (e.g., "target_mid - current") */
   formula: string;
 }

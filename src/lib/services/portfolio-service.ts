@@ -988,6 +988,9 @@ import { getUserProfile } from "./user-service";
  * AC-3.6.1: Table displays all value columns
  * AC-3.6.2: Native currency values
  * AC-3.6.3: Base currency conversion
+ *
+ * Story 7.1: Data Source Attribution
+ * AC-7.1.1: Source provider name for each data point
  */
 export interface AssetWithValue {
   // Existing asset fields
@@ -1008,6 +1011,8 @@ export interface AssetWithValue {
   exchangeRate: string;
   allocationPercent: string;
   priceUpdatedAt: Date;
+  /** Source provider for price data (Story 7.1: AC-7.1.1) */
+  priceSource: string;
 }
 
 /**
@@ -1132,6 +1137,8 @@ export async function getPortfolioWithValues(
     const priceData: PriceData | null = prices.get(asset.symbol) ?? null;
     const currentPrice = priceData?.price ?? asset.purchasePrice;
     const priceUpdatedAt = priceData?.updatedAt ?? new Date();
+    // Story 7.1: Get source provider (default to "manual" if no price data)
+    const priceSource = priceData?.source ?? "manual";
 
     if (priceUpdatedAt < oldestPriceUpdate) {
       oldestPriceUpdate = priceUpdatedAt;
@@ -1170,6 +1177,7 @@ export async function getPortfolioWithValues(
       exchangeRate,
       allocationPercent: "0.0000", // Calculated in second pass
       priceUpdatedAt,
+      priceSource,
     };
   });
 

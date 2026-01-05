@@ -19,6 +19,7 @@ import { db, type Database } from "@/lib/db";
 import {
   alerts,
   portfolioAssets,
+  dismissedOpportunityPairs,
   type Alert,
   type NewAlert,
   type OpportunityAlertMetadata,
@@ -27,6 +28,7 @@ import {
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "@/lib/telemetry/logger";
 import Decimal from "decimal.js";
+import { formatNumber, formatPercent } from "@/lib/i18n/serverNumberFormat";
 
 // =============================================================================
 // TYPES
@@ -86,10 +88,16 @@ export interface AlertQueryOptions {
   limit?: number | undefined;
   /** Offset for pagination (default: 0) */
   offset?: number | undefined;
+  /**
+   * Story 7.12: AC-7.12.2 - Server-side grouping flag
+   * When true, groups alerts by asset class using SQL aggregation
+   */
+  groupBy?: boolean | undefined;
 }
 
 /**
  * Alert query result with pagination
+ * Story 7.14: AC-7.14.1 - Includes execution time for performance monitoring
  */
 export interface AlertQueryResult {
   /** List of alerts */
@@ -101,6 +109,41 @@ export interface AlertQueryResult {
     limit: number;
     offset: number;
   };
+  /** Query execution time in milliseconds (Story 7.14: AC-7.14.1) */
+  executionTimeMs: number;
+}
+
+/**
+ * Story 7.12: AC-7.12.3 - Grouped alert response structure
+ * Single asset class group with pre-aggregated data
+ */
+export interface AlertGroup {
+  /** Asset class ID (null for ungrouped alerts) */
+  assetClassId: string | null;
+  /** Asset class name (null for ungrouped alerts) */
+  assetClassName: string | null;
+  /** Count of alerts in this group */
+  alertCount: number;
+  /** Alerts for this asset class, sorted by priority */
+  alerts: Alert[];
+}
+
+/**
+ * Story 7.12: AC-7.12.3 - Grouped alerts query result
+ * Story 7.14: AC-7.14.1 - Includes execution time for performance monitoring
+ * Response structure for server-side grouped alerts
+ */
+export interface GroupedAlertsResult {
+  /** Alert groups by asset class */
+  groups: AlertGroup[];
+  /** Alerts without asset class metadata */
+  ungrouped: Alert[];
+  /** Total count across all groups */
+  totalCount: number;
+  /** Total number of groups */
+  totalGroups: number;
+  /** Query execution time in milliseconds (Story 7.14: AC-7.14.1) */
+  executionTimeMs: number;
 }
 
 /**
@@ -165,26 +208,30 @@ export class AlertService {
    *
    * AC-9.1.1: Alert created when better asset exists (10+ points higher)
    * AC-9.1.2: Message format: "[BETTER_SYMBOL] scores [BETTER_SCORE] vs your [CURRENT_SYMBOL] ([CURRENT_SCORE]). Consider swapping?"
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param userId - User ID (tenant isolation)
    * @param currentAsset - User's current asset details
    * @param betterAsset - Better scoring asset details
    * @param assetClass - Asset class details for context
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Created alert
    */
   async createOpportunityAlert(
     userId: string,
     currentAsset: AssetAlertDetails,
     betterAsset: AssetAlertDetails,
-    assetClass: AssetClassAlertDetails
+    assetClass: AssetClassAlertDetails,
+    locale?: string
   ): Promise<Alert> {
     const currentScore = new Decimal(currentAsset.score.toString());
     const betterScore = new Decimal(betterAsset.score.toString());
     const scoreDifference = betterScore.minus(currentScore);
 
     // AC-9.1.2: Generate title and message
+    // Story 7.9 AC-7.9.2: Format scores according to user's locale
     const title = `${betterAsset.symbol} scores higher than your ${currentAsset.symbol}`;
-    const message = `${betterAsset.symbol} scores ${betterScore.toFixed(2)} vs your ${currentAsset.symbol} (${currentScore.toFixed(2)}). Consider swapping?`;
+    const message = `${betterAsset.symbol} scores ${formatNumber(betterScore.toNumber(), locale)} vs your ${currentAsset.symbol} (${formatNumber(currentScore.toNumber(), locale)}). Consider swapping?`;
 
     // AC-9.1.1: Build metadata with all required fields
     const metadata: OpportunityAlertMetadata = {
@@ -258,11 +305,16 @@ export class AlertService {
   /**
    * Get alerts with filtering and pagination
    *
+   * Story 7.14: AC-7.14.1 - Performance monitoring for alert queries
+   *
    * @param userId - User ID (tenant isolation)
    * @param options - Query options for filtering and pagination
-   * @returns Alert query result with pagination info
+   * @returns Alert query result with pagination info and execution time
    */
   async getAlerts(userId: string, options?: AlertQueryOptions): Promise<AlertQueryResult> {
+    // Story 7.14: AC-7.14.1 - Start performance measurement
+    const startTime = performance.now();
+
     const limit = Math.min(options?.limit ?? 50, 100);
     const offset = options?.offset ?? 0;
 
@@ -298,19 +350,257 @@ export class AlertService {
 
     const totalCount = countResult[0]?.count ?? 0;
 
-    logger.debug("Retrieved alerts with pagination", {
+    // Story 7.14: AC-7.14.1 - Calculate execution time
+    const executionTimeMs = Math.round(performance.now() - startTime);
+
+    // Story 7.14: AC-7.14.1 - Log performance metrics with structured telemetry
+    logger.info("Alert grouping query executed", {
       userId,
+      queryType: "alert_grouping",
+      executionTimeMs,
+      alertCount: result.length,
+      slowQueryWarning: executionTimeMs > 100,
       limit,
       offset,
-      resultCount: result.length,
       totalCount,
     });
+
+    // Story 7.14: AC-7.14.1 - Log warning for slow queries
+    if (executionTimeMs > 100) {
+      logger.warn("Alert query exceeded performance threshold", {
+        userId,
+        queryType: "alert_grouping",
+        executionTimeMs,
+        threshold: 100,
+        alertCount: result.length,
+        ...(options?.type && { filterType: options.type }),
+        ...(options?.isRead !== undefined && { filterIsRead: options.isRead }),
+        ...(options?.isDismissed !== undefined && { filterIsDismissed: options.isDismissed }),
+      });
+    }
 
     return {
       alerts: result,
       totalCount,
       metadata: { limit, offset },
+      executionTimeMs, // Story 7.14: AC-7.14.1
     };
+  }
+
+  /**
+   * Get alerts grouped by asset class (Story 7.12: AC-7.12.2)
+   *
+   * Uses SQL aggregation to efficiently group alerts by asset class at the database level.
+   * Implements pagination to prevent memory issues with large datasets.
+   *
+   * AC-7.12.2: SQL aggregation for grouping by asset class
+   * AC-7.12.3: Response includes asset class name, alert count, and sorted alerts
+   * AC-7.12.5: Performance target <50ms for typical datasets
+   *
+   * @param userId - User ID (tenant isolation)
+   * @param options - Query options for filtering and pagination
+   * @returns Grouped alert result with asset class groups
+   */
+  async getAlertsGrouped(
+    userId: string,
+    options?: AlertQueryOptions
+  ): Promise<GroupedAlertsResult> {
+    // Story 7.14: AC-7.14.1 - Use performance.now() for precise timing
+    const startTime = performance.now();
+    const limit = Math.min(options?.limit ?? 100, 1000); // Max 1000 alerts to prevent OOM
+    const offset = options?.offset ?? 0;
+
+    // Build filter conditions (same as getAlerts)
+    const conditions: ReturnType<typeof eq>[] = [eq(alerts.userId, userId)];
+
+    if (options?.type) {
+      conditions.push(eq(alerts.type, options.type));
+    }
+
+    if (options?.isRead !== undefined) {
+      conditions.push(eq(alerts.isRead, options.isRead));
+    }
+
+    if (options?.isDismissed !== undefined) {
+      conditions.push(eq(alerts.isDismissed, options.isDismissed));
+    }
+
+    // AC-7.12.2: Use SQL aggregation to get group metadata efficiently
+    // Get distinct asset class IDs with counts using SQL GROUP BY
+    const groupMetadata = await this.database
+      .select({
+        assetClassId: sql<string | null>`${alerts.metadata}->>'assetClassId'`,
+        assetClassName: sql<string | null>`${alerts.metadata}->>'assetClassName'`,
+        alertCount: sql<number>`COUNT(*)::int`,
+        maxSeverity: sql<string>`
+          MIN(CASE ${alerts.severity}
+            WHEN ${ALERT_SEVERITIES.CRITICAL} THEN 0
+            WHEN ${ALERT_SEVERITIES.WARNING} THEN 1
+            ELSE 2
+          END)
+        `,
+      })
+      .from(alerts)
+      .where(and(...conditions))
+      .groupBy(sql`${alerts.metadata}->>'assetClassId'`, sql`${alerts.metadata}->>'assetClassName'`)
+      .orderBy(
+        sql`MIN(CASE ${alerts.severity} WHEN ${ALERT_SEVERITIES.CRITICAL} THEN 0 WHEN ${ALERT_SEVERITIES.WARNING} THEN 1 ELSE 2 END)`
+      );
+
+    // Fetch alerts with pagination and proper sorting
+    const allAlerts = await this.database
+      .select()
+      .from(alerts)
+      .where(and(...conditions))
+      .orderBy(
+        // Sort by severity first (critical > warning > info)
+        sql`CASE ${alerts.severity}
+          WHEN ${ALERT_SEVERITIES.CRITICAL} THEN 0
+          WHEN ${ALERT_SEVERITIES.WARNING} THEN 1
+          ELSE 2
+        END`,
+        desc(alerts.createdAt)
+      )
+      .limit(limit)
+      .offset(offset);
+
+    // Group alerts by asset class ID using efficient Map lookup
+    const groupMap = new Map<string, Alert[]>();
+    const ungroupedAlerts: Alert[] = [];
+
+    for (const alert of allAlerts) {
+      try {
+        // AC-7.12.2: Extract asset class info from metadata with error handling
+        const metadata = alert.metadata as
+          | OpportunityAlertMetadata
+          | DriftAlertMetadata
+          | Record<string, unknown>
+          | null;
+
+        if (!metadata || typeof metadata !== "object") {
+          ungroupedAlerts.push(alert);
+          continue;
+        }
+
+        const assetClassId =
+          "assetClassId" in metadata && typeof metadata.assetClassId === "string"
+            ? metadata.assetClassId
+            : null;
+
+        if (assetClassId) {
+          const existing = groupMap.get(assetClassId) ?? [];
+          existing.push(alert);
+          groupMap.set(assetClassId, existing);
+        } else {
+          ungroupedAlerts.push(alert);
+        }
+      } catch (error) {
+        // Handle malformed metadata gracefully
+        logger.warn("Failed to parse alert metadata for grouping", {
+          alertId: alert.id,
+          userId,
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+        });
+        ungroupedAlerts.push(alert);
+      }
+    }
+
+    // Build groups array with metadata from SQL aggregation
+    const groups: AlertGroup[] = [];
+
+    for (const meta of groupMetadata) {
+      if (!meta.assetClassId) {
+        continue; // Skip null asset class (handled in ungrouped)
+      }
+
+      const groupAlerts = groupMap.get(meta.assetClassId) ?? [];
+
+      // Sort alerts within group using utility function
+      const sortedAlerts = this.sortAlertsBySeverityAndDate(groupAlerts);
+
+      groups.push({
+        assetClassId: meta.assetClassId,
+        assetClassName: meta.assetClassName ?? "Unknown",
+        alertCount: meta.alertCount,
+        alerts: sortedAlerts,
+      });
+    }
+
+    // Get total count for pagination
+    const countResult = await this.database
+      .select({ count: sql<number>`count(*)::int` })
+      .from(alerts)
+      .where(and(...conditions));
+
+    const totalCount = countResult[0]?.count ?? 0;
+
+    // Story 7.14: AC-7.14.1 - Calculate execution time using performance.now()
+    const executionTimeMs = Math.round(performance.now() - startTime);
+
+    // Story 7.14: AC-7.14.1 - Log performance metrics with structured telemetry
+    logger.info("Alert grouping query executed", {
+      userId,
+      queryType: "alert_grouping",
+      executionTimeMs,
+      alertCount: allAlerts.length,
+      slowQueryWarning: executionTimeMs > 100,
+      totalGroups: groups.length,
+      ungroupedCount: ungroupedAlerts.length,
+      limit,
+      offset,
+      totalCount,
+      avgAlertsPerGroup: groups.length > 0 ? allAlerts.length / groups.length : 0,
+    });
+
+    // Story 7.14: AC-7.14.1 - Log warning for slow queries (>100ms threshold)
+    if (executionTimeMs > 100) {
+      logger.warn("Alert query exceeded performance threshold", {
+        userId,
+        queryType: "alert_grouping",
+        executionTimeMs,
+        threshold: 100,
+        alertCount: totalCount,
+        totalGroups: groups.length,
+      });
+    }
+
+    return {
+      groups,
+      ungrouped: ungroupedAlerts,
+      totalCount,
+      totalGroups: groups.length,
+      executionTimeMs, // Story 7.14: AC-7.14.1
+    };
+  }
+
+  /**
+   * Sort alerts by severity (critical > warning > info) then by creation date (newest first)
+   *
+   * Extracted utility function for consistent sorting across features.
+   *
+   * @param alerts - Alerts to sort
+   * @returns Sorted alerts array
+   */
+  private sortAlertsBySeverityAndDate(alerts: Alert[]): Alert[] {
+    const severityOrder = {
+      [ALERT_SEVERITIES.CRITICAL]: 0,
+      [ALERT_SEVERITIES.WARNING]: 1,
+      [ALERT_SEVERITIES.INFO]: 2,
+    };
+
+    return [...alerts].sort((a, b) => {
+      const aSeverity = severityOrder[a.severity as AlertSeverity] ?? 999;
+      const bSeverity = severityOrder[b.severity as AlertSeverity] ?? 999;
+
+      if (aSeverity !== bSeverity) {
+        return aSeverity - bSeverity;
+      }
+
+      // Sort by created date descending (newest first)
+      const aTime = a.createdAt?.getTime() ?? 0;
+      const bTime = b.createdAt?.getTime() ?? 0;
+      return bTime - aTime;
+    });
   }
 
   /**
@@ -364,6 +654,7 @@ export class AlertService {
    * Dismiss alert
    *
    * AC-9.1.5: Alert auto-clears when resolved (isDismissed=true, dismissedAt=timestamp)
+   * Story 7.6 AC-7.6.6: For opportunity alerts, records the dismissed pair
    *
    * @param userId - User ID (tenant isolation)
    * @param alertId - Alert ID to dismiss
@@ -371,6 +662,19 @@ export class AlertService {
    */
   async dismissAlert(userId: string, alertId: string): Promise<Alert | null> {
     const now = new Date();
+
+    // First, get the alert to check if it's an opportunity alert
+    const [existingAlert] = await this.database
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)));
+
+    if (!existingAlert) {
+      logger.warn("Alert not found for dismissal", { alertId, userId });
+      return null;
+    }
+
+    // Dismiss the alert
     const [updated] = await this.database
       .update(alerts)
       .set({
@@ -381,13 +685,84 @@ export class AlertService {
       .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)))
       .returning();
 
-    if (updated) {
-      logger.debug("Alert dismissed", { alertId, userId });
-    } else {
-      logger.warn("Alert not found for dismissal", { alertId, userId });
+    if (!updated) {
+      return null;
     }
 
-    return updated ?? null;
+    // Story 7.6 AC-7.6.6: Record dismissed pair for opportunity alerts
+    if (updated.type === ALERT_TYPES.OPPORTUNITY) {
+      const metadata = updated.metadata as OpportunityAlertMetadata;
+      if (metadata.currentAssetId && metadata.betterAssetId && metadata.scoreDifference) {
+        try {
+          await this.recordDismissedOpportunityPair(
+            userId,
+            metadata.currentAssetId,
+            metadata.betterAssetId,
+            metadata.scoreDifference
+          );
+        } catch (error) {
+          // Log but don't fail the dismissal
+          logger.warn("Failed to record dismissed opportunity pair", {
+            alertId,
+            userId,
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    }
+
+    logger.debug("Alert dismissed", { alertId, userId, type: updated.type });
+
+    return updated;
+  }
+
+  /**
+   * Record a dismissed opportunity pair
+   *
+   * Story 7.6 AC-7.6.6: Dismissal Memory
+   * Prevents re-alerting for the same asset pair unless score increases by >10 points
+   *
+   * @param userId - User ID
+   * @param currentAssetId - Current asset in portfolio
+   * @param betterAssetId - Better scoring asset
+   * @param scoreDifference - Score difference at dismissal
+   */
+  private async recordDismissedOpportunityPair(
+    userId: string,
+    currentAssetId: string,
+    betterAssetId: string,
+    scoreDifference: string
+  ): Promise<void> {
+    const now = new Date();
+
+    // Upsert: insert or update if exists
+    await this.database
+      .insert(dismissedOpportunityPairs)
+      .values({
+        userId,
+        currentAssetId,
+        betterAssetId,
+        lastScoreDifference: scoreDifference,
+        dismissedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [
+          dismissedOpportunityPairs.userId,
+          dismissedOpportunityPairs.currentAssetId,
+          dismissedOpportunityPairs.betterAssetId,
+        ],
+        set: {
+          lastScoreDifference: scoreDifference,
+          dismissedAt: now,
+        },
+      });
+
+    logger.debug("Recorded dismissed opportunity pair", {
+      userId,
+      currentAssetId,
+      betterAssetId,
+      scoreDifference,
+    });
   }
 
   /**
@@ -469,18 +844,21 @@ export class AlertService {
    * Update alert if score difference changed significantly
    *
    * AC-9.1.4: Existing alert is updated if score difference changes significantly (>5 point change)
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param alertId - Alert ID to update
    * @param newScoreDifference - New score difference to check
    * @param currentAsset - Updated current asset details
    * @param betterAsset - Updated better asset details
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Updated alert or null if no significant change
    */
   async updateAlertIfChanged(
     alertId: string,
     newScoreDifference: Decimal,
     currentAsset: AssetAlertDetails,
-    betterAsset: AssetAlertDetails
+    betterAsset: AssetAlertDetails,
+    locale?: string
   ): Promise<Alert | null> {
     // Get existing alert
     const [existing] = await this.database.select().from(alerts).where(eq(alerts.id, alertId));
@@ -507,10 +885,11 @@ export class AlertService {
     }
 
     // Update alert with new scores
+    // Story 7.9 AC-7.9.2: Format scores according to user's locale
     const currentScore = new Decimal(currentAsset.score.toString());
     const betterScore = new Decimal(betterAsset.score.toString());
 
-    const message = `${betterAsset.symbol} scores ${betterScore.toFixed(2)} vs your ${currentAsset.symbol} (${currentScore.toFixed(2)}). Consider swapping?`;
+    const message = `${betterAsset.symbol} scores ${formatNumber(betterScore.toNumber(), locale)} vs your ${currentAsset.symbol} (${formatNumber(currentScore.toNumber(), locale)}). Consider swapping?`;
 
     const updatedMetadata: OpportunityAlertMetadata = {
       ...existingMetadata,
@@ -608,18 +987,21 @@ export class AlertService {
    * AC-9.2.1: Alert created when allocation drifts outside target range
    * AC-9.2.2: Message format: "[CLASS_NAME] at [CURRENT]%, target is [MIN]-[MAX]%"
    * AC-9.2.3: Severity based on drift magnitude (warning vs critical)
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param userId - User ID (tenant isolation)
    * @param assetClass - Asset class with target allocation details
    * @param currentAllocation - Current allocation percentage
    * @param driftThreshold - User's configured drift threshold (default 5%)
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Created alert
    */
   async createDriftAlert(
     userId: string,
     assetClass: AssetClassDriftDetails,
     currentAllocation: Decimal,
-    driftThreshold: Decimal
+    driftThreshold: Decimal,
+    locale?: string
   ): Promise<Alert> {
     const targetMin = new Decimal(assetClass.targetMin);
     const targetMax = new Decimal(assetClass.targetMax);
@@ -651,7 +1033,8 @@ export class AlertService {
     const suggestion =
       direction === "over" ? "Consider not adding to this class" : "Increase contributions here";
 
-    const message = `${assetClass.name} at ${currentAllocation.toFixed(2)}%, target is ${targetMin.toFixed(2)}-${targetMax.toFixed(2)}%. ${suggestion}`;
+    // Story 7.9 AC-7.9.2: Format percentages according to user's locale
+    const message = `${assetClass.name} at ${formatPercent(currentAllocation.toNumber(), locale)}, target is ${formatPercent(targetMin.toNumber(), locale)}-${formatPercent(targetMax.toNumber(), locale)}. ${suggestion}`;
 
     // AC-9.2.1: Build metadata with all required fields
     const metadata: DriftAlertMetadata = {
@@ -727,18 +1110,21 @@ export class AlertService {
    * Update drift alert if drift amount changed significantly
    *
    * AC-9.2.7: Update existing alert if drift changes by >2%
+   * Story 7.9 AC-7.9.2: Numbers formatted according to user's locale
    *
    * @param alertId - Alert ID to update
    * @param newDriftAmount - New drift amount
    * @param newCurrentAllocation - New current allocation
    * @param driftThreshold - User's configured drift threshold
+   * @param locale - Optional locale for number formatting (defaults to en-US)
    * @returns Updated alert or null if no significant change
    */
   async updateDriftAlertIfChanged(
     alertId: string,
     newDriftAmount: Decimal,
     newCurrentAllocation: Decimal,
-    driftThreshold: Decimal
+    driftThreshold: Decimal,
+    locale?: string
   ): Promise<Alert | null> {
     // Get existing alert
     const [existing] = await this.database.select().from(alerts).where(eq(alerts.id, alertId));
@@ -775,7 +1161,10 @@ export class AlertService {
     const suggestion =
       direction === "over" ? "Consider not adding to this class" : "Increase contributions here";
 
-    const message = `${existingMetadata.assetClassName} at ${newCurrentAllocation.toFixed(2)}%, target is ${existingMetadata.targetMin}-${existingMetadata.targetMax}%. ${suggestion}`;
+    // Story 7.9 AC-7.9.2: Format percentages according to user's locale
+    const targetMin = new Decimal(existingMetadata.targetMin);
+    const targetMax = new Decimal(existingMetadata.targetMax);
+    const message = `${existingMetadata.assetClassName} at ${formatPercent(newCurrentAllocation.toNumber(), locale)}, target is ${formatPercent(targetMin.toNumber(), locale)}-${formatPercent(targetMax.toNumber(), locale)}. ${suggestion}`;
 
     const updatedMetadata: DriftAlertMetadata = {
       ...existingMetadata,
@@ -920,6 +1309,187 @@ export class AlertService {
     }
 
     return alertsToDismiss.length;
+  }
+
+  /**
+   * Dismiss multiple alerts by ID
+   *
+   * Story 7.8: AC-7.8.1 - Bulk dismiss functionality
+   * Dismisses all specified alerts and records dismissed pairs for opportunity alerts.
+   *
+   * @param userId - User ID (tenant isolation)
+   * @param alertIds - Array of alert IDs to dismiss
+   * @returns Result with dismissed count and any errors
+   */
+  async dismissMultipleAlerts(
+    userId: string,
+    alertIds: string[]
+  ): Promise<{
+    dismissedCount: number;
+    errors: Array<{ alertId: string; error: string }>;
+  }> {
+    if (alertIds.length === 0) {
+      return { dismissedCount: 0, errors: [] };
+    }
+
+    const now = new Date();
+    const errors: Array<{ alertId: string; error: string }> = [];
+
+    // First, get all the alerts to check ownership and get metadata
+    const existingAlerts = await this.database
+      .select()
+      .from(alerts)
+      .where(
+        and(eq(alerts.userId, userId), inArray(alerts.id, alertIds), eq(alerts.isDismissed, false))
+      );
+
+    // Filter out alerts that don't exist or don't belong to user
+    const validAlertIds = existingAlerts.map((a) => a.id);
+    const invalidAlertIds = alertIds.filter((id) => !validAlertIds.includes(id));
+
+    for (const invalidId of invalidAlertIds) {
+      errors.push({ alertId: invalidId, error: "Alert not found or already dismissed" });
+    }
+
+    if (validAlertIds.length === 0) {
+      return { dismissedCount: 0, errors };
+    }
+
+    // Batch dismiss all valid alerts
+    const result = await this.database
+      .update(alerts)
+      .set({
+        isDismissed: true,
+        dismissedAt: now,
+        updatedAt: now,
+      })
+      .where(inArray(alerts.id, validAlertIds))
+      .returning({ id: alerts.id });
+
+    const dismissedCount = result.length;
+
+    // Record dismissed pairs for opportunity alerts (Story 7.6 AC-7.6.6)
+    const opportunityAlerts = existingAlerts.filter((a) => a.type === ALERT_TYPES.OPPORTUNITY);
+
+    for (const alert of opportunityAlerts) {
+      const metadata = alert.metadata as OpportunityAlertMetadata;
+      if (metadata.currentAssetId && metadata.betterAssetId && metadata.scoreDifference) {
+        try {
+          await this.recordDismissedOpportunityPair(
+            userId,
+            metadata.currentAssetId,
+            metadata.betterAssetId,
+            metadata.scoreDifference
+          );
+        } catch (error) {
+          // Log but don't fail the bulk dismiss
+          logger.warn("Failed to record dismissed opportunity pair in bulk dismiss", {
+            alertId: alert.id,
+            userId,
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    }
+
+    logger.info("Bulk dismissed alerts", {
+      userId,
+      requestedCount: alertIds.length,
+      dismissedCount,
+      opportunityAlertsProcessed: opportunityAlerts.length,
+      errorCount: errors.length,
+    });
+
+    return { dismissedCount, errors };
+  }
+
+  /**
+   * Update alert with partial updates
+   *
+   * Story 7.6: AC-7.6.5 - Snooze functionality
+   * Story 7.6: AC-7.6.6 - Dismissal memory for opportunity alerts
+   * Supports updating: isRead, isDismissed, snoozedUntil
+   *
+   * @param alertId - Alert ID to update
+   * @param userId - User ID (tenant isolation)
+   * @param updates - Partial update fields
+   * @returns Updated alert or null if not found
+   */
+  async updateAlert(
+    alertId: string,
+    userId: string,
+    updates: {
+      isRead?: boolean;
+      isDismissed?: boolean;
+      snoozedUntil?: string | null;
+    }
+  ): Promise<Alert | null> {
+    const now = new Date();
+    const updateData: Record<string, unknown> = {
+      updatedAt: now,
+    };
+
+    if (updates.isRead !== undefined) {
+      updateData.isRead = updates.isRead;
+      if (updates.isRead) {
+        updateData.readAt = now;
+      }
+    }
+
+    if (updates.isDismissed !== undefined) {
+      updateData.isDismissed = updates.isDismissed;
+      if (updates.isDismissed) {
+        updateData.dismissedAt = now;
+      }
+    }
+
+    // Story 7.6: AC-7.6.5 - Snooze functionality
+    if (updates.snoozedUntil !== undefined) {
+      updateData.snoozedUntil = updates.snoozedUntil ? new Date(updates.snoozedUntil) : null;
+    }
+
+    const [updated] = await this.database
+      .update(alerts)
+      .set(updateData)
+      .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)))
+      .returning();
+
+    if (updated) {
+      const updatedFields = Object.keys(updates).filter(
+        (k) => updates[k as keyof typeof updates] !== undefined
+      );
+      logger.debug("Alert updated", {
+        alertId,
+        userId,
+        updatedFields: updatedFields.join(", "),
+      });
+
+      // Story 7.6 AC-7.6.6: Record dismissed pair for opportunity alerts
+      if (updates.isDismissed && updated.type === ALERT_TYPES.OPPORTUNITY) {
+        const metadata = updated.metadata as OpportunityAlertMetadata;
+        if (metadata.currentAssetId && metadata.betterAssetId && metadata.scoreDifference) {
+          try {
+            await this.recordDismissedOpportunityPair(
+              userId,
+              metadata.currentAssetId,
+              metadata.betterAssetId,
+              metadata.scoreDifference
+            );
+          } catch (error) {
+            // Log but don't fail the update
+            logger.warn("Failed to record dismissed opportunity pair in updateAlert", {
+              alertId,
+              userId,
+              errorMessage: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+      }
+    } else {
+      logger.warn("Alert not found for update", { alertId, userId });
+    }
+
+    return updated ?? null;
   }
 }
 

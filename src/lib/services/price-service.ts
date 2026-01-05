@@ -15,13 +15,24 @@
 
 /**
  * Price data returned by the service
+ *
+ * Story 7.1: Data Source Attribution
+ * AC-7.1.1: Source provider name for each data point
  */
 export interface PriceData {
   symbol: string;
   price: string;
   currency: string;
   updatedAt: Date;
+  /** Source provider identifier (e.g., "gemini", "yahoo") - Story 7.1 */
+  source: string;
 }
+
+/**
+ * Default source for mock price data
+ * Story 7.1: Data Source Attribution
+ */
+const MOCK_PRICE_SOURCE = "gemini";
 
 /**
  * Mock price data for development/testing
@@ -29,18 +40,108 @@ export interface PriceData {
  */
 const MOCK_PRICES: Map<string, PriceData> = new Map([
   // Sample stock prices for testing
-  ["AAPL", { symbol: "AAPL", price: "178.50", currency: "USD", updatedAt: new Date() }],
-  ["GOOGL", { symbol: "GOOGL", price: "141.80", currency: "USD", updatedAt: new Date() }],
-  ["MSFT", { symbol: "MSFT", price: "378.25", currency: "USD", updatedAt: new Date() }],
-  ["AMZN", { symbol: "AMZN", price: "178.75", currency: "USD", updatedAt: new Date() }],
-  ["TSLA", { symbol: "TSLA", price: "248.50", currency: "USD", updatedAt: new Date() }],
+  [
+    "AAPL",
+    {
+      symbol: "AAPL",
+      price: "178.50",
+      currency: "USD",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
+  [
+    "GOOGL",
+    {
+      symbol: "GOOGL",
+      price: "141.80",
+      currency: "USD",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
+  [
+    "MSFT",
+    {
+      symbol: "MSFT",
+      price: "378.25",
+      currency: "USD",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
+  [
+    "AMZN",
+    {
+      symbol: "AMZN",
+      price: "178.75",
+      currency: "USD",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
+  [
+    "TSLA",
+    {
+      symbol: "TSLA",
+      price: "248.50",
+      currency: "USD",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
   // Brazilian stocks
-  ["PETR4", { symbol: "PETR4", price: "37.50", currency: "BRL", updatedAt: new Date() }],
-  ["VALE3", { symbol: "VALE3", price: "62.80", currency: "BRL", updatedAt: new Date() }],
-  ["ITUB4", { symbol: "ITUB4", price: "32.15", currency: "BRL", updatedAt: new Date() }],
+  [
+    "PETR4",
+    {
+      symbol: "PETR4",
+      price: "37.50",
+      currency: "BRL",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
+  [
+    "VALE3",
+    {
+      symbol: "VALE3",
+      price: "62.80",
+      currency: "BRL",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
+  [
+    "ITUB4",
+    {
+      symbol: "ITUB4",
+      price: "32.15",
+      currency: "BRL",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
   // European stocks
-  ["SAP", { symbol: "SAP", price: "185.40", currency: "EUR", updatedAt: new Date() }],
-  ["ASML", { symbol: "ASML", price: "720.50", currency: "EUR", updatedAt: new Date() }],
+  [
+    "SAP",
+    {
+      symbol: "SAP",
+      price: "185.40",
+      currency: "EUR",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
+  [
+    "ASML",
+    {
+      symbol: "ASML",
+      price: "720.50",
+      currency: "EUR",
+      updatedAt: new Date(),
+      source: MOCK_PRICE_SOURCE,
+    },
+  ],
 ]);
 
 /**
@@ -61,10 +162,11 @@ export async function getCurrentPrices(symbols: string[]): Promise<Map<string, P
     const mockPrice = MOCK_PRICES.get(upperSymbol);
 
     if (mockPrice) {
-      // Return mock price with current timestamp
+      // Return mock price with current timestamp and source
       result.set(symbol, {
         ...mockPrice,
         updatedAt: new Date(),
+        source: mockPrice.source,
       });
     } else {
       // Symbol not in mock data - caller should use purchase price as fallback

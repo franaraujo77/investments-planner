@@ -128,3 +128,44 @@ describe("DataFreshnessBadge Props", () => {
     });
   });
 });
+
+/**
+ * Story 7.3: Data Freshness Indicators
+ * AC-7.3.1: createFreshnessInfo adapter function tests
+ */
+import { createFreshnessInfo } from "@/lib/types/freshness";
+
+describe("createFreshnessInfo adapter", () => {
+  const now = new Date("2025-12-11T12:00:00Z");
+
+  describe("creates FreshnessInfo from Date", () => {
+    it("creates fresh FreshnessInfo for data less than 24 hours old", () => {
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      const result = createFreshnessInfo(twoHoursAgo, "Test Source", now);
+
+      expect(result.source).toBe("Test Source");
+      expect(result.fetchedAt).toEqual(twoHoursAgo);
+      expect(result.isStale).toBe(false);
+    });
+
+    it("creates stale FreshnessInfo for data 1-3 days old", () => {
+      const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+      const result = createFreshnessInfo(twoDaysAgo, "Test Source", now);
+
+      expect(result.isStale).toBe(true);
+    });
+
+    it("creates very stale FreshnessInfo for data more than 3 days old", () => {
+      const fiveDaysAgo = new Date(now.getTime() - 120 * 60 * 60 * 1000);
+      const result = createFreshnessInfo(fiveDaysAgo, "Test Source", now);
+
+      expect(result.isStale).toBe(true);
+    });
+
+    it("uses default source if not provided", () => {
+      const result = createFreshnessInfo(now);
+
+      expect(result.source).toBe("Market Data");
+    });
+  });
+});

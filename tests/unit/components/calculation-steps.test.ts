@@ -13,6 +13,8 @@
 import { describe, it, expect } from "vitest";
 import type { CalculationStepsProps } from "@/components/recommendations/calculation-steps";
 import type { CalculationStep } from "@/lib/types/recommendations";
+import { formatStepValue } from "@/components/recommendations/format-step-value";
+import { createNumberFormatter } from "@/lib/i18n/useNumberFormat";
 
 describe("CalculationSteps Component", () => {
   describe("CalculationStepsProps Interface", () => {
@@ -309,6 +311,213 @@ describe("CalculationSteps Value Formatting", () => {
     it("formats negative contribution (over-allocated)", () => {
       const value = -9.0;
       expect(value.toFixed(4)).toBe("-9.0000");
+    });
+  });
+});
+
+// =============================================================================
+// Story 7.7 i18n: Locale-Aware Formatting Tests
+// =============================================================================
+
+describe("CalculationSteps Locale-Aware Formatting (Story 7.7 i18n)", () => {
+  describe("CalculationStepsProps with rawValue and valueType", () => {
+    it("accepts steps with i18n fields", () => {
+      const props: CalculationStepsProps = {
+        steps: [
+          {
+            step: "Calculate allocation gap",
+            value: "15.50%",
+            rawValue: 15.5,
+            valueType: "percent",
+            formula: "target - current",
+          },
+          {
+            step: "Apply score weighting",
+            value: "11.6250",
+            rawValue: 11.625,
+            valueType: "weight",
+            formula: "gap × (score/100)",
+          },
+          {
+            step: "Distribute capital",
+            value: "$800.00",
+            rawValue: 800,
+            valueType: "currency",
+            formula: "weighted × total",
+          },
+        ],
+      };
+
+      expect(props.steps).toHaveLength(3);
+      expect(props.steps[0]?.rawValue).toBe(15.5);
+      expect(props.steps[0]?.valueType).toBe("percent");
+    });
+
+    it("accepts mixed steps (with and without i18n fields)", () => {
+      const props: CalculationStepsProps = {
+        steps: [
+          {
+            step: "New step with i18n",
+            value: "15.50%",
+            rawValue: 15.5,
+            valueType: "percent",
+            formula: "formula1",
+          },
+          {
+            step: "Legacy step without i18n",
+            value: "10.00%",
+            formula: "formula2",
+          },
+        ],
+      };
+
+      expect(props.steps[0]?.rawValue).toBe(15.5);
+      expect(props.steps[1]?.rawValue).toBeUndefined();
+    });
+  });
+
+  describe("Locale Formatting with formatStepValue", () => {
+    const mockSteps: CalculationStep[] = [
+      {
+        step: "Calculate allocation gap",
+        value: "15.50%",
+        rawValue: 15.5,
+        valueType: "percent",
+        formula: "target - current",
+      },
+      {
+        step: "Apply score weighting",
+        value: "11.6250",
+        rawValue: 11.625,
+        valueType: "weight",
+        formula: "gap × (score/100)",
+      },
+      {
+        step: "Distribute capital",
+        value: "$800.00",
+        rawValue: 800,
+        valueType: "currency",
+        formula: "weighted × total",
+      },
+    ];
+
+    describe("en-US locale", () => {
+      const formatters = createNumberFormatter("en-US");
+
+      it("formats percent with period decimal separator", () => {
+        const result = formatStepValue(mockSteps[0]!, formatters);
+        expect(result).toBe("15.50%");
+      });
+
+      it("formats currency with $ symbol", () => {
+        const result = formatStepValue(mockSteps[2]!, formatters);
+        expect(result).toBe("$800.00");
+      });
+
+      it("formats weight with period decimal separator", () => {
+        const result = formatStepValue(mockSteps[1]!, formatters);
+        expect(result).toBe("11.6250");
+      });
+    });
+
+    describe("pt-BR locale", () => {
+      const formatters = createNumberFormatter("pt-BR");
+
+      it("formats percent with comma decimal separator", () => {
+        const result = formatStepValue(mockSteps[0]!, formatters);
+        expect(result).toBe("15,50%");
+      });
+
+      it("formats currency with R$ symbol", () => {
+        const result = formatStepValue(mockSteps[2]!, formatters);
+        expect(result).toMatch(/R\$\s*800,00/);
+      });
+
+      it("formats weight with comma decimal separator", () => {
+        const result = formatStepValue(mockSteps[1]!, formatters);
+        expect(result).toBe("11,6250");
+      });
+    });
+
+    describe("backward compatibility", () => {
+      const formatters = createNumberFormatter("en-US");
+
+      it("falls back to string value for legacy steps", () => {
+        const legacyStep: CalculationStep = {
+          step: "Legacy step",
+          value: "15.50%",
+          formula: "legacy formula",
+        };
+
+        const result = formatStepValue(legacyStep, formatters);
+        expect(result).toBe("15.50%");
+      });
+    });
+  });
+
+  describe("Sample Calculation Steps with i18n Fields", () => {
+    const scenarios = [
+      {
+        name: "Normal under-allocated asset",
+        gap: 2.0,
+        score: 85.0,
+        amount: 500.0,
+      },
+      {
+        name: "Significantly under-allocated asset",
+        gap: 10.0,
+        score: 90.0,
+        amount: 1500.0,
+      },
+      {
+        name: "Over-allocated asset (zero amount)",
+        gap: -5.0,
+        score: 95.0,
+        amount: 0.0,
+      },
+    ];
+
+    scenarios.forEach(({ name, gap, score, amount }) => {
+      it(`builds i18n-ready steps for ${name}`, () => {
+        const scoreContribution = gap * (score / 100);
+
+        const steps: CalculationStep[] = [
+          {
+            step: "Calculate allocation gap",
+            value: `${Math.abs(gap).toFixed(2)}%`,
+            rawValue: Math.abs(gap),
+            valueType: "percent",
+            formula: "target_midpoint - current_allocation",
+          },
+          {
+            step: "Apply score weighting",
+            value: scoreContribution.toFixed(4),
+            rawValue: scoreContribution,
+            valueType: "weight",
+            formula: "allocation_gap × (score / 100)",
+          },
+          {
+            step: "Distribute capital proportionally",
+            value: `$${amount.toFixed(2)}`,
+            rawValue: amount,
+            valueType: "currency",
+            formula: "weighted_priority ÷ total_priority × total_investable",
+          },
+        ];
+
+        // Verify all steps have i18n fields
+        steps.forEach((step) => {
+          expect(step).toHaveProperty("rawValue");
+          expect(step).toHaveProperty("valueType");
+          expect(["percent", "currency", "weight", "number"]).toContain(step.valueType);
+          expect(typeof step.rawValue).toBe("number");
+        });
+
+        // Verify specific types
+        expect(steps[0]?.valueType).toBe("percent");
+        expect(steps[1]?.valueType).toBe("weight");
+        expect(steps[2]?.valueType).toBe("currency");
+      });
     });
   });
 });
