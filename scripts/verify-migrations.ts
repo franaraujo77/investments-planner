@@ -19,9 +19,29 @@ async function verifyMigrations() {
 
   try {
     // Get applied migrations from database
-    const appliedMigrations = await db.execute(
-      sql`SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
-    );
+    // Try both schema locations to be compatible with different Drizzle versions
+    let appliedMigrations;
+    try {
+      // First try with explicit drizzle schema (new Drizzle versions)
+      appliedMigrations = await db.execute(
+        sql`SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC`
+      );
+    } catch (schemaError) {
+      const errorMsg = schemaError instanceof Error ? schemaError.message : String(schemaError);
+
+      // Only attempt fallback for schema-related errors
+      // Other errors (network, auth, timeout) should fail immediately
+      if (errorMsg.includes("does not exist") || errorMsg.includes("relation")) {
+        logger.debug("Schema location mismatch detected", { error: errorMsg });
+        logger.info("Trying alternate schema location for migrations table");
+        appliedMigrations = await db.execute(
+          sql`SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
+        );
+      } else {
+        // Re-throw non-schema errors immediately (network, auth, etc.)
+        throw schemaError;
+      }
+    }
 
     // Cast to unknown[] first since db.execute returns unknown type
     // Then filter using type guard to validate runtime structure
