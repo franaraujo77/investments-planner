@@ -75,9 +75,10 @@ function getSchemaTableNames(): Map<string, any> {
   // Extract all table definitions from schema
   for (const [_key, value] of Object.entries(schema)) {
     // Check if it's a Drizzle table
+    // @ts-expect-error - Drizzle uses symbols for internal metadata, type system doesn't track this
     if (value && typeof value === "object" && value[Symbol.for("drizzle:isPgTable")]) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tableName = (value as any)[Symbol.for("drizzle:Name")];
+      // @ts-expect-error - Drizzle uses symbols for internal metadata
+      const tableName = value[Symbol.for("drizzle:Name")];
       tables.set(tableName, value);
     }
   }
