@@ -111,6 +111,7 @@ describe("Score History (Integration)", () => {
   describe("AC-5.9.4: Historical Scores Never Overwritten (Append-Only)", () => {
     it.skipIf(shouldSkip)(
       "inserting same assetId/userId twice creates two history records",
+      { timeout: 10000 }, // 10 seconds for CI environment (remote Supabase latency)
       async () => {
         const userId = await createTestUser();
         const criteriaVersionId = await createCriteriaVersion(userId);
@@ -146,8 +147,7 @@ describe("Score History (Integration)", () => {
         expect(records).toHaveLength(2);
         expect(records[0]!.score).toBe("10.0000");
         expect(records[1]!.score).toBe("15.0000");
-      },
-      { timeout: 10000 } // 10 seconds for CI environment (remote Supabase latency)
+      }
     );
 
     it.skipIf(shouldSkip)(
@@ -323,6 +323,7 @@ describe("Score History (Integration)", () => {
      */
     it.skipIf(shouldSkip)(
       "90-day query uses index efficiently (< 300ms target)",
+      { timeout: 60000 }, // 60 seconds for data setup (90 inserts) + query in CI
       async () => {
         const userId = await createTestUser();
         const criteriaVersionId = await createCriteriaVersion(userId);
@@ -370,9 +371,8 @@ describe("Score History (Integration)", () => {
         // AC-5.9.3: < 300ms for 90-day query (local), < 5000ms acceptable in CI
         const maxQueryTime = process.env.CI ? 5000 : 300;
         expect(queryDuration).toBeLessThan(maxQueryTime);
-      },
-      { timeout: 60000 }
-    ); // 60 seconds for data setup (90 inserts) + query in CI
+      }
+    );
   });
 
   describe("AC-5.3.3 & AC-5.9.3: Trend Analysis Support", () => {

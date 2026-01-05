@@ -67,40 +67,54 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
       return date;
     };
 
+    // Generate UUIDs for test assets
+    const oldAssetIds = Array.from({ length: 5 }, () => ({
+      current: randomUUID(),
+      better: randomUUID(),
+    }));
+    const recentAssetIds = Array.from({ length: 5 }, () => ({
+      current: randomUUID(),
+      better: randomUUID(),
+    }));
+    const newAssetIds = Array.from({ length: 5 }, () => ({
+      current: randomUUID(),
+      better: randomUUID(),
+    }));
+
     // Insert test data: 5 old pairs (should be deleted)
     const oldPairs = [
       {
         userId: testUserId,
-        currentAssetId: "old-asset-1",
-        betterAssetId: "better-asset-1",
+        currentAssetId: oldAssetIds[0].current,
+        betterAssetId: oldAssetIds[0].better,
         dismissedAt: daysAgo(100),
         lastScoreDifference: "15.50",
       },
       {
         userId: testUserId,
-        currentAssetId: "old-asset-2",
-        betterAssetId: "better-asset-2",
+        currentAssetId: oldAssetIds[1].current,
+        betterAssetId: oldAssetIds[1].better,
         dismissedAt: daysAgo(95),
         lastScoreDifference: "12.30",
       },
       {
         userId: testUserId,
-        currentAssetId: "old-asset-3",
-        betterAssetId: "better-asset-3",
+        currentAssetId: oldAssetIds[2].current,
+        betterAssetId: oldAssetIds[2].better,
         dismissedAt: daysAgo(91),
         lastScoreDifference: "20.00",
       },
       {
         userId: testUserId,
-        currentAssetId: "old-asset-4",
-        betterAssetId: "better-asset-4",
+        currentAssetId: oldAssetIds[3].current,
+        betterAssetId: oldAssetIds[3].better,
         dismissedAt: daysAgo(100),
         lastScoreDifference: "10.75",
       },
       {
         userId: testUserId,
-        currentAssetId: "old-asset-5",
-        betterAssetId: "better-asset-5",
+        currentAssetId: oldAssetIds[4].current,
+        betterAssetId: oldAssetIds[4].better,
         dismissedAt: daysAgo(120),
         lastScoreDifference: "18.25",
       },
@@ -110,36 +124,36 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
     const recentPairs = [
       {
         userId: testUserId,
-        currentAssetId: "recent-asset-1",
-        betterAssetId: "better-asset-6",
+        currentAssetId: recentAssetIds[0].current,
+        betterAssetId: recentAssetIds[0].better,
         dismissedAt: daysAgo(50),
         lastScoreDifference: "11.00",
       },
       {
         userId: testUserId,
-        currentAssetId: "recent-asset-2",
-        betterAssetId: "better-asset-7",
+        currentAssetId: recentAssetIds[1].current,
+        betterAssetId: recentAssetIds[1].better,
         dismissedAt: daysAgo(30),
         lastScoreDifference: "14.50",
       },
       {
         userId: testUserId,
-        currentAssetId: "recent-asset-3",
-        betterAssetId: "better-asset-8",
+        currentAssetId: recentAssetIds[2].current,
+        betterAssetId: recentAssetIds[2].better,
         dismissedAt: daysAgo(10),
         lastScoreDifference: "16.00",
       },
       {
         userId: testUserId,
-        currentAssetId: "recent-asset-4",
-        betterAssetId: "better-asset-9",
+        currentAssetId: recentAssetIds[3].current,
+        betterAssetId: recentAssetIds[3].better,
         dismissedAt: daysAgo(5),
         lastScoreDifference: "13.75",
       },
       {
         userId: testUserId,
-        currentAssetId: "recent-asset-5",
-        betterAssetId: "better-asset-10",
+        currentAssetId: recentAssetIds[4].current,
+        betterAssetId: recentAssetIds[4].better,
         dismissedAt: daysAgo(1),
         lastScoreDifference: "19.50",
       },
@@ -149,36 +163,36 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
     const newPairs = [
       {
         userId: testUserId,
-        currentAssetId: "new-asset-1",
-        betterAssetId: "better-asset-11",
+        currentAssetId: newAssetIds[0].current,
+        betterAssetId: newAssetIds[0].better,
         dismissedAt: now,
         lastScoreDifference: "12.00",
       },
       {
         userId: testUserId,
-        currentAssetId: "new-asset-2",
-        betterAssetId: "better-asset-12",
+        currentAssetId: newAssetIds[1].current,
+        betterAssetId: newAssetIds[1].better,
         dismissedAt: now,
         lastScoreDifference: "15.00",
       },
       {
         userId: testUserId,
-        currentAssetId: "new-asset-3",
-        betterAssetId: "better-asset-13",
+        currentAssetId: newAssetIds[2].current,
+        betterAssetId: newAssetIds[2].better,
         dismissedAt: now,
         lastScoreDifference: "17.25",
       },
       {
         userId: testUserId,
-        currentAssetId: "new-asset-4",
-        betterAssetId: "better-asset-14",
+        currentAssetId: newAssetIds[3].current,
+        betterAssetId: newAssetIds[3].better,
         dismissedAt: now,
         lastScoreDifference: "11.50",
       },
       {
         userId: testUserId,
-        currentAssetId: "new-asset-5",
-        betterAssetId: "better-asset-15",
+        currentAssetId: newAssetIds[4].current,
+        betterAssetId: newAssetIds[4].better,
         dismissedAt: now,
         lastScoreDifference: "14.00",
       },
@@ -210,8 +224,8 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
     // Verify that only recent and new pairs remain
     const remainingAssetIds = afterCleanup.map((p) => p.currentAssetId).sort();
     const expectedAssetIds = [
-      ...recentPairs.map((p) => p.currentAssetId),
-      ...newPairs.map((p) => p.currentAssetId),
+      ...recentAssetIds.map((a) => a.current),
+      ...newAssetIds.map((a) => a.current),
     ].sort();
 
     expect(remainingAssetIds).toEqual(expectedAssetIds);
@@ -256,8 +270,8 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
     // Insert 1 old pair (100 days ago)
     await db.insert(dismissedOpportunityPairs).values({
       userId: testUserId,
-      currentAssetId: "old-asset",
-      betterAssetId: "better-asset",
+      currentAssetId: randomUUID(),
+      betterAssetId: randomUUID(),
       dismissedAt: daysAgo(100),
       lastScoreDifference: "15.00",
     });
@@ -291,26 +305,31 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
       return date;
     };
 
+    // Generate UUIDs for boundary test assets
+    const boundaryMinus1 = randomUUID();
+    const boundaryExact = randomUUID();
+    const boundaryPlus1 = randomUUID();
+
     // Insert pairs at different ages relative to boundary
     await db.insert(dismissedOpportunityPairs).values([
       {
         userId: testUserId,
-        currentAssetId: "boundary-minus-1",
-        betterAssetId: "better-1",
+        currentAssetId: boundaryMinus1,
+        betterAssetId: randomUUID(),
         dismissedAt: daysAgo(RETENTION_DAYS - 1), // 89 days - should keep
         lastScoreDifference: "10.00",
       },
       {
         userId: testUserId,
-        currentAssetId: "boundary-exact",
-        betterAssetId: "better-2",
+        currentAssetId: boundaryExact,
+        betterAssetId: randomUUID(),
         dismissedAt: daysAgo(RETENTION_DAYS), // Exactly 90 days - should keep
         lastScoreDifference: "11.00",
       },
       {
         userId: testUserId,
-        currentAssetId: "boundary-plus-1",
-        betterAssetId: "better-3",
+        currentAssetId: boundaryPlus1,
+        betterAssetId: randomUUID(),
         dismissedAt: daysAgo(RETENTION_DAYS + 1), // 91 days - should delete
         lastScoreDifference: "12.00",
       },
@@ -328,10 +347,9 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
     });
 
     expect(remaining).toHaveLength(2);
-    expect(remaining.map((p) => p.currentAssetId).sort()).toEqual([
-      "boundary-exact",
-      "boundary-minus-1",
-    ]);
+    expect(remaining.map((p) => p.currentAssetId).sort()).toEqual(
+      [boundaryExact, boundaryMinus1].sort()
+    );
   });
 
   /**

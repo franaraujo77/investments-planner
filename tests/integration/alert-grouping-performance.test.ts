@@ -29,12 +29,13 @@ import { alerts, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/telemetry/logger";
 import { isDatabaseAvailable, getDatabaseSkipMessage } from "@tests/helpers";
+import { randomUUID } from "crypto";
 
 // Check database availability before test suite
 const dbAvailable = await isDatabaseAvailable();
 
 describe.skipIf(!dbAvailable)("Alert Grouping Performance Monitoring", () => {
-  const testUserId = "perf-test-user-id";
+  const testUserId = randomUUID();
   let alertService: AlertService;
 
   beforeEach(async () => {
