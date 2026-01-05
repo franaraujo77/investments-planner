@@ -1,0 +1,279 @@
+name: Schema Audit
+
+on:
+  pull_request:
+    branches: [main]
+    # NOTE: Uses step-level path detection instead of workflow-level filters
+    # Step-level check (line 51) is more reliable with merge commits (see PR #29)
+    # This design allows the workflow to always run but skip heavy operations when not needed
+
+# CRITICAL: Prevent concurrent audits on same PR branch
+# Different PR branches can run concurrently (they don't conflict)
+# Using branch-specific concurrency group ensures:
+# - PR A (feature/add-user) and PR B (fix/alerts) can run simultaneously
+# - New commits to PR A cancel previous PR A runs
+concurrency:
+  group: schema-audit-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
+
+# Required permissions for posting PR comments
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  schema-audit:
+    name: Schema Consistency Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Skip if secrets not configured (fork PRs don't have access to secrets)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      # Use existing integration test database (not a separate DATABASE_URL_TEST)
+      # This saves cost and simplifies infrastructure
+      # Safe because:
+      # 1. Concurrency groups prevent simultaneous runs on same PR branch
+      # 2. Migrations are idempotent (use IF NOT EXISTS patterns)
+      # 3. Integration tests workflow has separate concurrency group
+      # 4. Different PR branches can run concurrently without conflicts
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0  # Fetch full history to ensure merge base exists
+
+      - name: Validate required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Missing DATABASE_URL secret"
+            exit 1
+          fi
+
+      - name: Check for schema file changes
+        id: check-schema
+        run: |
+          echo "Checking for schema-related file changes..."
+
+          # Get the base branch (what PR is merging into)
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          BASE_SHA=$(git rev-parse origin/${{ github.event.pull_request.base.ref }})
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+
+          # Find merge base to handle diverged branches
+          MERGE_BASE=$(git merge-base $BASE_SHA $HEAD_SHA 2>/dev/null || echo "$BASE_SHA")
+          echo "Merge base: $MERGE_BASE"
+
+          # Check if any schema-related files changed (compare against merge base)
+          CHANGED_FILES=$(git diff --name-only $MERGE_BASE...$HEAD_SHA)
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+
+          # Check for schema-related changes
+          # Pattern explanation:
+          # - src/lib/db/schema\.ts: Main schema file
+          # - drizzle/: Migration files
+          # - src/lib/(db|services|repositories)/: All files in db, services, and repositories directories
+          # - scripts/.*-schema\.ts$: Schema-related scripts
+          SCHEMA_FILES=$(echo "$CHANGED_FILES" | grep -E '^(src/lib/db/schema\.ts|drizzle/|src/lib/(db|services|repositories)/|scripts/.*-schema\.ts$)' || true)
+
+          if [ -z "$SCHEMA_FILES" ]; then
+            echo "::notice::No schema-related files changed. Skipping schema audit."
+            echo "has_schema_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Schema-related files detected:"
+            echo "$SCHEMA_FILES"
+            echo "has_schema_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup pnpm
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply pending migrations
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
+        id: migrate
+        run: |
+          echo "Applying migrations from PR..."
+          pnpm db:migrate 2>&1 | tee migrate-output.txt
+          MIGRATE_EXIT_CODE=$?
+
+          if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
+            echo "migrate_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "migrate_status=failed" >> $GITHUB_OUTPUT
+            exit $MIGRATE_EXIT_CODE
+          fi
+
+      - name: Run schema audit
+        if: steps.check-schema.outputs.has_schema_changes == 'true' && steps.migrate.outputs.migrate_status == 'success'
+        id: audit
+        run: |
+          echo "Auditing schema consistency..."
+
+          # Track execution time
+          START_TIME=$(date +%s)
+          pnpm db:audit-schema 2>&1 | tee audit-output.txt
+          AUDIT_EXIT_CODE=$?
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+
+          echo "audit_duration_seconds=$DURATION" >> $GITHUB_OUTPUT
+
+          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
+            echo "audit_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "audit_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+          exit $AUDIT_EXIT_CODE
+
+      - name: Verify migrations applied
+        if: steps.check-schema.outputs.has_schema_changes == 'true' && steps.migrate.outputs.migrate_status == 'success'
+        id: verify
+        run: |
+          echo "Verifying all migrations are applied..."
+          pnpm db:verify-migrations 2>&1 | tee verify-output.txt
+          VERIFY_EXIT_CODE=$?
+
+          if [ $VERIFY_EXIT_CODE -eq 0 ]; then
+            echo "verify_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "verify_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+          exit $VERIFY_EXIT_CODE
+
+      - name: Create PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const hasSchemaChanges = '${{ steps.check-schema.outputs.has_schema_changes }}';
+            const auditStatus = '${{ steps.audit.outputs.audit_status }}';
+            const verifyStatus = '${{ steps.verify.outputs.verify_status }}';
+            const migrateStatus = '${{ steps.migrate.outputs.migrate_status }}';
+
+            let body = '## 🔍 Schema Audit Results\n\n';
+
+            // Check if audit was skipped
+            if (hasSchemaChanges === 'false') {
+              body += '⏭️  **Schema Audit Skipped**\n\n';
+              body += 'No schema-related files were changed in this PR.\n';
+              body += 'Audit only runs when these paths change:\n';
+              body += '- `src/lib/db/schema.ts`\n';
+              body += '- `drizzle/**`\n';
+              body += '- `src/lib/services/**`\n';
+              body += '- `src/lib/repositories/**`\n';
+            } else if (migrateStatus === 'failed') {
+              body += '❌ **Migration Failed**\n\n';
+              body += 'PR migrations could not be applied to test database.\n\n';
+              if (fs.existsSync('migrate-output.txt')) {
+                const output = fs.readFileSync('migrate-output.txt', 'utf8').slice(0, 1000);
+                body += '<details><summary>Migration Error</summary>\n\n```\n' + output + '\n```\n</details>\n';
+              }
+            } else if (auditStatus === 'failed') {
+              body += '❌ **Schema Audit Failed**\n\n';
+              body += 'Schema definitions in `schema.ts` do not match database structure.\n\n';
+              if (fs.existsSync('audit-output.txt')) {
+                const output = fs.readFileSync('audit-output.txt', 'utf8').slice(0, 4000);
+                body += '<details><summary>Audit Details</summary>\n\n```\n' + output + '\n```\n</details>\n';
+              }
+              body += '\n**Action Required:** Review schema changes and ensure migrations are correct.\n';
+            } else if (verifyStatus === 'failed') {
+              body += '⚠️ **Migration Verification Warning**\n\n';
+              body += 'Some migrations may not have applied correctly.\n\n';
+              if (fs.existsSync('verify-output.txt')) {
+                const output = fs.readFileSync('verify-output.txt', 'utf8').slice(0, 1000);
+                body += '<details><summary>Verification Output</summary>\n\n```\n' + output + '\n```\n</details>\n';
+              }
+            } else {
+              body += '✅ **Schema Audit Passed**\n\n';
+              body += '- Schema definitions match database structure\n';
+              body += '- All migrations applied successfully\n';
+              body += '- No schema drift detected\n';
+            }
+
+            body += '\n---\n*Automated schema consistency check using integration test database*';
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.find(c => c.body.includes('Schema Audit Results'));
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Generate metrics summary
+        if: always()
+        run: |
+          echo "## 📊 Schema Audit Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Audit Run | ✅ Yes |" >> $GITHUB_STEP_SUMMARY
+          echo "| Schema Changes Detected | ${{ steps.check-schema.outputs.has_schema_changes || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Migration Status | ${{ steps.migrate.outputs.migrate_status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Audit Status | ${{ steps.audit.outputs.audit_status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Verify Status | ${{ steps.verify.outputs.verify_status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Execution Time | ${{ steps.audit.outputs.audit_duration_seconds || 'N/A' }}s |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Conclusion | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.event.pull_request.head.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.event.pull_request.head.sha }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-audit-results
+          path: |
+            audit-output.txt
+            verify-output.txt
+            migrate-output.txt
+          retention-days: 7
+          if-no-files-found: ignore
