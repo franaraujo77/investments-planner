@@ -37,6 +37,63 @@ interface DatabaseRow {
   column_default?: string | null;
 }
 
+/**
+ * Redact sensitive information from DATABASE_URL for logging
+ */
+function redactDatabaseUrl(url?: string): string {
+  if (!url) return "not set";
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    const database = parsed.pathname.slice(1);
+    return `${parsed.protocol}//***.***@${host}/${database}`;
+  } catch {
+    return "invalid URL format";
+  }
+}
+
+/**
+ * Get troubleshooting context for errors
+ */
+function getTroubleshootingContext(error: unknown, operation: string): string {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const dbUrl = redactDatabaseUrl(process.env.DATABASE_URL);
+
+  let context = `\n📋 Error Context:\n`;
+  context += `   Operation: ${operation}\n`;
+  context += `   Database: ${dbUrl}\n`;
+  context += `   Error: ${errorMessage}\n\n`;
+
+  context += `💡 Troubleshooting:\n`;
+
+  // Provide specific guidance based on error type
+  if (errorMessage.includes("ECONNREFUSED") || errorMessage.includes("connect")) {
+    context += `   - Connection refused: Check if database is accessible\n`;
+    context += `   - Verify DATABASE_URL is correct\n`;
+    context += `   - Check network connectivity\n`;
+    context += `   - 🔄 This may be transient - retry in a few seconds\n`;
+  } else if (errorMessage.includes("authentication") || errorMessage.includes("password")) {
+    context += `   - Authentication failed: Check credentials in DATABASE_URL\n`;
+    context += `   - Verify password is properly URL-encoded\n`;
+    context += `   - ❌ This is a configuration issue - fix DATABASE_URL\n`;
+  } else if (errorMessage.includes("does not exist") || errorMessage.includes("relation")) {
+    context += `   - Table/column missing: Run pending migrations\n`;
+    context += `   - Check if connected to correct database\n`;
+    context += `   - ❌ This is a schema issue - apply migrations\n`;
+  } else if (errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) {
+    context += `   - Database timeout: Query took too long\n`;
+    context += `   - Check database performance\n`;
+    context += `   - 🔄 This may be transient - retry in a few seconds\n`;
+  } else {
+    context += `   - Review error message above for details\n`;
+    context += `   - Check logs in GitHub Actions or terminal\n`;
+    context += `   - See docs/migration-deployment-guide.md for help\n`;
+  }
+
+  return context;
+}
+
 async function getProductionTables(): Promise<Set<string>> {
   const result = await db.execute(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
   const rows = result as unknown as DatabaseRow[];
@@ -67,6 +124,43 @@ async function getProductionColumns(tableName: string): Promise<Map<string, Colu
   return columns;
 }
 
+/**
+ * Drizzle Symbol Constants
+ * These symbols are used by Drizzle ORM for internal metadata
+ */
+const DRIZZLE_SYMBOLS = {
+  isPgTable: Symbol.for("drizzle:isPgTable"),
+  name: Symbol.for("drizzle:Name"),
+  columns: Symbol.for("drizzle:Columns"),
+} as const;
+
+/**
+ * Validate that Drizzle symbols exist on a table object
+ * Provides early detection if Drizzle API changes
+ */
+function validateDrizzleTable(table: unknown): boolean {
+  if (!table || typeof table !== "object") return false;
+
+  // Check if it's a Drizzle table
+  // @ts-expect-error - Drizzle uses symbols for internal metadata
+  if (!table[DRIZZLE_SYMBOLS.isPgTable]) return false;
+
+  // Validate required symbols exist
+  // @ts-expect-error - Drizzle uses symbols for internal metadata
+  if (!table[DRIZZLE_SYMBOLS.name]) {
+    console.warn("⚠️  Drizzle table missing 'Name' symbol - API may have changed");
+    return false;
+  }
+
+  // @ts-expect-error - Drizzle uses symbols for internal metadata
+  if (!table[DRIZZLE_SYMBOLS.columns]) {
+    console.warn("⚠️  Drizzle table missing 'Columns' symbol - API may have changed");
+    return false;
+  }
+
+  return true;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getSchemaTableNames(): Map<string, any> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,13 +168,16 @@ function getSchemaTableNames(): Map<string, any> {
 
   // Extract all table definitions from schema
   for (const [_key, value] of Object.entries(schema)) {
-    // Check if it's a Drizzle table
-    // @ts-expect-error - Drizzle uses symbols for internal metadata, type system doesn't track this
-    if (value && typeof value === "object" && value[Symbol.for("drizzle:isPgTable")]) {
+    // Validate it's a Drizzle table with required symbols
+    if (validateDrizzleTable(value)) {
       // @ts-expect-error - Drizzle uses symbols for internal metadata
-      const tableName = value[Symbol.for("drizzle:Name")];
+      const tableName = value[DRIZZLE_SYMBOLS.name] as string;
       tables.set(tableName, value);
     }
+  }
+
+  if (tables.size === 0) {
+    console.warn("⚠️  No Drizzle tables found in schema - check Drizzle API compatibility");
   }
 
   return tables;
@@ -90,12 +187,14 @@ function getSchemaTableNames(): Map<string, any> {
 function getSchemaColumnNames(table: any): Set<string> {
   const columns = new Set<string>();
 
-  // Get columns from table definition
+  // Validate table has required symbols
+  if (!validateDrizzleTable(table)) {
+    console.warn("⚠️  Invalid Drizzle table - skipping column extraction");
+    return columns;
+  }
 
-  const tableColumns = (table[Symbol.for("drizzle:Columns")] || {}) as Record<
-    string,
-    { name?: string }
-  >;
+  // Get columns from table definition
+  const tableColumns = (table[DRIZZLE_SYMBOLS.columns] || {}) as Record<string, { name?: string }>;
 
   for (const [_key, column] of Object.entries(tableColumns)) {
     const columnName = column.name;
@@ -236,7 +335,8 @@ async function main() {
     console.log("✅ Schema audit complete - no issues found");
     process.exit(0);
   } catch (error) {
-    console.error("❌ Audit failed:", error);
+    console.error("❌ Schema audit failed");
+    console.error(getTroubleshootingContext(error, "Schema audit"));
     process.exit(1);
   }
 }
