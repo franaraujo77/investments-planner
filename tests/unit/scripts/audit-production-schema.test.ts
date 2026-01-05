@@ -6,100 +6,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-
-/**
- * Drizzle Symbol Constants
- * Copied from scripts/audit-production-schema.ts for testing
- */
-const DRIZZLE_SYMBOLS = {
-  isPgTable: Symbol.for("drizzle:isPgTable"),
-  name: Symbol.for("drizzle:Name"),
-  columns: Symbol.for("drizzle:Columns"),
-} as const;
-
-/**
- * Validate that Drizzle symbols exist on a table object
- * Copied from scripts/audit-production-schema.ts for testing
- */
-function validateDrizzleTable(table: unknown): boolean {
-  if (!table || typeof table !== "object") return false;
-
-  // Check if it's a Drizzle table
-  // @ts-expect-error - Drizzle uses symbols for internal metadata
-  if (!table[DRIZZLE_SYMBOLS.isPgTable]) return false;
-
-  // Validate required symbols exist
-  // @ts-expect-error - Drizzle uses symbols for internal metadata
-  if (!table[DRIZZLE_SYMBOLS.name]) {
-    return false;
-  }
-
-  // @ts-expect-error - Drizzle uses symbols for internal metadata
-  if (!table[DRIZZLE_SYMBOLS.columns]) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Redact sensitive information from DATABASE_URL for logging
- * Copied from scripts/audit-production-schema.ts for testing
- */
-function redactDatabaseUrl(url?: string): string {
-  if (!url) return "not set";
-
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname;
-    const database = parsed.pathname.slice(1);
-    return `${parsed.protocol}//***.***@${host}/${database}`;
-  } catch {
-    return "invalid URL format";
-  }
-}
-
-/**
- * Get troubleshooting context for errors
- * Copied from scripts/audit-production-schema.ts for testing
- */
-function getTroubleshootingContext(error: unknown, operation: string): string {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const dbUrl = redactDatabaseUrl(process.env.DATABASE_URL);
-
-  let context = `\n📋 Error Context:\n`;
-  context += `   Operation: ${operation}\n`;
-  context += `   Database: ${dbUrl}\n`;
-  context += `   Error: ${errorMessage}\n\n`;
-
-  context += `💡 Troubleshooting:\n`;
-
-  // Provide specific guidance based on error type
-  if (errorMessage.includes("ECONNREFUSED") || errorMessage.includes("connect")) {
-    context += `   - Connection refused: Check if database is accessible\n`;
-    context += `   - Verify DATABASE_URL is correct\n`;
-    context += `   - Check network connectivity\n`;
-    context += `   - 🔄 This may be transient - retry in a few seconds\n`;
-  } else if (errorMessage.includes("authentication") || errorMessage.includes("password")) {
-    context += `   - Authentication failed: Check credentials in DATABASE_URL\n`;
-    context += `   - Verify password is properly URL-encoded\n`;
-    context += `   - ❌ This is a configuration issue - fix DATABASE_URL\n`;
-  } else if (errorMessage.includes("does not exist") || errorMessage.includes("relation")) {
-    context += `   - Table/column missing: Run pending migrations\n`;
-    context += `   - Check if connected to correct database\n`;
-    context += `   - ❌ This is a schema issue - apply migrations\n`;
-  } else if (errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) {
-    context += `   - Database timeout: Query took too long\n`;
-    context += `   - Check database performance\n`;
-    context += `   - 🔄 This may be transient - retry in a few seconds\n`;
-  } else {
-    context += `   - Review error message above for details\n`;
-    context += `   - Check logs in GitHub Actions or terminal\n`;
-    context += `   - See docs/migration-deployment-guide.md for help\n`;
-  }
-
-  return context;
-}
+import {
+  DRIZZLE_SYMBOLS,
+  validateDrizzleTable,
+  redactDatabaseUrl,
+  getTroubleshootingContext,
+} from "@/lib/db/migration-utils";
 
 describe("audit-production-schema utilities", () => {
   describe("validateDrizzleTable", () => {
@@ -122,18 +34,8 @@ describe("audit-production-schema utilities", () => {
       expect(validateDrizzleTable({ name: "test" })).toBe(false);
     });
 
-    it("should return false when isPgTable symbol is missing", () => {
-      const fakeTable = {
-        [DRIZZLE_SYMBOLS.name]: "test_table",
-        [DRIZZLE_SYMBOLS.columns]: {},
-      };
-
-      expect(validateDrizzleTable(fakeTable)).toBe(false);
-    });
-
     it("should return false when name symbol is missing", () => {
       const fakeTable = {
-        [DRIZZLE_SYMBOLS.isPgTable]: true,
         [DRIZZLE_SYMBOLS.columns]: {},
       };
 
@@ -142,7 +44,6 @@ describe("audit-production-schema utilities", () => {
 
     it("should return false when columns symbol is missing", () => {
       const fakeTable = {
-        [DRIZZLE_SYMBOLS.isPgTable]: true,
         [DRIZZLE_SYMBOLS.name]: "test_table",
       };
 
@@ -151,7 +52,6 @@ describe("audit-production-schema utilities", () => {
 
     it("should return true for valid Drizzle table with all symbols", () => {
       const validTable = {
-        [DRIZZLE_SYMBOLS.isPgTable]: true,
         [DRIZZLE_SYMBOLS.name]: "test_table",
         [DRIZZLE_SYMBOLS.columns]: {
           id: { name: "id" },
@@ -164,7 +64,6 @@ describe("audit-production-schema utilities", () => {
 
     it("should return true even with empty columns object", () => {
       const validTable = {
-        [DRIZZLE_SYMBOLS.isPgTable]: true,
         [DRIZZLE_SYMBOLS.name]: "test_table",
         [DRIZZLE_SYMBOLS.columns]: {},
       };

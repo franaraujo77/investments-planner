@@ -14,6 +14,13 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/telemetry/logger";
+import {
+  getTroubleshootingContext,
+  validateDrizzleTable,
+  DRIZZLE_SYMBOLS,
+  isTableNameRow,
+  isColumnInfoRow,
+} from "@/lib/db/migration-utils";
 import * as schema from "@/lib/db/schema";
 import type { PgTable } from "drizzle-orm/pg-core";
 
@@ -31,75 +38,12 @@ interface AuditResult {
   extraColumns?: string[];
 }
 
-interface DatabaseRow {
-  tablename?: string;
-  column_name?: string;
-  data_type?: string;
-  is_nullable?: string;
-  column_default?: string | null;
-}
-
-/**
- * Redact sensitive information from DATABASE_URL for logging
- */
-function redactDatabaseUrl(url?: string): string {
-  if (!url) return "not set";
-
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname;
-    const database = parsed.pathname.slice(1);
-    return `${parsed.protocol}//***.***@${host}/${database}`;
-  } catch {
-    return "invalid URL format";
-  }
-}
-
-/**
- * Get troubleshooting context for errors
- */
-function getTroubleshootingContext(error: unknown, operation: string): string {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const dbUrl = redactDatabaseUrl(process.env.DATABASE_URL);
-
-  let context = `\n📋 Error Context:\n`;
-  context += `   Operation: ${operation}\n`;
-  context += `   Database: ${dbUrl}\n`;
-  context += `   Error: ${errorMessage}\n\n`;
-
-  context += `💡 Troubleshooting:\n`;
-
-  // Provide specific guidance based on error type
-  if (errorMessage.includes("ECONNREFUSED") || errorMessage.includes("connect")) {
-    context += `   - Connection refused: Check if database is accessible\n`;
-    context += `   - Verify DATABASE_URL is correct\n`;
-    context += `   - Check network connectivity\n`;
-    context += `   - 🔄 This may be transient - retry in a few seconds\n`;
-  } else if (errorMessage.includes("authentication") || errorMessage.includes("password")) {
-    context += `   - Authentication failed: Check credentials in DATABASE_URL\n`;
-    context += `   - Verify password is properly URL-encoded\n`;
-    context += `   - ❌ This is a configuration issue - fix DATABASE_URL\n`;
-  } else if (errorMessage.includes("does not exist") || errorMessage.includes("relation")) {
-    context += `   - Table/column missing: Run pending migrations\n`;
-    context += `   - Check if connected to correct database\n`;
-    context += `   - ❌ This is a schema issue - apply migrations\n`;
-  } else if (errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) {
-    context += `   - Database timeout: Query took too long\n`;
-    context += `   - Check database performance\n`;
-    context += `   - 🔄 This may be transient - retry in a few seconds\n`;
-  } else {
-    context += `   - Review error message above for details\n`;
-    context += `   - Check logs in GitHub Actions or terminal\n`;
-    context += `   - See docs/migration-deployment-guide.md for help\n`;
-  }
-
-  return context;
-}
-
 async function getProductionTables(): Promise<Set<string>> {
   const result = await db.execute(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
-  const rows = result as unknown as DatabaseRow[];
-  return new Set(rows.map((row) => row.tablename ?? ""));
+
+  // Use type guard to validate and filter rows
+  const rows = (result as unknown[]).filter(isTableNameRow);
+  return new Set(rows.map((row) => row.tablename));
 }
 
 async function getProductionColumns(tableName: string): Promise<Map<string, ColumnInfo>> {
@@ -110,57 +54,19 @@ async function getProductionColumns(tableName: string): Promise<Map<string, Colu
         AND table_name = ${tableName}`
   );
 
-  const rows = result as unknown as DatabaseRow[];
+  // Use type guard to validate and filter rows
+  const rows = (result as unknown[]).filter(isColumnInfoRow);
   const columns = new Map<string, ColumnInfo>();
 
   for (const dbRow of rows) {
-    if (dbRow.column_name) {
-      columns.set(dbRow.column_name, {
-        columnName: dbRow.column_name,
-        dataType: dbRow.data_type ?? "",
-        isNullable: dbRow.is_nullable ?? "",
-        columnDefault: dbRow.column_default ?? null,
-      });
-    }
+    columns.set(dbRow.column_name, {
+      columnName: dbRow.column_name,
+      dataType: dbRow.data_type,
+      isNullable: dbRow.is_nullable,
+      columnDefault: dbRow.column_default,
+    });
   }
   return columns;
-}
-
-/**
- * Drizzle Symbol Constants
- * These symbols are used by Drizzle ORM for internal metadata
- */
-const DRIZZLE_SYMBOLS = {
-  isPgTable: Symbol.for("drizzle:isPgTable"),
-  name: Symbol.for("drizzle:Name"),
-  columns: Symbol.for("drizzle:Columns"),
-} as const;
-
-/**
- * Validate that Drizzle symbols exist on a table object
- * Provides early detection if Drizzle API changes
- */
-function validateDrizzleTable(table: unknown): boolean {
-  if (!table || typeof table !== "object") return false;
-
-  // Check if it's a Drizzle table
-  // @ts-expect-error - Drizzle uses symbols for internal metadata
-  if (!table[DRIZZLE_SYMBOLS.isPgTable]) return false;
-
-  // Validate required symbols exist
-  // @ts-expect-error - Drizzle uses symbols for internal metadata
-  if (!table[DRIZZLE_SYMBOLS.name]) {
-    console.warn("⚠️  Drizzle table missing 'Name' symbol - API may have changed");
-    return false;
-  }
-
-  // @ts-expect-error - Drizzle uses symbols for internal metadata
-  if (!table[DRIZZLE_SYMBOLS.columns]) {
-    console.warn("⚠️  Drizzle table missing 'Columns' symbol - API may have changed");
-    return false;
-  }
-
-  return true;
 }
 
 /**

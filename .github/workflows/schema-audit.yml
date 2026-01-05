@@ -54,7 +54,12 @@ jobs:
           echo ""
 
           # Check for schema-related changes
-          SCHEMA_FILES=$(echo "$CHANGED_FILES" | grep -E '^(src/lib/db/schema\.ts|drizzle/|src/lib/services/|src/lib/repositories/)' || true)
+          # Pattern explanation:
+          # - src/lib/db/schema\.ts: Main schema file
+          # - drizzle/: Migration files
+          # - src/lib/(db|services|repositories)/: All files in db, services, and repositories directories
+          # - scripts/.*-schema\.ts$: Schema-related scripts
+          SCHEMA_FILES=$(echo "$CHANGED_FILES" | grep -E '^(src/lib/db/schema\.ts|drizzle/|src/lib/(db|services|repositories)/|scripts/.*-schema\.ts$)' || true)
 
           if [ -z "$SCHEMA_FILES" ]; then
             echo "::notice::No schema-related files changed. Skipping schema audit."
