@@ -30,6 +30,8 @@
     "security:check-rls": "npx tsx scripts/check-rls-coverage.ts",
     "security:splinter": "npx tsx scripts/check-splinter.ts",
     "check:routes": "npx tsx scripts/check-route-conflicts.ts",
+    "db:verify-migrations": "npx tsx scripts/verify-migrations.ts",
+    "db:audit-schema": "npx tsx scripts/audit-production-schema.ts",
     "precommit": "pnpm check:routes && pnpm lint"
   },
   "dependencies": {

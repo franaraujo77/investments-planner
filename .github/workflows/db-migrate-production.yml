@@ -173,6 +173,24 @@ jobs:
             exit $MIGRATE_EXIT_CODE
           fi
 
+      - name: Verify migrations applied
+        if: steps.migrate.outputs.migrate_status == 'success'
+        id: verify
+        run: |
+          echo "Verifying all migrations were applied..."
+          echo ""
+
+          # Run verification script
+          npx tsx scripts/verify-migrations.ts || {
+            echo "::error::Migration verification failed"
+            echo "migrate_verified=false" >> $GITHUB_OUTPUT
+            exit 1
+          }
+
+          echo ""
+          echo "migrate_verified=true" >> $GITHUB_OUTPUT
+          echo "All migrations verified successfully"
+
       - name: Create job summary
         if: always()
         run: |
@@ -193,6 +211,14 @@ jobs:
             echo "The workflow detected no changes in the \`drizzle/\` directory." >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.migrate.outputs.migrate_status }}" == "success" ]; then
             echo "### Success" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "${{ steps.verify.outputs.migrate_verified }}" == "true" ]; then
+              echo "✅ Migrations applied and verified" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ Migrations applied but verification incomplete" >> $GITHUB_STEP_SUMMARY
+            fi
+
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Migration files:**" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
