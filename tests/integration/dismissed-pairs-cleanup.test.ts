@@ -25,12 +25,13 @@ import { dismissedOpportunityPairs } from "@/lib/db/schema";
 import { runCleanupJob, RETENTION_DAYS } from "@/lib/inngest/functions/cleanup-dismissed-pairs";
 import { eq } from "drizzle-orm";
 import { isDatabaseAvailable, getDatabaseSkipMessage } from "@tests/helpers";
+import { randomUUID } from "crypto";
 
 // Check database availability before test suite
 const dbAvailable = await isDatabaseAvailable();
 
 describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
-  const testUserId = "test-user-cleanup-job";
+  const testUserId = randomUUID();
 
   beforeEach(async () => {
     // Clean up any existing test data
