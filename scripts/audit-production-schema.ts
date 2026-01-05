@@ -202,6 +202,7 @@ function getSchemaColumnNames(table: PgTable): Set<string> {
   }
 
   // Get columns from table definition
+  // @ts-expect-error - Drizzle uses symbols for internal metadata
   const tableColumns = (table[DRIZZLE_SYMBOLS.columns] || {}) as Record<string, { name?: string }>;
 
   for (const [_key, column] of Object.entries(tableColumns)) {
