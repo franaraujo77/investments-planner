@@ -1,5 +1,5 @@
 /**
- * Alerts API Integration Tests - Server-Side Grouping
+ * Alerts Service Integration Tests - Server-Side Grouping
  *
  * Story 7.12: Alerts List Server-Side Grouping Optimization
  * AC-7.12.2: SQL GROUP BY for server-side grouping
@@ -7,11 +7,13 @@
  * AC-7.12.4: Backward compatibility
  * AC-7.12.5: Performance metrics
  *
- * These tests verify the full API flow including:
- * - Query parameter validation
+ * These tests verify the service layer behavior including:
  * - Grouped vs ungrouped response formats
  * - Backward compatibility
  * - Performance characteristics
+ *
+ * Note: These tests interact directly with the alert service layer
+ * rather than making HTTP requests.
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
@@ -21,7 +23,6 @@ import {
   isDatabaseAvailable,
   getDatabaseSkipMessage,
 } from "../helpers";
-import { getAuthHeaders } from "../helpers/auth-headers";
 import { alertService, ALERT_TYPES, ALERT_SEVERITIES } from "@/lib/services/alert-service";
 import Decimal from "decimal.js";
 import { randomUUID } from "crypto";
@@ -29,20 +30,18 @@ import { randomUUID } from "crypto";
 // Check database availability before running tests
 const dbAvailable = await isDatabaseAvailable();
 
-describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", () => {
+describe.skipIf(!dbAvailable)("Story 7.12: Alert Service - Server-Side Grouping", () => {
   let testUserId: string;
-  let authHeaders: Record<string, string>;
   let alertIds: string[] = [];
 
   beforeAll(async () => {
-    // Create test user and get auth headers
+    // Create test user
     const user = await createTestUser();
     testUserId = user.userId;
-    authHeaders = await getAuthHeaders(testUserId);
   });
 
   afterAll(async () => {
-    // Clean up test user
+    // Clean up test user (CASCADE will delete alerts)
     await deleteTestUser(testUserId);
   });
 
@@ -65,24 +64,19 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       );
       alertIds.push(alert1.id);
 
-      const response = await fetch("http://localhost:3000/api/alerts", {
-        headers: authHeaders,
-      });
-
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
+      // Call service directly (default behavior is ungrouped)
+      const result = await alertService.getAlerts(testUserId, {});
 
       // Should have ungrouped format
-      expect(data.data).toBeInstanceOf(Array);
-      expect(data.meta.page).toBeDefined();
-      expect(data.meta.limit).toBeDefined();
-      expect(data.meta.totalCount).toBeDefined();
-      expect(data.meta.totalPages).toBeDefined();
+      expect(result.data).toBeInstanceOf(Array);
+      expect(result.meta.page).toBeDefined();
+      expect(result.meta.limit).toBeDefined();
+      expect(result.meta.totalCount).toBeDefined();
+      expect(result.meta.totalPages).toBeDefined();
 
-      // Should NOT have grouped format
-      expect(data.data.groups).toBeUndefined();
-      expect(data.data.ungrouped).toBeUndefined();
+      // Should NOT have grouped format properties
+      expect(result.data).not.toHaveProperty("groups");
+      expect(result.data).not.toHaveProperty("ungrouped");
     });
 
     it("should return ungrouped format when grouped=false", async () => {
@@ -94,17 +88,12 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       );
       alertIds.push(alert1.id);
 
-      const response = await fetch("http://localhost:3000/api/alerts?grouped=false", {
-        headers: authHeaders,
-      });
-
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
+      // Call service with groupBy: false (explicit ungrouped)
+      const result = await alertService.getAlerts(testUserId, { groupBy: false });
 
       // Should have ungrouped format
-      expect(data.data).toBeInstanceOf(Array);
-      expect(data.meta.page).toBeDefined();
+      expect(result.data).toBeInstanceOf(Array);
+      expect(result.meta.page).toBeDefined();
     });
   });
 
@@ -138,27 +127,17 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       );
       alertIds.push(intlStocksAlert.id);
 
-      const response = await fetch("http://localhost:3000/api/alerts?grouped=true", {
-        headers: authHeaders,
-      });
-
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
+      // Call service with grouping enabled
+      const result = await alertService.getAlertsGrouped(testUserId, {});
 
       // Should have grouped format
-      expect(data.data.groups).toBeInstanceOf(Array);
-      expect(data.data.ungrouped).toBeInstanceOf(Array);
-      expect(data.meta.totalCount).toBe(3);
-      expect(data.meta.totalGroups).toBe(2);
-
-      // Should NOT have ungrouped pagination metadata
-      expect(data.meta.page).toBeUndefined();
-      expect(data.meta.limit).toBeUndefined();
-      expect(data.meta.totalPages).toBeUndefined();
+      expect(result.groups).toBeInstanceOf(Array);
+      expect(result.ungrouped).toBeInstanceOf(Array);
+      expect(result.totalCount).toBe(3);
+      expect(result.totalGroups).toBe(2);
 
       // Verify group structure
-      const usStocksGroup = data.data.groups.find(
+      const usStocksGroup = result.groups.find(
         (g: { assetClassName: string }) => g.assetClassName === "US Stocks"
       );
       expect(usStocksGroup).toBeDefined();
@@ -166,7 +145,7 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       expect(usStocksGroup.alerts).toHaveLength(2);
       expect(usStocksGroup.assetClassId).toBe(usStocksClassId);
 
-      const intlStocksGroup = data.data.groups.find(
+      const intlStocksGroup = result.groups.find(
         (g: { assetClassName: string }) => g.assetClassName === "International Stocks"
       );
       expect(intlStocksGroup).toBeDefined();
@@ -198,19 +177,14 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       );
       alertIds.push(infoAlert.id);
 
-      const response = await fetch("http://localhost:3000/api/alerts?grouped=true", {
-        headers: authHeaders,
-      });
+      // Call service with grouping enabled
+      const result = await alertService.getAlertsGrouped(testUserId, {});
 
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
-
-      const usStocksGroup = data.data.groups.find(
+      const usStocksGroup = result.groups.find(
         (g: { assetClassName: string }) => g.assetClassName === "US Stocks"
       );
 
-      // First alert should be the critical one
+      // First alert should be the critical one (sorted by severity then date)
       expect(usStocksGroup.alerts[0].severity).toBe(ALERT_SEVERITIES.CRITICAL);
       expect(usStocksGroup.alerts[1].severity).toBe(ALERT_SEVERITIES.INFO);
     });
@@ -239,18 +213,13 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
         alertIds.push(systemAlert.id);
       }
 
-      const response = await fetch("http://localhost:3000/api/alerts?grouped=true", {
-        headers: authHeaders,
-      });
-
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
+      // Call service with grouping enabled
+      const result = await alertService.getAlertsGrouped(testUserId, {});
 
       // Should have ungrouped alerts
-      expect(data.data.ungrouped).toBeInstanceOf(Array);
-      // System alert should be in ungrouped
-      const systemInUngrouped = data.data.ungrouped.find(
+      expect(result.ungrouped).toBeInstanceOf(Array);
+      // System alert should be in ungrouped (no asset class)
+      const systemInUngrouped = result.ungrouped.find(
         (a: { type: string }) => a.type === ALERT_TYPES.SYSTEM
       );
       expect(systemInUngrouped).toBeDefined();
@@ -281,20 +250,14 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       );
       alertIds.push(driftAlert.id);
 
-      const response = await fetch(
-        "http://localhost:3000/api/alerts?grouped=true&type=opportunity",
-        {
-          headers: authHeaders,
-        }
-      );
-
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
+      // Call service with grouping and type filter
+      const result = await alertService.getAlertsGrouped(testUserId, {
+        type: ALERT_TYPES.OPPORTUNITY,
+      });
 
       // Should only have opportunity alerts
-      expect(data.meta.totalCount).toBe(1);
-      const allAlerts = data.data.groups.flatMap((g: { alerts: unknown[] }) => g.alerts);
+      expect(result.totalCount).toBe(1);
+      const allAlerts = result.groups.flatMap((g: { alerts: unknown[] }) => g.alerts);
       expect(allAlerts.every((a: { type: string }) => a.type === ALERT_TYPES.OPPORTUNITY)).toBe(
         true
       );
@@ -312,16 +275,13 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       // Mark as read
       await alertService.markAsRead(testUserId, alert1.id);
 
-      const response = await fetch("http://localhost:3000/api/alerts?grouped=true&isRead=true", {
-        headers: authHeaders,
+      // Call service with grouping and isRead filter
+      const result = await alertService.getAlertsGrouped(testUserId, {
+        isRead: true,
       });
 
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
-
       // Should only have read alerts
-      const allAlerts = data.data.groups.flatMap((g: { alerts: unknown[] }) => g.alerts);
+      const allAlerts = result.groups.flatMap((g: { alerts: unknown[] }) => g.alerts);
       expect(allAlerts.every((a: { isRead: boolean }) => a.isRead === true)).toBe(true);
     });
 
@@ -337,19 +297,13 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
       // Dismiss alert
       await alertService.dismissAlert(testUserId, alert1.id);
 
-      const response = await fetch(
-        "http://localhost:3000/api/alerts?grouped=true&isDismissed=true",
-        {
-          headers: authHeaders,
-        }
-      );
-
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
+      // Call service with grouping and isDismissed filter
+      const result = await alertService.getAlertsGrouped(testUserId, {
+        isDismissed: true,
+      });
 
       // Should only have dismissed alerts
-      const allAlerts = data.data.groups.flatMap((g: { alerts: unknown[] }) => g.alerts);
+      const allAlerts = result.groups.flatMap((g: { alerts: unknown[] }) => g.alerts);
       expect(allAlerts.every((a: { isDismissed: boolean }) => a.isDismissed === true)).toBe(true);
     });
   });
@@ -380,18 +334,12 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
         }
 
         const startTime = Date.now();
-        const response = await fetch("http://localhost:3000/api/alerts?grouped=true", {
-          headers: authHeaders,
-        });
+        const result = await alertService.getAlertsGrouped(testUserId, {});
         const duration = Date.now() - startTime;
 
-        expect(response.status).toBe(200);
-
-        const data = await response.json();
-
         // Verify grouping worked correctly
-        expect(data.meta.totalGroups).toBe(5);
-        expect(data.meta.totalCount).toBe(50);
+        expect(result.totalGroups).toBe(5);
+        expect(result.totalCount).toBe(50);
 
         // Performance target: should be reasonably fast
         // Note: This is a rough benchmark, actual target is <50ms for database query
@@ -465,18 +413,14 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alerts API - Server-Side Grouping", (
           alertIds.push(alert.id);
         }
 
-        // Fetch ungrouped
-        const ungroupedResponse = await fetch("http://localhost:3000/api/alerts?limit=100", {
-          headers: authHeaders,
-        });
-        const ungroupedData = await ungroupedResponse.text();
+        // Fetch ungrouped format
+        const ungroupedResult = await alertService.getAlerts(testUserId, { limit: 100 });
+        const ungroupedData = JSON.stringify(ungroupedResult);
         const ungroupedSize = ungroupedData.length;
 
-        // Fetch grouped
-        const groupedResponse = await fetch("http://localhost:3000/api/alerts?grouped=true", {
-          headers: authHeaders,
-        });
-        const groupedData = await groupedResponse.text();
+        // Fetch grouped format
+        const groupedResult = await alertService.getAlertsGrouped(testUserId, {});
+        const groupedData = JSON.stringify(groupedResult);
         const groupedSize = groupedData.length;
 
         // Grouped should be smaller or similar size

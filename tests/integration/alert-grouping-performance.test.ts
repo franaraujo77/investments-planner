@@ -22,36 +22,39 @@
  * @see src/lib/services/alert-service.ts - getAlerts(), getAlertsGrouped()
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { AlertService } from "@/lib/services/alert-service";
 import { db } from "@/lib/db";
-import { alerts, users } from "@/lib/db/schema";
+import { alerts } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/telemetry/logger";
-import { isDatabaseAvailable, getDatabaseSkipMessage } from "@tests/helpers";
-import { randomUUID } from "crypto";
+import {
+  isDatabaseAvailable,
+  getDatabaseSkipMessage,
+  createTestUser,
+  deleteTestUser,
+} from "@tests/helpers";
 
 // Check database availability before test suite
 const dbAvailable = await isDatabaseAvailable();
 
 describe.skipIf(!dbAvailable)("Alert Grouping Performance Monitoring", () => {
-  const testUserId = randomUUID();
+  let testUserId: string;
   let alertService: AlertService;
+
+  beforeAll(async () => {
+    // Create test user
+    const user = await createTestUser();
+    testUserId = user.userId;
+  });
+
+  afterAll(async () => {
+    // Clean up test user (CASCADE will delete alerts)
+    await deleteTestUser(testUserId);
+  });
 
   beforeEach(async () => {
     alertService = new AlertService(db);
-
-    // Create test user if doesn't exist
-    await db
-      .insert(users)
-      .values({
-        id: testUserId,
-        email: "perf-test@example.com",
-        displayName: "Perf Test User",
-        locale: "en-US",
-        isEmailVerified: true,
-      })
-      .onConflictDoNothing();
 
     // Clean up existing alerts for test user
     await db.delete(alerts).where(eq(alerts.userId, testUserId));

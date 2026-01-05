@@ -19,29 +19,38 @@
  * @see src/lib/inngest/functions/cleanup-dismissed-pairs.ts
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { db } from "@/lib/db";
 import { dismissedOpportunityPairs } from "@/lib/db/schema";
 import { runCleanupJob, RETENTION_DAYS } from "@/lib/inngest/functions/cleanup-dismissed-pairs";
 import { eq } from "drizzle-orm";
-import { isDatabaseAvailable, getDatabaseSkipMessage } from "@tests/helpers";
+import {
+  isDatabaseAvailable,
+  getDatabaseSkipMessage,
+  createTestUser,
+  deleteTestUser,
+} from "@tests/helpers";
 import { randomUUID } from "crypto";
 
 // Check database availability before test suite
 const dbAvailable = await isDatabaseAvailable();
 
 describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
-  const testUserId = randomUUID();
+  let testUserId: string;
+
+  beforeAll(async () => {
+    // Create test user
+    const user = await createTestUser();
+    testUserId = user.userId;
+  });
+
+  afterAll(async () => {
+    // Clean up test user (CASCADE will delete dismissed pairs)
+    await deleteTestUser(testUserId);
+  });
 
   beforeEach(async () => {
     // Clean up any existing test data
-    await db
-      .delete(dismissedOpportunityPairs)
-      .where(eq(dismissedOpportunityPairs.userId, testUserId));
-  });
-
-  afterEach(async () => {
-    // Clean up test data
     await db
       .delete(dismissedOpportunityPairs)
       .where(eq(dismissedOpportunityPairs.userId, testUserId));
