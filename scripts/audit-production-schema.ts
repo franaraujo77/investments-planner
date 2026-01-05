@@ -67,30 +67,30 @@ async function getProductionColumns(tableName: string): Promise<Map<string, Colu
   return columns;
 }
 
-interface DrizzleTable {
-  [key: symbol]: unknown;
-}
-
-function getSchemaTableNames(): Map<string, DrizzleTable> {
-  const tables = new Map<string, DrizzleTable>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSchemaTableNames(): Map<string, any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tables = new Map<string, any>();
 
   // Extract all table definitions from schema
   for (const [_key, value] of Object.entries(schema)) {
     // Check if it's a Drizzle table
     if (value && typeof value === "object" && value[Symbol.for("drizzle:isPgTable")]) {
-      const table = value as DrizzleTable;
-      const tableName = table[Symbol.for("drizzle:Name")] as string;
-      tables.set(tableName, table);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tableName = (value as any)[Symbol.for("drizzle:Name")];
+      tables.set(tableName, value);
     }
   }
 
   return tables;
 }
 
-function getSchemaColumnNames(table: DrizzleTable): Set<string> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSchemaColumnNames(table: any): Set<string> {
   const columns = new Set<string>();
 
   // Get columns from table definition
+
   const tableColumns = (table[Symbol.for("drizzle:Columns")] || {}) as Record<
     string,
     { name?: string }

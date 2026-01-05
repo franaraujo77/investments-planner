@@ -87,9 +87,11 @@ async function verifyMigrations() {
 
     if (columnRows.length > 0) {
       const column = columnRows[0];
-      console.log("✅ Column 'updated_at' EXISTS in alerts table");
-      console.log(`   Type: ${column.data_type}`);
-      console.log(`   Default: ${column.column_default}`);
+      if (column) {
+        console.log("✅ Column 'updated_at' EXISTS in alerts table");
+        console.log(`   Type: ${column.data_type}`);
+        console.log(`   Default: ${column.column_default}`);
+      }
     } else {
       console.log("❌ Column 'updated_at' DOES NOT EXIST in alerts table");
     }
