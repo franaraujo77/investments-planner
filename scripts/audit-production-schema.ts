@@ -13,7 +13,9 @@
 
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/telemetry/logger";
 import * as schema from "@/lib/db/schema";
+import type { PgTable } from "drizzle-orm/pg-core";
 
 interface ColumnInfo {
   columnName: string;
@@ -161,10 +163,12 @@ function validateDrizzleTable(table: unknown): boolean {
   return true;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSchemaTableNames(): Map<string, any> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tables = new Map<string, any>();
+/**
+ * Get all table definitions from schema
+ * Uses PgTable type for type safety while accessing Drizzle internal symbols
+ */
+function getSchemaTableNames(): Map<string, PgTable> {
+  const tables = new Map<string, PgTable>();
 
   // Extract all table definitions from schema
   for (const [_key, value] of Object.entries(schema)) {
@@ -172,24 +176,28 @@ function getSchemaTableNames(): Map<string, any> {
     if (validateDrizzleTable(value)) {
       // @ts-expect-error - Drizzle uses symbols for internal metadata
       const tableName = value[DRIZZLE_SYMBOLS.name] as string;
-      tables.set(tableName, value);
+      tables.set(tableName, value as PgTable);
     }
   }
 
   if (tables.size === 0) {
-    console.warn("⚠️  No Drizzle tables found in schema - check Drizzle API compatibility");
+    logger.warn("No Drizzle tables found in schema - check Drizzle API compatibility");
   }
 
   return tables;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSchemaColumnNames(table: any): Set<string> {
+/**
+ * Extract column names from a Drizzle table definition
+ * @param table - PgTable instance with Drizzle internal metadata
+ * @returns Set of column names defined in the schema
+ */
+function getSchemaColumnNames(table: PgTable): Set<string> {
   const columns = new Set<string>();
 
   // Validate table has required symbols
   if (!validateDrizzleTable(table)) {
-    console.warn("⚠️  Invalid Drizzle table - skipping column extraction");
+    logger.warn("Invalid Drizzle table - skipping column extraction");
     return columns;
   }
 
@@ -207,7 +215,7 @@ function getSchemaColumnNames(table: any): Set<string> {
 }
 
 async function auditSchema(): Promise<AuditResult[]> {
-  console.log("🔍 Starting production schema audit...\n");
+  logger.info("Starting production schema audit");
 
   const productionTables = await getProductionTables();
   const schemaTables = getSchemaTableNames();
@@ -224,6 +232,7 @@ async function auditSchema(): Promise<AuditResult[]> {
         table: tableName,
         status: "missing-table",
       });
+      logger.warn("Table missing in production", { table: tableName });
       continue;
     }
 
@@ -255,6 +264,18 @@ async function auditSchema(): Promise<AuditResult[]> {
         missingColumns,
         extraColumns,
       });
+      if (missingColumns.length > 0) {
+        logger.warn("Missing columns in production", {
+          table: tableName,
+          columns: missingColumns.join(", "),
+        });
+      }
+      if (extraColumns.length > 0) {
+        logger.info("Extra columns in production not in schema", {
+          table: tableName,
+          columns: extraColumns.join(", "),
+        });
+      }
     } else {
       results.push({
         table: tableName,
@@ -263,6 +284,7 @@ async function auditSchema(): Promise<AuditResult[]> {
     }
   }
 
+  logger.info("Schema audit completed", { tablesChecked: results.length });
   return results;
 }
 
@@ -275,69 +297,72 @@ async function main() {
     const missingTables = results.filter((r) => r.status === "missing-table");
     const tablesWithIssues = results.filter((r) => r.status === "missing-columns");
 
-    // Print summary
-    console.log("📊 Audit Summary");
-    console.log("═".repeat(50));
-    console.log(`Total tables in schema: ${results.length}`);
-    console.log(`✅ Tables OK: ${okTables.length}`);
-    console.log(`❌ Missing tables: ${missingTables.length}`);
-    console.log(`⚠️  Tables with column mismatches: ${tablesWithIssues.length}`);
-    console.log("");
+    // Log summary
+    logger.info("Audit Summary", {
+      totalTables: results.length,
+      okTables: okTables.length,
+      missingTables: missingTables.length,
+      tablesWithIssues: tablesWithIssues.length,
+    });
 
-    // Print detailed results
+    // Log detailed results
     if (missingTables.length > 0) {
-      console.log("❌ Missing Tables in Production:");
-      console.log("─".repeat(50));
-      for (const result of missingTables) {
-        console.log(`  • ${result.table}`);
-      }
-      console.log("");
+      logger.error("Missing tables in production", {
+        tables: missingTables.map((r) => r.table).join(", "),
+        action: "Create missing tables with migrations",
+      });
     }
 
     if (tablesWithIssues.length > 0) {
-      console.log("⚠️  Tables with Column Mismatches:");
-      console.log("─".repeat(50));
       for (const result of tablesWithIssues) {
-        console.log(`\n  Table: ${result.table}`);
         if (result.missingColumns && result.missingColumns.length > 0) {
-          console.log(`    Missing columns in production:`);
-          for (const col of result.missingColumns) {
-            console.log(`      - ${col}`);
-          }
+          logger.error("Missing columns in production", {
+            table: result.table,
+            missingColumns: result.missingColumns.join(", "),
+            action:
+              "Run 'pnpm db:generate' to create migration, then 'pnpm db:migrate' to apply it",
+          });
         }
         if (result.extraColumns && result.extraColumns.length > 0) {
-          console.log(`    Extra columns in production (not in schema):`);
-          for (const col of result.extraColumns) {
-            console.log(`      - ${col}`);
-          }
+          logger.warn("Extra columns in production not in schema", {
+            table: result.table,
+            extraColumns: result.extraColumns.join(", "),
+            action: "Update schema.ts to match production or remove columns with migration",
+          });
         }
       }
-      console.log("");
     }
 
     if (okTables.length > 0 && missingTables.length === 0 && tablesWithIssues.length === 0) {
-      console.log("✅ All tables match schema definition!");
-      console.log("");
-      console.log("Tables verified:");
-      for (const result of okTables) {
-        console.log(`  ✓ ${result.table}`);
-      }
+      logger.info("All tables match schema definition", {
+        verifiedTables: okTables.map((r) => r.table).join(", "),
+      });
     }
 
     // Exit with error if issues found
     if (missingTables.length > 0 || tablesWithIssues.length > 0) {
-      console.log("");
-      console.log("⚠️  Schema audit found issues. Review above and apply necessary migrations.");
+      logger.error("Schema audit found issues", {
+        nextSteps: [
+          "1. Review migration files in drizzle/ directory",
+          "2. Run 'pnpm db:generate' to create new migrations if needed",
+          "3. Run 'pnpm db:migrate' to apply pending migrations",
+          "4. Re-run this audit to verify fixes",
+        ].join("; "),
+      });
       process.exit(1);
     }
 
-    console.log("");
-    console.log("✅ Schema audit complete - no issues found");
+    logger.info("Schema audit complete - no issues found");
     process.exit(0);
   } catch (error) {
-    console.error("❌ Schema audit failed");
-    console.error(getTroubleshootingContext(error, "Schema audit"));
+    logger.error("Schema audit failed", {
+      error: error instanceof Error ? error.message : String(error),
+      troubleshooting: getTroubleshootingContext(error, "Schema audit"),
+    });
     process.exit(1);
+  } finally {
+    // Close database connection to prevent resource leaks
+    await db.$client.end();
   }
 }
 

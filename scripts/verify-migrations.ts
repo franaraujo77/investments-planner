@@ -9,6 +9,7 @@
 
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/telemetry/logger";
 import fs from "fs";
 import path from "path";
 
@@ -81,7 +82,7 @@ function getTroubleshootingContext(error: unknown): string {
 }
 
 async function verifyMigrations() {
-  console.log("🔍 Checking production migration status...\n");
+  logger.info("Checking production migration status");
 
   try {
     // Get applied migrations from database
@@ -91,11 +92,13 @@ async function verifyMigrations() {
 
     const migrationRows = appliedMigrations as unknown as MigrationRow[];
 
-    console.log(`✅ Applied migrations in production: ${migrationRows.length}\n`);
+    logger.info("Applied migrations in production", { count: migrationRows.length });
 
-    console.log("Recent migrations:");
-    migrationRows.slice(0, 10).forEach((migration) => {
-      console.log(`  - ${migration.id} (${new Date(migration.created_at).toISOString()})`);
+    logger.info("Recent migrations", {
+      migrations: migrationRows
+        .slice(0, 10)
+        .map((m) => `${m.id} (${new Date(m.created_at).toISOString()})`)
+        .join(", "),
     });
 
     // Get local migration files
@@ -105,7 +108,7 @@ async function verifyMigrations() {
       .filter((f) => f.endsWith(".sql"))
       .sort();
 
-    console.log(`\n📁 Local migration files: ${localFiles.length}\n`);
+    logger.info("Local migration files found", { count: localFiles.length });
 
     // Check for any missing migrations
     const appliedIds = new Set(migrationRows.map((row) => row.id));
@@ -115,14 +118,17 @@ async function verifyMigrations() {
     });
 
     if (missingMigrations.length > 0) {
-      console.log("\n⚠️  Missing migrations in production:");
-      missingMigrations.forEach((m) => console.log(`  - ${m}`));
+      logger.warn("Missing migrations in production", {
+        count: missingMigrations.length,
+        migrations: missingMigrations.join(", "),
+      });
+      logger.info("Action required: Apply pending migrations with 'pnpm db:migrate'");
     } else {
-      console.log("\n✅ All local migrations are applied in production");
+      logger.info("All local migrations are applied in production");
     }
 
     // Verify updated_at column exists
-    console.log("\n🔍 Checking alerts table schema...");
+    logger.info("Checking alerts table schema");
     const columnCheck = await db.execute(
       sql`SELECT column_name, data_type, column_default
           FROM information_schema.columns
@@ -135,26 +141,39 @@ async function verifyMigrations() {
     if (columnRows.length > 0) {
       const column = columnRows[0];
       if (column) {
-        console.log("✅ Column 'updated_at' EXISTS in alerts table");
-        console.log(`   Type: ${column.data_type}`);
-        console.log(`   Default: ${column.column_default}`);
+        logger.info("Column verified in alerts table", {
+          column: "updated_at",
+          type: column.data_type,
+          default: column.column_default,
+        });
       }
     } else {
-      console.log("❌ Column 'updated_at' DOES NOT EXIST in alerts table");
+      logger.error("Column missing in alerts table", {
+        column: "updated_at",
+        table: "alerts",
+        action: "Run 'pnpm db:migrate' to apply pending migrations",
+      });
     }
   } catch (error) {
-    console.error("❌ Migration verification failed");
-    console.error(getTroubleshootingContext(error));
+    logger.error("Migration verification failed", {
+      error: error instanceof Error ? error.message : String(error),
+      troubleshooting: getTroubleshootingContext(error),
+    });
     process.exit(1);
+  } finally {
+    // Close database connection to prevent resource leaks
+    await db.$client.end();
   }
 }
 
 verifyMigrations()
   .then(() => {
-    console.log("\n✅ Verification complete");
+    logger.info("Verification complete");
     process.exit(0);
   })
   .catch((error) => {
-    console.error("Fatal error:", error);
+    logger.error("Fatal error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     process.exit(1);
   });

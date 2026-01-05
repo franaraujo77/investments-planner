@@ -3,11 +3,8 @@ name: Schema Audit
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'src/lib/db/schema.ts'
-      - 'drizzle/**'
-      - 'src/lib/services/**'
-      - 'src/lib/repositories/**'
+    # NOTE: Path filter removed - doesn't work reliably with merge commits (see PR #29)
+    # Step-level check (line 47) detects if schema files actually changed
 
 # CRITICAL: Prevent concurrent audits on same PR branch
 # Different PR branches can run concurrently (they don't conflict)
@@ -37,22 +34,56 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0  # Need full history to compare with base branch
+
+      - name: Check for schema file changes
+        id: check-schema
+        run: |
+          echo "Checking for schema-related file changes..."
+
+          # Get the base branch (what PR is merging into)
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          BASE_SHA=$(git rev-parse origin/${{ github.event.pull_request.base.ref }})
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          # Check if any schema-related files changed
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA)
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+
+          # Check for schema-related changes
+          SCHEMA_FILES=$(echo "$CHANGED_FILES" | grep -E '^(src/lib/db/schema\.ts|drizzle/|src/lib/services/|src/lib/repositories/)' || true)
+
+          if [ -z "$SCHEMA_FILES" ]; then
+            echo "::notice::No schema-related files changed. Skipping schema audit."
+            echo "has_schema_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Schema-related files detected:"
+            echo "$SCHEMA_FILES"
+            echo "has_schema_changes=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup pnpm
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - name: Setup Node.js
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'pnpm'
 
       - name: Install dependencies
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Apply pending migrations
+        if: steps.check-schema.outputs.has_schema_changes == 'true'
         id: migrate
         run: |
           echo "Applying migrations from PR..."
@@ -67,8 +98,8 @@ jobs:
           fi
 
       - name: Run schema audit
+        if: steps.check-schema.outputs.has_schema_changes == 'true' && steps.migrate.outputs.migrate_status == 'success'
         id: audit
-        if: steps.migrate.outputs.migrate_status == 'success'
         run: |
           echo "Auditing schema consistency..."
           pnpm db:audit-schema 2>&1 | tee audit-output.txt
@@ -83,8 +114,8 @@ jobs:
           exit $AUDIT_EXIT_CODE
 
       - name: Verify migrations applied
+        if: steps.check-schema.outputs.has_schema_changes == 'true' && steps.migrate.outputs.migrate_status == 'success'
         id: verify
-        if: steps.migrate.outputs.migrate_status == 'success'
         run: |
           echo "Verifying all migrations are applied..."
           pnpm db:verify-migrations 2>&1 | tee verify-output.txt
@@ -104,13 +135,23 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const hasSchemaChanges = '${{ steps.check-schema.outputs.has_schema_changes }}';
             const auditStatus = '${{ steps.audit.outputs.audit_status }}';
             const verifyStatus = '${{ steps.verify.outputs.verify_status }}';
             const migrateStatus = '${{ steps.migrate.outputs.migrate_status }}';
 
             let body = '## 🔍 Schema Audit Results\n\n';
 
-            if (migrateStatus === 'failed') {
+            // Check if audit was skipped
+            if (hasSchemaChanges === 'false') {
+              body += '⏭️  **Schema Audit Skipped**\n\n';
+              body += 'No schema-related files were changed in this PR.\n';
+              body += 'Audit only runs when these paths change:\n';
+              body += '- `src/lib/db/schema.ts`\n';
+              body += '- `drizzle/**`\n';
+              body += '- `src/lib/services/**`\n';
+              body += '- `src/lib/repositories/**`\n';
+            } else if (migrateStatus === 'failed') {
               body += '❌ **Migration Failed**\n\n';
               body += 'PR migrations could not be applied to test database.\n\n';
               if (fs.existsSync('migrate-output.txt')) {
