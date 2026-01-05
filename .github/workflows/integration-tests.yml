@@ -119,6 +119,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Apply database migrations
+        id: migrate
+        run: |
+          echo "🔄 Applying database migrations to integration test database..."
+          echo ""
+          echo "Using programmatic migration (see CLAUDE.md for details)"
+          echo ""
+
+          # Run migration using programmatic approach (not drizzle-kit - see CLAUDE.md)
+          npx tsx scripts/run-migrations.ts
+
+          if [ $? -eq 0 ]; then
+            echo ""
+            echo "✅ Migrations applied successfully to integration test database"
+          else
+            echo ""
+            echo "::error::Migration failed - integration tests cannot proceed"
+            exit 1
+          fi
+
       - name: Run integration tests
         id: tests
         run: |
