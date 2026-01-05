@@ -40,7 +40,7 @@ async function check() {
 
     const publicCount = await sql`SELECT COUNT(*) as count FROM __drizzle_migrations`;
     console.log(`\n📈 Total in public schema: ${publicCount[0]?.count ?? 0}`);
-  } catch (e) {
+  } catch (_e) {
     console.log("\n❌ public.__drizzle_migrations doesn't exist");
   }
 
