@@ -319,7 +319,7 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
     const daysAgo = (days: number) => {
       const date = new Date(now);
       date.setDate(date.getDate() - days);
-      date.setHours(0, 0, 0, 0); // Normalize to midnight for precision
+      // Keep same time-of-day as SQL NOW() to match cleanup job logic
       return date;
     };
 
