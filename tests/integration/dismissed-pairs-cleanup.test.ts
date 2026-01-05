@@ -19,7 +19,7 @@
  * @see src/lib/inngest/functions/cleanup-dismissed-pairs.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import { db } from "@/lib/db";
 import { dismissedOpportunityPairs } from "@/lib/db/schema";
 import { runCleanupJob, RETENTION_DAYS } from "@/lib/inngest/functions/cleanup-dismissed-pairs";
@@ -50,7 +50,14 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
   });
 
   beforeEach(async () => {
-    // Clean up any existing test data
+    // Clean up any existing test data before test runs
+    await db
+      .delete(dismissedOpportunityPairs)
+      .where(eq(dismissedOpportunityPairs.userId, testUserId));
+  });
+
+  afterEach(async () => {
+    // Clean up test data after each test to prevent pollution
     await db
       .delete(dismissedOpportunityPairs)
       .where(eq(dismissedOpportunityPairs.userId, testUserId));

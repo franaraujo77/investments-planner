@@ -67,16 +67,17 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alert Service - Server-Side Grouping"
       // Call service directly (default behavior is ungrouped)
       const result = await alertService.getAlerts(testUserId, {});
 
-      // Should have ungrouped format
-      expect(result.data).toBeInstanceOf(Array);
-      expect(result.meta.page).toBeDefined();
-      expect(result.meta.limit).toBeDefined();
-      expect(result.meta.totalCount).toBeDefined();
-      expect(result.meta.totalPages).toBeDefined();
+      // Should have ungrouped format (AlertQueryResult structure)
+      expect(result.alerts).toBeInstanceOf(Array);
+      expect(result.alerts.length).toBeGreaterThan(0);
+      expect(result.totalCount).toBeDefined();
+      expect(result.metadata.limit).toBeDefined();
+      expect(result.metadata.offset).toBeDefined();
+      expect(result.executionTimeMs).toBeDefined();
 
       // Should NOT have grouped format properties
-      expect(result.data).not.toHaveProperty("groups");
-      expect(result.data).not.toHaveProperty("ungrouped");
+      expect(result).not.toHaveProperty("groups");
+      expect(result).not.toHaveProperty("ungrouped");
     });
 
     it("should return ungrouped format when grouped=false", async () => {
@@ -91,9 +92,10 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alert Service - Server-Side Grouping"
       // Call service with groupBy: false (explicit ungrouped)
       const result = await alertService.getAlerts(testUserId, { groupBy: false });
 
-      // Should have ungrouped format
-      expect(result.data).toBeInstanceOf(Array);
-      expect(result.meta.page).toBeDefined();
+      // Should have ungrouped format (AlertQueryResult structure)
+      expect(result.alerts).toBeInstanceOf(Array);
+      expect(result.totalCount).toBeDefined();
+      expect(result.metadata.offset).toBeDefined();
     });
   });
 
