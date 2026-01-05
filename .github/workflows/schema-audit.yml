@@ -16,6 +16,12 @@ concurrency:
   group: schema-audit-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: true
 
+# Required permissions for posting PR comments
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   schema-audit:
     name: Schema Consistency Check
@@ -40,7 +46,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2  # Only need HEAD and base for file comparison
+          fetch-depth: 0  # Fetch full history to ensure merge base exists
 
       - name: Validate required secrets
         run: |
@@ -59,8 +65,15 @@ jobs:
           BASE_SHA=$(git rev-parse origin/${{ github.event.pull_request.base.ref }})
           HEAD_SHA=${{ github.event.pull_request.head.sha }}
 
-          # Check if any schema-related files changed
-          CHANGED_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA)
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+
+          # Find merge base to handle diverged branches
+          MERGE_BASE=$(git merge-base $BASE_SHA $HEAD_SHA 2>/dev/null || echo "$BASE_SHA")
+          echo "Merge base: $MERGE_BASE"
+
+          # Check if any schema-related files changed (compare against merge base)
+          CHANGED_FILES=$(git diff --name-only $MERGE_BASE...$HEAD_SHA)
 
           echo "Changed files:"
           echo "$CHANGED_FILES"
