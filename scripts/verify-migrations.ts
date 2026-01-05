@@ -33,11 +33,12 @@ async function verifyMigrations() {
       sql`SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
     );
 
-    console.log(`✅ Applied migrations in production: ${appliedMigrations.rows.length}\n`);
+    const migrationRows = appliedMigrations as unknown as MigrationRow[];
+
+    console.log(`✅ Applied migrations in production: ${migrationRows.length}\n`);
 
     console.log("Recent migrations:");
-    appliedMigrations.rows.slice(0, 10).forEach((row) => {
-      const migration = row as MigrationRow;
+    migrationRows.slice(0, 10).forEach((migration) => {
       console.log(`  - ${migration.id} (${new Date(migration.created_at).toISOString()})`);
     });
 
@@ -51,9 +52,7 @@ async function verifyMigrations() {
     console.log(`\n📁 Local migration files: ${localFiles.length}\n`);
 
     // Check for migration 0014 specifically
-    const migration14Applied = appliedMigrations.rows.some((row) =>
-      (row as MigrationRow).id.includes("0014")
-    );
+    const migration14Applied = migrationRows.some((row) => row.id.includes("0014"));
 
     if (migration14Applied) {
       console.log("✅ Migration 0014 (alerts updated_at) IS APPLIED");
@@ -62,7 +61,7 @@ async function verifyMigrations() {
     }
 
     // Check for any missing migrations
-    const appliedIds = new Set(appliedMigrations.rows.map((row) => (row as MigrationRow).id));
+    const appliedIds = new Set(migrationRows.map((row) => row.id));
     const missingMigrations = localFiles.filter((f) => {
       const migrationId = f.replace(".sql", "");
       return !appliedIds.has(migrationId);
@@ -84,8 +83,10 @@ async function verifyMigrations() {
           AND column_name = 'updated_at'`
     );
 
-    if (columnCheck.rows.length > 0) {
-      const column = columnCheck.rows[0] as ColumnRow;
+    const columnRows = columnCheck as unknown as ColumnRow[];
+
+    if (columnRows.length > 0) {
+      const column = columnRows[0];
       console.log("✅ Column 'updated_at' EXISTS in alerts table");
       console.log(`   Type: ${column.data_type}`);
       console.log(`   Default: ${column.column_default}`);

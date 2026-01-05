@@ -39,7 +39,8 @@ interface DatabaseRow {
 
 async function getProductionTables(): Promise<Set<string>> {
   const result = await db.execute(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
-  return new Set(result.rows.map((row) => (row as DatabaseRow).tablename ?? ""));
+  const rows = result as unknown as DatabaseRow[];
+  return new Set(rows.map((row) => row.tablename ?? ""));
 }
 
 async function getProductionColumns(tableName: string): Promise<Map<string, ColumnInfo>> {
@@ -50,9 +51,10 @@ async function getProductionColumns(tableName: string): Promise<Map<string, Colu
         AND table_name = ${tableName}`
   );
 
+  const rows = result as unknown as DatabaseRow[];
   const columns = new Map<string, ColumnInfo>();
-  for (const row of result.rows) {
-    const dbRow = row as DatabaseRow;
+
+  for (const dbRow of rows) {
     if (dbRow.column_name) {
       columns.set(dbRow.column_name, {
         columnName: dbRow.column_name,
@@ -65,33 +67,37 @@ async function getProductionColumns(tableName: string): Promise<Map<string, Colu
   return columns;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSchemaTableNames(): Map<string, any> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tables = new Map<string, any>();
+interface DrizzleTable {
+  [key: symbol]: unknown;
+}
+
+function getSchemaTableNames(): Map<string, DrizzleTable> {
+  const tables = new Map<string, DrizzleTable>();
 
   // Extract all table definitions from schema
   for (const [_key, value] of Object.entries(schema)) {
     // Check if it's a Drizzle table
     if (value && typeof value === "object" && value[Symbol.for("drizzle:isPgTable")]) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tableName = (value as any)[Symbol.for("drizzle:Name")];
-      tables.set(tableName, value);
+      const table = value as DrizzleTable;
+      const tableName = table[Symbol.for("drizzle:Name")] as string;
+      tables.set(tableName, table);
     }
   }
 
   return tables;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSchemaColumnNames(table: any): Set<string> {
+function getSchemaColumnNames(table: DrizzleTable): Set<string> {
   const columns = new Set<string>();
 
   // Get columns from table definition
-  const tableColumns = table[Symbol.for("drizzle:Columns")] || {};
+  const tableColumns = (table[Symbol.for("drizzle:Columns")] || {}) as Record<
+    string,
+    { name?: string }
+  >;
+
   for (const [_key, column] of Object.entries(tableColumns)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const columnName = (column as any).name;
+    const columnName = column.name;
     if (columnName) {
       columns.add(columnName);
     }
