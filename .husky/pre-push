@@ -15,6 +15,14 @@ fi
 
 echo "🔍 Running pre-push validations..."
 
+# Route conflict check (Story 7.15 - prevents production outages)
+echo "🛣️  Route conflict check..."
+pnpm check:routes || {
+  echo "❌ Route conflict check failed. Fix route conflicts before pushing."
+  echo "💡 See scripts/check-route-conflicts.ts for details."
+  exit 1
+}
+
 # TypeScript type check (not run by lint-staged)
 echo "📝 TypeScript check..."
 pnpm exec tsc --noEmit || {
