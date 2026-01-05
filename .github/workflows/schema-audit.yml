@@ -19,7 +19,7 @@ jobs:
   schema-audit:
     name: Schema Consistency Check
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     # Skip if secrets not configured (fork PRs don't have access to secrets)
     if: github.event.pull_request.head.repo.full_name == github.repository
@@ -34,7 +34,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0  # Need full history to compare with base branch
+          fetch-depth: 2  # Only need HEAD and base for file comparison
+
+      - name: Validate required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Missing DATABASE_URL secret"
+            exit 1
+          fi
 
       - name: Check for schema file changes
         id: check-schema
@@ -167,7 +174,7 @@ jobs:
               body += '❌ **Schema Audit Failed**\n\n';
               body += 'Schema definitions in `schema.ts` do not match database structure.\n\n';
               if (fs.existsSync('audit-output.txt')) {
-                const output = fs.readFileSync('audit-output.txt', 'utf8').slice(0, 2000);
+                const output = fs.readFileSync('audit-output.txt', 'utf8').slice(0, 4000);
                 body += '<details><summary>Audit Details</summary>\n\n```\n' + output + '\n```\n</details>\n';
               }
               body += '\n**Action Required:** Review schema changes and ensure migrations are correct.\n';

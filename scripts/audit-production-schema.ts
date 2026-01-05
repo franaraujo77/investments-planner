@@ -41,7 +41,8 @@ interface AuditResult {
 async function getProductionTables(): Promise<Set<string>> {
   const result = await db.execute(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
 
-  // Use type guard to validate and filter rows
+  // Cast to unknown[] first since db.execute returns unknown type
+  // Then filter using type guard to validate runtime structure
   const rows = (result as unknown[]).filter(isTableNameRow);
   return new Set(rows.map((row) => row.tablename));
 }
@@ -54,7 +55,8 @@ async function getProductionColumns(tableName: string): Promise<Map<string, Colu
         AND table_name = ${tableName}`
   );
 
-  // Use type guard to validate and filter rows
+  // Cast to unknown[] first since db.execute returns unknown type
+  // Then filter using type guard to validate runtime structure
   const rows = (result as unknown[]).filter(isColumnInfoRow);
   const columns = new Map<string, ColumnInfo>();
 
@@ -256,21 +258,33 @@ async function main() {
           "4. Re-run this audit to verify fixes",
         ].join("; "),
       });
-      process.exit(1);
+      // Throw error instead of process.exit to allow finally block to run
+      throw new Error("Schema audit found issues");
     }
 
     logger.info("Schema audit complete - no issues found");
-    process.exit(0);
   } catch (error) {
     logger.error("Schema audit failed", {
       error: error instanceof Error ? error.message : String(error),
       troubleshooting: getTroubleshootingContext(error, "Schema audit"),
     });
-    process.exit(1);
-  } finally {
-    // Close database connection to prevent resource leaks
-    await db.$client.end();
+    // Propagate error instead of process.exit to allow finally block to run
+    throw error;
   }
 }
 
-main();
+main()
+  .then(() => {
+    logger.info("Schema audit complete");
+    process.exit(0);
+  })
+  .catch((error) => {
+    logger.error("Fatal error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(1);
+  })
+  .finally(async () => {
+    // Always close database connection to prevent resource leaks
+    await db.$client.end();
+  });

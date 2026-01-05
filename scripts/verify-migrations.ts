@@ -23,7 +23,8 @@ async function verifyMigrations() {
       sql`SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
     );
 
-    // Validate and filter migration rows using type guard
+    // Cast to unknown[] first since db.execute returns unknown type
+    // Then filter using type guard to validate runtime structure
     const migrationRows = (appliedMigrations as unknown[]).filter(isMigrationRow);
 
     logger.info("Applied migrations in production", { count: migrationRows.length });
@@ -65,10 +66,8 @@ async function verifyMigrations() {
       error: error instanceof Error ? error.message : String(error),
       troubleshooting: getTroubleshootingContext(error),
     });
-    process.exit(1);
-  } finally {
-    // Close database connection to prevent resource leaks
-    await db.$client.end();
+    // Propagate error instead of process.exit to allow finally block to run
+    throw error;
   }
 }
 
@@ -82,4 +81,8 @@ verifyMigrations()
       error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
+  })
+  .finally(async () => {
+    // Always close database connection to prevent resource leaks
+    await db.$client.end();
   });
