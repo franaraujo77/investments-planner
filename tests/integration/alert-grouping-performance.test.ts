@@ -100,7 +100,7 @@ describe.skipIf(!dbAvailable)("Alert Grouping Performance Monitoring", () => {
 
     // Measure query execution time
     const startTime = performance.now();
-    const result = await alertService.getAlerts(testUserId, {});
+    const result = await alertService.getAlerts(testUserId, { limit: 100 });
     const endTime = performance.now();
     const measuredExecutionTimeMs = Math.round(endTime - startTime);
 

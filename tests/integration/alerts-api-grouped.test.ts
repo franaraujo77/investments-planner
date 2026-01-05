@@ -24,6 +24,9 @@ import {
   getDatabaseSkipMessage,
 } from "../helpers";
 import { alertService, ALERT_TYPES, ALERT_SEVERITIES } from "@/lib/services/alert-service";
+import { db } from "@/lib/db";
+import { alerts } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { randomUUID } from "crypto";
 
@@ -46,11 +49,9 @@ describe.skipIf(!dbAvailable)("Story 7.12: Alert Service - Server-Side Grouping"
   });
 
   beforeEach(async () => {
-    // Clean up any existing alerts
-    if (alertIds.length > 0) {
-      // Alerts will be deleted via CASCADE when user is deleted
-      alertIds = [];
-    }
+    // Clean up any existing alerts for test user from database
+    await db.delete(alerts).where(eq(alerts.userId, testUserId));
+    alertIds = [];
   });
 
   describe("AC-7.12.4: Backward Compatibility", () => {

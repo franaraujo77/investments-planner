@@ -315,9 +315,11 @@ describe.skipIf(!dbAvailable)("Dismissed Pairs Cleanup Job", () => {
    * Tests that pairs exactly at 90 days are NOT deleted (only >90 days).
    */
   it("should retain pairs exactly at 90-day boundary", async () => {
+    const now = new Date();
     const daysAgo = (days: number) => {
-      const date = new Date();
+      const date = new Date(now);
       date.setDate(date.getDate() - days);
+      date.setHours(0, 0, 0, 0); // Normalize to midnight for precision
       return date;
     };
 
