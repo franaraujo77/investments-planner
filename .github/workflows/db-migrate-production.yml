@@ -154,9 +154,11 @@ jobs:
 
           echo "Applying database migrations to production..."
           echo ""
+          echo "Using programmatic migration (see CLAUDE.md for drizzle-kit bug details)"
+          echo ""
 
-          # Run migration and capture output - pipefail ensures we get pnpm's exit code
-          pnpm db:migrate 2>&1 | tee migration-output.txt
+          # Run migration using programmatic approach (not drizzle-kit - see CLAUDE.md)
+          npx tsx scripts/run-migrations.ts 2>&1 | tee migration-output.txt
           MIGRATE_EXIT_CODE=$?
 
           if [ $MIGRATE_EXIT_CODE -eq 0 ]; then

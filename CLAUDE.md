@@ -689,3 +689,78 @@ Response with updated data
 ```
 
 **Key Rule:** Recalculation is synchronous, not queued. Keep it fast (<100ms).
+
+## Database Migrations
+
+**Migration Approach:**
+
+This project uses **programmatic migrations** via `drizzle-orm/postgres-js/migrator`, NOT `drizzle-kit migrate`.
+
+**Why NOT drizzle-kit?**
+
+The `drizzle-kit migrate` command (v0.31.7) has a critical bug where it:
+
+- ✅ Reports "migrations applied successfully!"
+- ✅ Creates the `__drizzle_migrations` table
+- ❌ **Does NOT populate** the migrations tracking table
+- ❌ **Does NOT actually apply** migration SQL files
+
+This caused all 28 migrations to be missing from production, including critical schema changes.
+
+**References:**
+
+- https://github.com/drizzle-team/drizzle-orm/issues/4560
+- https://github.com/drizzle-team/drizzle-orm/issues/4451
+
+**Migration Workflow:**
+
+```bash
+# Generate migration from schema changes
+pnpm db:generate
+
+# Apply migrations using programmatic approach
+pnpm db:migrate
+
+# Verify migrations applied
+pnpm db:verify-migrations
+
+# Push schema directly (dev only, no migration files)
+pnpm db:push
+
+# Open Drizzle Studio
+pnpm db:studio
+```
+
+**Production Migrations:**
+
+- Automated via GitHub Actions on PR merge to main
+- Manual trigger available via workflow_dispatch
+- Uses `npx tsx scripts/run-migrations.ts` (programmatic approach)
+- Verifies migrations with `scripts/verify-migrations.ts`
+- See `.github/workflows/db-migrate-production.yml`
+
+**Migration Script Pattern:**
+
+```typescript
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
+
+const sql = postgres(DATABASE_URL, { max: 1 });
+const db = drizzle(sql);
+
+await migrate(db, {
+  migrationsFolder: "./drizzle",
+  migrationsTable: "__drizzle_migrations",
+  migrationsSchema: "drizzle",
+});
+
+await sql.end();
+```
+
+**Critical Rules:**
+
+- Use `scripts/run-migrations.ts` for all production migrations
+- Never use `drizzle-kit migrate` directly (reserved as `db:migrate:drizzle-kit` for reference only)
+- Always verify migrations with `pnpm db:verify-migrations`
+- Migrations are tracked in `__drizzle_migrations` table in `drizzle` schema

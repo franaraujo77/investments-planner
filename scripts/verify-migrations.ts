@@ -7,87 +7,92 @@
  * 3. Identifies any missing migrations
  */
 
-import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
 import { logger } from "@/lib/telemetry/logger";
-import { getTroubleshootingContext, isMigrationRow } from "@/lib/db/migration-utils";
+import { getTroubleshootingContext } from "@/lib/db/migration-utils";
 import fs from "fs";
 import path from "path";
+import postgres from "postgres";
 
 async function verifyMigrations() {
   logger.info("Checking production migration status");
 
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    logger.error("DATABASE_URL environment variable is not set");
+    throw new Error("DATABASE_URL is required");
+  }
+
+  // Use raw postgres connection like run-migrations.ts
+  const sql = postgres(connectionString, { max: 1 });
+
   try {
-    // Get applied migrations from database
-    // Try both schema locations to be compatible with different Drizzle versions
-    let appliedMigrations;
-    try {
-      // First try with explicit drizzle schema (new Drizzle versions)
-      appliedMigrations = await db.execute(
-        sql`SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC`
-      );
-    } catch (schemaError) {
-      const errorMsg = schemaError instanceof Error ? schemaError.message : String(schemaError);
+    // Get applied migrations from database using raw SQL
+    const appliedMigrations = await sql<
+      { id: number; hash: string; created_at: number }[]
+    >`SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC`;
 
-      // Only attempt fallback for schema-related errors
-      // Other errors (network, auth, timeout) should fail immediately
-      if (errorMsg.includes("does not exist") || errorMsg.includes("relation")) {
-        logger.debug("Schema location mismatch detected", { error: errorMsg });
-        logger.info("Trying alternate schema location for migrations table");
-        appliedMigrations = await db.execute(
-          sql`SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
-        );
-      } else {
-        // Re-throw non-schema errors immediately (network, auth, etc.)
-        throw schemaError;
-      }
-    }
-
-    // Cast to unknown[] first since db.execute returns unknown type
-    // Then filter using type guard to validate runtime structure
-    const migrationRows = (appliedMigrations as unknown[]).filter(isMigrationRow);
+    const migrationRows = appliedMigrations;
 
     logger.info("Applied migrations in production", { count: migrationRows.length });
 
     logger.info("Recent migrations", {
       migrations: migrationRows
         .slice(0, 10)
-        .map((m) => `${m.id} (${new Date(m.created_at).toISOString()})`)
+        .map((m) => `${m.id}`)
         .join(", "),
     });
 
-    // Get local migration files
-    const migrationsDir = path.join(process.cwd(), "drizzle");
-    const localFiles = fs
-      .readdirSync(migrationsDir)
-      .filter((f) => f.endsWith(".sql"))
-      .sort();
+    // Get local migration journal
+    const journalPath = path.join(process.cwd(), "drizzle", "meta", "_journal.json");
+    const journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"));
+    const localMigrations = journal.entries || [];
 
-    logger.info("Local migration files found", { count: localFiles.length });
+    logger.info("Local migrations in journal", { count: localMigrations.length });
 
-    // Check for any missing migrations
-    const appliedIds = new Set(migrationRows.map((row) => row.id));
-    const missingMigrations = localFiles.filter((f) => {
-      const migrationId = f.replace(".sql", "");
-      return !appliedIds.has(migrationId);
-    });
+    // Drizzle stores migrations by index (idx) starting from 1
+    // So migration with idx:0 is stored as id:1, idx:1 as id:2, etc.
+    const expectedIds = new Set(
+      localMigrations.map((entry: { idx: number }) => String(entry.idx + 1))
+    );
+    const appliedIds = new Set(migrationRows.map((row) => String(row.id)));
 
-    if (missingMigrations.length > 0) {
+    // Find migrations in journal but not in database
+    const missingInDb = localMigrations.filter(
+      (entry: { idx: number; tag: string }) => !appliedIds.has(String(entry.idx + 1))
+    );
+
+    // Find migrations in database but not in journal (orphaned)
+    const orphanedInDb = migrationRows.filter((row) => !expectedIds.has(String(row.id)));
+
+    if (missingInDb.length > 0) {
       logger.warn("Missing migrations in production", {
-        count: missingMigrations.length,
-        migrations: missingMigrations.join(", "),
+        count: missingInDb.length,
+        migrations: missingInDb.map((e: { tag: string }) => e.tag).join(", "),
       });
       logger.info("Action required: Apply pending migrations with 'pnpm db:migrate'");
     } else {
       logger.info("All local migrations are applied in production");
+    }
+
+    if (orphanedInDb.length > 0) {
+      logger.warn("Orphaned migrations in production (not in local journal)", {
+        count: orphanedInDb.length,
+        ids: orphanedInDb.map((row) => row.id).join(", "),
+      });
+      logger.info(
+        "These migrations were applied but are no longer in your codebase. " +
+          "This can happen if migrations were deleted or the codebase was rolled back."
+      );
     }
   } catch (error) {
     logger.error("Migration verification failed", {
       error: error instanceof Error ? error.message : String(error),
       troubleshooting: getTroubleshootingContext(error),
     });
-    // Propagate error instead of process.exit to allow finally block to run
     throw error;
+  } finally {
+    // Always close database connection to prevent resource leaks
+    await sql.end();
   }
 }
 
@@ -101,8 +106,4 @@ verifyMigrations()
       error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
-  })
-  .finally(async () => {
-    // Always close database connection to prevent resource leaks
-    await db.$client.end();
   });
